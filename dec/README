@@ -1,0 +1,3 @@
+This directory holds the decoder for brotli compression format.
+
+Brotli is proposed to be used at the byte-compression level in WOFF 2.0 format.
