@@ -141,8 +141,8 @@ static int ReadHuffmanCodeLengths(
   int prev_code_len = kDefaultCodeLength;
   HuffmanTree tree;
 
-  if (!HuffmanTreeBuildImplicit(&tree, code_length_code_lengths,
-                                CODE_LENGTH_CODES)) {
+  if (!BrotliHuffmanTreeBuildImplicit(&tree, code_length_code_lengths,
+                                      CODE_LENGTH_CODES)) {
     printf("[ReadHuffmanCodeLengths] Building code length tree failed: ");
     PrintIntVector(code_length_code_lengths, CODE_LENGTH_CODES);
     return 0;
@@ -199,7 +199,7 @@ static int ReadHuffmanCodeLengths(
   ok = 1;
 
  End:
-  HuffmanTreeRelease(&tree);
+  BrotliHuffmanTreeRelease(&tree);
   return ok;
 }
 
@@ -281,8 +281,8 @@ static int ReadHuffmanCode(int alphabet_size,
     BROTLI_LOG_UINT(first_symbol_len_code);
     BROTLI_LOG_UINT(symbols[0]);
     BROTLI_LOG_UINT(symbols[1]);
-    ok = HuffmanTreeBuildExplicit(tree, code_lengths, codes, symbols,
-                                  alphabet_size, num_symbols);
+    ok = BrotliHuffmanTreeBuildExplicit(tree, code_lengths, codes, symbols,
+                                        alphabet_size, num_symbols);
     if (!ok) {
       printf("[ReadHuffmanCode] HuffmanTreeBuildExplicit failed: ");
       PrintIntVector(code_lengths, num_symbols);
@@ -312,7 +312,7 @@ static int ReadHuffmanCode(int alphabet_size,
                                 code_lengths, br) &&
          RepairHuffmanCodeLengths(alphabet_size, code_lengths);
     if (ok) {
-      ok = HuffmanTreeBuildImplicit(tree, code_lengths, alphabet_size);
+      ok = BrotliHuffmanTreeBuildImplicit(tree, code_lengths, alphabet_size);
       if (!ok) {
         printf("[ReadHuffmanCode] HuffmanTreeBuildImplicit failed: ");
         PrintIntVector(code_lengths, alphabet_size);
@@ -422,22 +422,23 @@ typedef struct {
   HuffmanTree* htrees;
 } HuffmanTreeGroup;
 
-void HuffmanTreeGroupInit(HuffmanTreeGroup* group, int alphabet_size,
-                          int ntrees) {
+static void HuffmanTreeGroupInit(HuffmanTreeGroup* group, int alphabet_size,
+                                 int ntrees) {
   group->alphabet_size = alphabet_size;
   group->num_htrees = ntrees;
   group->htrees = (HuffmanTree*)malloc(sizeof(HuffmanTree) * ntrees);
 }
 
-void HuffmanTreeGroupRelease(HuffmanTreeGroup* group) {
+static void HuffmanTreeGroupRelease(HuffmanTreeGroup* group) {
   int i;
   for (i = 0; i < group->num_htrees; ++i) {
-    HuffmanTreeRelease(&group->htrees[i]);
+    BrotliHuffmanTreeRelease(&group->htrees[i]);
   }
   free(group->htrees);
 }
 
-int HuffmanTreeGroupDecode(HuffmanTreeGroup* group, BrotliBitReader* br) {
+static int HuffmanTreeGroupDecode(HuffmanTreeGroup* group,
+                                  BrotliBitReader* br) {
   int i;
   for (i = 0; i < group->num_htrees; ++i) {
     ReadHuffmanCode(group->alphabet_size, &group->htrees[i], br);
@@ -445,13 +446,13 @@ int HuffmanTreeGroupDecode(HuffmanTreeGroup* group, BrotliBitReader* br) {
   return 1;
 }
 
-int DecodeContextMap(int num_block_types,
-                     int stream_type,
-                     int* context_mode,
-                     int* contexts_per_block,
-                     int* num_htrees,
-                     uint8_t** context_map,
-                     BrotliBitReader* br) {
+static int DecodeContextMap(int num_block_types,
+                            int stream_type,
+                            int* context_mode,
+                            int* contexts_per_block,
+                            int* num_htrees,
+                            uint8_t** context_map,
+                            BrotliBitReader* br) {
   int use_context = BrotliReadBits(br, 1);
   if (!use_context) {
     *context_mode = 0;
@@ -522,7 +523,7 @@ int DecodeContextMap(int num_block_types,
       (*context_map)[i] = ReadSymbol(&tree_index_htree, br);
     }
   }
-  HuffmanTreeRelease(&tree_index_htree);
+  BrotliHuffmanTreeRelease(&tree_index_htree);
   if (BrotliReadBits(br, 1)) {
     InverseMoveToFrontTransform(*context_map, context_map_size);
   }
@@ -775,8 +776,8 @@ int BrotliDecompressBuffer(size_t encoded_size,
     free(dist_context_map);
     for (i = 0; i < 3; ++i) {
       HuffmanTreeGroupRelease(&hgroup[i]);
-      HuffmanTreeRelease(&block_type_trees[i]);
-      HuffmanTreeRelease(&block_len_trees[i]);
+      BrotliHuffmanTreeRelease(&block_type_trees[i]);
+      BrotliHuffmanTreeRelease(&block_len_trees[i]);
     }
   }
 

@@ -60,29 +60,23 @@ static BROTLI_INLINE const HuffmanTreeNode* HuffmanTreeNextNode(
 
 // Releases the nodes of the Huffman tree.
 // Note: It does NOT free 'tree' itself.
-void HuffmanTreeRelease(HuffmanTree* const tree);
+void BrotliHuffmanTreeRelease(HuffmanTree* const tree);
 
 // Builds Huffman tree assuming code lengths are implicitly in symbol order.
 // Returns false in case of error (invalid tree or memory error).
-int HuffmanTreeBuildImplicit(HuffmanTree* const tree,
-                             const int* const code_lengths,
-                             int code_lengths_size);
+int BrotliHuffmanTreeBuildImplicit(HuffmanTree* const tree,
+                                   const int* const code_lengths,
+                                   int code_lengths_size);
 
 // Build a Huffman tree with explicitly given lists of code lengths, codes
 // and symbols. Verifies that all symbols added are smaller than max_symbol.
 // Returns false in case of an invalid symbol, invalid tree or memory error.
-int HuffmanTreeBuildExplicit(HuffmanTree* const tree,
-                             const int* const code_lengths,
-                             const int* const codes,
-                             const int* const symbols, int max_symbol,
-                             int num_symbols);
-
-// Utility: converts Huffman code lengths to corresponding Huffman codes.
-// 'huff_codes' should be pre-allocated.
-// Returns false in case of error (memory allocation, invalid codes).
-int HuffmanCodeLengthsToCodes(const int* const code_lengths,
-                              int code_lengths_size, int* const huff_codes);
-
+int BrotliHuffmanTreeBuildExplicit(HuffmanTree* const tree,
+                                   const int* const code_lengths,
+                                   const int* const codes,
+                                   const int* const symbols,
+                                   int max_symbol,
+                                   int num_symbols);
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }    // extern "C"

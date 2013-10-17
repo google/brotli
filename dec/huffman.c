@@ -72,7 +72,7 @@ static int TreeInit(HuffmanTree* const tree, int num_leaves) {
   return 1;
 }
 
-void HuffmanTreeRelease(HuffmanTree* const tree) {
+void BrotliHuffmanTreeRelease(HuffmanTree* const tree) {
   if (tree != NULL) {
     free(tree->root_);
     tree->root_ = NULL;
@@ -81,8 +81,12 @@ void HuffmanTreeRelease(HuffmanTree* const tree) {
   }
 }
 
-int HuffmanCodeLengthsToCodes(const int* const code_lengths,
-                              int code_lengths_size, int* const huff_codes) {
+// Utility: converts Huffman code lengths to corresponding Huffman codes.
+// 'huff_codes' should be pre-allocated.
+// Returns false in case of error (memory allocation, invalid codes).
+static int HuffmanCodeLengthsToCodes(const int* const code_lengths,
+                                     int code_lengths_size,
+                                     int* const huff_codes) {
   int symbol;
   int code_len;
   int code_length_hist[MAX_ALLOWED_CODE_LENGTH + 1] = { 0 };
@@ -201,9 +205,9 @@ static int TreeAddSymbol(HuffmanTree* const tree,
   return 1;
 }
 
-int HuffmanTreeBuildImplicit(HuffmanTree* const tree,
-                             const int* const code_lengths,
-                             int code_lengths_size) {
+int BrotliHuffmanTreeBuildImplicit(HuffmanTree* const tree,
+                                   const int* const code_lengths,
+                                   int code_lengths_size) {
   int symbol;
   int num_symbols = 0;
   int root_symbol = 0;
@@ -227,7 +231,7 @@ int HuffmanTreeBuildImplicit(HuffmanTree* const tree,
   if (num_symbols == 1) {  // Trivial case.
     const int max_symbol = code_lengths_size;
     if (root_symbol < 0 || root_symbol >= max_symbol) {
-      HuffmanTreeRelease(tree);
+      BrotliHuffmanTreeRelease(tree);
       return 0;
     }
     return TreeAddSymbol(tree, root_symbol, 0, 0);
@@ -255,16 +259,17 @@ int HuffmanTreeBuildImplicit(HuffmanTree* const tree,
  End:
     free(codes);
     ok = ok && IsFull(tree);
-    if (!ok) HuffmanTreeRelease(tree);
+    if (!ok) BrotliHuffmanTreeRelease(tree);
     return ok;
   }
 }
 
-int HuffmanTreeBuildExplicit(HuffmanTree* const tree,
-                             const int* const code_lengths,
-                             const int* const codes,
-                             const int* const symbols, int max_symbol,
-                             int num_symbols) {
+int BrotliHuffmanTreeBuildExplicit(HuffmanTree* const tree,
+                                   const int* const code_lengths,
+                                   const int* const codes,
+                                   const int* const symbols,
+                                   int max_symbol,
+                                   int num_symbols) {
   int ok = 0;
   int i;
 
@@ -290,7 +295,7 @@ int HuffmanTreeBuildExplicit(HuffmanTree* const tree,
   ok = 1;
  End:
   ok = ok && IsFull(tree);
-  if (!ok) HuffmanTreeRelease(tree);
+  if (!ok) BrotliHuffmanTreeRelease(tree);
   return ok;
 }
 
