@@ -90,7 +90,7 @@ enum ContextType {
   CONTEXT_SIGNED_2BIT = 9,
   CONTEXT_SIGNED_3BIT = 10,
   CONTEXT_SIGNED_4BIT = 11,
-  CONTEXT_SIGNED_MIXED_3BYTE = 12,
+  CONTEXT_SIGNED_MIXED_3BYTE = 12
 };
 
 static const int kContextSize[] = {
