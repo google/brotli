@@ -20,12 +20,18 @@
 #include <stdint.h>
 #include <vector>
 
+#include "./hash.h"
 #include "./command.h"
 
 namespace brotli {
 
-void CreateBackwardReferences(const uint8_t* data,
-                              int length,
+void CreateBackwardReferences(size_t num_bytes,
+                              size_t position,
+                              const uint8_t* ringbuffer,
+                              const float* literal_cost,
+                              size_t ringbuffer_mask,
+                              const size_t max_backward_limit,
+                              Hasher* hasher,
                               std::vector<Command>* commands);
 
 }  // namespace brotli

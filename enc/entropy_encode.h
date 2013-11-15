@@ -66,8 +66,8 @@ struct EntropyCode {
   uint16_t bits_[kSize];
   // How many non-zero depth.
   int count_;
-  // First two symbols with non-zero depth.
-  int symbols_[2];
+  // First four symbols with non-zero depth.
+  int symbols_[4];
 };
 
 template<int kSize>
@@ -82,7 +82,7 @@ void BuildEntropyCode(const Histogram<kSize>& histogram,
   if (histogram.total_count_ == 0) return;
   for (int i = 0; i < kSize; ++i) {
     if (histogram.data_[i] > 0) {
-      if (code->count_ < 2) code->symbols_[code->count_] = i;
+      if (code->count_ < 4) code->symbols_[code->count_] = i;
       ++code->count_;
     }
   }

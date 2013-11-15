@@ -43,7 +43,6 @@ struct HuffmanTree {
   HuffmanTreeNode* root_;   // all the nodes, starting at root.
   int max_nodes_;           // max number of nodes
   int num_nodes_;           // number of currently occupied nodes
-  int fixed_bit_length_;     // If non-zero, uses fixed length coding
 };
 
 // Returns true if the given node is not a leaf of the Huffman tree.
@@ -65,18 +64,8 @@ void BrotliHuffmanTreeRelease(HuffmanTree* const tree);
 // Builds Huffman tree assuming code lengths are implicitly in symbol order.
 // Returns false in case of error (invalid tree or memory error).
 int BrotliHuffmanTreeBuildImplicit(HuffmanTree* const tree,
-                                   const int* const code_lengths,
+                                   const uint8_t* const code_lengths,
                                    int code_lengths_size);
-
-// Build a Huffman tree with explicitly given lists of code lengths, codes
-// and symbols. Verifies that all symbols added are smaller than max_symbol.
-// Returns false in case of an invalid symbol, invalid tree or memory error.
-int BrotliHuffmanTreeBuildExplicit(HuffmanTree* const tree,
-                                   const int* const code_lengths,
-                                   const int* const codes,
-                                   const int* const symbols,
-                                   int max_symbol,
-                                   int num_symbols);
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }    // extern "C"

@@ -17,34 +17,39 @@
 #ifndef BROTLI_DEC_BIT_READER_H_
 #define BROTLI_DEC_BIT_READER_H_
 
+#include <string.h>
+#include "./streams.h"
 #include "./types.h"
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
 #endif
 
+#define BROTLI_MAX_NUM_BIT_READ   25
+#define BROTLI_READ_SIZE          4096
+#define BROTLI_IBUF_SIZE          (2 * BROTLI_READ_SIZE + 32)
+#define BROTLI_IBUF_MASK          (2 * BROTLI_READ_SIZE - 1)
+
+#define UNALIGNED_COPY64(dst, src) *(uint64_t*)(dst) = *(const uint64_t*)(src)
+
+static const uint32_t kBitMask[BROTLI_MAX_NUM_BIT_READ] = {
+  0, 1, 3, 7, 15, 31, 63, 127, 255, 511, 1023, 2047, 4095, 8191, 16383, 32767,
+  65535, 131071, 262143, 524287, 1048575, 2097151, 4194303, 8388607, 16777215
+};
+
 typedef struct {
-  uint64_t       val_;        // pre-fetched bits
-  const uint8_t* buf_;        // input byte buffer
-  size_t         len_;        // buffer length
-  size_t         pos_;        // byte position in buf_
-  int            bit_pos_;    // current bit-reading position in val_
-  int            eos_;        // bitstream is finished
-  int            error_;      // an error occurred (buffer overflow attempt...)
+  // Input byte buffer, consist of a ringbuffer and a "slack" region where
+  // bytes from the start of the ringbuffer are copied.
+  uint8_t buf_[BROTLI_IBUF_SIZE];
+  BrotliInput input_;    // input callback
+  uint64_t    val_;      // pre-fetched bits
+  size_t      pos_;      // byte position in stream
+  int         bit_pos_;  // current bit-reading position in val_
+  size_t      end_pos_;  // current end position in stream
+  int         eos_;      // input stream is finished
 } BrotliBitReader;
 
-void BrotliInitBitReader(BrotliBitReader* const br,
-                         const uint8_t* const start,
-                         size_t length);
-
-//  Sets a new data buffer.
-void BrotliBitReaderSetBuffer(BrotliBitReader* const br,
-                              const uint8_t* const buffer, size_t length);
-
-// Reads the specified number of bits from Read Buffer.
-// Flags an error in case end_of_stream or n_bits is more than allowed limit.
-// Flags eos if this read attempt is going to cross the read buffer.
-uint32_t BrotliReadBits(BrotliBitReader* const br, int n_bits);
+int BrotliInitBitReader(BrotliBitReader* const br, BrotliInput input);
 
 // Return the prefetched bits, so they can be looked up.
 static BROTLI_INLINE uint32_t BrotliPrefetchBits(BrotliBitReader* const br) {
@@ -57,8 +62,92 @@ static BROTLI_INLINE void BrotliSetBitPos(BrotliBitReader* const br, int val) {
   br->bit_pos_ = val;
 }
 
-// Advances the Read buffer by 4 bytes to make room for reading next 32 bits.
-void BrotliFillBitWindow(BrotliBitReader* const br);
+// Reload up to 64 bits byte-by-byte
+static BROTLI_INLINE void ShiftBytes(BrotliBitReader* const br) {
+  while (br->bit_pos_ >= 8) {
+    br->val_ >>= 8;
+    br->val_ |= ((uint64_t)br->buf_[br->pos_ & BROTLI_IBUF_MASK]) << 56;
+    ++br->pos_;
+    br->bit_pos_ -= 8;
+  }
+}
+
+// Fills up the input ringbuffer by calling the input callback.
+//
+// Does nothing if there are at least 32 bytes present after current position.
+//
+// Returns 0 if either:
+//  - the input callback returned an error, or
+//  - there is no more input and the position is past the end of the stream.
+//
+// After encountering the end of the input stream, 32 additional zero bytes are
+// copied to the ringbuffer, therefore it is safe to call this function after
+// every 32 bytes of input is read.
+static BROTLI_INLINE int BrotliReadMoreInput(BrotliBitReader* const br) {
+  if (br->pos_ + 32 < br->end_pos_) {
+    return 1;
+  } else if (br->eos_) {
+    return (br->pos_ << 3) + br->bit_pos_ <= (br->end_pos_ << 3) + 64;
+  } else {
+    uint8_t* dst = br->buf_ + (br->end_pos_ & BROTLI_IBUF_MASK);
+    int bytes_read = BrotliRead(br->input_, dst, BROTLI_READ_SIZE);
+    if (bytes_read < 0) {
+      return 0;
+    }
+    if (bytes_read < BROTLI_READ_SIZE) {
+      br->eos_ = 1;
+      // Store 32 bytes of zero after the stream end.
+#if (defined(__x86_64__) || defined(_M_X64))
+      *(uint64_t*)(dst + bytes_read) = 0;
+      *(uint64_t*)(dst + bytes_read + 8) = 0;
+      *(uint64_t*)(dst + bytes_read + 16) = 0;
+      *(uint64_t*)(dst + bytes_read + 24) = 0;
+#else
+      memset(dst + bytes_read, 0, 32);
+#endif
+    }
+    if (dst == br->buf_) {
+      // Copy the head of the ringbuffer to the slack region.
+#if (defined(__x86_64__) || defined(_M_X64))
+      UNALIGNED_COPY64(br->buf_ + BROTLI_IBUF_SIZE - 32, br->buf_);
+      UNALIGNED_COPY64(br->buf_ + BROTLI_IBUF_SIZE - 24, br->buf_ + 8);
+      UNALIGNED_COPY64(br->buf_ + BROTLI_IBUF_SIZE - 16, br->buf_ + 16);
+      UNALIGNED_COPY64(br->buf_ + BROTLI_IBUF_SIZE - 8, br->buf_ + 24);
+#else
+      memcpy(br->buf_ + (BROTLI_READ_SIZE << 1), br->buf_, 32);
+#endif
+    }
+    br->end_pos_ += bytes_read;
+    return 1;
+  }
+}
+
+// Advances the Read buffer by 5 bytes to make room for reading next 24 bits.
+static BROTLI_INLINE void BrotliFillBitWindow(BrotliBitReader* const br) {
+  if (br->bit_pos_ >= 40) {
+#if (defined(__x86_64__) || defined(_M_X64))
+    br->val_ >>= 40;
+    br->bit_pos_ -= 40;
+    // The expression below needs a little-endian arch to work correctly.
+    // This gives a large speedup for decoding speed.
+    br->val_ |= *(const uint64_t*)(
+        br->buf_ + (br->pos_ & BROTLI_IBUF_MASK)) << 24;
+    br->pos_ += 5;
+#else
+    ShiftBytes(br);
+#endif
+  }
+}
+
+// Reads the specified number of bits from Read Buffer.
+// Requires that n_bits is positive.
+static BROTLI_INLINE uint32_t BrotliReadBits(
+    BrotliBitReader* const br, int n_bits) {
+  BrotliFillBitWindow(br);
+  const uint32_t val = (uint32_t)(br->val_ >> br->bit_pos_) & kBitMask[n_bits];
+  br->bit_pos_ += n_bits;
+  return val;
+}
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }    // extern "C"

@@ -43,6 +43,9 @@ HuffmanTree::HuffmanTree() {}
 
 // Sort the root nodes, least popular first.
 bool SortHuffmanTree(const HuffmanTree &v0, const HuffmanTree &v1) {
+  if (v0.total_count_ == v1.total_count_) {
+    return v0.index_right_or_value_ > v1.index_right_or_value_;
+  }
   return v0.total_count_ < v1.total_count_;
 }
 
@@ -276,7 +279,7 @@ int OptimizeHuffmanCountsForRle(int length, int* counts) {
   }
   // 3) Let's replace those population counts that lead to more rle codes.
   stride = 0;
-  limit = counts[0];
+  limit = (counts[0] + counts[1] + counts[2]) / 3 + 1;
   sum = 0;
   for (i = 0; i < length + 1; ++i) {
     if (i == length || good_for_rle[i] ||
@@ -301,11 +304,10 @@ int OptimizeHuffmanCountsForRle(int length, int* counts) {
       }
       stride = 0;
       sum = 0;
-      if (i < length - 3) {
+      if (i < length - 2) {
         // All interesting strides have a count of at least 4,
         // at least when non-zeros.
-        limit = (counts[i] + counts[i + 1] +
-                 counts[i + 2] + counts[i + 3] + 2) / 4;
+        limit = (counts[i] + counts[i + 1] + counts[i + 2]) / 3 + 1;
       } else if (i < length) {
         limit = counts[i];
       } else {
@@ -329,7 +331,7 @@ void WriteHuffmanTree(const uint8_t* depth, const int length,
                       uint8_t* tree,
                       uint8_t* extra_bits_data,
                       int* huffman_tree_size) {
-  int previous_value = 0;
+  int previous_value = 8;
   for (uint32_t i = 0; i < length;) {
     const int value = depth[i];
     int reps = 1;

@@ -24,10 +24,6 @@
 extern "C" {
 #endif
 
-// Uncomment the following to use look-up table for ReverseBits()
-// (might be faster on some platform)
-// #define USE_LUT_REVERSE_BITS
-
 #define NON_EXISTENT_SYMBOL (-1)
 #define MAX_ALLOWED_CODE_LENGTH      15
 
@@ -55,7 +51,6 @@ static void AssignChildren(HuffmanTree* const tree,
 
 static int TreeInit(HuffmanTree* const tree, int num_leaves) {
   assert(tree != NULL);
-  tree->fixed_bit_length_ = 0;
   if (num_leaves == 0) return 0;
   // We allocate maximum possible nodes in the tree at once.
   // Note that a Huffman tree is a full binary tree; and in a full binary tree
@@ -84,7 +79,7 @@ void BrotliHuffmanTreeRelease(HuffmanTree* const tree) {
 // Utility: converts Huffman code lengths to corresponding Huffman codes.
 // 'huff_codes' should be pre-allocated.
 // Returns false in case of error (memory allocation, invalid codes).
-static int HuffmanCodeLengthsToCodes(const int* const code_lengths,
+static int HuffmanCodeLengthsToCodes(const uint8_t* const code_lengths,
                                      int code_lengths_size,
                                      int* const huff_codes) {
   int symbol;
@@ -133,34 +128,20 @@ static int HuffmanCodeLengthsToCodes(const int* const code_lengths,
   return 1;
 }
 
-#ifndef USE_LUT_REVERSE_BITS
-
-static int ReverseBitsShort(int bits, int num_bits) {
-  int retval = 0;
-  int i;
-  assert(num_bits <= 8);   // Not a hard requirement, just for coherency.
-  for (i = 0; i < num_bits; ++i) {
-    retval <<= 1;
-    retval |= bits & 1;
-    bits >>= 1;
-  }
-  return retval;
-}
-
-#else
-
-static const uint8_t kReversedBits[16] = {  // Pre-reversed 4-bit values.
-  0x0, 0x8, 0x4, 0xc, 0x2, 0xa, 0x6, 0xe,
-  0x1, 0x9, 0x5, 0xd, 0x3, 0xb, 0x7, 0xf
+static const uint8_t kReverse7[128] = {
+  0, 64, 32, 96, 16, 80, 48, 112, 8, 72, 40, 104, 24, 88, 56, 120,
+  4, 68, 36, 100, 20, 84, 52, 116, 12, 76, 44, 108, 28, 92, 60, 124,
+  2, 66, 34, 98, 18, 82, 50, 114, 10, 74, 42, 106, 26, 90, 58, 122,
+  6, 70, 38, 102, 22, 86, 54, 118, 14, 78, 46, 110, 30, 94, 62, 126,
+  1, 65, 33, 97, 17, 81, 49, 113, 9, 73, 41, 105, 25, 89, 57, 121,
+  5, 69, 37, 101, 21, 85, 53, 117, 13, 77, 45, 109, 29, 93, 61, 125,
+  3, 67, 35, 99, 19, 83, 51, 115, 11, 75, 43, 107, 27, 91, 59, 123,
+  7, 71, 39, 103, 23, 87, 55, 119, 15, 79, 47, 111, 31, 95, 63, 127
 };
 
 static int ReverseBitsShort(int bits, int num_bits) {
-  const uint8_t v = (kReversedBits[bits & 0xf] << 4) | kReversedBits[bits >> 4];
-  assert(num_bits <= 8);
-  return v >> (8 - num_bits);
+  return kReverse7[bits] >> (7 - num_bits);
 }
-
-#endif
 
 static int TreeAddSymbol(HuffmanTree* const tree,
                          int symbol, int code, int code_length) {
@@ -170,13 +151,14 @@ static int TreeAddSymbol(HuffmanTree* const tree,
   const HuffmanTreeNode* const max_node = tree->root_ + tree->max_nodes_;
   assert(symbol == (int16_t)symbol);
   if (code_length <= HUFF_LUT_BITS) {
-    int i;
+    int i = 1 << (HUFF_LUT_BITS - code_length);
     base_code = ReverseBitsShort(code, code_length);
-    for (i = 0; i < (1 << (HUFF_LUT_BITS - code_length)); ++i) {
+    do {
+      --i;
       const int idx = base_code | (i << code_length);
       tree->lut_symbol_[idx] = (int16_t)symbol;
       tree->lut_bits_[idx] = code_length;
-    }
+    } while (i > 0);
   } else {
     base_code = ReverseBitsShort((code >> (code_length - HUFF_LUT_BITS)),
                                  HUFF_LUT_BITS);
@@ -206,7 +188,7 @@ static int TreeAddSymbol(HuffmanTree* const tree,
 }
 
 int BrotliHuffmanTreeBuildImplicit(HuffmanTree* const tree,
-                                   const int* const code_lengths,
+                                   const uint8_t* const code_lengths,
                                    int code_lengths_size) {
   int symbol;
   int num_symbols = 0;
@@ -262,41 +244,6 @@ int BrotliHuffmanTreeBuildImplicit(HuffmanTree* const tree,
     if (!ok) BrotliHuffmanTreeRelease(tree);
     return ok;
   }
-}
-
-int BrotliHuffmanTreeBuildExplicit(HuffmanTree* const tree,
-                                   const int* const code_lengths,
-                                   const int* const codes,
-                                   const int* const symbols,
-                                   int max_symbol,
-                                   int num_symbols) {
-  int ok = 0;
-  int i;
-
-  assert(tree != NULL);
-  assert(code_lengths != NULL);
-  assert(codes != NULL);
-  assert(symbols != NULL);
-
-  // Initialize the tree. Will fail if num_symbols = 0.
-  if (!TreeInit(tree, num_symbols)) return 0;
-
-  // Add symbols one-by-one.
-  for (i = 0; i < num_symbols; ++i) {
-    if (codes[i] != NON_EXISTENT_SYMBOL) {
-      if (symbols[i] < 0 || symbols[i] >= max_symbol) {
-        goto End;
-      }
-      if (!TreeAddSymbol(tree, symbols[i], codes[i], code_lengths[i])) {
-        goto End;
-      }
-    }
-  }
-  ok = 1;
- End:
-  ok = ok && IsFull(tree);
-  if (!ok) BrotliHuffmanTreeRelease(tree);
-  return ok;
 }
 
 #if defined(__cplusplus) || defined(c_plusplus)

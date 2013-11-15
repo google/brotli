@@ -103,8 +103,7 @@ template <int kBucketBits, int kBlockBits>
 class HashLongestMatch {
  public:
   HashLongestMatch()
-      : literal_cost_(NULL),
-        last_distance1_(4),
+      : last_distance1_(4),
         last_distance2_(11),
         last_distance3_(15),
         last_distance4_(16),
@@ -115,10 +114,6 @@ class HashLongestMatch {
   void Reset() {
     std::fill(&num_[0], &num_[sizeof(num_) / sizeof(num_[0])], 0);
   }
-  void SetLiteralCost(float *cost) {
-    literal_cost_ = cost;
-  }
-  double literal_cost(int i) const { return literal_cost_[i]; }
 
   // Look at 3 bytes at data.
   // Compute a hash from these, and store the value of ix at that position.
@@ -146,25 +141,27 @@ class HashLongestMatch {
   // into best_distance_out.
   // Write the score of the best match into best_score_out.
   bool FindLongestMatch(const uint8_t * __restrict data,
+                        const float * __restrict literal_cost,
+                        const size_t ring_buffer_mask,
                         const uint32_t cur_ix,
                         uint32_t max_length,
                         const uint32_t max_backward,
                         size_t * __restrict best_len_out,
                         size_t * __restrict best_distance_out,
                         double * __restrict best_score_out) {
-    const double start_cost4 = literal_cost_ == NULL ? 20 :
-        literal_cost_[cur_ix] +
-        literal_cost_[cur_ix + 1] +
-        literal_cost_[cur_ix + 2] +
-        literal_cost_[cur_ix + 3];
-
-    const double start_cost3 = literal_cost_ == NULL ? 15 :
-        literal_cost_[cur_ix] +
-        literal_cost_[cur_ix + 1] +
-        literal_cost_[cur_ix + 2] + 0.3;
-    double start_cost2 = literal_cost_ == NULL ? 10 :
-        literal_cost_[cur_ix] +
-        literal_cost_[cur_ix + 1] + 1.2;
+    const size_t cur_ix_masked = cur_ix & ring_buffer_mask;
+    const double start_cost4 = literal_cost == NULL ? 20 :
+        literal_cost[cur_ix_masked] +
+        literal_cost[(cur_ix + 1) & ring_buffer_mask] +
+        literal_cost[(cur_ix + 2) & ring_buffer_mask] +
+        literal_cost[(cur_ix + 3) & ring_buffer_mask];
+    const double start_cost3 = literal_cost == NULL ? 15 :
+        literal_cost[cur_ix_masked] +
+        literal_cost[(cur_ix + 1) & ring_buffer_mask] +
+        literal_cost[(cur_ix + 2) & ring_buffer_mask] + 0.3;
+    double start_cost2 = literal_cost == NULL ? 10 :
+        literal_cost[cur_ix_masked] +
+        literal_cost[(cur_ix + 1) & ring_buffer_mask] + 1.2;
     bool match_found = false;
     // Don't accept a short copy from far away.
     double best_score = 8.25;
@@ -177,7 +174,7 @@ class HashLongestMatch {
     size_t best_ix = 1;
     // Try last distance first.
     for (int i = 0; i < 16; ++i) {
-      int prev_ix = cur_ix;
+      size_t prev_ix = cur_ix;
       switch(i) {
         case 0: prev_ix -= last_distance1_; break;
         case 1: prev_ix -= last_distance2_; break;
@@ -205,11 +202,13 @@ class HashLongestMatch {
       if (PREDICT_FALSE(backward > max_backward)) {
         continue;
       }
-      if (data[cur_ix + best_len] != data[prev_ix + best_len]) {
+      prev_ix &= ring_buffer_mask;
+      if (data[cur_ix_masked + best_len] != data[prev_ix + best_len]) {
         continue;
       }
       const size_t len =
-          FindMatchLengthWithLimit(&data[prev_ix], &data[cur_ix], max_length);
+          FindMatchLengthWithLimit(&data[prev_ix], &data[cur_ix_masked],
+                                   max_length);
       if (len >= 3 || (len == 2 && i < 2)) {
         // Comparing for >= 2 does not change the semantics, but just saves for
         // a few unnecessary binary logarithms in backward reference score,
@@ -234,7 +233,7 @@ class HashLongestMatch {
         }
       }
     }
-    const uint32_t key = Hash3Bytes(&data[cur_ix], kBucketBits);
+    const uint32_t key = Hash3Bytes(&data[cur_ix_masked], kBucketBits);
     const uint32_t * __restrict const bucket = &buckets_[key][0];
     const int down = (num_[key] > kBlockSize) ? (num_[key] - kBlockSize) : 0;
     int stop = int(cur_ix) - 64;
@@ -247,8 +246,9 @@ class HashLongestMatch {
       if (PREDICT_FALSE(backward > max_backward)) {
         break;
       }
-      if (data[cur_ix] != data[prev_ix] ||
-          data[cur_ix + 1] != data[prev_ix + 1]) {
+      prev_ix &= ring_buffer_mask;
+      if (data[cur_ix_masked] != data[prev_ix] ||
+          data[cur_ix_masked + 1] != data[prev_ix + 1]) {
         continue;
       }
       int len = 2;
@@ -269,11 +269,13 @@ class HashLongestMatch {
       if (PREDICT_FALSE(backward > max_backward)) {
         break;
       }
-      if (data[cur_ix + best_len] != data[prev_ix + best_len]) {
+      prev_ix &= ring_buffer_mask;
+      if (data[cur_ix_masked + best_len] != data[prev_ix + best_len]) {
         continue;
       }
       const size_t len =
-          FindMatchLengthWithLimit(&data[prev_ix], &data[cur_ix], max_length);
+          FindMatchLengthWithLimit(&data[prev_ix], &data[cur_ix_masked],
+                                   max_length);
       if (len >= 3) {
         // Comparing for >= 3 does not change the semantics, but just saves for
         // a few unnecessary binary logarithms in backward reference score,
@@ -333,10 +335,6 @@ class HashLongestMatch {
   // Buckets containing kBlockSize of backward references.
   uint32_t buckets_[kBucketSize][kBlockSize];
 
-  // Model of how much the ith literal costs to encode using
-  // the entropy model.
-  float *literal_cost_;
-
   int last_distance1_;
   int last_distance2_;
   int last_distance3_;
@@ -348,6 +346,8 @@ class HashLongestMatch {
 
   double average_cost_;
 };
+
+typedef HashLongestMatch<13, 11> Hasher;
 
 }  // namespace brotli
 

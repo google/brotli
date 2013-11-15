@@ -20,60 +20,64 @@
 #include <vector>
 
 #include "./command.h"
-#include "./hash.h"
-#include "./literal_cost.h"
 
 namespace brotli {
 
-void CreateBackwardReferences(const uint8_t* data,
-                              int length,
+void CreateBackwardReferences(size_t num_bytes,
+                              size_t position,
+                              const uint8_t* ringbuffer,
+                              const float* literal_cost,
+                              size_t ringbuffer_mask,
+                              const size_t max_backward_limit,
+                              Hasher* hasher,
                               std::vector<Command>* commands) {
-  HashLongestMatch<13,11> *hasher = new HashLongestMatch<13,11>;
-  float *literal_cost = new float[length];
-  EstimateBitCostsForLiterals(length, data, literal_cost);
-  hasher->SetLiteralCost(literal_cost);
-
   // Length heuristic that seems to help probably by better selection
   // of lazy matches of similar lengths.
   int insert_length = 0;
-  size_t i = 0;
+  size_t i = position & ringbuffer_mask;
+  const int i_diff = position - i;
+  const size_t i_end = i + num_bytes;
 
   double average_cost = 0.0;
-  for (int i = 0; i < length; ++i) {
-    average_cost += literal_cost[i];
+  for (int k = position; k < position + num_bytes; ++k) {
+    average_cost += literal_cost[k & ringbuffer_mask];
   }
-  average_cost /= length;
+  average_cost /= num_bytes;
   hasher->set_average_cost(average_cost);
 
-  while (i + 2 < length) {
+  while (i + 2 < i_end) {
     size_t best_len = 0;
     size_t best_dist = 0;
     double best_score = 0;
-    const size_t max_distance = std::min(i, 1UL << 24);
+    const size_t max_distance = std::min(i + i_diff, max_backward_limit);
     hasher->set_insert_length(insert_length);
     bool match_found = hasher->FindLongestMatch(
-        data, i, length - i, max_distance,
+        ringbuffer, literal_cost, ringbuffer_mask,
+        i + i_diff, i_end - i, max_distance,
         &best_len, &best_dist, &best_score);
     if (match_found) {
       // Found a match. Let's look for something even better ahead.
       int delayed_backward_references_in_row = 0;
-      while (i + 4 < length &&
+      while (i + 4 < i_end &&
              delayed_backward_references_in_row < 4) {
         size_t best_len_2 = 0;
         size_t best_dist_2 = 0;
         double best_score_2 = 0;
-        hasher->Store(data + i, i);
+        hasher->Store(ringbuffer + i, i + i_diff);
         match_found = hasher->FindLongestMatch(
-            data, i + 1, length - i - 1, max_distance,
+            ringbuffer, literal_cost, ringbuffer_mask,
+            i + i_diff + 1, i_end - i - 1, max_distance,
             &best_len_2, &best_dist_2, &best_score_2);
         double cost_diff_lazy = 0;
         if (best_len >= 4) {
-          cost_diff_lazy += hasher->literal_cost(i + 4) - average_cost;
+          cost_diff_lazy +=
+              literal_cost[(i + 4) & ringbuffer_mask] - average_cost;
         }
         {
           const int tail_length = best_len_2 - best_len + 1;
           for (int k = 0; k < tail_length; ++k) {
-            cost_diff_lazy -= hasher->literal_cost(i + best_len + k) -
+            cost_diff_lazy -=
+                literal_cost[(i + best_len + k) & ringbuffer_mask] -
                 average_cost;
           }
         }
@@ -84,7 +88,7 @@ void CreateBackwardReferences(const uint8_t* data,
         }
         // Add bias to slightly avoid lazy matching.
         cost_diff_lazy += 2.0 + delayed_backward_references_in_row * 0.2;
-        cost_diff_lazy += 0.04 * hasher->literal_cost(i);
+        cost_diff_lazy += 0.04 * literal_cost[i & ringbuffer_mask];
 
         if (match_found && best_score_2 >= best_score + cost_diff_lazy) {
           // Ok, let's just write one byte for now and start a match from the
@@ -109,18 +113,18 @@ void CreateBackwardReferences(const uint8_t* data,
       insert_length = 0;
       ++i;
       for (int j = 1; j < best_len; ++j) {
-        if (i + 2 < length) {
-          hasher->Store(data + i, i);
+        if (i + 2 < i_end) {
+          hasher->Store(ringbuffer + i, i + i_diff);
         }
         ++i;
       }
     } else {
       ++insert_length;
-      hasher->Store(data + i, i);
+      hasher->Store(ringbuffer + i, i + i_diff);
       ++i;
     }
   }
-  insert_length += (length - i);
+  insert_length += (i_end - i);
 
   if (insert_length > 0) {
     Command cmd;
@@ -129,9 +133,6 @@ void CreateBackwardReferences(const uint8_t* data,
     cmd.copy_distance_ = 0;
     commands->push_back(cmd);
   }
-
-  delete[] literal_cost;
-  delete hasher;
 }
 
 }  // namespace brotli

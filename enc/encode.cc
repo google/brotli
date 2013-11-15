@@ -26,7 +26,9 @@
 #include "./context.h"
 #include "./entropy_encode.h"
 #include "./fast_log.h"
+#include "./hash.h"
 #include "./histogram.h"
+#include "./literal_cost.h"
 #include "./prefix.h"
 #include "./write_bits.h"
 
@@ -41,31 +43,39 @@ double Entropy(const std::vector<Histogram<kSize> >& histograms) {
   return retval;
 }
 
+template<int kSize>
+double TotalBitCost(const std::vector<Histogram<kSize> >& histograms) {
+  double retval = 0;
+  for (int i = 0; i < histograms.size(); ++i) {
+    retval += PopulationCost(histograms[i]);
+  }
+  return retval;
+}
+
 void EncodeSize(size_t len, int* storage_ix, uint8_t* storage) {
   std::vector<uint8_t> len_bytes;
-  while (len > 0) {
+  do {
     len_bytes.push_back(len & 0xff);
     len >>= 8;
-  };
+  } while (len > 0);
   WriteBits(3, len_bytes.size(), storage_ix, storage);
   for (int i = 0; i < len_bytes.size(); ++i) {
     WriteBits(8, len_bytes[i], storage_ix, storage);
   }
 }
 
-void EncodeMetaBlockLength(int input_size_bits,
-                           size_t meta_block_size,
-                           bool is_last_meta_block,
+void EncodeMetaBlockLength(size_t meta_block_size,
                            int* storage_ix, uint8_t* storage) {
-  WriteBits(1, is_last_meta_block, storage_ix, storage);
-  if (is_last_meta_block) return;
-  while (input_size_bits > 0) {
-    WriteBits(8, meta_block_size & 0xff, storage_ix, storage);
-    meta_block_size >>= 8;
-    input_size_bits -= 8;
+  WriteBits(1, 0, storage_ix, storage);
+  int num_bits = Log2Floor(meta_block_size) + 1;
+  WriteBits(3, (num_bits + 3) >> 2, storage_ix, storage);
+  while (num_bits > 0) {
+    WriteBits(4, meta_block_size & 0xf, storage_ix, storage);
+    meta_block_size >>= 4;
+    num_bits -= 4;
   }
-  if (input_size_bits > 0) {
-    WriteBits(input_size_bits, meta_block_size, storage_ix, storage);
+  if (num_bits > 0) {
+    WriteBits(num_bits, meta_block_size, storage_ix, storage);
   }
 }
 
@@ -82,7 +92,7 @@ void StoreHuffmanTreeOfHuffmanTreeToBitMask(
     const uint8_t* code_length_bitdepth,
     int* storage_ix, uint8_t* storage) {
   static const uint8_t kStorageOrder[kCodeLengthCodes] = {
-    17, 18, 0, 1, 2, 3, 4, 5, 16, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15
+    1, 2, 3, 4, 0, 17, 18, 5, 6, 16, 7, 8, 9, 10, 11, 12, 13, 14, 15
   };
   // Throw away trailing zeros:
   int codes_to_store = kCodeLengthCodes;
@@ -92,8 +102,16 @@ void StoreHuffmanTreeOfHuffmanTreeToBitMask(
     }
   }
   WriteBits(4, codes_to_store - 4, storage_ix, storage);
-  for (int i = 0; i < codes_to_store; ++i) {
-    WriteBits(3, code_length_bitdepth[kStorageOrder[i]], storage_ix, storage);
+  const int skip_two_first =
+      code_length_bitdepth[kStorageOrder[0]] == 0 &&
+      code_length_bitdepth[kStorageOrder[1]] == 0;
+  WriteBits(1, skip_two_first, storage_ix, storage);
+
+  for (int i = skip_two_first * 2; i < codes_to_store; ++i) {
+    uint8_t len[] = { 2, 4, 3, 2, 2, 4 };
+    uint8_t bits[] = { 0, 7, 3, 1, 2, 15 };
+    int v = code_length_bitdepth[kStorageOrder[i]];
+    WriteBits(len[v], bits[v], storage_ix, storage);
   }
 }
 
@@ -124,30 +142,49 @@ void StoreHuffmanTreeToBitMask(
 template<int kSize>
 void StoreHuffmanCode(const EntropyCode<kSize>& code, int alphabet_size,
                       int* storage_ix, uint8_t* storage) {
-  const int kMaxBits = 8;
-  const int kMaxSymbol = 1 << kMaxBits;
-
+  const uint8_t *depth = &code.depth_[0];
+  int max_bits_counter = alphabet_size - 1;
+  int max_bits = 0;
+  while (max_bits_counter) {
+    max_bits_counter >>= 1;
+    ++max_bits;
+  }
   if (code.count_ == 0) {   // emit minimal tree for empty cases
-    // bits: small tree marker: 1, count-1: 0, large 8-bit code: 0, code: 0
-    WriteBits(4, 0x01, storage_ix, storage);
+    // bits: small tree marker: 1, count-1: 0, max_bits-sized encoding for 0
+    WriteBits(3 + max_bits, 0x01, storage_ix, storage);
     return;
   }
-  if (code.count_ <= 2 &&
-      code.symbols_[0] < kMaxSymbol &&
-      code.symbols_[1] < kMaxSymbol) {
-    // Small tree marker to encode 1 or 2 symbols.
-    WriteBits(1, 1, storage_ix, storage);
-    WriteBits(1, code.count_ - 1, storage_ix, storage);
-    if (code.symbols_[0] <= 1) {
-      // Code bit for small (1 bit) symbol value.
-      WriteBits(1, 0, storage_ix, storage);
-      WriteBits(1, code.symbols_[0], storage_ix, storage);
-    } else {
-      WriteBits(1, 1, storage_ix, storage);
-      WriteBits(8, code.symbols_[0], storage_ix, storage);
+  if (code.count_ <= 4) {
+    int symbols[4];
+    // Quadratic sort.
+    int k, j;
+    for (k = 0; k < code.count_; ++k) {
+      symbols[k] = code.symbols_[k];
     }
-    if (code.count_ == 2) {
-      WriteBits(8, code.symbols_[1], storage_ix, storage);
+    for (k = 0; k < code.count_; ++k) {
+      for (j = k + 1; j < code.count_; ++j) {
+        if (depth[symbols[j]] < depth[symbols[k]]) {
+          int t = symbols[k];
+          symbols[k] = symbols[j];
+          symbols[j] = t;
+        }
+      }
+    }
+    // Small tree marker to encode 1-4 symbols.
+    WriteBits(1, 1, storage_ix, storage);
+    WriteBits(2, code.count_ - 1, storage_ix, storage);
+    for (int i = 0; i < code.count_; ++i) {
+      WriteBits(max_bits, symbols[i], storage_ix, storage);
+    }
+    if (code.count_ == 4) {
+      if (depth[symbols[0]] == 2 &&
+          depth[symbols[1]] == 2 &&
+          depth[symbols[2]] == 2 &&
+          depth[symbols[3]] == 2) {
+        WriteBits(1, 0, storage_ix, storage);
+      } else {
+        WriteBits(1, 1, storage_ix, storage);
+      }
     }
     return;
   }
@@ -156,7 +193,7 @@ void StoreHuffmanCode(const EntropyCode<kSize>& code, int alphabet_size,
   uint8_t huffman_tree[kSize];
   uint8_t huffman_tree_extra_bits[kSize];
   int huffman_tree_size = 0;
-  WriteHuffmanTree(&code.depth_[0],
+  WriteHuffmanTree(depth,
                    alphabet_size,
                    &huffman_tree[0],
                    &huffman_tree_extra_bits[0],
@@ -167,7 +204,7 @@ void StoreHuffmanCode(const EntropyCode<kSize>& code, int alphabet_size,
     huffman_tree_histogram.Add(huffman_tree[i]);
   }
   EntropyCode<kCodeLengthCodes> huffman_tree_entropy;
-  BuildEntropyCode(huffman_tree_histogram, 7, kCodeLengthCodes,
+  BuildEntropyCode(huffman_tree_histogram, 5, kCodeLengthCodes,
                    &huffman_tree_entropy);
   Histogram<kCodeLengthCodes> trimmed_histogram = huffman_tree_histogram;
   uint8_t* last_code = &huffman_tree[huffman_tree_size - 1];
@@ -178,7 +215,7 @@ void StoreHuffmanCode(const EntropyCode<kSize>& code, int alphabet_size,
   bool write_length = false;
   if (trimmed_size > 1 && trimmed_size < huffman_tree_size) {
     EntropyCode<kCodeLengthCodes> trimmed_entropy;
-    BuildEntropyCode(trimmed_histogram, 7, kCodeLengthCodes, &trimmed_entropy);
+    BuildEntropyCode(trimmed_histogram, 5, kCodeLengthCodes, &trimmed_entropy);
     int huffman_bit_cost = HuffmanTreeBitCost(huffman_tree_histogram,
                                               huffman_tree_entropy);
     int trimmed_bit_cost = HuffmanTreeBitCost(trimmed_histogram,
@@ -247,16 +284,15 @@ void EncodeCopyDistance(const Command& cmd, const EntropyCodeDistance& entropy,
   }
 }
 
-
-void ComputeDistanceShortCodes(std::vector<Command>* cmds) {
+void ComputeDistanceShortCodes(std::vector<Command>* cmds,
+                               int* dist_ringbuffer,
+                               size_t* ringbuffer_idx) {
   static const int kIndexOffset[16] = {
     3, 2, 1, 0, 3, 3, 3, 3, 3, 3, 2, 2, 2, 2, 2, 2
   };
   static const int kValueOffset[16] = {
     0, 0, 0, 0, -1, 1, -2, 2, -3, 3, -1, 1, -2, 2, -3, 3
   };
-  int dist_ringbuffer[4] = { 4, 11, 15, 16 };
-  int ringbuffer_idx = 0;
   for (int i = 0; i < cmds->size(); ++i) {
     int cur_dist = (*cmds)[i].copy_distance_;
     if (cur_dist == 0) break;
@@ -268,7 +304,7 @@ void ComputeDistanceShortCodes(std::vector<Command>* cmds) {
         // with them.
         continue;
       }
-      int comp = (dist_ringbuffer[(ringbuffer_idx + kIndexOffset[k]) & 3] +
+      int comp = (dist_ringbuffer[(*ringbuffer_idx + kIndexOffset[k]) & 3] +
                   kValueOffset[k]);
       if (cur_dist == comp) {
         dist_code = k + 1;
@@ -276,8 +312,8 @@ void ComputeDistanceShortCodes(std::vector<Command>* cmds) {
       }
     }
     if (dist_code > 1) {
-      dist_ringbuffer[ringbuffer_idx & 3] = cur_dist;
-      ++ringbuffer_idx;
+      dist_ringbuffer[*ringbuffer_idx & 3] = cur_dist;
+      ++(*ringbuffer_idx);
     }
     (*cmds)[i].distance_code_ = dist_code;
   }
@@ -414,19 +450,8 @@ int BestMaxZeroRunLengthPrefix(const std::vector<int>& v) {
 }
 
 void EncodeContextMap(const std::vector<int>& context_map,
-                      int context_mode,
-                      int context_mode_bits,
                       int num_clusters,
                       int* storage_ix, uint8_t* storage) {
-  if (context_mode == 0) {
-    WriteBits(1, 0, storage_ix, storage);  // no context
-    return;
-  }
-
-  WriteBits(1, 1, storage_ix, storage);  // have context
-  if (context_mode_bits > 0) {
-    WriteBits(context_mode_bits, context_mode - 1, storage_ix, storage);
-  }
   WriteBits(8, num_clusters - 1, storage_ix, storage);
 
   if (num_clusters == 1 || num_clusters == context_map.size()) {
@@ -560,7 +585,6 @@ struct EncodingParams {
   int num_direct_distance_codes;
   int distance_postfix_bits;
   int literal_context_mode;
-  int distance_context_mode;
 };
 
 struct MetaBlock {
@@ -569,6 +593,7 @@ struct MetaBlock {
   BlockSplit literal_split;
   BlockSplit command_split;
   BlockSplit distance_split;
+  std::vector<int> literal_context_modes;
   std::vector<int> literal_context_map;
   std::vector<int> distance_context_map;
   std::vector<HistogramLiteral> literal_histograms;
@@ -578,8 +603,9 @@ struct MetaBlock {
 
 void BuildMetaBlock(const EncodingParams& params,
                     const std::vector<Command>& cmds,
-                    const uint8_t* input_buffer,
-                    size_t pos,
+                    const uint8_t* ringbuffer,
+                    const size_t pos,
+                    const size_t mask,
                     MetaBlock* mb) {
   mb->cmds = cmds;
   mb->params = params;
@@ -587,7 +613,7 @@ void BuildMetaBlock(const EncodingParams& params,
                          mb->params.num_direct_distance_codes,
                          mb->params.distance_postfix_bits);
   SplitBlock(mb->cmds,
-             input_buffer + pos,
+             &ringbuffer[pos & mask],
              &mb->literal_split,
              &mb->command_split,
              &mb->distance_split);
@@ -595,16 +621,14 @@ void BuildMetaBlock(const EncodingParams& params,
   ComputeBlockTypeShortCodes(&mb->command_split);
   ComputeBlockTypeShortCodes(&mb->distance_split);
 
-  int num_literal_contexts_per_block_type =
-      NumContexts(mb->params.literal_context_mode);
+  mb->literal_context_modes.resize(mb->literal_split.num_types_,
+                                   mb->params.literal_context_mode);
+
+
   int num_literal_contexts =
-      mb->literal_split.num_types_ *
-      num_literal_contexts_per_block_type;
-  int num_distance_contexts_per_block_type =
-      (mb->params.distance_context_mode > 0 ? 4 : 1);
+      mb->literal_split.num_types_ << kLiteralContextBits;
   int num_distance_contexts =
-      mb->distance_split.num_types_ *
-      num_distance_contexts_per_block_type;
+      mb->distance_split.num_types_ << kDistanceContextBits;
   std::vector<HistogramLiteral> literal_histograms(num_literal_contexts);
   mb->command_histograms.resize(mb->command_split.num_types_);
   std::vector<HistogramDistance> distance_histograms(num_distance_contexts);
@@ -612,10 +636,10 @@ void BuildMetaBlock(const EncodingParams& params,
                   mb->literal_split,
                   mb->command_split,
                   mb->distance_split,
-                  input_buffer,
+                  ringbuffer,
                   pos,
-                  mb->params.literal_context_mode,
-                  mb->params.distance_context_mode,
+                  mask,
+                  mb->literal_context_modes,
                   &literal_histograms,
                   &mb->command_histograms,
                   &distance_histograms);
@@ -625,24 +649,20 @@ void BuildMetaBlock(const EncodingParams& params,
   static const int kMaxNumberOfHistograms = 240;
 
   mb->literal_histograms = literal_histograms;
-  if (mb->params.literal_context_mode > 0) {
-    ClusterHistograms(literal_histograms,
-                      num_literal_contexts_per_block_type,
-                      mb->literal_split.num_types_,
-                      kMaxNumberOfHistograms,
-                      &mb->literal_histograms,
-                      &mb->literal_context_map);
-  }
+  ClusterHistograms(literal_histograms,
+                    1 << kLiteralContextBits,
+                    mb->literal_split.num_types_,
+                    kMaxNumberOfHistograms,
+                    &mb->literal_histograms,
+                    &mb->literal_context_map);
 
   mb->distance_histograms = distance_histograms;
-  if (mb->params.distance_context_mode > 0) {
-    ClusterHistograms(distance_histograms,
-                      num_distance_contexts_per_block_type,
-                      mb->distance_split.num_types_,
-                      kMaxNumberOfHistograms,
-                      &mb->distance_histograms,
-                      &mb->distance_context_map);
-  }
+  ClusterHistograms(distance_histograms,
+                    1 << kDistanceContextBits,
+                    mb->distance_split.num_types_,
+                    kMaxNumberOfHistograms,
+                    &mb->distance_histograms,
+                    &mb->distance_context_map);
 }
 
 size_t MetaBlockLength(const std::vector<Command>& cmds) {
@@ -655,14 +675,13 @@ size_t MetaBlockLength(const std::vector<Command>& cmds) {
 }
 
 void StoreMetaBlock(const MetaBlock& mb,
-                    const uint8_t* input_buffer,
-                    int input_size_bits,
-                    bool is_last,
+                    const uint8_t* ringbuffer,
+                    const size_t mask,
                     size_t* pos,
                     int* storage_ix, uint8_t* storage) {
   size_t length = MetaBlockLength(mb.cmds);
   const size_t end_pos = *pos + length;
-  EncodeMetaBlockLength(input_size_bits, length - 1, is_last,
+  EncodeMetaBlockLength(length - 1,
                         storage_ix, storage);
   BlockSplitCode literal_split_code;
   BlockSplitCode command_split_code;
@@ -680,10 +699,11 @@ void StoreMetaBlock(const MetaBlock& mb,
   int num_distance_codes =
       kNumDistanceShortCodes + mb.params.num_direct_distance_codes +
       (48 << mb.params.distance_postfix_bits);
-  EncodeContextMap(mb.literal_context_map, mb.params.literal_context_mode, 4,
-                   mb.literal_histograms.size(), storage_ix, storage);
-  EncodeContextMap(mb.distance_context_map, mb.params.distance_context_mode, 0,
-                   mb.distance_histograms.size(), storage_ix, storage);
+  for (int i = 0; i < mb.literal_split.num_types_; ++i) {
+    WriteBits(2, mb.literal_context_modes[i], storage_ix, storage);
+  }
+  EncodeContextMap(mb.literal_context_map, mb.literal_histograms.size(), storage_ix, storage);
+  EncodeContextMap(mb.distance_context_map, mb.distance_histograms.size(), storage_ix, storage);
   std::vector<EntropyCodeLiteral> literal_codes;
   std::vector<EntropyCodeCommand> command_codes;
   std::vector<EntropyCodeDistance> distance_codes;
@@ -705,27 +725,22 @@ void StoreMetaBlock(const MetaBlock& mb,
     for (int j = 0; j < cmd.insert_length_; ++j) {
       MoveAndEncode(literal_split_code, &literal_it, storage_ix, storage);
       int histogram_idx = literal_it.type_;
-      if (mb.params.literal_context_mode > 0) {
-        uint8_t prev_byte = *pos > 0 ? input_buffer[*pos - 1] : 0;
-        uint8_t prev_byte2 = *pos > 1 ? input_buffer[*pos - 2] : 0;
-        uint8_t prev_byte3 = *pos > 2 ? input_buffer[*pos - 3] : 0;
-        int context = (literal_it.type_ *
-                       NumContexts(mb.params.literal_context_mode) +
-                       Context(prev_byte, prev_byte2, prev_byte3,
-                               mb.params.literal_context_mode));
-        histogram_idx = mb.literal_context_map[context];
-      }
-      EntropyEncode(input_buffer[(*pos)++],
+      uint8_t prev_byte = *pos > 0 ? ringbuffer[(*pos - 1) & mask] : 0;
+      uint8_t prev_byte2 = *pos > 1 ? ringbuffer[(*pos - 2) & mask] : 0;
+      int context = ((literal_it.type_ << kLiteralContextBits) +
+                     Context(prev_byte, prev_byte2,
+                             mb.literal_context_modes[literal_it.type_]));
+      histogram_idx = mb.literal_context_map[context];
+      EntropyEncode(ringbuffer[*pos & mask],
                     literal_codes[histogram_idx], storage_ix, storage);
+      ++(*pos);
     }
     if (*pos < end_pos && cmd.distance_prefix_ != 0xffff) {
       MoveAndEncode(distance_split_code, &distance_it, storage_ix, storage);
       int histogram_index = distance_it.type_;
-      if (mb.params.distance_context_mode > 0) {
-        int context = distance_it.type_ << 2;
-        context += (cmd.copy_length_ > 4) ? 3 : cmd.copy_length_ - 2;
-        histogram_index = mb.distance_context_map[context];
-      }
+      int context = (distance_it.type_ << 2) +
+          ((cmd.copy_length_ > 4) ? 3 : cmd.copy_length_ - 2);
+      histogram_index = mb.distance_context_map[context];
       EncodeCopyDistance(cmd, distance_codes[histogram_index],
                          storage_ix, storage);
     }
@@ -733,45 +748,123 @@ void StoreMetaBlock(const MetaBlock& mb,
   }
 }
 
+static const int kWindowBits = 22;
+// To make decoding faster, we allow the decoder to write 16 bytes ahead in
+// its ringbuffer, therefore the encoder has to decrease max distance by this
+// amount.
+static const int kDecoderRingBufferWriteAheadSlack = 16;
+static const int kMaxBackwardDistance =
+    (1 << kWindowBits) - kDecoderRingBufferWriteAheadSlack;
+
+static const int kMetaBlockSizeBits = 21;
+static const int kRingBufferBits = 23;
+static const int kRingBufferMask = (1 << kRingBufferBits) - 1;
+
+BrotliCompressor::BrotliCompressor()
+    : hasher_(new Hasher),
+      dist_ringbuffer_idx_(0),
+      input_pos_(0),
+      ringbuffer_(kRingBufferBits, kMetaBlockSizeBits),
+      literal_cost_(1 << kRingBufferBits),
+      storage_ix_(0),
+      storage_(new uint8_t[2 << kMetaBlockSizeBits]) {
+    dist_ringbuffer_[0] = 4;
+    dist_ringbuffer_[1] = 11;
+    dist_ringbuffer_[2] = 15;
+    dist_ringbuffer_[3] = 16;
+    storage_[0] = 0;
+  }
+
+BrotliCompressor::~BrotliCompressor() {
+  delete hasher_;
+  delete[] storage_;
+}
+
+void BrotliCompressor::WriteStreamHeader() {
+  // Don't encode input size.
+  WriteBits(3, 0, &storage_ix_, storage_);
+  // Encode window size.
+  WriteBits(1, 1, &storage_ix_, storage_);
+  WriteBits(3, kWindowBits - 17, &storage_ix_, storage_);
+}
+
+void BrotliCompressor::WriteMetaBlock(const size_t input_size,
+                                      const uint8_t* input_buffer,
+                                      size_t* encoded_size,
+                                      uint8_t* encoded_buffer) {
+  ringbuffer_.Write(input_buffer, input_size);
+  EstimateBitCostsForLiterals(input_pos_, input_size,
+                              kRingBufferMask, ringbuffer_.start(),
+                              &literal_cost_[0]);
+  std::vector<Command> commands;
+  CreateBackwardReferences(input_size, input_pos_,
+                           ringbuffer_.start(),
+                           &literal_cost_[0],
+                           kRingBufferMask, kMaxBackwardDistance,
+                           hasher_,
+                           &commands);
+  ComputeDistanceShortCodes(&commands, dist_ringbuffer_,
+                            &dist_ringbuffer_idx_);
+  EncodingParams params;
+  params.num_direct_distance_codes = 12;
+  params.distance_postfix_bits = 1;
+  params.literal_context_mode = CONTEXT_SIGNED;
+  MetaBlock mb;
+  BuildMetaBlock(params, commands, ringbuffer_.start(), input_pos_,
+                 kRingBufferMask, &mb);
+  StoreMetaBlock(mb, ringbuffer_.start(), kRingBufferMask,
+                 &input_pos_, &storage_ix_, storage_);
+  size_t output_size = storage_ix_ >> 3;
+  memcpy(encoded_buffer, storage_, output_size);
+  *encoded_size = output_size;
+  storage_ix_ -= output_size << 3;
+  storage_[storage_ix_ >> 3] = storage_[output_size];
+}
+
+void BrotliCompressor::FinishStream(
+    size_t* encoded_size, uint8_t* encoded_buffer) {
+  WriteBits(1, 1, &storage_ix_, storage_);
+  *encoded_size = (storage_ix_ + 7) >> 3;
+  memcpy(encoded_buffer, storage_, *encoded_size);
+}
+
+
 int BrotliCompressBuffer(size_t input_size,
                          const uint8_t* input_buffer,
                          size_t* encoded_size,
                          uint8_t* encoded_buffer) {
-  int storage_ix = 0;
-  uint8_t* storage = encoded_buffer;
-  WriteBitsPrepareStorage(storage_ix, storage);
-  EncodeSize(input_size, &storage_ix, storage);
-
   if (input_size == 0) {
-    *encoded_size = (storage_ix + 7) >> 3;
+    encoded_buffer[0] = 1;
+    encoded_buffer[1] = 0;
+    *encoded_size = 2;
     return 1;
   }
-  int input_size_bits = Log2Ceiling(input_size);
 
-  std::vector<Command> all_commands;
-  CreateBackwardReferences(input_buffer, input_size, &all_commands);
-  ComputeDistanceShortCodes(&all_commands);
+  BrotliCompressor compressor;
+  compressor.WriteStreamHeader();
 
-  std::vector<std::vector<Command> > meta_block_commands;
-  SplitBlockByTotalLength(all_commands, input_size, 2 << 20,
-                          &meta_block_commands);
+  const int max_block_size = 1 << kMetaBlockSizeBits;
+  size_t max_output_size = *encoded_size;
+  const uint8_t* input_end = input_buffer + input_size;
+  *encoded_size = 0;
 
-  size_t pos = 0;
-  for (int block_idx = 0; block_idx < meta_block_commands.size(); ++block_idx) {
-    const std::vector<Command>& commands = meta_block_commands[block_idx];
-    bool is_last_meta_block = (block_idx + 1 == meta_block_commands.size());
-    EncodingParams params;
-    params.num_direct_distance_codes = 12;
-    params.distance_postfix_bits = 1;
-    params.literal_context_mode = CONTEXT_SIGNED_MIXED_3BYTE;
-    params.distance_context_mode = 1;
-    MetaBlock mb;
-    BuildMetaBlock(params, commands, input_buffer, pos, &mb);
-    StoreMetaBlock(mb, input_buffer, input_size_bits, is_last_meta_block,
-                   &pos, &storage_ix, storage);
+  while (input_buffer < input_end) {
+    int block_size = max_block_size;
+    if (block_size >= input_end - input_buffer) {
+      block_size = input_end - input_buffer;
+    }
+    size_t output_size = max_output_size;
+    compressor.WriteMetaBlock(block_size, input_buffer,
+                              &output_size, &encoded_buffer[*encoded_size]);
+    input_buffer += block_size;
+    *encoded_size += output_size;
+    max_output_size -= output_size;
   }
 
-  *encoded_size = (storage_ix + 7) >> 3;
+  size_t output_size = max_output_size;
+  compressor.FinishStream(&output_size, &encoded_buffer[*encoded_size]);
+  *encoded_size += output_size;
+
   return 1;
 }
 

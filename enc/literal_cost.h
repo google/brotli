@@ -22,9 +22,11 @@
 
 namespace brotli {
 
-// Input: length of data, and the bytes.
-// Output: estimate of how many bits the literal will take entropy coded.
-void EstimateBitCostsForLiterals(size_t len, const uint8_t *data, float *cost);
+// Estimates how many bits the literals in the interval [pos, pos + len) in the
+// ringbuffer (data, mask) will take entropy coded and writes these estimates
+// to the ringbuffer (cost, mask).
+void EstimateBitCostsForLiterals(size_t pos, size_t len, size_t mask,
+                                 const uint8_t *data, float *cost);
 
 }  // namespace brotli
 

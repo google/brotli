@@ -20,8 +20,44 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <string>
+#include <vector>
+#include "./hash.h"
+#include "./ringbuffer.h"
 
 namespace brotli {
+
+class BrotliCompressor {
+ public:
+  BrotliCompressor();
+  ~BrotliCompressor();
+
+  // Writes the stream header into the internal output buffer.
+  void WriteStreamHeader();
+
+  // Encodes the data in input_buffer as a meta-block and writes it to
+  // encoded_buffer and sets *encoded_size to the number of bytes that was
+  // written.
+  void WriteMetaBlock(const size_t input_size,
+                      const uint8_t* input_buffer,
+                      size_t* encoded_size,
+                      uint8_t* encoded_buffer);
+
+  // Writes a zero-length meta-block with end-of-input bit set to the
+  // internal output buffer and copies the output buffer to encoded_buffer and
+  // sets *encoded_size to the number of bytes written.
+  void FinishStream(size_t* encoded_size, uint8_t* encoded_buffer);
+
+
+ private:
+  Hasher* hasher_;
+  int dist_ringbuffer_[4];
+  size_t dist_ringbuffer_idx_;
+  size_t input_pos_;
+  RingBuffer ringbuffer_;
+  std::vector<float> literal_cost_;
+  int storage_ix_;
+  uint8_t* storage_;
+};
 
 // Compresses the data in input_buffer into encoded_buffer, and sets
 // *encoded_size to the compressed length.

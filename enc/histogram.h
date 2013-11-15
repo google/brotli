@@ -79,18 +79,31 @@ typedef Histogram<kNumCommandPrefixes> HistogramCommand;
 typedef Histogram<kNumDistancePrefixes> HistogramDistance;
 typedef Histogram<kNumBlockLenPrefixes> HistogramBlockLength;
 
+static const int kLiteralContextBits = 6;
+static const int kDistanceContextBits = 2;
+
 void BuildHistograms(
     const std::vector<Command>& cmds,
     const BlockSplit& literal_split,
     const BlockSplit& insert_and_copy_split,
     const BlockSplit& dist_split,
-    const uint8_t* input_buffer,
+    const uint8_t* ringbuffer,
     size_t pos,
-    int context_mode,
-    int distance_context_mode,
+    size_t mask,
+    const std::vector<int>& context_modes,
     std::vector<HistogramLiteral>* literal_histograms,
     std::vector<HistogramCommand>* insert_and_copy_histograms,
     std::vector<HistogramDistance>* copy_dist_histograms);
+
+void BuildLiteralHistogramsForBlockType(
+    const std::vector<Command>& cmds,
+    const BlockSplit& literal_split,
+    const uint8_t* ringbuffer,
+    size_t pos,
+    size_t mask,
+    int block_type,
+    int context_mode,
+    std::vector<HistogramLiteral>* histograms);
 
 }  // namespace brotli
 
