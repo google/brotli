@@ -14,6 +14,7 @@
 
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
 #include "./bit_reader.h"
 #include "./context.h"
 #include "./decode.h"
@@ -372,8 +373,8 @@ static void ReadInsertAndCopy(const HuffmanTree* tree,
   } else {
     *copy_dist = 0;
   }
-  insert_code = (kInsertRangeLut[range_idx] << 3) + ((code >> 3) & 7);
-  copy_code = (kCopyRangeLut[range_idx] << 3) + (code & 7);
+  insert_code = kInsertRangeLut[range_idx] + ((code >> 3) & 7);
+  copy_code = kCopyRangeLut[range_idx] + (code & 7);
   *insert_len = kInsertLengthPrefixCode[insert_code].offset;
   insert_extra_bits = kInsertLengthPrefixCode[insert_code].nbits;
   if (insert_extra_bits > 0) {
@@ -471,17 +472,11 @@ static int DecodeContextMap(int context_map_size,
     return 1;
   }
 
-  if (*num_htrees == context_map_size) {
-    int i;
-    for (i = 0; i < context_map_size; ++i) {
-      (*context_map)[i] = i;
-    }
-    return 1;
-  }
   {
     HuffmanTree tree_index_htree;
     int use_rle_for_zeros = BrotliReadBits(br, 1);
     int max_run_length_prefix = 0;
+    int i;
     if (use_rle_for_zeros) {
       max_run_length_prefix = BrotliReadBits(br, 4) + 1;
     }
@@ -489,39 +484,26 @@ static int DecodeContextMap(int context_map_size,
                          &tree_index_htree, br)) {
       return 0;
     }
-    if (use_rle_for_zeros) {
-      int i;
-      for (i = 0; i < context_map_size;) {
-        int code;
-        if (!BrotliReadMoreInput(br)) {
-          printf("[DecodeContextMap] Unexpected end of input.\n");
-          ok = 0;
-          goto End;
-        }
-        code = ReadSymbol(&tree_index_htree, br);
-        if (code == 0) {
+    for (i = 0; i < context_map_size;) {
+      int code;
+      if (!BrotliReadMoreInput(br)) {
+        printf("[DecodeContextMap] Unexpected end of input.\n");
+        ok = 0;
+        goto End;
+      }
+      code = ReadSymbol(&tree_index_htree, br);
+      if (code == 0) {
+        (*context_map)[i] = 0;
+        ++i;
+      } else if (code <= max_run_length_prefix) {
+        int reps = 1 + (1 << code) + BrotliReadBits(br, code);
+        while (--reps) {
           (*context_map)[i] = 0;
           ++i;
-        } else if (code <= max_run_length_prefix) {
-          int reps = 1 + (1 << code) + BrotliReadBits(br, code);
-          while (--reps) {
-            (*context_map)[i] = 0;
-            ++i;
-          }
-        } else {
-          (*context_map)[i] = code - max_run_length_prefix;
-          ++i;
         }
-      }
-    } else {
-      int i;
-      for (i = 0; i < context_map_size; ++i) {
-        if (!BrotliReadMoreInput(br)) {
-          printf("[DecodeContextMap] Unexpected end of input.\n");
-          ok = 0;
-          goto End;
-        }
-        (*context_map)[i] = ReadSymbol(&tree_index_htree, br);
+      } else {
+        (*context_map)[i] = code - max_run_length_prefix;
+        ++i;
       }
     }
    End:
@@ -640,6 +622,7 @@ int BrotliDecompress(BrotliInput input, BrotliOutput output) {
   int input_size_bits = 0;
   int input_end = 0;
   int window_bits = 0;
+  size_t max_backward_distance;
   size_t ringbuffer_size;
   size_t ringbuffer_mask;
   uint8_t* ringbuffer;
@@ -678,6 +661,7 @@ int BrotliDecompress(BrotliInput input, BrotliOutput output) {
   } else {
     window_bits = 16;
   }
+  max_backward_distance = (1 << window_bits) - 16;
 
   ringbuffer_size = 1 << window_bits;
   ringbuffer_mask = ringbuffer_size - 1;
@@ -812,6 +796,7 @@ int BrotliDecompress(BrotliInput input, BrotliOutput output) {
       int copy_length;
       int distance_code;
       int distance;
+      size_t max_distance;
       uint8_t context;
       int j;
       const uint8_t* copy_src;
@@ -899,44 +884,56 @@ int BrotliDecompress(BrotliInput input, BrotliOutput output) {
         dist_rb[dist_rb_idx & 3] = distance;
         ++dist_rb_idx;
       }
-
       BROTLI_LOG_UINT(distance);
 
-      if (pos < (size_t)distance || pos + copy_length > meta_block_end_pos) {
+      max_distance = max_backward_distance;
+      if (pos < max_distance) {
+        max_distance = pos;
+      }
+
+      if ((size_t)distance > max_distance) {
         printf("Invalid backward reference. pos: %ld distance: %d "
                "len: %d end: %lu\n", pos, distance, copy_length,
                (unsigned long)meta_block_end_pos);
         ok = 0;
         goto End;
-      }
+      } else {
+        if (pos + copy_length > meta_block_end_pos) {
+          printf("Invalid backward reference. pos: %zu distance: %d "
+                 "len: %d end: %zu\n", pos, distance, copy_length,
+                 meta_block_end_pos);
+          ok = 0;
+          goto End;
+        }
 
-      copy_src = &ringbuffer[(pos - distance) & ringbuffer_mask];
-      copy_dst = &ringbuffer[pos & ringbuffer_mask];
+        copy_src = &ringbuffer[(pos - distance) & ringbuffer_mask];
+        copy_dst = &ringbuffer[pos & ringbuffer_mask];
 
 #if (defined(__x86_64__) || defined(_M_X64))
-      if (copy_src + copy_length <= ringbuffer_end &&
-          copy_dst + copy_length < ringbuffer_end) {
-        if (copy_length <= 16 && distance >= 8) {
-          UNALIGNED_COPY64(copy_dst, copy_src);
-          UNALIGNED_COPY64(copy_dst + 8, copy_src + 8);
-        } else {
-          IncrementalCopyFastPath(copy_dst, copy_src, copy_length);
+        if (copy_src + copy_length <= ringbuffer_end &&
+            copy_dst + copy_length < ringbuffer_end) {
+          if (copy_length <= 16 && distance >= 8) {
+            UNALIGNED_COPY64(copy_dst, copy_src);
+            UNALIGNED_COPY64(copy_dst + 8, copy_src + 8);
+          } else {
+            IncrementalCopyFastPath(copy_dst, copy_src, copy_length);
+          }
+          pos += copy_length;
+          copy_length = 0;
         }
-        pos += copy_length;
-        copy_length = 0;
-      }
 #endif
 
-      for (j = 0; j < copy_length; ++j) {
-        ringbuffer[pos & ringbuffer_mask] =
-            ringbuffer[(pos - distance) & ringbuffer_mask];
-        if ((pos & ringbuffer_mask) == ringbuffer_mask) {
-          if (BrotliWrite(output, ringbuffer, ringbuffer_size) < 0) {
-            ok = 0;
-            goto End;
+        for (j = 0; j < copy_length; ++j) {
+          ringbuffer[pos & ringbuffer_mask] =
+              ringbuffer[(pos - distance) & ringbuffer_mask];
+          if ((pos & ringbuffer_mask) == ringbuffer_mask) {
+            if (BrotliWrite(output, ringbuffer, ringbuffer_size) < 0) {
+              ok = 0;
+              goto End;
+            }
           }
+          ++pos;
         }
-        ++pos;
       }
 
       // When we get here, we must have inserted at least one literal and made

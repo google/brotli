@@ -147,6 +147,7 @@ class HashLongestMatch {
                         uint32_t max_length,
                         const uint32_t max_backward,
                         size_t * __restrict best_len_out,
+                        size_t * __restrict best_len_code_out,
                         size_t * __restrict best_distance_out,
                         double * __restrict best_score_out) {
     const size_t cur_ix_masked = cur_ix & ring_buffer_mask;
@@ -227,6 +228,7 @@ class HashLongestMatch {
           best_len = len;
           best_ix = backward;
           *best_len_out = best_len;
+          *best_len_code_out = best_len;
           *best_distance_out = best_ix;
           *best_score_out = best_score;
           match_found = true;
@@ -234,7 +236,7 @@ class HashLongestMatch {
       }
     }
     const uint32_t key = Hash3Bytes(&data[cur_ix_masked], kBucketBits);
-    const uint32_t * __restrict const bucket = &buckets_[key][0];
+    const int * __restrict const bucket = &buckets_[key][0];
     const int down = (num_[key] > kBlockSize) ? (num_[key] - kBlockSize) : 0;
     int stop = int(cur_ix) - 64;
     if (stop < 0) { stop = 0; }
@@ -259,44 +261,50 @@ class HashLongestMatch {
         best_len = len;
         best_ix = backward;
         *best_len_out = best_len;
+        *best_len_code_out = best_len;
         *best_distance_out = best_ix;
         match_found = true;
       }
     }
     for (int i = num_[key] - 1; i >= down; --i) {
-      size_t prev_ix = bucket[i & kBlockMask];
-      const size_t backward = cur_ix - prev_ix;
-      if (PREDICT_FALSE(backward > max_backward)) {
-        break;
-      }
-      prev_ix &= ring_buffer_mask;
-      if (data[cur_ix_masked + best_len] != data[prev_ix + best_len]) {
+      int prev_ix = bucket[i & kBlockMask];
+      if (prev_ix < 0) {
         continue;
-      }
-      const size_t len =
-          FindMatchLengthWithLimit(&data[prev_ix], &data[cur_ix_masked],
-                                   max_length);
-      if (len >= 3) {
-        // Comparing for >= 3 does not change the semantics, but just saves for
-        // a few unnecessary binary logarithms in backward reference score,
-        // since we are not interested in such short matches.
-        const double score = BackwardReferenceScore(average_cost_,
-                                                    start_cost4,
-                                                    start_cost3,
-                                                    start_cost2,
-                                                    len, backward,
-                                                    last_distance1_,
-                                                    last_distance2_,
-                                                    last_distance3_,
-                                                    last_distance4_);
-        if (best_score < score) {
-          best_score = score;
-          best_len = len;
-          best_ix = backward;
-          *best_len_out = best_len;
-          *best_distance_out = best_ix;
-          *best_score_out = best_score;
-          match_found = true;
+      } else {
+        const size_t backward = cur_ix - prev_ix;
+        if (PREDICT_FALSE(backward > max_backward)) {
+          break;
+        }
+        prev_ix &= ring_buffer_mask;
+        if (data[cur_ix_masked + best_len] != data[prev_ix + best_len]) {
+          continue;
+        }
+        const size_t len =
+            FindMatchLengthWithLimit(&data[prev_ix], &data[cur_ix_masked],
+                                     max_length);
+        if (len >= 3) {
+          // Comparing for >= 3 does not change the semantics, but just saves
+          // for a few unnecessary binary logarithms in backward reference
+          // score, since we are not interested in such short matches.
+          const double score = BackwardReferenceScore(average_cost_,
+                                                      start_cost4,
+                                                      start_cost3,
+                                                      start_cost2,
+                                                      len, backward,
+                                                      last_distance1_,
+                                                      last_distance2_,
+                                                      last_distance3_,
+                                                      last_distance4_);
+          if (best_score < score) {
+            best_score = score;
+            best_len = len;
+            best_ix = backward;
+            *best_len_out = best_len;
+            *best_len_code_out = best_len;
+            *best_distance_out = best_ix;
+            *best_score_out = best_score;
+            match_found = true;
+          }
         }
       }
     }
@@ -333,7 +341,7 @@ class HashLongestMatch {
   uint16_t num_[kBucketSize];
 
   // Buckets containing kBlockSize of backward references.
-  uint32_t buckets_[kBucketSize][kBlockSize];
+  int buckets_[kBucketSize][kBlockSize];
 
   int last_distance1_;
   int last_distance2_;

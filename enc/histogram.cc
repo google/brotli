@@ -59,7 +59,7 @@ void BuildHistograms(
     if (cmd.copy_length_ > 0 && cmd.distance_prefix_ != 0xffff) {
       dist_it.Next();
       int context = (dist_it.type_ << kDistanceContextBits) +
-          ((cmd.copy_length_ > 4) ? 3 : cmd.copy_length_ - 2);
+          ((cmd.copy_length_code_ > 4) ? 3 : cmd.copy_length_code_ - 2);
       (*copy_dist_histograms)[context].Add(cmd.distance_prefix_);
     }
   }

@@ -53,16 +53,12 @@ static const struct PrefixCodeRange kCopyLengthPrefixCode[] = {
   {326, 8}, { 582,  9}, {1094, 10}, {2118, 24},
 };
 
-static const int kInsertAndCopyRangeLut[9] = {
-  0, 1, 4, 2, 3, 6, 5, 7, 8,
-};
-
 static const int kInsertRangeLut[9] = {
-  0, 0, 1, 1, 0, 2, 1, 2, 2,
+  0, 0, 8, 8, 0, 16, 8, 16, 16,
 };
 
 static const int kCopyRangeLut[9] = {
-  0, 1, 0, 1, 2, 0, 2, 1, 2,
+  0, 8, 0, 8, 16, 0, 16, 8, 16,
 };
 
 #endif  // BROTLI_DEC_PREFIX_H_

@@ -34,6 +34,18 @@
 
 namespace brotli {
 
+static const int kWindowBits = 22;
+// To make decoding faster, we allow the decoder to write 16 bytes ahead in
+// its ringbuffer, therefore the encoder has to decrease max distance by this
+// amount.
+static const int kDecoderRingBufferWriteAheadSlack = 16;
+static const int kMaxBackwardDistance =
+    (1 << kWindowBits) - kDecoderRingBufferWriteAheadSlack;
+
+static const int kMetaBlockSizeBits = 21;
+static const int kRingBufferBits = 23;
+static const int kRingBufferMask = (1 << kRingBufferBits) - 1;
+
 template<int kSize>
 double Entropy(const std::vector<Histogram<kSize> >& histograms) {
   double retval = 0;
@@ -264,7 +276,7 @@ void EncodeCommand(const Command& cmd,
   uint64_t insert_extra_bits_val =
       cmd.insert_length_ - InsertLengthOffset(code);
   int copy_extra_bits = CopyLengthExtraBits(code);
-  uint64_t copy_extra_bits_val = cmd.copy_length_ - CopyLengthOffset(code);
+  uint64_t copy_extra_bits_val = cmd.copy_length_code_ - CopyLengthOffset(code);
   if (insert_extra_bits > 0) {
     WriteBits(insert_extra_bits, insert_extra_bits_val, storage_ix, storage);
   }
@@ -325,8 +337,8 @@ void ComputeCommandPrefixes(std::vector<Command>* cmds,
   for (int i = 0; i < cmds->size(); ++i) {
     Command* cmd = &(*cmds)[i];
     cmd->command_prefix_ = CommandPrefix(cmd->insert_length_,
-                                         cmd->copy_length_);
-    if (cmd->copy_length_ > 0) {
+                                         cmd->copy_length_code_);
+    if (cmd->copy_length_code_ > 0) {
       PrefixEncodeCopyDistance(cmd->distance_code_,
                                num_direct_distance_codes,
                                distance_postfix_bits,
@@ -454,7 +466,7 @@ void EncodeContextMap(const std::vector<int>& context_map,
                       int* storage_ix, uint8_t* storage) {
   WriteBits(8, num_clusters - 1, storage_ix, storage);
 
-  if (num_clusters == 1 || num_clusters == context_map.size()) {
+  if (num_clusters == 1) {
     return;
   }
 
@@ -737,10 +749,10 @@ void StoreMetaBlock(const MetaBlock& mb,
     }
     if (*pos < end_pos && cmd.distance_prefix_ != 0xffff) {
       MoveAndEncode(distance_split_code, &distance_it, storage_ix, storage);
-      int histogram_index = distance_it.type_;
       int context = (distance_it.type_ << 2) +
-          ((cmd.copy_length_ > 4) ? 3 : cmd.copy_length_ - 2);
-      histogram_index = mb.distance_context_map[context];
+          ((cmd.copy_length_code_ > 4) ? 3 : cmd.copy_length_code_ - 2);
+      int histogram_index = mb.distance_context_map[context];
+      size_t max_distance = std::min(*pos, (size_t)kMaxBackwardDistance);
       EncodeCopyDistance(cmd, distance_codes[histogram_index],
                          storage_ix, storage);
     }
@@ -748,32 +760,21 @@ void StoreMetaBlock(const MetaBlock& mb,
   }
 }
 
-static const int kWindowBits = 22;
-// To make decoding faster, we allow the decoder to write 16 bytes ahead in
-// its ringbuffer, therefore the encoder has to decrease max distance by this
-// amount.
-static const int kDecoderRingBufferWriteAheadSlack = 16;
-static const int kMaxBackwardDistance =
-    (1 << kWindowBits) - kDecoderRingBufferWriteAheadSlack;
-
-static const int kMetaBlockSizeBits = 21;
-static const int kRingBufferBits = 23;
-static const int kRingBufferMask = (1 << kRingBufferBits) - 1;
-
 BrotliCompressor::BrotliCompressor()
-    : hasher_(new Hasher),
+    : window_bits_(kWindowBits),
+      hasher_(new Hasher),
       dist_ringbuffer_idx_(0),
       input_pos_(0),
       ringbuffer_(kRingBufferBits, kMetaBlockSizeBits),
       literal_cost_(1 << kRingBufferBits),
       storage_ix_(0),
       storage_(new uint8_t[2 << kMetaBlockSizeBits]) {
-    dist_ringbuffer_[0] = 4;
-    dist_ringbuffer_[1] = 11;
-    dist_ringbuffer_[2] = 15;
-    dist_ringbuffer_[3] = 16;
-    storage_[0] = 0;
-  }
+  dist_ringbuffer_[0] = 4;
+  dist_ringbuffer_[1] = 11;
+  dist_ringbuffer_[2] = 15;
+  dist_ringbuffer_[3] = 16;
+  storage_[0] = 0;
+}
 
 BrotliCompressor::~BrotliCompressor() {
   delete hasher_;
@@ -784,8 +785,12 @@ void BrotliCompressor::WriteStreamHeader() {
   // Don't encode input size.
   WriteBits(3, 0, &storage_ix_, storage_);
   // Encode window size.
-  WriteBits(1, 1, &storage_ix_, storage_);
-  WriteBits(3, kWindowBits - 17, &storage_ix_, storage_);
+  if (window_bits_ == 16) {
+    WriteBits(1, 0, &storage_ix_, storage_);
+  } else {
+    WriteBits(1, 1, &storage_ix_, storage_);
+    WriteBits(3, window_bits_ - 17, &storage_ix_, storage_);
+  }
 }
 
 void BrotliCompressor::WriteMetaBlock(const size_t input_size,

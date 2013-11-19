@@ -47,27 +47,30 @@ void CreateBackwardReferences(size_t num_bytes,
 
   while (i + 2 < i_end) {
     size_t best_len = 0;
+    size_t best_len_code = 0;
     size_t best_dist = 0;
     double best_score = 0;
-    const size_t max_distance = std::min(i + i_diff, max_backward_limit);
+    size_t max_distance = std::min(i + i_diff, max_backward_limit);
     hasher->set_insert_length(insert_length);
     bool match_found = hasher->FindLongestMatch(
         ringbuffer, literal_cost, ringbuffer_mask,
         i + i_diff, i_end - i, max_distance,
-        &best_len, &best_dist, &best_score);
+        &best_len, &best_len_code, &best_dist, &best_score);
     if (match_found) {
       // Found a match. Let's look for something even better ahead.
       int delayed_backward_references_in_row = 0;
       while (i + 4 < i_end &&
              delayed_backward_references_in_row < 4) {
         size_t best_len_2 = 0;
+        size_t best_len_code_2 = 0;
         size_t best_dist_2 = 0;
         double best_score_2 = 0;
+        max_distance = std::min(i + i_diff + 1, max_backward_limit);
         hasher->Store(ringbuffer + i, i + i_diff);
         match_found = hasher->FindLongestMatch(
             ringbuffer, literal_cost, ringbuffer_mask,
             i + i_diff + 1, i_end - i - 1, max_distance,
-            &best_len_2, &best_dist_2, &best_score_2);
+            &best_len_2, &best_len_code_2, &best_dist_2, &best_score_2);
         double cost_diff_lazy = 0;
         if (best_len >= 4) {
           cost_diff_lazy +=
@@ -96,6 +99,7 @@ void CreateBackwardReferences(size_t num_bytes,
           ++insert_length;
           ++delayed_backward_references_in_row;
           best_len = best_len_2;
+          best_len_code = best_len_code_2;
           best_dist = best_dist_2;
           best_score = best_score_2;
           i++;
@@ -106,6 +110,7 @@ void CreateBackwardReferences(size_t num_bytes,
       Command cmd;
       cmd.insert_length_ = insert_length;
       cmd.copy_length_ = best_len;
+      cmd.copy_length_code_ = best_len_code;
       cmd.copy_distance_ = best_dist;
       commands->push_back(cmd);
       hasher->set_last_distance(best_dist);

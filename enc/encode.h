@@ -49,6 +49,7 @@ class BrotliCompressor {
 
 
  private:
+  int window_bits_;
   Hasher* hasher_;
   int dist_ringbuffer_[4];
   size_t dist_ringbuffer_idx_;
