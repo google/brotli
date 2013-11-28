@@ -80,14 +80,14 @@ void EncodeMetaBlockLength(size_t meta_block_size,
                            int* storage_ix, uint8_t* storage) {
   WriteBits(1, 0, storage_ix, storage);
   int num_bits = Log2Floor(meta_block_size) + 1;
-  WriteBits(3, (num_bits + 3) >> 2, storage_ix, storage);
+  if (num_bits < 16) {
+    num_bits = 16;
+  }
+  WriteBits(2, (num_bits - 13) >> 2, storage_ix, storage);
   while (num_bits > 0) {
     WriteBits(4, meta_block_size & 0xf, storage_ix, storage);
     meta_block_size >>= 4;
     num_bits -= 4;
-  }
-  if (num_bits > 0) {
-    WriteBits(num_bits, meta_block_size, storage_ix, storage);
   }
 }
 
@@ -121,7 +121,7 @@ void StoreHuffmanTreeOfHuffmanTreeToBitMask(
 
   for (int i = skip_two_first * 2; i < codes_to_store; ++i) {
     uint8_t len[] = { 2, 4, 3, 2, 2, 4 };
-    uint8_t bits[] = { 0, 7, 3, 1, 2, 15 };
+    uint8_t bits[] = { 0, 5, 1, 3, 2, 13 };
     int v = code_length_bitdepth[kStorageOrder[i]];
     WriteBits(len[v], bits[v], storage_ix, storage);
   }
@@ -558,6 +558,12 @@ void BuildAndEncodeBlockSplitCode(const BlockSplit& split,
     return;
   }
   WriteBits(1, 1, storage_ix, storage);
+  int nbits = Log2Floor(split.num_types_ - 1);
+  WriteBits(3, nbits, storage_ix, storage);
+  if (nbits > 0) {
+    WriteBits(nbits, split.num_types_ - 1 - (1 << nbits), storage_ix, storage);
+  }
+
   HistogramLiteral type_histo;
   for (int i = 0; i < split.type_codes_.size(); ++i) {
     type_histo.Add(split.type_codes_[i]);
@@ -570,7 +576,6 @@ void BuildAndEncodeBlockSplitCode(const BlockSplit& split,
   }
   BuildEntropyCode(length_histo, 15, kNumBlockLenPrefixes,
                    &code->block_len_code);
-  WriteBits(8, split.num_types_ - 1, storage_ix, storage);
   StoreHuffmanCode(code->block_type_code, split.num_types_ + 2,
                    storage_ix, storage);
   StoreHuffmanCode(code->block_len_code, kNumBlockLenPrefixes,
@@ -769,10 +774,10 @@ BrotliCompressor::BrotliCompressor()
       literal_cost_(1 << kRingBufferBits),
       storage_ix_(0),
       storage_(new uint8_t[2 << kMetaBlockSizeBits]) {
-  dist_ringbuffer_[0] = 4;
-  dist_ringbuffer_[1] = 11;
-  dist_ringbuffer_[2] = 15;
-  dist_ringbuffer_[3] = 16;
+  dist_ringbuffer_[0] = 16;
+  dist_ringbuffer_[1] = 15;
+  dist_ringbuffer_[2] = 11;
+  dist_ringbuffer_[3] = 4;
   storage_[0] = 0;
 }
 
@@ -782,8 +787,6 @@ BrotliCompressor::~BrotliCompressor() {
 }
 
 void BrotliCompressor::WriteStreamHeader() {
-  // Don't encode input size.
-  WriteBits(3, 0, &storage_ix_, storage_);
   // Encode window size.
   if (window_bits_ == 16) {
     WriteBits(1, 0, &storage_ix_, storage_);
@@ -828,7 +831,7 @@ void BrotliCompressor::WriteMetaBlock(const size_t input_size,
 
 void BrotliCompressor::FinishStream(
     size_t* encoded_size, uint8_t* encoded_buffer) {
-  WriteBits(1, 1, &storage_ix_, storage_);
+  WriteBits(2, 0x3, &storage_ix_, storage_);
   *encoded_size = (storage_ix_ + 7) >> 3;
   memcpy(encoded_buffer, storage_, *encoded_size);
 }
@@ -839,9 +842,8 @@ int BrotliCompressBuffer(size_t input_size,
                          size_t* encoded_size,
                          uint8_t* encoded_buffer) {
   if (input_size == 0) {
-    encoded_buffer[0] = 1;
-    encoded_buffer[1] = 0;
-    *encoded_size = 2;
+    encoded_buffer[0] = 6;
+    *encoded_size = 1;
     return 1;
   }
 
