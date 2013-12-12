@@ -20,6 +20,7 @@
 #include <algorithm>
 #include <limits>
 #include <vector>
+#include <cstdlib>
 
 #include "./histogram.h"
 

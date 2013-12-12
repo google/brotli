@@ -23,6 +23,7 @@
 #include <string.h>
 #include <sys/types.h>
 #include <algorithm>
+#include <cstdlib>
 
 #include "./fast_log.h"
 #include "./find_match_length.h"
