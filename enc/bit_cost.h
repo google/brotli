@@ -25,7 +25,7 @@
 namespace brotli {
 
 static const int kHuffmanExtraBits[kCodeLengthCodes] = {
-  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 3, 7,
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 3,
 };
 
 static inline int HuffmanTreeBitCost(const int* counts, const uint8_t* depth) {
@@ -58,25 +58,29 @@ static inline int HuffmanBitCost(const uint8_t* depth, int length) {
     }
     i += reps;
     if (value == 0) {
-      while (reps > 10) {
-        ++histogram[18];
-        reps -= 138;
-      }
-      if (reps > 2) {
-        ++histogram[17];
-      } else if (reps > 0) {
+      if (reps < 3) {
         histogram[0] += reps;
+      } else {
+        reps -= 3;
+        while (reps >= 0) {
+          ++histogram[17];
+          reps >>= 3;
+          --reps;
+        }
       }
     } else {
       tail_start = i;
       ++histogram[value];
       --reps;
-      while (reps > 2) {
-        ++histogram[16];
-        reps -= 6;
-      }
-      if (reps > 0) {
+      if (reps < 3) {
         histogram[value] += reps;
+      } else {
+        reps -= 3;
+        while (reps >= 0) {
+          ++histogram[16];
+          reps >>= 2;
+          --reps;
+        }
       }
     }
   }
@@ -87,34 +91,12 @@ static inline int HuffmanBitCost(const uint8_t* depth, int length) {
   // account for rle extra bits
   cost[16] += 2;
   cost[17] += 3;
-  cost[18] += 7;
 
   int tree_size = 0;
   int bits = 6 + 3 * max_depth;  // huffman tree of huffman tree cost
   for (int i = 0; i < kCodeLengthCodes; ++i) {
     bits += histogram[i] * cost[i];  // huffman tree bit cost
     tree_size += histogram[i];
-  }
-  // bit cost adjustment for long trailing zero sequence
-  int tail_size = length - tail_start;
-  int tail_bits = 0;
-  while (tail_size >= 1) {
-    if (tail_size < 3) {
-      tail_bits += tail_size * cost[0];
-      tree_size -= tail_size;
-      break;
-    } else if (tail_size < 11) {
-      tail_bits += cost[17];
-      --tree_size;
-      break;
-    } else {
-      tail_bits += cost[18];
-      tail_size -= 138;
-      --tree_size;
-    }
-  }
-  if (tail_bits > 12) {
-    bits += ((Log2Ceiling(tree_size - 1) + 1) & ~1) + 3 - tail_bits;
   }
   return bits;
 }

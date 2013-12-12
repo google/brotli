@@ -98,7 +98,7 @@ void BuildEntropyCode(const Histogram<kSize>& histogram,
   ConvertBitDepthsToSymbols(&code->depth_[0], alphabet_size, &code->bits_[0]);
 }
 
-static const int kCodeLengthCodes = 19;
+static const int kCodeLengthCodes = 18;
 
 // Literal entropy code.
 typedef EntropyCode<256> EntropyCodeLiteral;
@@ -106,6 +106,10 @@ typedef EntropyCode<256> EntropyCodeLiteral;
 typedef EntropyCode<kNumCommandPrefixes> EntropyCodeCommand;
 typedef EntropyCode<kNumDistancePrefixes> EntropyCodeDistance;
 typedef EntropyCode<kNumBlockLenPrefixes> EntropyCodeBlockLength;
+// Context map entropy code, 256 Huffman tree indexes + 16 run length codes.
+typedef EntropyCode<272> EntropyCodeContextMap;
+// Block type entropy code, 256 block types + 2 special symbols.
+typedef EntropyCode<258> EntropyCodeBlockType;
 
 }  // namespace brotli
 

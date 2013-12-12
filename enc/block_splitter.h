@@ -30,7 +30,7 @@ namespace brotli {
 struct BlockSplit {
   int num_types_;
   std::vector<uint8_t> types_;
-  std::vector<uint8_t> type_codes_;
+  std::vector<int> type_codes_;
   std::vector<int> lengths_;
 };
 

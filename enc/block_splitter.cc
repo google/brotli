@@ -282,9 +282,8 @@ void ClusterBlocks(const DataType* data, const size_t length,
   }
   std::vector<HistogramType> clustered_histograms;
   std::vector<int> histogram_symbols;
-  // Block ids need to fit in one byte and there are two ids reserved for
-  // indicating 'same as last' and 'last plus one'.
-  static const int kMaxNumberOfBlockTypes = 254;
+  // Block ids need to fit in one byte.
+  static const int kMaxNumberOfBlockTypes = 256;
   ClusterHistograms(histograms, 1, histograms.size(),
                     kMaxNumberOfBlockTypes,
                     &clustered_histograms,

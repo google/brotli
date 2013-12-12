@@ -157,6 +157,17 @@ void CreateHuffmanTree(const int *data,
   }
 }
 
+void Reverse(uint8_t* v, int start, int end) {
+  --end;
+  while (start < end) {
+    int tmp = v[start];
+    v[start] = v[end];
+    v[end] = tmp;
+    ++start;
+    --end;
+  }
+}
+
 void WriteHuffmanTreeRepetitions(
     const int previous_value,
     const int value,
@@ -170,26 +181,24 @@ void WriteHuffmanTreeRepetitions(
     ++(*tree_size);
     --repetitions;
   }
-  while (repetitions >= 1) {
-    if (repetitions < 3) {
-      for (int i = 0; i < repetitions; ++i) {
-        tree[*tree_size] = value;
-        extra_bits[*tree_size] = 0;
-        ++(*tree_size);
-      }
-      return;
-    } else if (repetitions < 7) {
-      // 3 to 6 left.
-      tree[*tree_size] = 16;
-      extra_bits[*tree_size] = repetitions - 3;
+  if (repetitions < 3) {
+    for (int i = 0; i < repetitions; ++i) {
+      tree[*tree_size] = value;
+      extra_bits[*tree_size] = 0;
       ++(*tree_size);
-      return;
-    } else {
-      tree[*tree_size] = 16;
-      extra_bits[*tree_size] = 3;
-      ++(*tree_size);
-      repetitions -= 6;
     }
+  } else {
+    repetitions -= 3;
+    int start = *tree_size;
+    while (repetitions >= 0) {
+      tree[*tree_size] = 16;
+      extra_bits[*tree_size] = repetitions & 0x3;
+      ++(*tree_size);
+      repetitions >>= 2;
+      --repetitions;
+    }
+    Reverse(tree, start, *tree_size);
+    Reverse(extra_bits, start, *tree_size);
   }
 }
 
@@ -198,30 +207,24 @@ void WriteHuffmanTreeRepetitionsZeros(
     uint8_t* tree,
     uint8_t* extra_bits,
     int* tree_size) {
-  while (repetitions >= 1) {
-    if (repetitions < 3) {
-      for (int i = 0; i < repetitions; ++i) {
-        tree[*tree_size] = 0;
-        extra_bits[*tree_size] = 0;
-        ++(*tree_size);
-      }
-      return;
-    } else if (repetitions < 11) {
-      tree[*tree_size] = 17;
-      extra_bits[*tree_size] = repetitions - 3;
+  if (repetitions < 3) {
+    for (int i = 0; i < repetitions; ++i) {
+      tree[*tree_size] = 0;
+      extra_bits[*tree_size] = 0;
       ++(*tree_size);
-      return;
-    } else if (repetitions < 139) {
-      tree[*tree_size] = 18;
-      extra_bits[*tree_size] = repetitions - 11;
-      ++(*tree_size);
-      return;
-    } else {
-      tree[*tree_size] = 18;
-      extra_bits[*tree_size] = 0x7f;  // 138 repeated 0s
-      ++(*tree_size);
-      repetitions -= 138;
     }
+  } else {
+    repetitions -= 3;
+    int start = *tree_size;
+    while (repetitions >= 0) {
+      tree[*tree_size] = 17;
+      extra_bits[*tree_size] = repetitions & 0x7;
+      ++(*tree_size);
+      repetitions >>= 3;
+      --repetitions;
+    }
+    Reverse(tree, start, *tree_size);
+    Reverse(extra_bits, start, *tree_size);
   }
 }
 

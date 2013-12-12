@@ -38,20 +38,16 @@ extern "C" {
 #endif
 
 static const int kDefaultCodeLength = 8;
-static const int kCodeLengthLiterals = 16;
 static const int kCodeLengthRepeatCode = 16;
-static const int kCodeLengthExtraBits[3] = { 2, 3, 7 };
-static const int kCodeLengthRepeatOffsets[3] = { 3, 3, 11 };
-
 static const int kNumLiteralCodes = 256;
 static const int kNumInsertAndCopyCodes = 704;
 static const int kNumBlockLengthCodes = 26;
 static const int kLiteralContextBits = 6;
 static const int kDistanceContextBits = 2;
 
-#define CODE_LENGTH_CODES 19
+#define CODE_LENGTH_CODES 18
 static const uint8_t kCodeLengthCodeOrder[CODE_LENGTH_CODES] = {
-  1, 2, 3, 4, 0, 17, 18, 5, 6, 16, 7, 8, 9, 10, 11, 12, 13, 14, 15
+  1, 2, 3, 4, 0, 17, 5, 6, 16, 7, 8, 9, 10, 11, 12, 13, 14, 15,
 };
 
 #define NUM_DISTANCE_SHORT_CODES 16
@@ -71,11 +67,26 @@ static BROTLI_INLINE int DecodeWindowBits(BrotliBitReader* br) {
   }
 }
 
+// Decodes a number in the range [0..255], by reading 1 - 11 bits.
+static BROTLI_INLINE int DecodeVarLenUint8(BrotliBitReader* br) {
+  if (BrotliReadBits(br, 1)) {
+    int nbits = BrotliReadBits(br, 3);
+    if (nbits == 0) {
+      return 1;
+    } else {
+      return BrotliReadBits(br, nbits) + (1 << nbits);
+    }
+  }
+  return 0;
+}
+
 static void DecodeMetaBlockLength(BrotliBitReader* br,
                                   size_t* meta_block_length,
-                                  int* input_end) {
+                                  int* input_end,
+                                  int* is_uncompressed) {
   *input_end = BrotliReadBits(br, 1);
   *meta_block_length = 0;
+  *is_uncompressed = 0;
   if (*input_end && BrotliReadBits(br, 1)) {
     return;
   }
@@ -85,6 +96,9 @@ static void DecodeMetaBlockLength(BrotliBitReader* br,
     *meta_block_length |= BrotliReadBits(br, 4) << (i * 4);
   }
   ++(*meta_block_length);
+  if (!*input_end) {
+    *is_uncompressed = BrotliReadBits(br, 1);
+  }
 }
 
 // Decodes the next Huffman code from bit-stream.
@@ -130,6 +144,8 @@ static int ReadHuffmanCodeLengths(
   int max_symbol;
   int decode_number_of_code_length_codes;
   int prev_code_len = kDefaultCodeLength;
+  int repeat = 0;
+  int repeat_length = 0;
   HuffmanTree tree;
 
   if (!BrotliHuffmanTreeBuildImplicit(&tree, code_length_code_lengths,
@@ -146,9 +162,11 @@ static int ReadHuffmanCodeLengths(
   decode_number_of_code_length_codes = BrotliReadBits(br, 1);
   BROTLI_LOG_UINT(decode_number_of_code_length_codes);
   if (decode_number_of_code_length_codes) {
-    const int length_nbits = 2 + 2 * BrotliReadBits(br, 3);
-    max_symbol = 2 + BrotliReadBits(br, length_nbits);
-    BROTLI_LOG_UINT(length_nbits);
+    if (BrotliReadBits(br, 1)) {
+      max_symbol = 68 + BrotliReadBits(br, 7);
+    } else {
+      max_symbol = 4 + BrotliReadBits(br, 6);
+    }
     if (max_symbol > num_symbols) {
       printf("[ReadHuffmanCodeLengths] max_symbol > num_symbols (%d vs %d)\n",
              max_symbol, num_symbols);
@@ -160,7 +178,7 @@ static int ReadHuffmanCodeLengths(
   BROTLI_LOG_UINT(max_symbol);
 
   symbol = 0;
-  while (symbol < num_symbols) {
+  while (symbol + repeat < num_symbols) {
     int code_len;
     if (max_symbol-- == 0) break;
     if (!BrotliReadMoreInput(br)) {
@@ -169,30 +187,36 @@ static int ReadHuffmanCodeLengths(
     }
     code_len = ReadSymbol(&tree, br);
     BROTLI_LOG_UINT(symbol);
+    BROTLI_LOG_UINT(repeat);
+    BROTLI_LOG_UINT(repeat_length);
     BROTLI_LOG_UINT(code_len);
-    if (code_len < kCodeLengthLiterals) {
+    if ((code_len < kCodeLengthRepeatCode) ||
+        (code_len == kCodeLengthRepeatCode && repeat_length == 0) ||
+        (code_len > kCodeLengthRepeatCode && repeat_length > 0)) {
+      while (repeat > 0) {
+        code_lengths[symbol++] = repeat_length;
+        --repeat;
+      }
+    }
+    if (code_len < kCodeLengthRepeatCode) {
       code_lengths[symbol++] = code_len;
       if (code_len != 0) prev_code_len = code_len;
     } else {
-      const int use_prev = (code_len == kCodeLengthRepeatCode);
-      const int slot = code_len - kCodeLengthLiterals;
-      const int extra_bits = kCodeLengthExtraBits[slot];
-      const int repeat_offset = kCodeLengthRepeatOffsets[slot];
-      const int length = use_prev ? prev_code_len : 0;
-      int repeat = BrotliReadBits(br, extra_bits) + repeat_offset;
-      BROTLI_LOG_UINT(repeat);
-      BROTLI_LOG_UINT(length);
-      if (symbol + repeat > num_symbols) {
-        printf("[ReadHuffmanCodeLengths] symbol + repeat > num_symbols "
-               "(%d + %d vs %d)\n", symbol, repeat, num_symbols);
-        goto End;
-      } else {
-        while (repeat-- > 0) {
-          code_lengths[symbol++] = length;
-        }
+      const int extra_bits = code_len - 14;
+      if (repeat > 0) {
+        repeat -= 2;
+        repeat <<= extra_bits;
       }
+      repeat += BrotliReadBits(br, extra_bits) + 3;
+      repeat_length = (code_len == kCodeLengthRepeatCode ? prev_code_len : 0);
     }
   }
+  if (symbol + repeat > num_symbols) {
+    printf("[ReadHuffmanCodeLengths] symbol + repeat > num_symbols "
+           "(%d + %d vs %d)\n", symbol, repeat, num_symbols);
+    goto End;
+  }
+  while (repeat-- > 0) code_lengths[symbol++] = repeat_length;
   while (symbol < num_symbols) code_lengths[symbol++] = 0;
   ok = 1;
 
@@ -256,7 +280,7 @@ static int ReadHuffmanCode(int alphabet_size,
   } else {  // Decode Huffman-coded code lengths.
     int i;
     uint8_t code_length_code_lengths[CODE_LENGTH_CODES] = { 0 };
-    const int num_codes = BrotliReadBits(br, 4) + 4;
+    const int num_codes = BrotliReadBits(br, 4) + 3;
     BROTLI_LOG_UINT(num_codes);
     if (num_codes > CODE_LENGTH_CODES) {
       return 0;
@@ -434,7 +458,7 @@ static int DecodeContextMap(int context_map_size,
     printf("[DecodeContextMap] Unexpected end of input.\n");
     return 0;
   }
-  *num_htrees = BrotliReadBits(br, 8) + 1;
+  *num_htrees = DecodeVarLenUint8(br) + 1;
 
   BROTLI_LOG_UINT(context_map_size);
   BROTLI_LOG_UINT(*num_htrees);
@@ -569,7 +593,8 @@ int BrotliDecompressedSize(size_t encoded_size,
   DecodeWindowBits(&br);
   size_t meta_block_len;
   int input_end;
-  DecodeMetaBlockLength(&br, &meta_block_len, &input_end);
+  int is_uncompressed;
+  DecodeMetaBlockLength(&br, &meta_block_len, &input_end, &is_uncompressed);
   if (!input_end) {
     return 0;
   }
@@ -633,7 +658,8 @@ int BrotliDecompress(BrotliInput input, BrotliOutput output) {
   while (!input_end && ok) {
     size_t meta_block_len = 0;
     size_t meta_block_end_pos;
-    uint32_t block_length[3] = { UINT32_MAX, UINT32_MAX, UINT32_MAX };
+    int is_uncompressed;
+    uint32_t block_length[3] = { 1 << 28, 1 << 28, 1 << 28 };
     int block_type[3] = { 0 };
     int num_block_types[3] = { 1, 1, 1 };
     int block_type_rb[6] = { 0, 1, 0, 1, 0, 1 };
@@ -672,22 +698,30 @@ int BrotliDecompress(BrotliInput input, BrotliOutput output) {
       goto End;
     }
     BROTLI_LOG_UINT(pos);
-    DecodeMetaBlockLength(&br, &meta_block_len, &input_end);
+    DecodeMetaBlockLength(&br, &meta_block_len, &input_end, &is_uncompressed);
     BROTLI_LOG_UINT(meta_block_len);
     if (meta_block_len == 0) {
       goto End;
     }
     meta_block_end_pos = pos + meta_block_len;
+    if (is_uncompressed) {
+      BrotliSetBitPos(&br, (br.bit_pos_ + 7) & ~7);
+      for (; pos < meta_block_end_pos; ++pos) {
+        ringbuffer[pos & ringbuffer_mask] = BrotliReadBits(&br, 8);
+        if ((pos & ringbuffer_mask) == ringbuffer_mask) {
+          if (BrotliWrite(output, ringbuffer, ringbuffer_size) < 0) {
+            ok = 0;
+            goto End;
+          }
+        }
+      }
+      goto End;
+    }
     for (i = 0; i < 3; ++i) {
       block_type_trees[i].root_ = NULL;
       block_len_trees[i].root_ = NULL;
-      if (BrotliReadBits(&br, 1)) {
-        int nbits = BrotliReadBits(&br, 3);
-        if (nbits == 0) {
-          num_block_types[i] = 2;
-        } else {
-          num_block_types[i] = BrotliReadBits(&br, nbits) + (1 << nbits) + 1;
-        }
+      num_block_types[i] = DecodeVarLenUint8(&br) + 1;
+      if (num_block_types[i] >= 2) {
         if (!ReadHuffmanCode(
                 num_block_types[i] + 2, &block_type_trees[i], &br) ||
             !ReadHuffmanCode(kNumBlockLengthCodes, &block_len_trees[i], &br)) {

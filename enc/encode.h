@@ -39,6 +39,7 @@ class BrotliCompressor {
   // written.
   void WriteMetaBlock(const size_t input_size,
                       const uint8_t* input_buffer,
+                      const bool is_last,
                       size_t* encoded_size,
                       uint8_t* encoded_buffer);
 

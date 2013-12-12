@@ -78,6 +78,10 @@ typedef Histogram<256> HistogramLiteral;
 typedef Histogram<kNumCommandPrefixes> HistogramCommand;
 typedef Histogram<kNumDistancePrefixes> HistogramDistance;
 typedef Histogram<kNumBlockLenPrefixes> HistogramBlockLength;
+// Context map histogram, 256 Huffman tree indexes + 16 run length codes.
+typedef Histogram<272> HistogramContextMap;
+// Block type histogram, 256 block types + 2 special symbols.
+typedef Histogram<258> HistogramBlockType;
 
 static const int kLiteralContextBits = 6;
 static const int kDistanceContextBits = 2;
