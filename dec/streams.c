@@ -15,7 +15,9 @@
 // Functions for streaming input and output.
 
 #include <string.h>
+#ifndef _WIN32
 #include <unistd.h>
+#endif
 #include "./streams.h"
 
 #if defined(__cplusplus) || defined(c_plusplus)
@@ -37,10 +39,10 @@ int BrotliMemInputFunction(void* data, uint8_t* buf, size_t count) {
 
 BrotliInput BrotliInitMemInput(const uint8_t* buffer, size_t length,
                                BrotliMemInput* mem_input) {
+  BrotliInput input;
   mem_input->buffer = buffer;
   mem_input->length = length;
   mem_input->pos = 0;
-  BrotliInput input;
   input.cb_ = &BrotliMemInputFunction;
   input.data_ = mem_input;
   return input;
@@ -58,17 +60,21 @@ int BrotliMemOutputFunction(void* data, const uint8_t* buf, size_t count) {
 
 BrotliOutput BrotliInitMemOutput(uint8_t* buffer, size_t length,
                                  BrotliMemOutput* mem_output) {
+  BrotliOutput output;
   mem_output->buffer = buffer;
   mem_output->length = length;
   mem_output->pos = 0;
-  BrotliOutput output;
   output.cb_ = &BrotliMemOutputFunction;
   output.data_ = mem_output;
   return output;
 }
 
 int BrotliStdinInputFunction(void* data, uint8_t* buf, size_t count) {
+#ifndef _WIN32
   return read(STDIN_FILENO, buf, count);
+#else
+  return -1;
+#endif
 }
 
 BrotliInput BrotliStdinInput() {
@@ -79,7 +85,11 @@ BrotliInput BrotliStdinInput() {
 }
 
 int BrotliStdoutOutputFunction(void* data, const uint8_t* buf, size_t count) {
+#ifndef _WIN32
   return write(STDOUT_FILENO, buf, count);
+#else
+  return -1;
+#endif
 }
 
 BrotliOutput BrotliStdoutOutput() {

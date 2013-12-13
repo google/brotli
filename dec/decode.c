@@ -84,14 +84,15 @@ static void DecodeMetaBlockLength(BrotliBitReader* br,
                                   size_t* meta_block_length,
                                   int* input_end,
                                   int* is_uncompressed) {
+  int size_nibbles;
+  int i;
   *input_end = BrotliReadBits(br, 1);
   *meta_block_length = 0;
   *is_uncompressed = 0;
   if (*input_end && BrotliReadBits(br, 1)) {
     return;
   }
-  int size_nibbles = BrotliReadBits(br, 2) + 4;
-  int i;
+  size_nibbles = BrotliReadBits(br, 2) + 4;
   for (i = 0; i < size_nibbles; ++i) {
     *meta_block_length |= BrotliReadBits(br, 4) << (i * 4);
   }
@@ -104,13 +105,17 @@ static void DecodeMetaBlockLength(BrotliBitReader* br,
 // Decodes the next Huffman code from bit-stream.
 static BROTLI_INLINE int ReadSymbol(const HuffmanTree* tree,
                                     BrotliBitReader* br) {
+  uint32_t bits;
+  int bitpos;
+  int lut_ix;
+  int lut_bits;
   const HuffmanTreeNode* node = tree->root_;
   BrotliFillBitWindow(br);
-  uint32_t bits = BrotliPrefetchBits(br);
-  int bitpos = br->bit_pos_;
+  bits = BrotliPrefetchBits(br);
+  bitpos = br->bit_pos_;
   // Check if we find the bit combination from the Huffman lookup table.
-  const int lut_ix = bits & (HUFF_LUT - 1);
-  const int lut_bits = tree->lut_bits_[lut_ix];
+  lut_ix = bits & (HUFF_LUT - 1);
+  lut_bits = tree->lut_bits_[lut_ix];
   if (lut_bits <= HUFF_LUT_BITS) {
     BrotliSetBitPos(br, bitpos + lut_bits);
     return tree->lut_symbol_[lut_ix];
@@ -587,13 +592,13 @@ int BrotliDecompressedSize(size_t encoded_size,
   BrotliMemInput memin;
   BrotliInput input = BrotliInitMemInput(encoded_buffer, encoded_size, &memin);
   BrotliBitReader br;
+  size_t meta_block_len;
+  int input_end;
+  int is_uncompressed;
   if (!BrotliInitBitReader(&br, input)) {
     return 0;
   }
   DecodeWindowBits(&br);
-  size_t meta_block_len;
-  int input_end;
-  int is_uncompressed;
   DecodeMetaBlockLength(&br, &meta_block_len, &input_end, &is_uncompressed);
   if (!input_end) {
     return 0;
@@ -636,6 +641,10 @@ int BrotliDecompress(BrotliInput input, BrotliOutput output) {
   HuffmanTreeGroup hgroup[3];
   BrotliBitReader br;
 
+  static const int kRingBufferWriteAheadSlack = 16;
+
+  static const int kMaxDictionaryWordLength = 0;
+
   if (!BrotliInitBitReader(&br, input)) {
     return 0;
   }
@@ -643,10 +652,6 @@ int BrotliDecompress(BrotliInput input, BrotliOutput output) {
   // Decode window size.
   window_bits = DecodeWindowBits(&br);
   max_backward_distance = (1 << window_bits) - 16;
-
-  static const int kRingBufferWriteAheadSlack = 16;
-
-  static const int kMaxDictionaryWordLength = 0;
 
   ringbuffer_size = 1 << window_bits;
   ringbuffer_mask = ringbuffer_size - 1;
@@ -848,6 +853,7 @@ int BrotliDecompress(BrotliInput input, BrotliOutput output) {
       if (pos == meta_block_end_pos) break;
 
       if (distance_code < 0) {
+        uint8_t context;
         if (!BrotliReadMoreInput(&br)) {
           printf("[BrotliDecompress] Unexpected end of input.\n");
           ok = 0;
@@ -862,7 +868,7 @@ int BrotliDecompress(BrotliInput input, BrotliOutput output) {
           dist_context_map_slice = dist_context_map + dist_context_offset;
         }
         --block_length[2];
-        uint8_t context = copy_length > 4 ? 3 : copy_length - 2;
+        context = copy_length > 4 ? 3 : copy_length - 2;
         dist_htree_index = dist_context_map_slice[context];
         distance_code = ReadCopyDistance(&hgroup[2].htrees[dist_htree_index],
                                          num_direct_distance_codes,

@@ -149,8 +149,9 @@ static BROTLI_INLINE void BrotliFillBitWindow(BrotliBitReader* const br) {
 // Requires that n_bits is positive.
 static BROTLI_INLINE uint32_t BrotliReadBits(
     BrotliBitReader* const br, int n_bits) {
+  uint32_t val;
   BrotliFillBitWindow(br);
-  const uint32_t val = (uint32_t)(br->val_ >> br->bit_pos_) & kBitMask[n_bits];
+  val = (uint32_t)(br->val_ >> br->bit_pos_) & kBitMask[n_bits];
 #ifdef BROTLI_DECODE_DEBUG
   printf("[BrotliReadBits]  %010ld %2d  val: %6x\n",
          (br->pos_ << 3) + br->bit_pos_ - 64, n_bits, val);
