@@ -34,7 +34,7 @@ int BrotliMemInputFunction(void* data, uint8_t* buf, size_t count) {
   }
   memcpy(buf, input->buffer + input->pos, count);
   input->pos += count;
-  return count;
+  return (int)count;
 }
 
 BrotliInput BrotliInitMemInput(const uint8_t* buffer, size_t length,
@@ -55,7 +55,7 @@ int BrotliMemOutputFunction(void* data, const uint8_t* buf, size_t count) {
   }
   memcpy(output->buffer + output->pos, buf, count);
   output->pos += count;
-  return count;
+  return (int)count;
 }
 
 BrotliOutput BrotliInitMemOutput(uint8_t* buffer, size_t length,
@@ -100,7 +100,7 @@ BrotliOutput BrotliStdoutOutput() {
 }
 
 int BrotliFileOutputFunction(void* data, const uint8_t* buf, size_t count) {
-  return fwrite(buf, 1, count, (FILE*)data);
+  return (int)fwrite(buf, 1, count, (FILE*)data);
 }
 
 BrotliOutput BrotliFileOutput(FILE* f) {

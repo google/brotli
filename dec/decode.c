@@ -651,9 +651,9 @@ int BrotliDecompress(BrotliInput input, BrotliOutput output) {
 
   // Decode window size.
   window_bits = DecodeWindowBits(&br);
-  max_backward_distance = (1 << window_bits) - 16;
+  max_backward_distance = (1ULL << window_bits) - 16;
 
-  ringbuffer_size = 1 << window_bits;
+  ringbuffer_size = 1ULL << window_bits;
   ringbuffer_mask = ringbuffer_size - 1;
   ringbuffer = (uint8_t*)malloc(ringbuffer_size +
                                 kRingBufferWriteAheadSlack +
