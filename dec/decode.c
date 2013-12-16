@@ -1,16 +1,17 @@
-// Copyright 2013 Google Inc. All Rights Reserved.
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-// http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+/* Copyright 2013 Google Inc. All Rights Reserved.
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.
+*/
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -67,7 +68,7 @@ static BROTLI_INLINE int DecodeWindowBits(BrotliBitReader* br) {
   }
 }
 
-// Decodes a number in the range [0..255], by reading 1 - 11 bits.
+/* Decodes a number in the range [0..255], by reading 1 - 11 bits. */
 static BROTLI_INLINE int DecodeVarLenUint8(BrotliBitReader* br) {
   if (BrotliReadBits(br, 1)) {
     int nbits = BrotliReadBits(br, 3);
@@ -102,7 +103,7 @@ static void DecodeMetaBlockLength(BrotliBitReader* br,
   }
 }
 
-// Decodes the next Huffman code from bit-stream.
+/* Decodes the next Huffman code from bit-stream. */
 static BROTLI_INLINE int ReadSymbol(const HuffmanTree* tree,
                                     BrotliBitReader* br) {
   uint32_t bits;
@@ -113,7 +114,7 @@ static BROTLI_INLINE int ReadSymbol(const HuffmanTree* tree,
   BrotliFillBitWindow(br);
   bits = BrotliPrefetchBits(br);
   bitpos = br->bit_pos_;
-  // Check if we find the bit combination from the Huffman lookup table.
+  /* Check if we find the bit combination from the Huffman lookup table. */
   lut_ix = bits & (HUFF_LUT - 1);
   lut_bits = tree->lut_bits_[lut_ix];
   if (lut_bits <= HUFF_LUT_BITS) {
@@ -124,7 +125,7 @@ static BROTLI_INLINE int ReadSymbol(const HuffmanTree* tree,
   bitpos += HUFF_LUT_BITS;
   bits >>= HUFF_LUT_BITS;
 
-  // Decode the value from a binary tree.
+  /* Decode the value from a binary tree. */
   assert(node != NULL);
   do {
     node = HuffmanTreeNextNode(node, bits & 1);
@@ -249,7 +250,7 @@ static int ReadHuffmanCode(int alphabet_size,
   }
   simple_code = BrotliReadBits(br, 1);
   BROTLI_LOG_UINT(simple_code);
-  if (simple_code) {  // Read symbols, codes & code lengths directly.
+  if (simple_code) {  /* Read symbols, codes & code lengths directly. */
     int i;
     int max_bits_counter = alphabet_size - 1;
     int max_bits = 0;
@@ -282,7 +283,7 @@ static int ReadHuffmanCode(int alphabet_size,
         break;
     }
     BROTLI_LOG_UINT(num_symbols);
-  } else {  // Decode Huffman-coded code lengths.
+  } else {  /* Decode Huffman-coded code lengths. */
     int i;
     uint8_t code_length_code_lengths[CODE_LENGTH_CODES] = { 0 };
     const int num_codes = BrotliReadBits(br, 4) + 3;
@@ -421,7 +422,7 @@ static void InverseMoveToFrontTransform(uint8_t* v, int v_len) {
   }
 }
 
-// Contains a collection of huffman trees with the same alphabet size.
+/* Contains a collection of huffman trees with the same alphabet size. */
 typedef struct {
   int alphabet_size;
   int num_htrees;
@@ -539,36 +540,37 @@ static BROTLI_INLINE void DecodeBlockType(const HuffmanTree* trees,
   ++(*index);
 }
 
-// Copy len bytes from src to dst. It can write up to ten extra bytes
-// after the end of the copy.
-//
-// The main part of this loop is a simple copy of eight bytes at a time until
-// we've copied (at least) the requested amount of bytes.  However, if dst and
-// src are less than eight bytes apart (indicating a repeating pattern of
-// length < 8), we first need to expand the pattern in order to get the correct
-// results. For instance, if the buffer looks like this, with the eight-byte
-// <src> and <dst> patterns marked as intervals:
-//
-//    abxxxxxxxxxxxx
-//    [------]           src
-//      [------]         dst
-//
-// a single eight-byte copy from <src> to <dst> will repeat the pattern once,
-// after which we can move <dst> two bytes without moving <src>:
-//
-//    ababxxxxxxxxxx
-//    [------]           src
-//        [------]       dst
-//
-// and repeat the exercise until the two no longer overlap.
-//
-// This allows us to do very well in the special case of one single byte
-// repeated many times, without taking a big hit for more general cases.
-//
-// The worst case of extra writing past the end of the match occurs when
-// dst - src == 1 and len == 1; the last copy will read from byte positions
-// [0..7] and write to [4..11], whereas it was only supposed to write to
-// position 1. Thus, ten excess bytes.
+/* Copy len bytes from src to dst. It can write up to ten extra bytes
+   after the end of the copy.
+
+   The main part of this loop is a simple copy of eight bytes at a time until
+   we've copied (at least) the requested amount of bytes.  However, if dst and
+   src are less than eight bytes apart (indicating a repeating pattern of
+   length < 8), we first need to expand the pattern in order to get the correct
+   results. For instance, if the buffer looks like this, with the eight-byte
+   <src> and <dst> patterns marked as intervals:
+
+      abxxxxxxxxxxxx
+      [------]           src
+        [------]         dst
+
+   a single eight-byte copy from <src> to <dst> will repeat the pattern once,
+   after which we can move <dst> two bytes without moving <src>:
+
+      ababxxxxxxxxxx
+      [------]           src
+          [------]       dst
+
+   and repeat the exercise until the two no longer overlap.
+
+   This allows us to do very well in the special case of one single byte
+   repeated many times, without taking a big hit for more general cases.
+
+   The worst case of extra writing past the end of the match occurs when
+   dst - src == 1 and len == 1; the last copy will read from byte positions
+   [0..7] and write to [4..11], whereas it was only supposed to write to
+   position 1. Thus, ten excess bytes.
+*/
 static BROTLI_INLINE void IncrementalCopyFastPath(
     uint8_t* dst, const uint8_t* src, int len) {
   if (src < dst) {
@@ -631,11 +633,11 @@ int BrotliDecompress(BrotliInput input, BrotliOutput output) {
   size_t ringbuffer_mask;
   uint8_t* ringbuffer;
   uint8_t* ringbuffer_end;
-  // This ring buffer holds a few past copy distances that will be used by
-  // some special distance codes.
+  /* This ring buffer holds a few past copy distances that will be used by */
+  /* some special distance codes. */
   int dist_rb[4] = { 16, 15, 11, 4 };
   size_t dist_rb_idx = 0;
-  // The previous 2 bytes used for context.
+  /* The previous 2 bytes used for context. */
   uint8_t prev_byte1 = 0;
   uint8_t prev_byte2 = 0;
   HuffmanTreeGroup hgroup[3];
@@ -649,7 +651,7 @@ int BrotliDecompress(BrotliInput input, BrotliOutput output) {
     return 0;
   }
 
-  // Decode window size.
+  /* Decode window size. */
   window_bits = DecodeWindowBits(&br);
   max_backward_distance = (1ULL << window_bits) - 16;
 
@@ -877,8 +879,8 @@ int BrotliDecompress(BrotliInput input, BrotliOutput output) {
                                          &br);
       }
 
-      // Convert the distance code to the actual distance by possibly looking
-      // up past distnaces from the ringbuffer.
+      /* Convert the distance code to the actual distance by possibly looking */
+      /* up past distnaces from the ringbuffer. */
       distance = TranslateShortCodes(distance_code, dist_rb, dist_rb_idx);
       if (distance_code > 0) {
         dist_rb[dist_rb_idx & 3] = distance;
@@ -937,9 +939,9 @@ int BrotliDecompress(BrotliInput input, BrotliOutput output) {
         }
       }
 
-      // When we get here, we must have inserted at least one literal and made
-      // a copy of at least length two, therefore accessing the last 2 bytes is
-      // valid.
+      /* When we get here, we must have inserted at least one literal and */
+      /* made a copy of at least length two, therefore accessing the last 2 */
+      /* bytes is valid. */
       prev_byte1 = ringbuffer[(pos - 1) & ringbuffer_mask];
       prev_byte2 = ringbuffer[(pos - 2) & ringbuffer_mask];
     }
@@ -962,5 +964,5 @@ int BrotliDecompress(BrotliInput input, BrotliOutput output) {
 }
 
 #if defined(__cplusplus) || defined(c_plusplus)
-}    // extern "C"
+}    /* extern "C" */
 #endif
