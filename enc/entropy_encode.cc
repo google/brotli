@@ -352,6 +352,12 @@ void WriteHuffmanTree(const uint8_t* depth, const int length,
     }
     i += reps;
   }
+  // Throw away trailing zeros.
+  for (; *huffman_tree_size > 0; --(*huffman_tree_size)) {
+    if (tree[*huffman_tree_size - 1] > 0 && tree[*huffman_tree_size - 1] < 17) {
+      break;
+    }
+  }
 }
 
 namespace {

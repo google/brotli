@@ -87,7 +87,7 @@ void CreateBackwardReferences(size_t num_bytes,
         // If we are not inserting any symbols, inserting one is more
         // expensive than if we were inserting symbols anyways.
         if (insert_length < 1) {
-          cost_diff_lazy += 1.0;
+          cost_diff_lazy += 0.97;
         }
         // Add bias to slightly avoid lazy matching.
         cost_diff_lazy += 2.0 + delayed_backward_references_in_row * 0.2;

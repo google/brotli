@@ -147,11 +147,10 @@ static int ReadHuffmanCodeLengths(
     BrotliBitReader* br) {
   int ok = 0;
   int symbol;
-  int max_symbol;
-  int decode_number_of_code_length_codes;
   int prev_code_len = kDefaultCodeLength;
   int repeat = 0;
   int repeat_length = 0;
+  int space = 32768;
   HuffmanTree tree;
 
   if (!BrotliHuffmanTreeBuildImplicit(&tree, code_length_code_lengths,
@@ -165,28 +164,10 @@ static int ReadHuffmanCodeLengths(
     printf("[ReadHuffmanCodeLengths] Unexpected end of input.\n");
     return 0;
   }
-  decode_number_of_code_length_codes = BrotliReadBits(br, 1);
-  BROTLI_LOG_UINT(decode_number_of_code_length_codes);
-  if (decode_number_of_code_length_codes) {
-    if (BrotliReadBits(br, 1)) {
-      max_symbol = 68 + BrotliReadBits(br, 7);
-    } else {
-      max_symbol = 4 + BrotliReadBits(br, 6);
-    }
-    if (max_symbol > num_symbols) {
-      printf("[ReadHuffmanCodeLengths] max_symbol > num_symbols (%d vs %d)\n",
-             max_symbol, num_symbols);
-      goto End;
-    }
-  } else {
-    max_symbol = num_symbols;
-  }
-  BROTLI_LOG_UINT(max_symbol);
 
   symbol = 0;
-  while (symbol + repeat < num_symbols) {
+  while (symbol + repeat < num_symbols && space > 0) {
     int code_len;
-    if (max_symbol-- == 0) break;
     if (!BrotliReadMoreInput(br)) {
       printf("[ReadHuffmanCodeLengths] Unexpected end of input.\n");
       goto End;
@@ -206,16 +187,31 @@ static int ReadHuffmanCodeLengths(
     }
     if (code_len < kCodeLengthRepeatCode) {
       code_lengths[symbol++] = code_len;
-      if (code_len != 0) prev_code_len = code_len;
+      if (code_len != 0) {
+        prev_code_len = code_len;
+        space -= 32768 >> code_len;
+      }
     } else {
       const int extra_bits = code_len - 14;
+      int i = repeat;
       if (repeat > 0) {
         repeat -= 2;
         repeat <<= extra_bits;
       }
       repeat += BrotliReadBits(br, extra_bits) + 3;
-      repeat_length = (code_len == kCodeLengthRepeatCode ? prev_code_len : 0);
+      if (code_len == kCodeLengthRepeatCode) {
+        repeat_length = prev_code_len;
+        for (; i < repeat; ++i) {
+          space -= 32768 >> repeat_length;
+        }
+      } else {
+        repeat_length = 0;
+      }
     }
+  }
+  if (space != 0) {
+    printf("[ReadHuffmanCodeLengths] space = %d\n", space);
+    goto End;
   }
   if (symbol + repeat > num_symbols) {
     printf("[ReadHuffmanCodeLengths] symbol + repeat > num_symbols "
@@ -286,12 +282,9 @@ static int ReadHuffmanCode(int alphabet_size,
   } else {  /* Decode Huffman-coded code lengths. */
     int i;
     uint8_t code_length_code_lengths[CODE_LENGTH_CODES] = { 0 };
-    const int num_codes = BrotliReadBits(br, 4) + 3;
-    BROTLI_LOG_UINT(num_codes);
-    if (num_codes > CODE_LENGTH_CODES) {
-      return 0;
-    }
-    for (i = BrotliReadBits(br, 1) * 2; i < num_codes; ++i) {
+    int space = 32;
+    for (i = BrotliReadBits(br, 1) * 2;
+         i < CODE_LENGTH_CODES && space > 0; ++i) {
       int code_len_idx = kCodeLengthCodeOrder[i];
       int v = BrotliReadBits(br, 2);
       if (v == 1) {
@@ -311,6 +304,9 @@ static int ReadHuffmanCode(int alphabet_size,
       }
       code_length_code_lengths[code_len_idx] = v;
       BROTLI_LOG_ARRAY_INDEX(code_length_code_lengths, code_len_idx);
+      if (v != 0) {
+        space -= (32 >> v);
+      }
     }
     ok = ReadHuffmanCodeLengths(code_length_code_lengths, alphabet_size,
                                 code_lengths, br);

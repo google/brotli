@@ -104,7 +104,7 @@ static inline int HuffmanBitCost(const uint8_t* depth, int length) {
 template<int kSize>
 double PopulationCost(const Histogram<kSize>& histogram) {
   if (histogram.total_count_ == 0) {
-    return 11;
+    return 12;
   }
   int count = 0;
   for (int i = 0; i < kSize && count < 5; ++i) {
@@ -113,10 +113,10 @@ double PopulationCost(const Histogram<kSize>& histogram) {
     }
   }
   if (count == 1) {
-    return 11;
+    return 12;
   }
   if (count == 2) {
-    return 19 + histogram.total_count_;
+    return 20 + histogram.total_count_;
   }
   uint8_t depth[kSize] = { 0 };
   CreateHuffmanTree(&histogram.data_[0], kSize, 15, depth);
@@ -125,7 +125,9 @@ double PopulationCost(const Histogram<kSize>& histogram) {
     bits += histogram.data_[i] * depth[i];
   }
   if (count == 3) {
-    bits += 27;
+    bits += 28;
+  } else if (count == 4) {
+    bits += 37;
   } else {
     bits += HuffmanBitCost(depth, kSize);
   }

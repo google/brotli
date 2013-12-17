@@ -48,7 +48,7 @@ Abstract
          * Can be produced or consumed, even for an arbitrarily long
            sequentially presented input data stream, using only an a
            priori bounded amount of intermediate storage, and hence
-           can be used in data communications or similar structures
+           can be used in data communications or similar structures,
            such as Unix filters;
          * Compresses data with efficiency comparable to the best
            currently available general-purpose compression methods,
@@ -62,9 +62,8 @@ Abstract
 
    1.2. Intended audience
 
-      This specification is intended for use by implementors of software
-      to compress data into "brotli" format and/or decompress data from
-      "brotli" format.
+      This specification is intended for use by software implementers
+      to compress data into and/or decompress data from "brotli" format.
 
       The text of the specification assumes a basic background in
       programming at the level of bits and other primitive data
@@ -88,7 +87,7 @@ Abstract
 
       Unless otherwise indicated below, a compliant decompressor must be
       able to accept and decompress any data set that conforms to all
-      the specifications presented here; a compliant compressor must
+      the specifications presented here. A compliant compressor must
       produce data sets that conform to all the specifications presented
       here.
 
@@ -97,7 +96,7 @@ Abstract
       Byte: 8 bits stored or transmitted as a unit (same as an octet).
       For this specification, a byte is exactly 8 bits, even on machines
       which store a character on a number of bits different from eight.
-      See below, for the numbering of bits within a byte.
+      See below for the numbering of bits within a byte.
 
       String: a sequence of arbitrary bytes.
 
@@ -135,7 +134,7 @@ Abstract
          bits of a byte are transmitted on a bit-sequential medium,
          since the final data format described here is byte- rather than
          bit-oriented.  However, we describe the compressed block format
-         in below, as a sequence of data elements of various bit
+         below as a sequence of data elements of various bit
          lengths, not a sequence of bytes.  We must therefore specify
          how to pack these data elements into bytes to form the final
          compressed byte sequence:
@@ -161,7 +160,7 @@ Abstract
 2. Compressed representation overview
 
    A compressed data set consists of a header and a series of meta-
-   blocks, corresponding to successive meta-blocks of input data. The
+   blocks corresponding to successive meta-blocks of input data. The
    meta-block sizes are limited to bytes and the maximum meta-block size
    is 268,435,456 bytes.
 
@@ -209,7 +208,7 @@ Abstract
       (IaC0, L0, L1, L2, D0)(IaC1, D1)(IaC2, L3, L4, D2)(IaC3, L5, D3)
 
    The meta-block here has 4 commands, and each three types of symbols
-   within these commands can be rearranged into for example the
+   within these commands can be rearranged for example into the
    following logical block structure:
 
       [IaC0, IaC1][IaC2, IaC3]  <-- block types 0 and 1
@@ -243,16 +242,16 @@ Abstract
    Each type of value (insert-and-copy lengths, literals and distances) 
    can be encoded with any Huffman tree from a collection of Huffman
    trees of the same kind appearing in the meta-block header. The
-   particual Huffman tree used can depend on two factors: the block type
+   particular Huffman tree used can depend on two factors: the block type
    of the block the value appears in, and the context of the value. In
    the case of the literals, the context is the previous two bytes in
    the input data, and in the case of distances, the context is the copy
    length from the same command. For insert-and-copy lengths, no context
    is used and the Huffman tree depends only on the block type (in fact,
    the index of the Huffman tree is the block type number). In the case 
-   of literals and distances, the context is mapped to a context id in
+   of literals and distances, the context is mapped to a context ID in
    the rage [0, 63] for literals and [0, 3] for distances and the matrix
-   of the Huffman tree indices for each block type and context id,
+   of the Huffman tree indices for each block type and context ID,
    called the context map, is encoded in a compact form in the meta-
    block header.
 
@@ -405,8 +404,8 @@ Abstract
 
       Huffman codes are used for different purposes in the "brotli"
       format, and each purpose has a different alphabet size. For
-      literal codes, the alphabet size is 256. For insert-and-copy
-      length codes, the alphabet size is 704. For block length codes,
+      literal codes the alphabet size is 256. For insert-and-copy
+      length codes the alphabet size is 704. For block length codes,
       the alphabet size is 26. For distance codes, block type codes and
       the Huffman codes used in compressing the context map, the
       alphabet size is dynamic and is based on other parameters.
@@ -488,7 +487,8 @@ Abstract
       A code length of 0 indicates that the corresponding symbol in the
       alphabet will not occur in the compressed data, and should not
       participate in the Huffman code construction algorithm given
-      earlier.
+      earlier. A complex Huffman code must have at least two non-zero
+      code lengths.
 
       The bit lengths of the Huffman code over the code length alphabet
       are compressed with the following static Huffman code:
@@ -506,52 +506,32 @@ Abstract
       follows:
 
             1 bit:  0, indicating a complex Huffman code
-            4 bits: HCLEN, # of code length codes - 3
             1 bit : HSKIP, if 1, skip over first two code length codes
 
-            (HCLEN + 3 - 2 * HSKIP) code lengths for symbols in the code
-               length alphabet given just above, in the order: 1, 2, 3,
-               4, 0, 17, 5, 6, 16, 7, 8, 9, 10, 11, 12, 13, 14, 15
-
-               If HSKIP is 1, code lengths of code length symbols 1 and
-               2 are implicit zeros. Code lengths of code length symbols
-               beyond the (HCLEN + 4)th in the ordering above are also
-               implicit zeros.
+            Code lengths for symbols in the code length alphabet given
+               just above, in the order: 1, 2, 3, 4, 0, 17, 5, 6, 16, 7,
+               8, 9, 10, 11, 12, 13, 14, 15
 
                The code lengths of code length symbols are between 0 and
                5 and they are represented with 2 - 5 bits according to
                the static Huffman code above. A code length of 0 means
                the corresponding code length symbol is not used.
 
-            1 bit:  HLENINC, if 1, the number of code length symbols is
-                    encoded next
-
-          7-8 bits: HLEN, # of code length symbols, with the following
-                    encoding: values 4 - 67 with bit pattern 0xxxxxx,
-                    values 68 - 195 with bit pattern 1xxxxxxx, appears
-                    only if HLENINC = 1
+               If HSKIP is 1, code lengths of code length symbols 1 and
+               2 are implicit zeros and are not present in the code
+               lengths sequence above. If there are at least two non-
+               zero code lengths, any trailing zero code lengths are
+               omitted, i.e. the last code length in the sequence must
+               be non-zero. In this case the sum of (32 >> code length)
+               over all the non-zero code lengths must equal to 32.
 
             Sequence of code lengths symbols, encoded using the code
-               length Huffman code. The number of code length symbols
-               is either HLEN (in case of HLENINC = 1), or as many as is
-               needed to assign a code length to each symbol in the
-               alphabet (i.e. the alphabet size minus the sum of all the
-               repeat lengths defined by extra bits of code length
-               symbols 16 and 17). In case of HLENINC = 1, all symbols
-               not assigned a code length have implicit code length 0.
-
-   3.6. Validity of the Huffman code
-
-      There are two kinds of valid Huffman codes:
-         * Huffman code that contains one symbol of length 1, and
-         * Full canonical Huffman code.
-
-      A decoder can check if the Huffman code is full by using integer
-      arithmetic, by computing if the sum of (32768 right-shifted by
-      code-length) over the non-zero code lengths leads to a total sum
-      of 32768. However, if there is only one non-zero code-length, it
-      shall have an implicit code length of one and the code is
-      considered valid.
+               length Huffman code. Any trailing 0 or 17 must be
+               omitted, i.e. the last encoded code length symbol must be
+               between 1 and 16. The sum of (32768 >> code length) over
+               all the non-zero code lengths in the alphabet, including
+               those encoded using repeat code(s) of 16, must equal to
+               32768.
 
 4. Encoding of distances
 
@@ -568,11 +548,11 @@ Abstract
    on the distance code.
 
    To convert a distance code and associated extra bits to a backward
-   distance, we need the sequence of past distances and two additonal
+   distance, we need the sequence of past distances and two additional
    parameters, the number of "postfix bits", denoted by NPOSTFIX, and
    the number of direct distance codes, denoted by NDIRECT. Both of
    these parameters are encoded in the meta-block header. We will also
-   use the folowing derived parameter:
+   use the following derived parameter:
 
       POSTFIX_MASK = ((1 << NPOSTFIX) - 1)
 
@@ -711,7 +691,7 @@ Abstract
 
    First, look up the cell with the 64 value range containing the
    insert-and-copy length code, this gives the insert length code and
-   and the copy length code ranges, both 8 values long. The copy length
+   the copy length code ranges, both 8 values long. The copy length
    code within its range is determined by the lowest 3 bits of the
    insert-and-copy length code, and the insert length code within its
    range is determined by bits 3-5 (counted from the LSB) of the insert-
@@ -738,7 +718,7 @@ Abstract
    0 - 255. The second last and last block types are initialized with 0
    and 1, respectively, at the beginning of each meta-block.
 
-   The first block type of each block category must be 0, and the block
+   The first block type of each block category must be 0 and the block
    type of the first block switch command is therefore not encoded in
    the compressed data.
 
@@ -783,13 +763,13 @@ Abstract
 7. Context modeling
 
    As described in Section 2, the Huffman tree used to encode a literal
-   byte or a distance code depends on the context id and the block type.
-   This section specifies how to compute the context id for a particular
+   byte or a distance code depends on the context ID and the block type.
+   This section specifies how to compute the context ID for a particular
    literal and distance code, and how to encode the context map that
-   maps a <context id, block type> pair to the index of a Huffman
+   maps a <context ID, block type> pair to the index of a Huffman
    tree in the array of literal and distance Huffman trees.
 
-   7.1. Context modes and context id lookup for literals
+   7.1. Context modes and context ID lookup for literals
 
       The context for encoding the next literal is defined by the last
       two bytes in the stream (p1, p2, where p1 is the most recent
@@ -864,8 +844,8 @@ Abstract
          5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5,
          6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 7
 
-      Given p1 = last decoded byte, and p2 = second last decoded byte,
-      the context ids can be computed as follows:
+      Given p1 is the last decoded byte and p2 is the second last
+      decoded byte the context IDs can be computed as follows:
 
          For LSB6  :  Context ID = p1 & 0x3f
          For MSB6  :  Context ID = p1 >> 2
@@ -875,14 +855,14 @@ Abstract
       The context modes LSB6, MSB6, UTF8, and Signed are denoted by
       integers 0, 1, 2, 3.
 
-      The context mode is defined for each literal block type, and they
-      are stored in a consequtive array of bits in the meta-block
+      The context mode is defined for each literal block type and they
+      are stored in a consecutive array of bits in the meta-block
       header, always two bits per block type.
 
-   7.2. Context id for distances
+   7.2. Context ID for distances
 
       The context for encoding a distance code is defined by the copy
-      length corresponding to the distance. The context ids are 0, 1, 2,
+      length corresponding to the distance. The context IDs are 0, 1, 2,
       and 3 for copy lengths 2, 3, 4, and more than 4, respectively.
 
    7.3. Encoding of the context map
@@ -898,7 +878,7 @@ Abstract
       CMAPL[0..(64 * NBLTYPESL - 1)] and CMAPD[0..(4 * NBLTYPESD - 1)].
 
       The index of the Huffman tree for encoding a literal or distance
-      code with context id "cid" and block type "bltype" is
+      code with context ID "cid" and block type "bltype" is
 
          index of literal Huffman tree = CMAPL[bltype * 64 + cid]
 
@@ -946,7 +926,7 @@ Abstract
 
    At any given point during decoding the compressed data, a reference
    to a duplicated string in the output produced so far has a maximum
-   backward distance value, which is the minumum of the window size and
+   backward distance value, which is the minimum of the window size and
    the number of output bytes produced. However, decoding a distance
    from the input stream, as described in section 4, can produce
    distances that are greater than this maximum allowed value. The
@@ -994,7 +974,7 @@ Abstract
 
    In this section we describe the format of the compressed data set in
    terms of the format of the individual data items described in the
-   previous secions.
+   previous sections.
 
    9.1. Format of the stream header
 
@@ -1013,7 +993,7 @@ Abstract
    9.2. Format of the meta-block header
 
       A compliant compressed data set has at least one meta-block. Each
-      meta-block contains a header, with information about the
+      meta-block contains a header with information about the
       uncompressed length of the meta-block, and a bit signaling if the
       meta-block is the last one. The format of the meta-block header is
       the following:
@@ -1214,7 +1194,7 @@ Abstract
                   read block length using HTREE_BLEN_L and set BLEN_L
                decrement BLEN_L
                look up context mode CMODE[BTYPE_L]
-               compute context id, CIDL from last two bytes of output
+               compute context ID, CIDL from last two bytes of output
                read literal using HTREEL[CMAPL[64 * BTYPE_L + CIDL]]
                copy literal to output stream
             if number of output bytes produced in the loop is MLEN
@@ -1226,7 +1206,7 @@ Abstract
                   read block type using HTREE_BTYPE_D and set BTYPE_D
                   read block length using HTREE_BLEN_D and set BLEN_D
                decrement BLEN_D
-               compute context id, CIDD from CLEN
+               compute context ID, CIDD from CLEN
                read distance code with HTREED[CMAPD[4 * BTYPE_D + CIDD]]
                compute distance by distance short code substitution
             move backwards distance bytes in the output stream, and
@@ -1237,12 +1217,12 @@ Abstract
       while not ISLAST
 
       Note that a duplicated string reference may refer to a string in a
-      previous meta-block; i.e., the backward distance may cross one or
+      previous meta-block, i.e. the backward distance may cross one or
       more meta-block boundaries. However a backward copy distance
-      cannot refer past the beginning of the output stream, and it can
-      not be greater than the window size, any such distance must be
-      interpreted as a reference to a static dictionary word. Note also
-      that the referenced string may overlap the current position; for
+      cannot refer past the beginning of the output stream and it can
+      not be greater than the window size; any such distance must be
+      interpreted as a reference to a static dictionary word. Also note
+      that the referenced string may overlap the current position, for
       example, if the last 2 bytes decoded have values X and Y, a string
       reference with <length = 5, distance = 2> adds X,Y,X,Y,X to the
       output stream.
