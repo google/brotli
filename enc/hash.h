@@ -205,7 +205,9 @@ class HashLongestMatch {
         continue;
       }
       prev_ix &= ring_buffer_mask;
-      if (data[cur_ix_masked + best_len] != data[prev_ix + best_len]) {
+      if (cur_ix_masked + best_len > ring_buffer_mask ||
+          prev_ix + best_len > ring_buffer_mask ||
+          data[cur_ix_masked + best_len] != data[prev_ix + best_len]) {
         continue;
       }
       const size_t len =
@@ -277,7 +279,9 @@ class HashLongestMatch {
           break;
         }
         prev_ix &= ring_buffer_mask;
-        if (data[cur_ix_masked + best_len] != data[prev_ix + best_len]) {
+        if (cur_ix_masked + best_len > ring_buffer_mask ||
+            prev_ix + best_len > ring_buffer_mask ||
+            data[cur_ix_masked + best_len] != data[prev_ix + best_len]) {
           continue;
         }
         const size_t len =

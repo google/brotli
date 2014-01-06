@@ -82,18 +82,6 @@ void CopyCommandsToByteArray(const std::vector<Command>& cmds,
   }
 }
 
-template<int kSize>
-double HistogramAddEval(const Histogram<kSize>& a,
-                        const Histogram<kSize>& b) {
-  int total = a.total_count_ + b.total_count_;
-  double retval = total * FastLog2(total);
-  for (int i = 0; i < kSize; ++i) {
-    int count = a.data_[i] + b.data_[i];
-    retval -= count * FastLog2(count);
-  }
-  return retval;
-}
-
 template<typename HistogramType, typename DataType>
 void InitialEntropyCodes(const DataType* data, size_t length,
                          int literals_per_histogram,
@@ -120,28 +108,19 @@ void InitialEntropyCodes(const DataType* data, size_t length,
   }
 }
 
-template<typename HistogramType>
-int FindClosest(const HistogramType& sample,
-                const std::vector<HistogramType>& vec) {
-  double best_distance = 1e99;
-  int best_ix = 0;
-  for (int i = 0; i < vec.size(); ++i) {
-    double distance = HistogramAddEval(sample, vec[i]);
-    if (distance < best_distance) {
-      best_ix = i;
-      best_distance = distance;
-    }
-  }
-  return best_ix;
-}
-
 template<typename HistogramType, typename DataType>
 void RandomSample(unsigned int* seed,
                   const DataType* data,
                   size_t length,
                   size_t stride,
                   HistogramType* sample) {
-  size_t pos = rand_r(seed) % (length - stride);
+  size_t pos = 0;
+  if (stride >= length) {
+    pos = 0;
+    stride = length;
+  } else {
+    pos = rand_r(seed) % (length - stride + 1);
+  }
   sample->Add(data + pos, stride);
 }
 
@@ -149,13 +128,14 @@ template<typename HistogramType, typename DataType>
 void RefineEntropyCodes(const DataType* data, size_t length,
                         size_t stride,
                         std::vector<HistogramType>* vec) {
-  const int iters =
+  int iters =
       kIterMulForRefining * length / stride + kMinItersForRefining;
   unsigned int seed = 7;
+  iters = ((iters + vec->size() - 1) / vec->size()) * vec->size();
   for (int iter = 0; iter < iters; ++iter) {
     HistogramType sample;
     RandomSample(&seed, data, length, stride, &sample);
-    int ix = FindClosest(sample, *vec);
+    int ix = iter % vec->size();
     (*vec)[ix].AddHistogram(sample);
   }
 }

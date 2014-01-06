@@ -52,6 +52,7 @@ static void AssignChildren(HuffmanTree* const tree,
 
 static int TreeInit(HuffmanTree* const tree, int num_leaves) {
   assert(tree != NULL);
+  tree->root_ = NULL;
   if (num_leaves == 0) return 0;
   /* We allocate maximum possible nodes in the tree at once. */
   /* Note that a Huffman tree is a full binary tree; and in a full binary */
@@ -70,7 +71,9 @@ static int TreeInit(HuffmanTree* const tree, int num_leaves) {
 
 void BrotliHuffmanTreeRelease(HuffmanTree* const tree) {
   if (tree != NULL) {
-    free(tree->root_);
+    if (tree->root_ != NULL) {
+      free(tree->root_);
+    }
     tree->root_ = NULL;
     tree->max_nodes_ = 0;
     tree->num_nodes_ = 0;

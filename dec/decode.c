@@ -199,6 +199,9 @@ static int ReadHuffmanCodeLengths(
         repeat <<= extra_bits;
       }
       repeat += BrotliReadBits(br, extra_bits) + 3;
+      if (repeat + symbol > num_symbols) {
+        goto End;
+      }
       if (code_len == kCodeLengthRepeatCode) {
         repeat_length = prev_code_len;
         for (; i < repeat; ++i) {
@@ -258,7 +261,7 @@ static int ReadHuffmanCode(int alphabet_size,
     }
     memset(code_lengths, 0, alphabet_size);
     for (i = 0; i < num_symbols; ++i) {
-      symbols[i] = BrotliReadBits(br, max_bits);
+      symbols[i] = BrotliReadBits(br, max_bits) % alphabet_size;
       code_lengths[symbols[i]] = 2;
     }
     code_lengths[symbols[0]] = 1;
@@ -386,8 +389,8 @@ static void ReadInsertAndCopy(const HuffmanTree* tree,
   }
 }
 
-static int TranslateShortCodes(int code, int* ringbuffer, size_t index) {
-  int val;
+static size_t TranslateShortCodes(int code, int* ringbuffer, size_t index) {
+  size_t val;
   if (code < NUM_DISTANCE_SHORT_CODES) {
     index += kDistanceShortCodeIndexOffset[code];
     index &= 3;
@@ -427,9 +430,13 @@ typedef struct {
 
 static void HuffmanTreeGroupInit(HuffmanTreeGroup* group, int alphabet_size,
                                  int ntrees) {
+  int i;
   group->alphabet_size = alphabet_size;
   group->num_htrees = ntrees;
   group->htrees = (HuffmanTree*)malloc(sizeof(HuffmanTree) * ntrees);
+  for (i = 0; i < ntrees; ++i) {
+    group->htrees[i].root_ = NULL;
+  }
 }
 
 static void HuffmanTreeGroupRelease(HuffmanTreeGroup* group) {
@@ -437,7 +444,9 @@ static void HuffmanTreeGroupRelease(HuffmanTreeGroup* group) {
   for (i = 0; i < group->num_htrees; ++i) {
     BrotliHuffmanTreeRelease(&group->htrees[i]);
   }
-  free(group->htrees);
+  if (group->htrees) {
+    free(group->htrees);
+  }
 }
 
 static int HuffmanTreeGroupDecode(HuffmanTreeGroup* group,
@@ -466,6 +475,9 @@ static int DecodeContextMap(int context_map_size,
   BROTLI_LOG_UINT(*num_htrees);
 
   *context_map = (uint8_t*)malloc(context_map_size);
+  if (*context_map == 0) {
+    return 0;
+  }
   if (*num_htrees <= 1) {
     memset(*context_map, 0, context_map_size);
     return 1;
@@ -497,6 +509,10 @@ static int DecodeContextMap(int context_map_size,
       } else if (code <= max_run_length_prefix) {
         int reps = 1 + (1 << code) + BrotliReadBits(br, code);
         while (--reps) {
+          if (i >= context_map_size) {
+            ok = 0;
+            goto End;
+          }
           (*context_map)[i] = 0;
           ++i;
         }
@@ -514,12 +530,13 @@ static int DecodeContextMap(int context_map_size,
   return ok;
 }
 
-static BROTLI_INLINE void DecodeBlockType(const HuffmanTree* trees,
-                                         int tree_type,
-                                         int* block_types,
-                                         int* ringbuffers,
-                                         size_t* indexes,
-                                         BrotliBitReader* br) {
+static BROTLI_INLINE void DecodeBlockType(const int max_block_type,
+                                          const HuffmanTree* trees,
+                                          int tree_type,
+                                          int* block_types,
+                                          int* ringbuffers,
+                                          size_t* indexes,
+                                          BrotliBitReader* br) {
   int* ringbuffer = ringbuffers + tree_type * 2;
   size_t* index = indexes + tree_type;
   int type_code = ReadSymbol(trees + tree_type, br);
@@ -530,6 +547,9 @@ static BROTLI_INLINE void DecodeBlockType(const HuffmanTree* trees,
     block_type = ringbuffer[(*index - 1) & 1] + 1;
   } else {
     block_type = type_code - 2;
+  }
+  if (block_type >= max_block_type) {
+    block_type -= max_block_type;
   }
   block_types[tree_type] = block_type;
   ringbuffer[(*index) & 1] = block_type;
@@ -639,7 +659,9 @@ int BrotliDecompress(BrotliInput input, BrotliOutput output) {
   HuffmanTreeGroup hgroup[3];
   BrotliBitReader br;
 
-  static const int kRingBufferWriteAheadSlack = 16;
+  /* 16 bytes would be enough, but we add some more slack for transforms */
+  /* to work at the end of the ringbuffer. */
+  static const int kRingBufferWriteAheadSlack = 128;
 
   static const int kMaxDictionaryWordLength = 0;
 
@@ -656,6 +678,9 @@ int BrotliDecompress(BrotliInput input, BrotliOutput output) {
   ringbuffer = (uint8_t*)malloc(ringbuffer_size +
                                 kRingBufferWriteAheadSlack +
                                 kMaxDictionaryWordLength);
+  if (!ringbuffer) {
+    ok = 0;
+  }
   ringbuffer_end = ringbuffer + ringbuffer_size;
 
   while (!input_end && ok) {
@@ -755,6 +780,10 @@ int BrotliDecompress(BrotliInput input, BrotliOutput output) {
     num_distance_codes = (num_direct_distance_codes +
                           (48 << distance_postfix_bits));
     context_modes = (uint8_t*)malloc(num_block_types[0]);
+    if (context_modes == 0) {
+      ok = 0;
+      goto End;
+    }
     for (i = 0; i < num_block_types[0]; ++i) {
       context_modes[i] = BrotliReadBits(&br, 2) << 1;
       BROTLI_LOG_ARRAY_INDEX(context_modes, i);
@@ -792,7 +821,7 @@ int BrotliDecompress(BrotliInput input, BrotliOutput output) {
       int insert_length;
       int copy_length;
       int distance_code;
-      int distance;
+      size_t distance;
       size_t max_distance;
       uint8_t context;
       int j;
@@ -804,7 +833,8 @@ int BrotliDecompress(BrotliInput input, BrotliOutput output) {
         goto End;
       }
       if (block_length[1] == 0) {
-        DecodeBlockType(block_type_trees, 1, block_type, block_type_rb,
+        DecodeBlockType(num_block_types[1],
+                        block_type_trees, 1, block_type, block_type_rb,
                         block_type_rb_index, &br);
         block_length[1] = ReadBlockLength(&block_len_trees[1], &br);
       }
@@ -821,7 +851,8 @@ int BrotliDecompress(BrotliInput input, BrotliOutput output) {
           goto End;
         }
         if (block_length[0] == 0) {
-          DecodeBlockType(block_type_trees, 0, block_type, block_type_rb,
+          DecodeBlockType(num_block_types[0],
+                          block_type_trees, 0, block_type, block_type_rb,
                           block_type_rb_index, &br);
           block_length[0] = ReadBlockLength(&block_len_trees[0], &br);
           context_offset = block_type[0] << kLiteralContextBits;
@@ -858,7 +889,8 @@ int BrotliDecompress(BrotliInput input, BrotliOutput output) {
           goto End;
         }
         if (block_length[2] == 0) {
-          DecodeBlockType(block_type_trees, 2, block_type, block_type_rb,
+          DecodeBlockType(num_block_types[2],
+                          block_type_trees, 2, block_type, block_type_rb,
                           block_type_rb_index, &br);
           block_length[2] = ReadBlockLength(&block_len_trees[2], &br);
           dist_htree_index = block_type[2];
@@ -891,16 +923,16 @@ int BrotliDecompress(BrotliInput input, BrotliOutput output) {
 
       copy_dst = &ringbuffer[pos & ringbuffer_mask];
 
-      if ((size_t)distance > max_distance) {
+      if (distance > max_distance) {
         printf("Invalid backward reference. pos: %lu distance: %d "
-               "len: %d end: %lu\n", (unsigned long)pos, distance, copy_length,
-               (unsigned long)meta_block_end_pos);
+               "len: %d end: %lu\n", (unsigned long)pos, (int)distance,
+               copy_length, (unsigned long)meta_block_end_pos);
         ok = 0;
         goto End;
       } else {
         if (pos + copy_length > meta_block_end_pos) {
           printf("Invalid backward reference. pos: %lu distance: %d "
-                 "len: %d end: %lu\n", (unsigned long)pos, distance,
+                 "len: %d end: %lu\n", (unsigned long)pos, (int)distance,
                  copy_length, (unsigned long)meta_block_end_pos);
           ok = 0;
           goto End;
@@ -942,9 +974,15 @@ int BrotliDecompress(BrotliInput input, BrotliOutput output) {
       prev_byte2 = ringbuffer[(pos - 2) & ringbuffer_mask];
     }
  End:
-    free(context_modes);
-    free(context_map);
-    free(dist_context_map);
+    if (context_modes != 0) {
+      free(context_modes);
+    }
+    if (context_map != 0) {
+      free(context_map);
+    }
+    if (dist_context_map != 0) {
+      free(dist_context_map);
+    }
     for (i = 0; i < 3; ++i) {
       HuffmanTreeGroupRelease(&hgroup[i]);
       BrotliHuffmanTreeRelease(&block_type_trees[i]);
@@ -952,10 +990,12 @@ int BrotliDecompress(BrotliInput input, BrotliOutput output) {
     }
   }
 
-  if (BrotliWrite(output, ringbuffer, pos & ringbuffer_mask) < 0) {
-    ok = 0;
+  if (ringbuffer != 0) {
+    if (BrotliWrite(output, ringbuffer, pos & ringbuffer_mask) < 0) {
+      ok = 0;
+    }
+    free(ringbuffer);
   }
-  free(ringbuffer);
   return ok;
 }
 
