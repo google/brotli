@@ -432,7 +432,9 @@ Abstract
       The value of ALPHABET_BITS depends on the alphabet of the Huffman
       code: it is the smallest number of bits that can represent all
       symbols in the alphabet. E.g. for the alphabet of literal bytes,
-      ALPHABET_BITS is 8.
+      ALPHABET_BITS is 8. The value of each of the NSYM symbols above is
+      the value of the ALPHABETS_BITS width machine integer representing
+      the symbol modulo the alphabet size of the Huffman code.
 
       The (non-zero) code lengths of the symbols can be reconstructed as
       follows:
@@ -714,9 +716,11 @@ Abstract
    alphabet. A block type code 0 means that the block type is the same
    as the type of the second last block from the same block category,
    while a block type code 1 means that the block type equals the last
-   block type plus one. Block type codes 2 - 257 represent block types
-   0 - 255. The second last and last block types are initialized with 0
-   and 1, respectively, at the beginning of each meta-block.
+   block type plus one. If the last block type is the maximal possible,
+   then a block type code 1 means block type 0. Block type codes 2 - 257
+   represent block types 0 - 255. The second last and last block types
+   are initialized with 0 and 1, respectively, at the beginning of each
+   meta-block.
 
    The first block type of each block category must be 0 and the block
    type of the first block switch command is therefore not encoded in
