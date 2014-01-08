@@ -28,11 +28,12 @@ int BrotliInitBitReader(BrotliBitReader* const br, BrotliInput input) {
   size_t i;
   assert(br != NULL);
 
+  br->buf_ptr_ = br->buf_;
   br->input_ = input;
   br->val_ = 0;
   br->pos_ = 0;
   br->bit_pos_ = 0;
-  br->end_pos_ = 0;
+  br->bits_left_ = 64;
   br->eos_ = 0;
   if (!BrotliReadMoreInput(br)) {
     return 0;
@@ -41,7 +42,7 @@ int BrotliInitBitReader(BrotliBitReader* const br, BrotliInput input) {
     br->val_ |= ((uint64_t)br->buf_[br->pos_]) << (8 * i);
     ++br->pos_;
   }
-  return (br->end_pos_ > 0);
+  return (br->bits_left_ > 64);
 }
 
 #if defined(__cplusplus) || defined(c_plusplus)

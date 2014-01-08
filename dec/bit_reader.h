@@ -42,12 +42,13 @@ typedef struct {
   /* Input byte buffer, consist of a ringbuffer and a "slack" region where */
   /* bytes from the start of the ringbuffer are copied. */
   uint8_t buf_[BROTLI_IBUF_SIZE];
-  BrotliInput input_;    /* input callback */
-  uint64_t    val_;      /* pre-fetched bits */
-  size_t      pos_;      /* byte position in stream */
-  int         bit_pos_;  /* current bit-reading position in val_ */
-  size_t      end_pos_;  /* current end position in stream */
-  int         eos_;      /* input stream is finished */
+  uint8_t*    buf_ptr_;    /* next input will write here */
+  BrotliInput input_;      /* input callback */
+  uint64_t    val_;        /* pre-fetched bits */
+  uint32_t    pos_;        /* byte position in stream */
+  uint32_t    bit_pos_;    /* current bit-reading position in val_ */
+  uint32_t    bits_left_;  /* how many valid bits left */
+  int         eos_;        /* input stream is finished */
 } BrotliBitReader;
 
 int BrotliInitBitReader(BrotliBitReader* const br, BrotliInput input);
@@ -59,9 +60,10 @@ static BROTLI_INLINE uint32_t BrotliPrefetchBits(BrotliBitReader* const br) {
 
 /* For jumping over a number of bits in the bit stream when accessed with */
 /* BrotliPrefetchBits and BrotliFillBitWindow. */
-static BROTLI_INLINE void BrotliSetBitPos(BrotliBitReader* const br, int val) {
+static BROTLI_INLINE void BrotliSetBitPos(BrotliBitReader* const br,
+                                          uint32_t val) {
 #ifdef BROTLI_DECODE_DEBUG
-  int n_bits = val - br->bit_pos_;
+  uint32_t n_bits = val - br->bit_pos_;
   const uint32_t bval = (uint32_t)(br->val_ >> br->bit_pos_) & kBitMask[n_bits];
   printf("[BrotliReadBits]  %010ld %2d  val: %6x\n",
          (br->pos_ << 3) + br->bit_pos_ - 64, n_bits, bval);
@@ -76,6 +78,7 @@ static BROTLI_INLINE void ShiftBytes(BrotliBitReader* const br) {
     br->val_ |= ((uint64_t)br->buf_[br->pos_ & BROTLI_IBUF_MASK]) << 56;
     ++br->pos_;
     br->bit_pos_ -= 8;
+    br->bits_left_ -= 8;
   }
 }
 
@@ -92,12 +95,12 @@ static BROTLI_INLINE void ShiftBytes(BrotliBitReader* const br) {
    every 32 bytes of input is read.
 */
 static BROTLI_INLINE int BrotliReadMoreInput(BrotliBitReader* const br) {
-  if (br->pos_ + 32 < br->end_pos_) {
+  if (br->bits_left_ > 320) {
     return 1;
   } else if (br->eos_) {
-    return (br->pos_ << 3) + br->bit_pos_ <= (br->end_pos_ << 3) + 64;
+    return br->bit_pos_ <= br->bits_left_;
   } else {
-    uint8_t* dst = br->buf_ + (br->end_pos_ & BROTLI_IBUF_MASK);
+    uint8_t* dst = br->buf_ptr_;
     int bytes_read = BrotliRead(br->input_, dst, BROTLI_READ_SIZE);
     if (bytes_read < 0) {
       return 0;
@@ -124,8 +127,11 @@ static BROTLI_INLINE int BrotliReadMoreInput(BrotliBitReader* const br) {
 #else
       memcpy(br->buf_ + (BROTLI_READ_SIZE << 1), br->buf_, 32);
 #endif
+      br->buf_ptr_ = br->buf_ + BROTLI_READ_SIZE;
+    } else {
+      br->buf_ptr_ = br->buf_;
     }
-    br->end_pos_ += bytes_read;
+    br->bits_left_ += ((uint32_t)bytes_read << 3);
     return 1;
   }
 }
@@ -135,12 +141,13 @@ static BROTLI_INLINE void BrotliFillBitWindow(BrotliBitReader* const br) {
   if (br->bit_pos_ >= 40) {
 #if (defined(__x86_64__) || defined(_M_X64))
     br->val_ >>= 40;
-    br->bit_pos_ -= 40;
     /* The expression below needs a little-endian arch to work correctly. */
     /* This gives a large speedup for decoding speed. */
     br->val_ |= *(const uint64_t*)(
         br->buf_ + (br->pos_ & BROTLI_IBUF_MASK)) << 24;
     br->pos_ += 5;
+    br->bit_pos_ -= 40;
+    br->bits_left_ -= 40;
 #else
     ShiftBytes(br);
 #endif
@@ -158,7 +165,7 @@ static BROTLI_INLINE uint32_t BrotliReadBits(
   printf("[BrotliReadBits]  %010ld %2d  val: %6x\n",
          (br->pos_ << 3) + br->bit_pos_ - 64, n_bits, val);
 #endif
-  br->bit_pos_ += n_bits;
+  br->bit_pos_ += (uint32_t)n_bits;
   return val;
 }
 

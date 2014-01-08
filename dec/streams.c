@@ -72,7 +72,7 @@ BrotliOutput BrotliInitMemOutput(uint8_t* buffer, size_t length,
 
 int BrotliStdinInputFunction(void* data, uint8_t* buf, size_t count) {
 #ifndef _WIN32
-  return read(STDIN_FILENO, buf, count);
+  return (int)read(STDIN_FILENO, buf, count);
 #else
   return -1;
 #endif
@@ -87,7 +87,7 @@ BrotliInput BrotliStdinInput() {
 
 int BrotliStdoutOutputFunction(void* data, const uint8_t* buf, size_t count) {
 #ifndef _WIN32
-  return write(STDOUT_FILENO, buf, count);
+  return (int)write(STDOUT_FILENO, buf, count);
 #else
   return -1;
 #endif

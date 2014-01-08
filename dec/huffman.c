@@ -163,7 +163,7 @@ static int TreeAddSymbol(HuffmanTree* const tree,
       --i;
       idx = base_code | (i << code_length);
       tree->lut_symbol_[idx] = (int16_t)symbol;
-      tree->lut_bits_[idx] = code_length;
+      tree->lut_bits_[idx] = (uint8_t)code_length;
     } while (i > 0);
   } else {
     base_code = ReverseBitsShort((code >> (code_length - HUFF_LUT_BITS)),
