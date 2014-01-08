@@ -412,16 +412,16 @@ Abstract
 
    3.4. Simple Huffman codes
 
-      The first bit of the compressed representation of each Huffman
+      The first two bits of the compressed representation of each Huffman
       code distinguishes between simple and complex Huffman codes. If
-      the first bit is 1, then a simple, otherwise a complex Huffman
-      code follows.
+      this value is 1, then a simple Huffman code follows. Otherwise
+      the value indicates the number of leading zeros.
 
       A simple Huffman code can have only up to four symbols with non-
       zero code length. The format of the simple Huffman code is as
       follows:
 
-            1 bit:  1, indicating a simple Huffman code
+            2 bits: value of 1 indicates a simple Huffman code
             2 bits: NSYM - 1, where NSYM = # of symbols with non-zero
                     code length
 
@@ -507,8 +507,10 @@ Abstract
       We can now define the format of the complex Huffman code as
       follows:
 
-            1 bit:  0, indicating a complex Huffman code
-            1 bit : HSKIP, if 1, skip over first two code length codes
+            2 bits: HSKIP, values of 0, 2 or 3 represent the respective
+                    number of leading zeros. (Value of 1 indicates the
+                    Simple Huffman code.)
+
 
             Code lengths for symbols in the code length alphabet given
                just above, in the order: 1, 2, 3, 4, 0, 17, 5, 6, 16, 7,
@@ -519,9 +521,9 @@ Abstract
                the static Huffman code above. A code length of 0 means
                the corresponding code length symbol is not used.
 
-               If HSKIP is 1, code lengths of code length symbols 1 and
-               2 are implicit zeros and are not present in the code
-               lengths sequence above. If there are at least two non-
+               If HSKIP is 2 or 3, a respective number of leading code
+               lengths are implicit zeros and are not present in the
+               code lengths sequence above. If there are at least two non-
                zero code lengths, any trailing zero code lengths are
                omitted, i.e. the last code length in the sequence must
                be non-zero. In this case the sum of (32 >> code length)

@@ -51,7 +51,7 @@ void EstimateBitCostsForLiterals(size_t pos, size_t len, size_t mask,
       histo = 1;
     }
     cost[masked_pos] = log2(static_cast<double>(in_window) / histo);
-    cost[masked_pos] += 0.03;
+    cost[masked_pos] += 0.029;
     if (cost[masked_pos] < 1.0) {
       cost[masked_pos] *= 0.5;
       cost[masked_pos] += 0.5;

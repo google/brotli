@@ -136,12 +136,16 @@ void StoreHuffmanTreeOfHuffmanTreeToBitMask(
   if (num_codes == 1) {
     codes_to_store = kCodeLengthCodes;
   }
-  const int skip_two_first =
-      code_length_bitdepth[kStorageOrder[0]] == 0 &&
-      code_length_bitdepth[kStorageOrder[1]] == 0;
-  WriteBits(1, skip_two_first, storage_ix, storage);
-
-  for (int i = skip_two_first * 2; i < codes_to_store; ++i) {
+  int skip_some = 0;  // skips none.
+  if (code_length_bitdepth[kStorageOrder[0]] == 0 &&
+      code_length_bitdepth[kStorageOrder[1]] == 0) {
+    skip_some = 2;  // skips two.
+    if (code_length_bitdepth[kStorageOrder[2]] == 0) {
+      skip_some = 3;  // skips three.
+    }
+  }
+  WriteBits(2, skip_some, storage_ix, storage);
+  for (int i = skip_some; i < codes_to_store; ++i) {
     uint8_t len[] = { 2, 4, 3, 2, 2, 4 };
     uint8_t bits[] = { 0, 5, 1, 3, 2, 13 };
     int v = code_length_bitdepth[kStorageOrder[i]];
@@ -182,7 +186,7 @@ void StoreHuffmanCode(const EntropyCode<kSize>& code, int alphabet_size,
   }
   if (code.count_ == 0) {   // emit minimal tree for empty cases
     // bits: small tree marker: 1, count-1: 0, max_bits-sized encoding for 0
-    WriteBits(3 + max_bits, 0x01, storage_ix, storage);
+    WriteBits(4 + max_bits, 0x1, storage_ix, storage);
     return;
   }
   if (code.count_ <= 4) {
@@ -202,7 +206,7 @@ void StoreHuffmanCode(const EntropyCode<kSize>& code, int alphabet_size,
       }
     }
     // Small tree marker to encode 1-4 symbols.
-    WriteBits(1, 1, storage_ix, storage);
+    WriteBits(2, 1, storage_ix, storage);
     WriteBits(2, code.count_ - 1, storage_ix, storage);
     for (int i = 0; i < code.count_; ++i) {
       WriteBits(max_bits, symbols[i], storage_ix, storage);
@@ -219,8 +223,6 @@ void StoreHuffmanCode(const EntropyCode<kSize>& code, int alphabet_size,
     }
     return;
   }
-  WriteBits(1, 0, storage_ix, storage);
-
   uint8_t huffman_tree[kSize];
   uint8_t huffman_tree_extra_bits[kSize];
   int huffman_tree_size = 0;

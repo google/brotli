@@ -234,7 +234,7 @@ static int ReadHuffmanCode(int alphabet_size,
                            HuffmanTree* tree,
                            BrotliBitReader* br) {
   int ok = 1;
-  int simple_code;
+  int simple_code_or_skip;
   uint8_t* code_lengths = NULL;
 
   code_lengths =
@@ -247,9 +247,12 @@ static int ReadHuffmanCode(int alphabet_size,
     printf("[ReadHuffmanCode] Unexpected end of input.\n");
     return 0;
   }
-  simple_code = BrotliReadBits(br, 1);
-  BROTLI_LOG_UINT(simple_code);
-  if (simple_code) {  /* Read symbols, codes & code lengths directly. */
+  /* simple_code_or_skip is used as follows:
+     1 for simple code;
+     0 for no skipping, 2 skips 2 code lengths, 3 skips 3 code lengths */
+  simple_code_or_skip = BrotliReadBits(br, 2);
+  BROTLI_LOG_UINT(simple_code_or_skip);
+  if (simple_code_or_skip == 1) {  /* Read symbols, codes & code lengths directly. */
     int i;
     int max_bits_counter = alphabet_size - 1;
     int max_bits = 0;
@@ -286,7 +289,7 @@ static int ReadHuffmanCode(int alphabet_size,
     int i;
     uint8_t code_length_code_lengths[CODE_LENGTH_CODES] = { 0 };
     int space = 32;
-    for (i = BrotliReadBits(br, 1) * 2;
+    for (i = simple_code_or_skip;
          i < CODE_LENGTH_CODES && space > 0; ++i) {
       int code_len_idx = kCodeLengthCodeOrder[i];
       int v = BrotliReadBits(br, 2);
