@@ -26,6 +26,8 @@ extern "C" {
 #endif
 
 /* Sets *decoded_size to the decompressed size of the given encoded stream. */
+/* This function only works if the encoded buffer has a single meta block, */
+/* and this meta block must have the "is last" bit set. */
 /* Returns 1 on success, 0 on failure. */
 int BrotliDecompressedSize(size_t encoded_size,
                            const uint8_t* encoded_buffer,

@@ -498,11 +498,11 @@ Abstract
                Symbol   Code
                ------   ----
                0          00
-               1        1010
-               2         100
-               3          11
-               4          01
-               5        1011
+               1        1110
+               2         110
+               3          01
+               4          10
+               5        1111
 
       We can now define the format of the complex Huffman code as
       follows:
@@ -513,7 +513,7 @@ Abstract
 
 
             Code lengths for symbols in the code length alphabet given
-               just above, in the order: 1, 2, 3, 4, 0, 17, 5, 6, 16, 7,
+               just above, in the order: 1, 2, 3, 4, 0, 5, 17, 6, 16, 7,
                8, 9, 10, 11, 12, 13, 14, 15
 
                The code lengths of code length symbols are between 0 and
@@ -572,7 +572,7 @@ Abstract
          6: last distance - 2
          7: last distance + 2
          8: last distance - 3
-         9: last disatnce + 3
+         9: last distance + 3
         10: second last distance - 1
         11: second last distance + 1
         12: second last distance - 2
@@ -647,7 +647,7 @@ Abstract
       ---- ---- ------    ---- ---- -------   ---- ---- -------
        0    0     0        8    2    10-13    16    6   130-193
        1    0     1        9    2    14-17    17    7   194-321
-       2    0     2       10    3    18-25    18    8   322-527
+       2    0     2       10    3    18-25    18    8   322-577
        3    0     3       11    3    26-33    19    9   578-1089
        4    0     4       12    4    34-49    20   10   1090-2113
        5    0     5       13    4    50-65    21   12   2114-6209
@@ -681,7 +681,7 @@ Abstract
                  |         |         |
                  +---------+---------+---------+
                  |         |         |         |
-            0-7  | 128-191 | 192-255 | 383-447 |
+            0-7  | 128-191 | 192-255 | 384-447 |
                  |         |         |         |
                  +---------+---------+---------+
                  |         |         |         |
@@ -689,7 +689,7 @@ Abstract
                  |         |         |         |
                  +---------+---------+---------+
                  |         |         |         |
-           16-23 | 448-551 | 576-639 | 640-703 |
+           16-23 | 448-511 | 576-639 | 640-703 |
                  |         |         |         |
                  +---------+---------+---------+
 
@@ -1008,9 +1008,10 @@ Abstract
             1 bit:  ISEMPTY, set to 1 if the meta-block is empty, this
                     field is only present if ISLAST bit is set, since
                     only the last meta-block can be empty
-            2 bits: MNIBBLES, (# of nibbles to represent the length) - 4
+            2 bits: MNIBBLES - 4, where MNIBBLES is # of nibbles to represent
+                    the length
 
-            (MNIBBLES + 4) x 4 bits: MLEN - 1, where MLEN is the length
+            MNIBBLES x 4 bits: MLEN - 1, where MLEN is the length
                of the meta-block in the input data in bytes
 
             1 bit:  ISUNCOMPRESSED, if set to 1, any bits of input up to

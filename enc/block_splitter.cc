@@ -31,16 +31,16 @@
 
 namespace brotli {
 
-static const int kMaxLiteralHistograms = 48;
+static const int kMaxLiteralHistograms = 100;
 static const int kMaxCommandHistograms = 50;
 static const double kLiteralBlockSwitchCost = 26;
 static const double kCommandBlockSwitchCost = 13.5;
 static const double kDistanceBlockSwitchCost = 14.6;
 static const int kLiteralStrideLength = 70;
 static const int kCommandStrideLength = 40;
-static const int kSymbolsPerLiteralHistogram = 550;
+static const int kSymbolsPerLiteralHistogram = 544;
 static const int kSymbolsPerCommandHistogram = 530;
-static const int kSymbolsPerDistanceHistogram = 550;
+static const int kSymbolsPerDistanceHistogram = 544;
 static const int kMinLengthForBlockSplitting = 128;
 static const int kIterMulForRefining = 2;
 static const int kMinItersForRefining = 100;

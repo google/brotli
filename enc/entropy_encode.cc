@@ -182,6 +182,12 @@ void WriteHuffmanTreeRepetitions(
     ++(*tree_size);
     --repetitions;
   }
+  if (repetitions == 7) {
+    tree[*tree_size] = value;
+    extra_bits[*tree_size] = 0;
+    ++(*tree_size);
+    --repetitions;
+  }
   if (repetitions < 3) {
     for (int i = 0; i < repetitions; ++i) {
       tree[*tree_size] = value;
@@ -208,6 +214,12 @@ void WriteHuffmanTreeRepetitionsZeros(
     uint8_t* tree,
     uint8_t* extra_bits,
     int* tree_size) {
+  if (repetitions == 11) {
+    tree[*tree_size] = 0;
+    extra_bits[*tree_size] = 0;
+    ++(*tree_size);
+    --repetitions;
+  }
   if (repetitions < 3) {
     for (int i = 0; i < repetitions; ++i) {
       tree[*tree_size] = 0;
@@ -230,11 +242,6 @@ void WriteHuffmanTreeRepetitionsZeros(
 }
 
 
-// Heuristics for selecting the stride ranges to collapse.
-int ValuesShouldBeCollapsedToStrideAverage(int a, int b) {
-  return abs(a - b) < 4;
-}
-
 int OptimizeHuffmanCountsForRle(int length, int* counts) {
   int stride;
   int limit;
@@ -249,6 +256,35 @@ int OptimizeHuffmanCountsForRle(int length, int* counts) {
     if (counts[length - 1] != 0) {
       // Now counts[0..length - 1] does not have trailing zeros.
       break;
+    }
+  }
+  {
+    int nonzeros = 0;
+    int smallest_nonzero = 1 << 30;
+    for (i = 0; i < length; ++i) {
+      if (counts[i] != 0) {
+        ++nonzeros;
+        if (smallest_nonzero > counts[i]) {
+          smallest_nonzero = counts[i];
+        }
+      }
+    }
+    if (nonzeros < 5) {
+      // Small histogram will model it well.
+      return 1;
+    }
+    int zeros = length - nonzeros;
+    if (smallest_nonzero < 4) {
+      if (zeros < 6) {
+        for (i = 1; i < length - 1; ++i) {
+          if (counts[i - 1] != 0 && counts[i] == 0 && counts[i + 1] != 0) {
+            counts[i] = 1;
+          }
+        }
+      }
+    }
+    if (nonzeros < 28) {
+      return 1;
     }
   }
   // 2) Let's mark all population counts that already can be encoded
@@ -282,13 +318,15 @@ int OptimizeHuffmanCountsForRle(int length, int* counts) {
     }
   }
   // 3) Let's replace those population counts that lead to more rle codes.
+  // Math here is in 24.8 fixed point representation.
+  const int streak_limit = 1240;
   stride = 0;
-  limit = (counts[0] + counts[1] + counts[2]) / 3 + 1;
+  limit = 256 * (counts[0] + counts[1] + counts[2]) / 3 + 420;
   sum = 0;
   for (i = 0; i < length + 1; ++i) {
     if (i == length || good_for_rle[i] ||
         (i != 0 && good_for_rle[i - 1]) ||
-        !ValuesShouldBeCollapsedToStrideAverage(counts[i], limit)) {
+        abs(256 * counts[i] - limit) >= streak_limit) {
       if (stride >= 4 || (stride >= 3 && sum == 0)) {
         int k;
         // The stride must end, collapse what we have, if we have enough (4).
@@ -311,9 +349,9 @@ int OptimizeHuffmanCountsForRle(int length, int* counts) {
       if (i < length - 2) {
         // All interesting strides have a count of at least 4,
         // at least when non-zeros.
-        limit = (counts[i] + counts[i + 1] + counts[i + 2]) / 3 + 1;
+        limit = 256 * (counts[i] + counts[i + 1] + counts[i + 2]) / 3 + 420;
       } else if (i < length) {
-        limit = counts[i];
+        limit = 256 * counts[i];
       } else {
         limit = 0;
       }
@@ -322,7 +360,10 @@ int OptimizeHuffmanCountsForRle(int length, int* counts) {
     if (i != length) {
       sum += counts[i];
       if (stride >= 4) {
-        limit = (sum + stride / 2) / stride;
+        limit = (256 * sum + stride / 2) / stride;
+      }
+      if (stride == 4) {
+        limit += 120;
       }
     }
   }
@@ -331,16 +372,70 @@ int OptimizeHuffmanCountsForRle(int length, int* counts) {
 }
 
 
+static void DecideOverRleUse(const uint8_t* depth, const int length,
+                             bool *use_rle_for_non_zero,
+                             bool *use_rle_for_zero) {
+  int total_reps_zero = 0;
+  int total_reps_non_zero = 0;
+  int count_reps_zero = 0;
+  int count_reps_non_zero = 0;
+  int new_length = length;
+  for (int i = 0; i < length; ++i) {
+    if (depth[length - i - 1] == 0) {
+      --new_length;
+    } else {
+      break;
+    }
+  }
+  for (uint32_t i = 0; i < new_length;) {
+    const int value = depth[i];
+    int reps = 1;
+    // Find rle coding for longer codes.
+    // Shorter codes seem not to benefit from rle.
+    for (uint32_t k = i + 1; k < new_length && depth[k] == value; ++k) {
+      ++reps;
+    }
+    if (reps >= 3 && value == 0) {
+      total_reps_zero += reps;
+      ++count_reps_zero;
+    }
+    if (reps >= 4 && value != 0) {
+      total_reps_non_zero += reps;
+      ++count_reps_non_zero;
+    }
+    i += reps;
+  }
+  total_reps_non_zero -= count_reps_non_zero * 2;
+  total_reps_zero -= count_reps_zero * 2;
+  *use_rle_for_non_zero = total_reps_non_zero > 2;
+  *use_rle_for_zero = total_reps_zero > 2;
+}
+
+
 void WriteHuffmanTree(const uint8_t* depth, const int length,
                       uint8_t* tree,
                       uint8_t* extra_bits_data,
                       int* huffman_tree_size) {
   int previous_value = 8;
+
+  // First gather statistics on if it is a good idea to do rle.
+  bool use_rle_for_non_zero;
+  bool use_rle_for_zero;
+  DecideOverRleUse(depth, length, &use_rle_for_non_zero, &use_rle_for_zero);
+
+  // Actual rle coding.
   for (uint32_t i = 0; i < length;) {
     const int value = depth[i];
     int reps = 1;
-    for (uint32_t k = i + 1; k < length && depth[k] == value; ++k) {
-      ++reps;
+    if (length > 50) {
+      // Find rle coding for longer codes.
+      // Shorter codes seem not to benefit from rle.
+      if ((value != 0 && use_rle_for_non_zero) ||
+          (value == 0 && use_rle_for_zero)) {
+        for (uint32_t k = i + 1; k < length && depth[k] == value; ++k) {
+          ++reps;
+        }
+      }
     }
     if (value == 0) {
       WriteHuffmanTreeRepetitionsZeros(reps, tree, extra_bits_data,

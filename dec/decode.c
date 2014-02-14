@@ -46,9 +46,14 @@ static const int kNumBlockLengthCodes = 26;
 static const int kLiteralContextBits = 6;
 static const int kDistanceContextBits = 2;
 
+#define HUFFMAN_TABLE_BITS      8
+#define HUFFMAN_TABLE_MASK      0xff
+/* This is a rough estimate, not an exact bound. */
+#define HUFFMAN_MAX_TABLE_SIZE  2048
+
 #define CODE_LENGTH_CODES 18
 static const uint8_t kCodeLengthCodeOrder[CODE_LENGTH_CODES] = {
-  1, 2, 3, 4, 0, 17, 5, 6, 16, 7, 8, 9, 10, 11, 12, 13, 14, 15,
+  1, 2, 3, 4, 0, 5, 17, 6, 16, 7, 8, 9, 10, 11, 12, 13, 14, 15,
 };
 
 #define NUM_DISTANCE_SHORT_CODES 16
@@ -104,36 +109,19 @@ static void DecodeMetaBlockLength(BrotliBitReader* br,
 }
 
 /* Decodes the next Huffman code from bit-stream. */
-static BROTLI_INLINE int ReadSymbol(const HuffmanTree* tree,
+static BROTLI_INLINE int ReadSymbol(const HuffmanCode* table,
                                     BrotliBitReader* br) {
-  uint32_t bits;
-  uint32_t bitpos;
-  int lut_ix;
-  uint8_t lut_bits;
-  const HuffmanTreeNode* node = tree->root_;
+  int nbits;
   BrotliFillBitWindow(br);
-  bits = BrotliPrefetchBits(br);
-  bitpos = br->bit_pos_;
-  /* Check if we find the bit combination from the Huffman lookup table. */
-  lut_ix = bits & (HUFF_LUT - 1);
-  lut_bits = tree->lut_bits_[lut_ix];
-  if (lut_bits <= HUFF_LUT_BITS) {
-    BrotliSetBitPos(br, bitpos + lut_bits);
-    return tree->lut_symbol_[lut_ix];
+  table += (int)(br->val_ >> br->bit_pos_) & HUFFMAN_TABLE_MASK;
+  nbits = table->bits - HUFFMAN_TABLE_BITS;
+  if (nbits > 0) {
+    br->bit_pos_ += HUFFMAN_TABLE_BITS;
+    table += table->value;
+    table += (int)(br->val_ >> br->bit_pos_) & ((1 << nbits) - 1);
   }
-  node += tree->lut_jump_[lut_ix];
-  bitpos += HUFF_LUT_BITS;
-  bits >>= HUFF_LUT_BITS;
-
-  /* Decode the value from a binary tree. */
-  assert(node != NULL);
-  do {
-    node = HuffmanTreeNextNode(node, bits & 1);
-    bits >>= 1;
-    ++bitpos;
-  } while (HuffmanTreeNodeIsNotLeaf(node));
-  BrotliSetBitPos(br, bitpos);
-  return node->symbol_;
+  br->bit_pos_ += table->bits;
+  return table->value;
 }
 
 static void PrintUcharVector(const uint8_t* v, int len) {
@@ -145,47 +133,34 @@ static int ReadHuffmanCodeLengths(
     const uint8_t* code_length_code_lengths,
     int num_symbols, uint8_t* code_lengths,
     BrotliBitReader* br) {
-  int ok = 0;
-  int symbol;
+  int symbol = 0;
   uint8_t prev_code_len = kDefaultCodeLength;
   int repeat = 0;
-  uint8_t repeat_length = 0;
+  uint8_t repeat_code_len = 0;
   int space = 32768;
-  HuffmanTree tree;
+  HuffmanCode table[32];
 
-  if (!BrotliHuffmanTreeBuildImplicit(&tree, code_length_code_lengths,
-                                      CODE_LENGTH_CODES)) {
+  if (!BrotliBuildHuffmanTable(table, 5,
+                               code_length_code_lengths,
+                               CODE_LENGTH_CODES)) {
     printf("[ReadHuffmanCodeLengths] Building code length tree failed: ");
     PrintUcharVector(code_length_code_lengths, CODE_LENGTH_CODES);
     return 0;
   }
 
-  if (!BrotliReadMoreInput(br)) {
-    printf("[ReadHuffmanCodeLengths] Unexpected end of input.\n");
-    return 0;
-  }
-
-  symbol = 0;
-  while (symbol + repeat < num_symbols && space > 0) {
+  while (symbol < num_symbols && space > 0) {
+    const HuffmanCode* p = table;
     uint8_t code_len;
     if (!BrotliReadMoreInput(br)) {
       printf("[ReadHuffmanCodeLengths] Unexpected end of input.\n");
-      goto End;
+      return 0;
     }
-    code_len = (uint8_t)ReadSymbol(&tree, br);
-    BROTLI_LOG_UINT(symbol);
-    BROTLI_LOG_UINT(repeat);
-    BROTLI_LOG_UINT(repeat_length);
-    BROTLI_LOG_UINT(code_len);
-    if ((code_len < kCodeLengthRepeatCode) ||
-        (code_len == kCodeLengthRepeatCode && repeat_length == 0) ||
-        (code_len > kCodeLengthRepeatCode && repeat_length > 0)) {
-      while (repeat > 0) {
-        code_lengths[symbol++] = repeat_length;
-        --repeat;
-      }
-    }
+    BrotliFillBitWindow(br);
+    p += (br->val_ >> br->bit_pos_) & 31;
+    br->bit_pos_ += p->bits;
+    code_len = (uint8_t)p->value;
     if (code_len < kCodeLengthRepeatCode) {
+      repeat = 0;
       code_lengths[symbol++] = code_len;
       if (code_len != 0) {
         prev_code_len = code_len;
@@ -193,47 +168,46 @@ static int ReadHuffmanCodeLengths(
       }
     } else {
       const int extra_bits = code_len - 14;
-      int i = repeat;
+      int old_repeat;
+      int repeat_delta;
+      uint8_t new_len = 0;
+      if (code_len == kCodeLengthRepeatCode) {
+        new_len =  prev_code_len;
+      }
+      if (repeat_code_len != new_len) {
+        repeat = 0;
+        repeat_code_len = new_len;
+      }
+      old_repeat = repeat;
       if (repeat > 0) {
         repeat -= 2;
         repeat <<= extra_bits;
       }
       repeat += (int)BrotliReadBits(br, extra_bits) + 3;
-      if (repeat + symbol > num_symbols) {
-        goto End;
+      repeat_delta = repeat - old_repeat;
+      if (symbol + repeat_delta > num_symbols) {
+        return 0;
       }
-      if (code_len == kCodeLengthRepeatCode) {
-        repeat_length = prev_code_len;
-        for (; i < repeat; ++i) {
-          space -= 32768 >> repeat_length;
-        }
-      } else {
-        repeat_length = 0;
+      memset(&code_lengths[symbol], repeat_code_len, (size_t)repeat_delta);
+      symbol += repeat_delta;
+      if (repeat_code_len != 0) {
+        space -= repeat_delta << (15 - repeat_code_len);
       }
     }
   }
   if (space != 0) {
     printf("[ReadHuffmanCodeLengths] space = %d\n", space);
-    goto End;
+    return 0;
   }
-  if (symbol + repeat > num_symbols) {
-    printf("[ReadHuffmanCodeLengths] symbol + repeat > num_symbols "
-           "(%d + %d vs %d)\n", symbol, repeat, num_symbols);
-    goto End;
-  }
-  while (repeat-- > 0) code_lengths[symbol++] = repeat_length;
-  while (symbol < num_symbols) code_lengths[symbol++] = 0;
-  ok = 1;
-
- End:
-  BrotliHuffmanTreeRelease(&tree);
-  return ok;
+  memset(&code_lengths[symbol], 0, (size_t)(num_symbols - symbol));
+  return 1;
 }
 
 static int ReadHuffmanCode(int alphabet_size,
-                           HuffmanTree* tree,
+                           HuffmanCode* table,
                            BrotliBitReader* br) {
   int ok = 1;
+  int table_size = 0;
   int simple_code_or_skip;
   uint8_t* code_lengths = NULL;
 
@@ -290,107 +264,47 @@ static int ReadHuffmanCode(int alphabet_size,
     int i;
     uint8_t code_length_code_lengths[CODE_LENGTH_CODES] = { 0 };
     int space = 32;
-    for (i = simple_code_or_skip;
-         i < CODE_LENGTH_CODES && space > 0; ++i) {
-      int code_len_idx = kCodeLengthCodeOrder[i];
-      uint8_t v = (uint8_t)BrotliReadBits(br, 2);
-      if (v == 1) {
-        v = (uint8_t)BrotliReadBits(br, 1);
-        if (v == 0) {
-          v = 2;
-        } else {
-          v = (uint8_t)BrotliReadBits(br, 1);
-          if (v == 0) {
-            v = 1;
-          } else {
-            v = 5;
-          }
-        }
-      } else if (v == 2) {
-        v = 4;
-      }
+    /* Static Huffman code for the code length code lengths */
+    static const HuffmanCode huff[16] = {
+      {2, 0}, {2, 4}, {2, 3}, {3, 2}, {2, 0}, {2, 4}, {2, 3}, {4, 1},
+      {2, 0}, {2, 4}, {2, 3}, {3, 2}, {2, 0}, {2, 4}, {2, 3}, {4, 5},
+    };
+    for (i = simple_code_or_skip; i < CODE_LENGTH_CODES && space > 0; ++i) {
+      const int code_len_idx = kCodeLengthCodeOrder[i];
+      const HuffmanCode* p = huff;
+      uint8_t v;
+      BrotliFillBitWindow(br);
+      p += (br->val_ >> br->bit_pos_) & 15;
+      br->bit_pos_ += p->bits;
+      v = (uint8_t)p->value;
       code_length_code_lengths[code_len_idx] = v;
       BROTLI_LOG_ARRAY_INDEX(code_length_code_lengths, code_len_idx);
       if (v != 0) {
         space -= (32 >> v);
       }
     }
-    ok = ReadHuffmanCodeLengths(code_length_code_lengths, alphabet_size,
-                                code_lengths, br);
+    ok = ReadHuffmanCodeLengths(code_length_code_lengths,
+                                alphabet_size, code_lengths, br);
   }
   if (ok) {
-    ok = BrotliHuffmanTreeBuildImplicit(tree, code_lengths, alphabet_size);
-    if (!ok) {
-      printf("[ReadHuffmanCode] HuffmanTreeBuildImplicit failed: ");
+    table_size = BrotliBuildHuffmanTable(table, HUFFMAN_TABLE_BITS,
+                                         code_lengths, alphabet_size);
+    if (table_size == 0) {
+      printf("[ReadHuffmanCode] BuildHuffmanTable failed: ");
       PrintUcharVector(code_lengths, alphabet_size);
     }
   }
   free(code_lengths);
-  return ok;
+  return table_size;
 }
 
-static int ReadCopyDistance(const HuffmanTree* tree,
-                            int num_direct_codes,
-                            int postfix_bits,
-                            int postfix_mask,
-                            BrotliBitReader* br) {
+static BROTLI_INLINE int ReadBlockLength(const HuffmanCode* table,
+                                         BrotliBitReader* br) {
   int code;
   int nbits;
-  int postfix;
-  int offset;
-  code = ReadSymbol(tree, br);
-  if (code < num_direct_codes) {
-    return code;
-  }
-  code -= num_direct_codes;
-  postfix = code & postfix_mask;
-  code >>= postfix_bits;
-  nbits = (code >> 1) + 1;
-  offset = ((2 + (code & 1)) << nbits) - 4;
-  return (num_direct_codes +
-          ((offset + (int)BrotliReadBits(br, nbits)) << postfix_bits) +
-          postfix);
-}
-
-static int ReadBlockLength(const HuffmanTree* tree, BrotliBitReader* br) {
-  int code;
-  int nbits;
-  code = ReadSymbol(tree, br);
+  code = ReadSymbol(table, br);
   nbits = kBlockLengthPrefixCode[code].nbits;
   return kBlockLengthPrefixCode[code].offset + (int)BrotliReadBits(br, nbits);
-}
-
-static void ReadInsertAndCopy(const HuffmanTree* tree,
-                              int* insert_len,
-                              int* copy_len,
-                              int* copy_dist,
-                              BrotliBitReader* br) {
-  int code;
-  int range_idx;
-  int insert_code;
-  int insert_extra_bits;
-  int copy_code;
-  int copy_extra_bits;
-  code = ReadSymbol(tree, br);
-  range_idx = code >> 6;
-  if (range_idx >= 2) {
-    range_idx -= 2;
-    *copy_dist = -1;
-  } else {
-    *copy_dist = 0;
-  }
-  insert_code = kInsertRangeLut[range_idx] + ((code >> 3) & 7);
-  copy_code = kCopyRangeLut[range_idx] + (code & 7);
-  *insert_len = kInsertLengthPrefixCode[insert_code].offset;
-  insert_extra_bits = kInsertLengthPrefixCode[insert_code].nbits;
-  if (insert_extra_bits > 0) {
-    *insert_len += (int)BrotliReadBits(br, insert_extra_bits);
-  }
-  *copy_len = kCopyLengthPrefixCode[copy_code].offset;
-  copy_extra_bits = kCopyLengthPrefixCode[copy_code].nbits;
-  if (copy_extra_bits > 0) {
-    *copy_len += (int)BrotliReadBits(br, copy_extra_bits);
-  }
 }
 
 static int TranslateShortCodes(int code, int* ringbuffer, int index) {
@@ -429,24 +343,22 @@ static void InverseMoveToFrontTransform(uint8_t* v, int v_len) {
 typedef struct {
   int alphabet_size;
   int num_htrees;
-  HuffmanTree* htrees;
+  HuffmanCode* codes;
+  HuffmanCode** htrees;
 } HuffmanTreeGroup;
 
 static void HuffmanTreeGroupInit(HuffmanTreeGroup* group, int alphabet_size,
                                  int ntrees) {
-  int i;
   group->alphabet_size = alphabet_size;
   group->num_htrees = ntrees;
-  group->htrees = (HuffmanTree*)malloc(sizeof(HuffmanTree) * (size_t)ntrees);
-  for (i = 0; i < ntrees; ++i) {
-    group->htrees[i].root_ = NULL;
-  }
+  group->codes = (HuffmanCode*)malloc(
+      sizeof(HuffmanCode) * (size_t)(ntrees * HUFFMAN_MAX_TABLE_SIZE));
+  group->htrees = (HuffmanCode**)malloc(sizeof(HuffmanCode*) * (size_t)ntrees);
 }
 
 static void HuffmanTreeGroupRelease(HuffmanTreeGroup* group) {
-  int i;
-  for (i = 0; i < group->num_htrees; ++i) {
-    BrotliHuffmanTreeRelease(&group->htrees[i]);
+  if (group->codes) {
+    free(group->codes);
   }
   if (group->htrees) {
     free(group->htrees);
@@ -456,8 +368,13 @@ static void HuffmanTreeGroupRelease(HuffmanTreeGroup* group) {
 static int HuffmanTreeGroupDecode(HuffmanTreeGroup* group,
                                   BrotliBitReader* br) {
   int i;
+  int table_size;
+  HuffmanCode* next = group->codes;
   for (i = 0; i < group->num_htrees; ++i) {
-    if (!ReadHuffmanCode(group->alphabet_size, &group->htrees[i], br)) {
+    group->htrees[i] = next;
+    table_size = ReadHuffmanCode(group->alphabet_size, next, br);
+    next += table_size;
+    if (table_size == 0) {
       return 0;
     }
   }
@@ -469,6 +386,10 @@ static int DecodeContextMap(int context_map_size,
                             uint8_t** context_map,
                             BrotliBitReader* br) {
   int ok = 1;
+  int use_rle_for_zeros;
+  int max_run_length_prefix = 0;
+  HuffmanCode* table;
+  int i;
   if (!BrotliReadMoreInput(br)) {
     printf("[DecodeContextMap] Unexpected end of input.\n");
     return 0;
@@ -487,55 +408,54 @@ static int DecodeContextMap(int context_map_size,
     return 1;
   }
 
-  {
-    HuffmanTree tree_index_htree;
-    int use_rle_for_zeros = (int)BrotliReadBits(br, 1);
-    int max_run_length_prefix = 0;
-    int i;
-    if (use_rle_for_zeros) {
-      max_run_length_prefix = (int)BrotliReadBits(br, 4) + 1;
+  use_rle_for_zeros = (int)BrotliReadBits(br, 1);
+  if (use_rle_for_zeros) {
+    max_run_length_prefix = (int)BrotliReadBits(br, 4) + 1;
+  }
+  table = (HuffmanCode*)malloc(HUFFMAN_MAX_TABLE_SIZE * sizeof(*table));
+  if (table == NULL) {
+    return 0;
+  }
+  if (!ReadHuffmanCode(*num_htrees + max_run_length_prefix, table, br)) {
+    ok = 0;
+    goto End;
+  }
+  for (i = 0; i < context_map_size;) {
+    int code;
+    if (!BrotliReadMoreInput(br)) {
+      printf("[DecodeContextMap] Unexpected end of input.\n");
+      ok = 0;
+      goto End;
     }
-    if (!ReadHuffmanCode(*num_htrees + max_run_length_prefix,
-                         &tree_index_htree, br)) {
-      return 0;
-    }
-    for (i = 0; i < context_map_size;) {
-      int code;
-      if (!BrotliReadMoreInput(br)) {
-        printf("[DecodeContextMap] Unexpected end of input.\n");
-        ok = 0;
-        goto End;
-      }
-      code = ReadSymbol(&tree_index_htree, br);
-      if (code == 0) {
+    code = ReadSymbol(table, br);
+    if (code == 0) {
+      (*context_map)[i] = 0;
+      ++i;
+    } else if (code <= max_run_length_prefix) {
+      int reps = 1 + (1 << code) + (int)BrotliReadBits(br, code);
+      while (--reps) {
+        if (i >= context_map_size) {
+          ok = 0;
+          goto End;
+        }
         (*context_map)[i] = 0;
         ++i;
-      } else if (code <= max_run_length_prefix) {
-        int reps = 1 + (1 << code) + (int)BrotliReadBits(br, code);
-        while (--reps) {
-          if (i >= context_map_size) {
-            ok = 0;
-            goto End;
-          }
-          (*context_map)[i] = 0;
-          ++i;
-        }
-      } else {
-        (*context_map)[i] = (uint8_t)(code - max_run_length_prefix);
-        ++i;
       }
+    } else {
+      (*context_map)[i] = (uint8_t)(code - max_run_length_prefix);
+      ++i;
     }
-   End:
-    BrotliHuffmanTreeRelease(&tree_index_htree);
   }
   if (BrotliReadBits(br, 1)) {
     InverseMoveToFrontTransform(*context_map, context_map_size);
   }
+End:
+  free(table);
   return ok;
 }
 
 static BROTLI_INLINE void DecodeBlockType(const int max_block_type,
-                                          const HuffmanTree* trees,
+                                          const HuffmanCode* trees,
                                           int tree_type,
                                           int* block_types,
                                           int* ringbuffers,
@@ -543,7 +463,7 @@ static BROTLI_INLINE void DecodeBlockType(const int max_block_type,
                                           BrotliBitReader* br) {
   int* ringbuffer = ringbuffers + tree_type * 2;
   int* index = indexes + tree_type;
-  int type_code = ReadSymbol(trees + tree_type, br);
+  int type_code = ReadSymbol(&trees[tree_type * HUFFMAN_MAX_TABLE_SIZE], br);
   int block_type;
   if (type_code == 0) {
     block_type = ringbuffer[*index & 1];
@@ -608,6 +528,92 @@ static BROTLI_INLINE void IncrementalCopyFastPath(
   }
 }
 
+int CopyUncompressedBlockToOutput(BrotliOutput output, int len, int pos,
+                                  uint8_t* ringbuffer, int ringbuffer_mask,
+                                  BrotliBitReader* br) {
+  const int rb_size = ringbuffer_mask + 1;
+  uint8_t* ringbuffer_end = ringbuffer + rb_size;
+  int rb_pos = pos & ringbuffer_mask;
+  int br_pos = br->pos_ & BROTLI_IBUF_MASK;
+  int nbytes;
+
+  /* For short lengths copy byte-by-byte */
+  if (len < 8 || br->bit_pos_ + (uint32_t)(len << 3) < br->bit_end_pos_) {
+    while (len-- > 0) {
+      if (!BrotliReadMoreInput(br)) {
+        return 0;
+      }
+      ringbuffer[rb_pos++]= (uint8_t)BrotliReadBits(br, 8);
+      if (rb_pos == rb_size) {
+        if (BrotliWrite(output, ringbuffer, (size_t)rb_size) < rb_size) {
+          return 0;
+        }
+        rb_pos = 0;
+      }
+    }
+    return 1;
+  }
+
+  if (br->bit_end_pos_ < 64) {
+    return 0;
+  }
+
+  /* Copy remaining 0-8 bytes from br->val_ to ringbuffer. */
+  while (br->bit_pos_ < 64) {
+    ringbuffer[rb_pos] = (uint8_t)(br->val_ >> br->bit_pos_);
+    br->bit_pos_ += 8;
+    ++rb_pos;
+    --len;
+  }
+
+  /* Copy remaining bytes from br->buf_ to ringbuffer. */
+  nbytes = (int)(br->bit_end_pos_ - br->bit_pos_) >> 3;
+  if (br_pos + nbytes > BROTLI_IBUF_MASK) {
+    int tail = BROTLI_IBUF_MASK + 1 - br_pos;
+    memcpy(&ringbuffer[rb_pos], &br->buf_[br_pos], (size_t)tail);
+    nbytes -= tail;
+    rb_pos += tail;
+    len -= tail;
+    br_pos = 0;
+  }
+  memcpy(&ringbuffer[rb_pos], &br->buf_[br_pos], (size_t)nbytes);
+  rb_pos += nbytes;
+  len -= nbytes;
+
+  /* If we wrote past the logical end of the ringbuffer, copy the tail of the
+     ringbuffer to its beginning and flush the ringbuffer to the output. */
+  if (rb_pos >= rb_size) {
+    if (BrotliWrite(output, ringbuffer, (size_t)rb_size) < rb_size) {
+      return 0;
+    }
+    rb_pos -= rb_size;
+    memcpy(ringbuffer, ringbuffer_end, (size_t)rb_pos);
+  }
+
+  /* If we have more to copy than the remaining size of the ringbuffer, then we
+     first fill the ringbuffer from the input and then flush the ringbuffer to
+     the output */
+  while (rb_pos + len >= rb_size) {
+    nbytes = rb_size - rb_pos;
+    if (BrotliRead(br->input_, &ringbuffer[rb_pos], (size_t)nbytes) < nbytes ||
+        BrotliWrite(output, ringbuffer, (size_t)rb_size) < nbytes) {
+      return 0;
+    }
+    len -= nbytes;
+    rb_pos = 0;
+  }
+
+  /* Copy straight from the input onto the ringbuffer. The ringbuffer will be
+     flushed to the output at a later time. */
+  if (BrotliRead(br->input_, &ringbuffer[rb_pos], (size_t)len) < len) {
+    return 0;
+  }
+
+  /* Restore the state of the bit reader. */
+  BrotliInitBitReader(br, br->input_);
+  return 1;
+}
+
 int BrotliDecompressedSize(size_t encoded_size,
                            const uint8_t* encoded_buffer,
                            size_t* decoded_size) {
@@ -662,11 +668,15 @@ int BrotliDecompress(BrotliInput input, BrotliOutput output) {
   uint8_t prev_byte1 = 0;
   uint8_t prev_byte2 = 0;
   HuffmanTreeGroup hgroup[3];
+  HuffmanCode* block_type_trees = NULL;
+  HuffmanCode* block_len_trees = NULL;
   BrotliBitReader br;
 
-  /* 16 bytes would be enough, but we add some more slack for transforms */
-  /* to work at the end of the ringbuffer. */
-  static const int kRingBufferWriteAheadSlack = 128;
+  /* We need the slack region for the following reasons:
+       - always doing two 8-byte copies for fast backward copying
+       - transforms
+       - flushing the input ringbuffer when decoding uncompressed blocks */
+  static const int kRingBufferWriteAheadSlack = 128 + BROTLI_READ_SIZE;
 
   static const int kMaxDictionaryWordLength = 0;
 
@@ -688,6 +698,16 @@ int BrotliDecompress(BrotliInput input, BrotliOutput output) {
   }
   ringbuffer_end = ringbuffer + ringbuffer_size;
 
+  if (ok) {
+    block_type_trees = (HuffmanCode*)malloc(
+        3 * HUFFMAN_MAX_TABLE_SIZE * sizeof(HuffmanCode));
+    block_len_trees = (HuffmanCode*)malloc(
+        3 * HUFFMAN_MAX_TABLE_SIZE * sizeof(HuffmanCode));
+    if (block_type_trees == NULL || block_len_trees == NULL) {
+      ok = 0;
+    }
+  }
+
   while (!input_end && ok) {
     int meta_block_remaining_len = 0;
     int is_uncompressed;
@@ -696,8 +716,6 @@ int BrotliDecompress(BrotliInput input, BrotliOutput output) {
     int num_block_types[3] = { 1, 1, 1 };
     int block_type_rb[6] = { 0, 1, 0, 1, 0, 1 };
     int block_type_rb_index[3] = { 0 };
-    HuffmanTree block_type_trees[3];
-    HuffmanTree block_len_trees[3];
     int distance_postfix_bits;
     int num_direct_distance_codes;
     int distance_postfix_mask;
@@ -716,12 +734,11 @@ int BrotliDecompress(BrotliInput input, BrotliOutput output) {
     int context_lookup_offset1 = 0;
     int context_lookup_offset2 = 0;
     uint8_t context_mode;
+    HuffmanCode* htree_command;
 
     for (i = 0; i < 3; ++i) {
-      hgroup[i].num_htrees = 0;
+      hgroup[i].codes = NULL;
       hgroup[i].htrees = NULL;
-      block_type_trees[i].root_ = NULL;
-      block_len_trees[i].root_ = NULL;
     }
 
     if (!BrotliReadMoreInput(&br)) {
@@ -738,31 +755,25 @@ int BrotliDecompress(BrotliInput input, BrotliOutput output) {
     }
     if (is_uncompressed) {
       BrotliSetBitPos(&br, (br.bit_pos_ + 7) & (uint32_t)(~7UL));
-      while (meta_block_remaining_len) {
-        ringbuffer[pos & ringbuffer_mask] = (uint8_t)BrotliReadBits(&br, 8);
-        if ((pos & ringbuffer_mask) == ringbuffer_mask) {
-          if (BrotliWrite(output, ringbuffer, (size_t)ringbuffer_size) < 0) {
-            ok = 0;
-            goto End;
-          }
-        }
-        ++pos;
-        --meta_block_remaining_len;
-      }
+      ok = CopyUncompressedBlockToOutput(output, meta_block_remaining_len, pos,
+                                         ringbuffer, ringbuffer_mask, &br);
+      pos += meta_block_remaining_len;
       goto End;
     }
     for (i = 0; i < 3; ++i) {
-      block_type_trees[i].root_ = NULL;
-      block_len_trees[i].root_ = NULL;
       num_block_types[i] = DecodeVarLenUint8(&br) + 1;
       if (num_block_types[i] >= 2) {
-        if (!ReadHuffmanCode(
-                num_block_types[i] + 2, &block_type_trees[i], &br) ||
-            !ReadHuffmanCode(kNumBlockLengthCodes, &block_len_trees[i], &br)) {
+        if (!ReadHuffmanCode(num_block_types[i] + 2,
+                             &block_type_trees[i * HUFFMAN_MAX_TABLE_SIZE],
+                             &br) ||
+            !ReadHuffmanCode(kNumBlockLengthCodes,
+                             &block_len_trees[i * HUFFMAN_MAX_TABLE_SIZE],
+                             &br)) {
           ok = 0;
           goto End;
         }
-        block_length[i] = ReadBlockLength(&block_len_trees[i], &br);
+        block_length[i] = ReadBlockLength(
+            &block_len_trees[i * HUFFMAN_MAX_TABLE_SIZE], &br);
         block_type_rb_index[i] = 1;
       }
     }
@@ -822,8 +833,13 @@ int BrotliDecompress(BrotliInput input, BrotliOutput output) {
     context_mode = context_modes[block_type[0]];
     context_lookup_offset1 = kContextLookupOffsets[context_mode];
     context_lookup_offset2 = kContextLookupOffsets[context_mode + 1];
+    htree_command = hgroup[1].htrees[0];
 
     while (meta_block_remaining_len > 0) {
+      int cmd_code;
+      int range_idx;
+      int insert_code;
+      int copy_code;
       int insert_length;
       int copy_length;
       int distance_code;
@@ -841,11 +857,25 @@ int BrotliDecompress(BrotliInput input, BrotliOutput output) {
         DecodeBlockType(num_block_types[1],
                         block_type_trees, 1, block_type, block_type_rb,
                         block_type_rb_index, &br);
-        block_length[1] = ReadBlockLength(&block_len_trees[1], &br);
+        block_length[1] = ReadBlockLength(
+            &block_len_trees[HUFFMAN_MAX_TABLE_SIZE], &br);
+        htree_command = hgroup[1].htrees[block_type[1]];
       }
       --block_length[1];
-      ReadInsertAndCopy(&hgroup[1].htrees[block_type[1]],
-                        &insert_length, &copy_length, &distance_code, &br);
+      cmd_code = ReadSymbol(htree_command, &br);
+      range_idx = cmd_code >> 6;
+      if (range_idx >= 2) {
+        range_idx -= 2;
+        distance_code = -1;
+      } else {
+        distance_code = 0;
+      }
+      insert_code = kInsertRangeLut[range_idx] + ((cmd_code >> 3) & 7);
+      copy_code = kCopyRangeLut[range_idx] + (cmd_code & 7);
+      insert_length = kInsertLengthPrefixCode[insert_code].offset +
+          (int)BrotliReadBits(&br, kInsertLengthPrefixCode[insert_code].nbits);
+      copy_length = kCopyLengthPrefixCode[copy_code].offset +
+          (int)BrotliReadBits(&br, kCopyLengthPrefixCode[copy_code].nbits);
       BROTLI_LOG_UINT(insert_length);
       BROTLI_LOG_UINT(copy_length);
       BROTLI_LOG_UINT(distance_code);
@@ -859,7 +889,7 @@ int BrotliDecompress(BrotliInput input, BrotliOutput output) {
           DecodeBlockType(num_block_types[0],
                           block_type_trees, 0, block_type, block_type_rb,
                           block_type_rb_index, &br);
-          block_length[0] = ReadBlockLength(&block_len_trees[0], &br);
+          block_length[0] = ReadBlockLength(block_len_trees, &br);
           context_offset = block_type[0] << kLiteralContextBits;
           context_map_slice = context_map + context_offset;
           context_mode = context_modes[block_type[0]];
@@ -872,7 +902,7 @@ int BrotliDecompress(BrotliInput input, BrotliOutput output) {
         literal_htree_index = context_map_slice[context];
         --block_length[0];
         prev_byte2 = prev_byte1;
-        prev_byte1 = (uint8_t)ReadSymbol(&hgroup[0].htrees[literal_htree_index],
+        prev_byte1 = (uint8_t)ReadSymbol(hgroup[0].htrees[literal_htree_index],
                                          &br);
         ringbuffer[pos & ringbuffer_mask] = prev_byte1;
         BROTLI_LOG_UINT(literal_htree_index);
@@ -899,7 +929,8 @@ int BrotliDecompress(BrotliInput input, BrotliOutput output) {
           DecodeBlockType(num_block_types[2],
                           block_type_trees, 2, block_type, block_type_rb,
                           block_type_rb_index, &br);
-          block_length[2] = ReadBlockLength(&block_len_trees[2], &br);
+          block_length[2] = ReadBlockLength(
+              &block_len_trees[2 * HUFFMAN_MAX_TABLE_SIZE], &br);
           dist_htree_index = (uint8_t)block_type[2];
           dist_context_offset = block_type[2] << kDistanceContextBits;
           dist_context_map_slice = dist_context_map + dist_context_offset;
@@ -907,11 +938,20 @@ int BrotliDecompress(BrotliInput input, BrotliOutput output) {
         --block_length[2];
         context = (uint8_t)(copy_length > 4 ? 3 : copy_length - 2);
         dist_htree_index = dist_context_map_slice[context];
-        distance_code = ReadCopyDistance(&hgroup[2].htrees[dist_htree_index],
-                                         num_direct_distance_codes,
-                                         distance_postfix_bits,
-                                         distance_postfix_mask,
-                                         &br);
+        distance_code = ReadSymbol(hgroup[2].htrees[dist_htree_index], &br);
+        if (distance_code >= num_direct_distance_codes) {
+          int nbits;
+          int postfix;
+          int offset;
+          distance_code -= num_direct_distance_codes;
+          postfix = distance_code & distance_postfix_mask;
+          distance_code >>= distance_postfix_bits;
+          nbits = (distance_code >> 1) + 1;
+          offset = ((2 + (distance_code & 1)) << nbits) - 4;
+          distance_code = num_direct_distance_codes +
+              ((offset + (int)BrotliReadBits(&br, nbits)) <<
+               distance_postfix_bits) + postfix;
+        }
       }
 
       /* Convert the distance code to the actual distance by possibly looking */
@@ -1004,8 +1044,6 @@ int BrotliDecompress(BrotliInput input, BrotliOutput output) {
     }
     for (i = 0; i < 3; ++i) {
       HuffmanTreeGroupRelease(&hgroup[i]);
-      BrotliHuffmanTreeRelease(&block_type_trees[i]);
-      BrotliHuffmanTreeRelease(&block_len_trees[i]);
     }
   }
 
@@ -1014,6 +1052,12 @@ int BrotliDecompress(BrotliInput input, BrotliOutput output) {
       ok = 0;
     }
     free(ringbuffer);
+  }
+  if (block_type_trees != 0) {
+    free(block_type_trees);
+  }
+  if (block_len_trees != 0) {
+    free(block_len_trees);
   }
   return ok;
 }

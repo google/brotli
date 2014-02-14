@@ -31,7 +31,7 @@ extern "C" {
 #define BROTLI_IBUF_SIZE          (2 * BROTLI_READ_SIZE + 32)
 #define BROTLI_IBUF_MASK          (2 * BROTLI_READ_SIZE - 1)
 
-#define UNALIGNED_COPY64(dst, src) *(uint64_t*)(dst) = *(const uint64_t*)(src)
+#define UNALIGNED_COPY64(dst, src) memcpy(dst, src, 8)
 
 static const uint32_t kBitMask[BROTLI_MAX_NUM_BIT_READ] = {
   0, 1, 3, 7, 15, 31, 63, 127, 255, 511, 1023, 2047, 4095, 8191, 16383, 32767,
@@ -42,13 +42,13 @@ typedef struct {
   /* Input byte buffer, consist of a ringbuffer and a "slack" region where */
   /* bytes from the start of the ringbuffer are copied. */
   uint8_t buf_[BROTLI_IBUF_SIZE];
-  uint8_t*    buf_ptr_;    /* next input will write here */
-  BrotliInput input_;      /* input callback */
-  uint64_t    val_;        /* pre-fetched bits */
-  uint32_t    pos_;        /* byte position in stream */
-  uint32_t    bit_pos_;    /* current bit-reading position in val_ */
-  uint32_t    bits_left_;  /* how many valid bits left */
-  int         eos_;        /* input stream is finished */
+  uint8_t*    buf_ptr_;      /* next input will write here */
+  BrotliInput input_;        /* input callback */
+  uint64_t    val_;          /* pre-fetched bits */
+  uint32_t    pos_;          /* byte position in stream */
+  uint32_t    bit_pos_;      /* current bit-reading position in val_ */
+  uint32_t    bit_end_pos_;  /* bit-reading end position from LSB of val_ */
+  int         eos_;          /* input stream is finished */
 } BrotliBitReader;
 
 int BrotliInitBitReader(BrotliBitReader* const br, BrotliInput input);
@@ -65,7 +65,7 @@ static BROTLI_INLINE void BrotliSetBitPos(BrotliBitReader* const br,
 #ifdef BROTLI_DECODE_DEBUG
   uint32_t n_bits = val - br->bit_pos_;
   const uint32_t bval = (uint32_t)(br->val_ >> br->bit_pos_) & kBitMask[n_bits];
-  printf("[BrotliReadBits]  %010ld %2d  val: %6x\n",
+  printf("[BrotliReadBits]  %010d %2d  val: %6x\n",
          (br->pos_ << 3) + br->bit_pos_ - 64, n_bits, bval);
 #endif
   br->bit_pos_ = val;
@@ -78,7 +78,7 @@ static BROTLI_INLINE void ShiftBytes(BrotliBitReader* const br) {
     br->val_ |= ((uint64_t)br->buf_[br->pos_ & BROTLI_IBUF_MASK]) << 56;
     ++br->pos_;
     br->bit_pos_ -= 8;
-    br->bits_left_ -= 8;
+    br->bit_end_pos_ -= 8;
   }
 }
 
@@ -95,10 +95,10 @@ static BROTLI_INLINE void ShiftBytes(BrotliBitReader* const br) {
    every 32 bytes of input is read.
 */
 static BROTLI_INLINE int BrotliReadMoreInput(BrotliBitReader* const br) {
-  if (br->bits_left_ > 320) {
+  if (br->bit_end_pos_ > 256) {
     return 1;
   } else if (br->eos_) {
-    return br->bit_pos_ <= br->bits_left_;
+    return br->bit_pos_ <= br->bit_end_pos_;
   } else {
     uint8_t* dst = br->buf_ptr_;
     int bytes_read = BrotliRead(br->input_, dst, BROTLI_READ_SIZE);
@@ -131,7 +131,7 @@ static BROTLI_INLINE int BrotliReadMoreInput(BrotliBitReader* const br) {
     } else {
       br->buf_ptr_ = br->buf_;
     }
-    br->bits_left_ += ((uint32_t)bytes_read << 3);
+    br->bit_end_pos_ += ((uint32_t)bytes_read << 3);
     return 1;
   }
 }
@@ -147,7 +147,7 @@ static BROTLI_INLINE void BrotliFillBitWindow(BrotliBitReader* const br) {
         br->buf_ + (br->pos_ & BROTLI_IBUF_MASK)) << 24;
     br->pos_ += 5;
     br->bit_pos_ -= 40;
-    br->bits_left_ -= 40;
+    br->bit_end_pos_ -= 40;
 #else
     ShiftBytes(br);
 #endif
@@ -155,14 +155,13 @@ static BROTLI_INLINE void BrotliFillBitWindow(BrotliBitReader* const br) {
 }
 
 /* Reads the specified number of bits from Read Buffer. */
-/* Requires that n_bits is positive. */
 static BROTLI_INLINE uint32_t BrotliReadBits(
     BrotliBitReader* const br, int n_bits) {
   uint32_t val;
   BrotliFillBitWindow(br);
   val = (uint32_t)(br->val_ >> br->bit_pos_) & kBitMask[n_bits];
 #ifdef BROTLI_DECODE_DEBUG
-  printf("[BrotliReadBits]  %010ld %2d  val: %6x\n",
+  printf("[BrotliReadBits]  %010d %2d  val: %6x\n",
          (br->pos_ << 3) + br->bit_pos_ - 64, n_bits, val);
 #endif
   br->bit_pos_ += (uint32_t)n_bits;

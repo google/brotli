@@ -86,7 +86,7 @@ void BuildEntropyCode(const Histogram<kSize>& histogram,
       ++code->count_;
     }
   }
-  if (code->count_ >= 64) {
+  if (alphabet_size >= 50 && code->count_ >= 16) {
     int counts[kSize];
     memcpy(counts, &histogram.data_[0], sizeof(counts[0]) * kSize);
     OptimizeHuffmanCountsForRle(alphabet_size, counts);

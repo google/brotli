@@ -93,7 +93,7 @@ static inline int HuffmanBitCost(const uint8_t* depth, int length) {
   cost[17] += 3;
 
   int tree_size = 0;
-  int bits = 6 + 3 * max_depth;  // huffman tree of huffman tree cost
+  int bits = 6 + 2 * max_depth;  // huffman tree of huffman tree cost
   for (int i = 0; i < kCodeLengthCodes; ++i) {
     bits += histogram[i] * cost[i];  // huffman tree bit cost
     tree_size += histogram[i];

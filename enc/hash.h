@@ -150,7 +150,10 @@ class HashLongestMatch {
                         size_t * __restrict best_len_out,
                         size_t * __restrict best_len_code_out,
                         size_t * __restrict best_distance_out,
-                        double * __restrict best_score_out) {
+                        double * __restrict best_score_out,
+                        bool * __restrict in_dictionary) {
+    *in_dictionary = true;
+    *best_len_code_out = 0;
     const size_t cur_ix_masked = cur_ix & ring_buffer_mask;
     const double start_cost4 = literal_cost == NULL ? 20 :
         literal_cost[cur_ix_masked] +
@@ -166,9 +169,9 @@ class HashLongestMatch {
         literal_cost[(cur_ix + 1) & ring_buffer_mask] + 1.2;
     bool match_found = false;
     // Don't accept a short copy from far away.
-    double best_score = 8.25;
+    double best_score = 8.11;
     if (insert_length_ < 4) {
-      double cost_diff[4] = { 0.20, 0.09, 0.05, 0.03 };
+      double cost_diff[4] = { 0.10, 0.04, 0.02, 0.01 };
       best_score += cost_diff[insert_length_];
     }
     size_t best_len = *best_len_out;
@@ -235,6 +238,7 @@ class HashLongestMatch {
           *best_distance_out = best_ix;
           *best_score_out = best_score;
           match_found = true;
+          *in_dictionary = backward > max_backward;
         }
       }
     }
@@ -257,7 +261,7 @@ class HashLongestMatch {
         continue;
       }
       int len = 2;
-      const double score = start_cost2 - 1.70 * Log2Floor(backward);
+      const double score = start_cost2 - 2.3 * Log2Floor(backward);
 
       if (best_score < score) {
         best_score = score;
@@ -309,6 +313,7 @@ class HashLongestMatch {
             *best_distance_out = best_ix;
             *best_score_out = best_score;
             match_found = true;
+            *in_dictionary = false;
           }
         }
       }

@@ -77,6 +77,68 @@ void EncodeVarLenUint8(int n, int* storage_ix, uint8_t* storage) {
   }
 }
 
+int ParseAsUTF8(int* symbol, const uint8_t* input, int size) {
+  // ASCII
+  if ((input[0] & 0x80) == 0) {
+    *symbol = input[0];
+    if (*symbol > 0) {
+      return 1;
+    }
+  }
+  // 2-byte UTF8
+  if (size > 1 &&
+      (input[0] & 0xe0) == 0xc0 &&
+      (input[1] & 0xc0) == 0x80) {
+    *symbol = (((input[0] & 0x1f) << 6) |
+               (input[1] & 0x3f));
+    if (*symbol > 0x7f) {
+      return 2;
+    }
+  }
+  // 3-byte UFT8
+  if (size > 2 &&
+      (input[0] & 0xf0) == 0xe0 &&
+      (input[1] & 0xc0) == 0x80 &&
+      (input[2] & 0xc0) == 0x80) {
+    *symbol = (((input[0] & 0x0f) << 12) |
+               ((input[1] & 0x3f) << 6) |
+               (input[2] & 0x3f));
+    if (*symbol > 0x7ff) {
+      return 3;
+    }
+  }
+  // 4-byte UFT8
+  if (size > 3 &&
+      (input[0] & 0xf8) == 0xf0 &&
+      (input[1] & 0xc0) == 0x80 &&
+      (input[2] & 0xc0) == 0x80 &&
+      (input[3] & 0xc0) == 0x80) {
+    *symbol = (((input[0] & 0x07) << 18) |
+               ((input[1] & 0x3f) << 12) |
+               ((input[2] & 0x3f) << 6) |
+               (input[3] & 0x3f));
+    if (*symbol > 0xffff && *symbol <= 0x10ffff) {
+      return 4;
+    }
+  }
+  // Not UTF8, emit a special symbol above the UTF8-code space
+  *symbol = 0x110000 | input[0];
+  return 1;
+}
+
+// Returns true if at least min_fraction of the data is UTF8-encoded.
+bool IsMostlyUTF8(const uint8_t* data, size_t length, double min_fraction) {
+  size_t size_utf8 = 0;
+  size_t pos = 0;
+  while (pos < length) {
+    int symbol;
+    int bytes_read = ParseAsUTF8(&symbol, data + pos, length - pos);
+    pos += bytes_read;
+    if (symbol < 0x110000) size_utf8 += bytes_read;
+  }
+  return size_utf8 > min_fraction * length;
+}
+
 void EncodeMetaBlockLength(size_t meta_block_size,
                            bool is_last,
                            bool is_uncompressed,
@@ -118,7 +180,7 @@ void StoreHuffmanTreeOfHuffmanTreeToBitMask(
     const uint8_t* code_length_bitdepth,
     int* storage_ix, uint8_t* storage) {
   static const uint8_t kStorageOrder[kCodeLengthCodes] = {
-    1, 2, 3, 4, 0, 17, 5, 6, 16, 7, 8, 9, 10, 11, 12, 13, 14, 15,
+    1, 2, 3, 4, 0, 5, 17, 6, 16, 7, 8, 9, 10, 11, 12, 13, 14, 15,
   };
   // Throw away trailing zeros:
   int codes_to_store = kCodeLengthCodes;
@@ -147,7 +209,7 @@ void StoreHuffmanTreeOfHuffmanTreeToBitMask(
   WriteBits(2, skip_some, storage_ix, storage);
   for (int i = skip_some; i < codes_to_store; ++i) {
     uint8_t len[] = { 2, 4, 3, 2, 2, 4 };
-    uint8_t bits[] = { 0, 5, 1, 3, 2, 13 };
+    uint8_t bits[] = { 0, 7, 3, 2, 1, 15 };
     int v = code_length_bitdepth[kStorageOrder[i]];
     WriteBits(len[v], bits[v], storage_ix, storage);
   }
@@ -175,54 +237,49 @@ void StoreHuffmanTreeToBitMask(
 }
 
 template<int kSize>
-void StoreHuffmanCode(const EntropyCode<kSize>& code, int alphabet_size,
-                      int* storage_ix, uint8_t* storage) {
+void StoreHuffmanCodeSimple(
+    const EntropyCode<kSize>& code, int alphabet_size,
+    int max_bits,
+    int* storage_ix, uint8_t* storage) {
   const uint8_t *depth = &code.depth_[0];
-  int max_bits_counter = alphabet_size - 1;
-  int max_bits = 0;
-  while (max_bits_counter) {
-    max_bits_counter >>= 1;
-    ++max_bits;
+  int symbols[4];
+  // Quadratic sort.
+  int k, j;
+  for (k = 0; k < code.count_; ++k) {
+    symbols[k] = code.symbols_[k];
   }
-  if (code.count_ == 0) {   // emit minimal tree for empty cases
-    // bits: small tree marker: 1, count-1: 0, max_bits-sized encoding for 0
-    WriteBits(4 + max_bits, 0x1, storage_ix, storage);
-    return;
-  }
-  if (code.count_ <= 4) {
-    int symbols[4];
-    // Quadratic sort.
-    int k, j;
-    for (k = 0; k < code.count_; ++k) {
-      symbols[k] = code.symbols_[k];
-    }
-    for (k = 0; k < code.count_; ++k) {
-      for (j = k + 1; j < code.count_; ++j) {
-        if (depth[symbols[j]] < depth[symbols[k]]) {
-          int t = symbols[k];
-          symbols[k] = symbols[j];
-          symbols[j] = t;
-        }
+  for (k = 0; k < code.count_; ++k) {
+    for (j = k + 1; j < code.count_; ++j) {
+      if (depth[symbols[j]] < depth[symbols[k]]) {
+        int t = symbols[k];
+        symbols[k] = symbols[j];
+        symbols[j] = t;
       }
     }
-    // Small tree marker to encode 1-4 symbols.
-    WriteBits(2, 1, storage_ix, storage);
-    WriteBits(2, code.count_ - 1, storage_ix, storage);
-    for (int i = 0; i < code.count_; ++i) {
-      WriteBits(max_bits, symbols[i], storage_ix, storage);
-    }
-    if (code.count_ == 4) {
-      if (depth[symbols[0]] == 2 &&
-          depth[symbols[1]] == 2 &&
-          depth[symbols[2]] == 2 &&
-          depth[symbols[3]] == 2) {
-        WriteBits(1, 0, storage_ix, storage);
-      } else {
-        WriteBits(1, 1, storage_ix, storage);
-      }
-    }
-    return;
   }
+  // Small tree marker to encode 1-4 symbols.
+  WriteBits(2, 1, storage_ix, storage);
+  WriteBits(2, code.count_ - 1, storage_ix, storage);
+  for (int i = 0; i < code.count_; ++i) {
+    WriteBits(max_bits, symbols[i], storage_ix, storage);
+  }
+  if (code.count_ == 4) {
+    if (depth[symbols[0]] == 2 &&
+        depth[symbols[1]] == 2 &&
+        depth[symbols[2]] == 2 &&
+        depth[symbols[3]] == 2) {
+      WriteBits(1, 0, storage_ix, storage);
+    } else {
+      WriteBits(1, 1, storage_ix, storage);
+    }
+  }
+}
+
+template<int kSize>
+void StoreHuffmanCodeComplex(
+    const EntropyCode<kSize>& code, int alphabet_size,
+    int* storage_ix, uint8_t* storage) {
+  const uint8_t *depth = &code.depth_[0];
   uint8_t huffman_tree[kSize];
   uint8_t huffman_tree_extra_bits[kSize];
   int huffman_tree_size = 0;
@@ -244,6 +301,31 @@ void StoreHuffmanCode(const EntropyCode<kSize>& code, int alphabet_size,
   StoreHuffmanTreeToBitMask(&huffman_tree[0], &huffman_tree_extra_bits[0],
                             huffman_tree_size, huffman_tree_entropy,
                             storage_ix, storage);
+}
+
+
+template<int kSize>
+void StoreHuffmanCode(const EntropyCode<kSize>& code, int alphabet_size,
+                      int* storage_ix, uint8_t* storage) {
+  int max_bits_counter = alphabet_size - 1;
+  int max_bits = 0;
+  while (max_bits_counter) {
+    max_bits_counter >>= 1;
+    ++max_bits;
+  }
+  if (code.count_ == 0) {
+    // Emit a minimal tree for empty cases.
+    // bits: small tree marker: 1, count-1: 0, max_bits-sized encoding for 0
+    WriteBits(4 + max_bits, 0x1, storage_ix, storage);
+  } else if (code.count_ <= 4) {
+    StoreHuffmanCodeSimple(
+        code, alphabet_size, max_bits,
+        storage_ix, storage);
+  } else {
+    StoreHuffmanCodeComplex(
+        code, alphabet_size,
+        storage_ix, storage);
+  }
 }
 
 template<int kSize>
@@ -798,12 +880,23 @@ void BrotliCompressor::WriteMetaBlock(const size_t input_size,
                                       const bool is_last,
                                       size_t* encoded_size,
                                       uint8_t* encoded_buffer) {
+  static const double kMinUTF8Ratio = 0.75;
+  bool utf8_mode = false;
   std::vector<Command> commands;
   if (input_size > 0) {
     ringbuffer_.Write(input_buffer, input_size);
-    EstimateBitCostsForLiterals(input_pos_, input_size,
-                                kRingBufferMask, ringbuffer_.start(),
-                                &literal_cost_[0]);
+    utf8_mode = IsMostlyUTF8(
+      &ringbuffer_.start()[input_pos_ & kRingBufferMask],
+      input_size, kMinUTF8Ratio);
+    if (utf8_mode) {
+      EstimateBitCostsForLiteralsUTF8(input_pos_, input_size,
+                                      kRingBufferMask, ringbuffer_.start(),
+                                      &literal_cost_[0]);
+    } else {
+      EstimateBitCostsForLiterals(input_pos_, input_size,
+                                  kRingBufferMask, ringbuffer_.start(),
+                                  &literal_cost_[0]);
+    }
     CreateBackwardReferences(input_size, input_pos_,
                              ringbuffer_.start(),
                              &literal_cost_[0],
