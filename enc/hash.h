@@ -24,7 +24,9 @@
 #include <sys/types.h>
 #include <algorithm>
 #include <cstdlib>
+#include <string>
 
+#include "./transform.h"
 #include "./fast_log.h"
 #include "./find_match_length.h"
 #include "./port.h"
@@ -276,7 +278,41 @@ class HashLongestMatch {
     for (int i = num_[key] - 1; i >= down; --i) {
       int prev_ix = bucket[i & kBlockMask];
       if (prev_ix < 0) {
-        continue;
+        prev_ix *= -1;
+        prev_ix -= 1;
+        int copy_len_code = prev_ix >> 20;
+        int word_id = prev_ix & 0xfffff;
+        std::string word = GetTransformedDictionaryWord(copy_len_code, word_id);
+        int len = word.size();
+        const size_t backward = max_backward + word_id + 1;
+        bool word_matched = (len >= 3 && len <= max_length);
+        for (int k = 0; k < len && word_matched; ++k) {
+          if ((uint8_t)(word[k]) != data[cur_ix_masked + k]) {
+            word_matched = false;
+          }
+        }
+        if (word_matched) {
+          const double score = BackwardReferenceScore(average_cost_,
+                                                      start_cost4,
+                                                      start_cost3,
+                                                      start_cost2,
+                                                      len, backward,
+                                                      last_distance1_,
+                                                      last_distance2_,
+                                                      last_distance3_,
+                                                      last_distance4_);
+          if (best_score < score) {
+            best_score = score;
+            best_len = len;
+            best_ix = backward;
+            *best_len_out = best_len;
+            *best_len_code_out = copy_len_code;
+            *best_distance_out = best_ix;
+            *best_score_out = best_score;
+            match_found = true;
+            *in_dictionary = true;
+          }
+        }
       } else {
         const size_t backward = cur_ix - prev_ix;
         if (PREDICT_FALSE(backward > max_backward)) {

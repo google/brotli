@@ -24,6 +24,7 @@
 #include "./block_splitter.h"
 #include "./cluster.h"
 #include "./context.h"
+#include "./transform.h"
 #include "./entropy_encode.h"
 #include "./fast_log.h"
 #include "./hash.h"
@@ -858,11 +859,28 @@ BrotliCompressor::BrotliCompressor()
   dist_ringbuffer_[2] = 11;
   dist_ringbuffer_[3] = 4;
   storage_[0] = 0;
+  StoreDictionaryWordHashes();
 }
 
 BrotliCompressor::~BrotliCompressor() {
   delete hasher_;
   delete[] storage_;
+}
+
+void BrotliCompressor::StoreDictionaryWordHashes() {
+  for (int t = kNumTransforms - 1; t >= 0; --t) {
+    for (int i = kMaxDictionaryWordLength; i >= 3; --i) {
+      const int num_words = 1 << kBrotliDictionarySizeBitsByLength[i];
+      for (int j = num_words - 1; j >= 0; --j) {
+        int word_id = t * num_words + j;
+        std::string word = GetTransformedDictionaryWord(i, word_id);
+        if (word.size() >= 3) {
+          hasher_->Store(reinterpret_cast<const uint8_t*>(&word[0]),
+                         (-1) * ((i << 20) + word_id + 1));
+        }
+      }
+    }
+  }
 }
 
 void BrotliCompressor::WriteStreamHeader() {

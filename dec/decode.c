@@ -19,6 +19,8 @@
 #include "./bit_reader.h"
 #include "./context.h"
 #include "./decode.h"
+#include "./dictionary.h"
+#include "./transform.h"
 #include "./huffman.h"
 #include "./prefix.h"
 #include "./safe_malloc.h"
@@ -977,11 +979,44 @@ int BrotliDecompress(BrotliInput input, BrotliOutput output) {
       copy_dst = &ringbuffer[pos & ringbuffer_mask];
 
       if (distance > max_distance) {
-        printf("Invalid backward reference. pos: %d distance: %d "
-               "len: %d bytes left: %d\n", pos, distance, copy_length,
-               meta_block_remaining_len);
-        ok = 0;
-        goto End;
+        if (copy_length >= 3 && copy_length <= kMaxDictionaryWordLength) {
+          int offset = kBrotliDictionaryOffsetsByLength[copy_length];
+          int word_id = distance - max_distance - 1;
+          int shift = kBrotliDictionarySizeBitsByLength[copy_length];
+          int mask = (1 << shift) - 1;
+          int word_idx = word_id & mask;
+          int transform_idx = word_id >> shift;
+          offset += word_idx * copy_length;
+          if (transform_idx < kNumTransforms) {
+            const uint8_t* word = &kBrotliDictionary[offset];
+            int len = TransformDictionaryWord(
+                copy_dst, word, copy_length, transform_idx);
+            copy_dst += len;
+            pos += len;
+            meta_block_remaining_len -= len;
+            if (copy_dst >= ringbuffer_end) {
+              if (BrotliWrite(output, ringbuffer,
+                              (size_t)ringbuffer_size) < 0) {
+                ok = 0;
+                goto End;
+              }
+              memcpy(ringbuffer, ringbuffer_end,
+                     (size_t)(copy_dst - ringbuffer_end));
+            }
+          } else {
+            printf("Invalid backward reference. pos: %d distance: %d "
+                   "len: %d bytes left: %d\n", pos, distance, copy_length,
+                   meta_block_remaining_len);
+            ok = 0;
+            goto End;
+          }
+        } else {
+          printf("Invalid backward reference. pos: %d distance: %d "
+                 "len: %d bytes left: %d\n", pos, distance, copy_length,
+                 meta_block_remaining_len);
+          ok = 0;
+          goto End;
+        }
       } else {
         if (copy_length > meta_block_remaining_len) {
           printf("Invalid backward reference. pos: %d distance: %d "

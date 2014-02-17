@@ -50,6 +50,9 @@ class BrotliCompressor {
 
 
  private:
+  // Initializes the hasher with the hashes of dictionary words.
+  void StoreDictionaryWordHashes();
+
   int window_bits_;
   Hasher* hasher_;
   int dist_ringbuffer_[4];
