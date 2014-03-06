@@ -680,8 +680,6 @@ int BrotliDecompress(BrotliInput input, BrotliOutput output) {
        - flushing the input ringbuffer when decoding uncompressed blocks */
   static const int kRingBufferWriteAheadSlack = 128 + BROTLI_READ_SIZE;
 
-  static const int kMaxDictionaryWordLength = 0;
-
   if (!BrotliInitBitReader(&br, input)) {
     return 0;
   }
