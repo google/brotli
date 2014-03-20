@@ -24,9 +24,13 @@ namespace brotli {
 // Command holds a sequence of literals and a backward reference copy.
 class Command {
  public:
+  // distance_code_ is initialized to 17 because it refers to the distance
+  // code of a backward distance of 1, this way the last insert-only command
+  // won't use the last-distance short code, and accordingly distance_prefix_ is
+  // set to 16
   Command() : insert_length_(0), copy_length_(0), copy_length_code_(0),
-              copy_distance_(0), distance_code_(0),
-              distance_prefix_(0), command_prefix_(0),
+              copy_distance_(0), distance_code_(17),
+              distance_prefix_(16), command_prefix_(0),
               distance_extra_bits_(0), distance_extra_bits_value_(0) {}
 
   uint32_t insert_length_;

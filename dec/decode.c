@@ -247,12 +247,23 @@ static int ReadHuffmanCode(int alphabet_size,
     code_lengths[symbols[0]] = 1;
     switch (num_symbols) {
       case 1:
+        break;
       case 3:
+        ok = ((symbols[0] != symbols[1]) &&
+              (symbols[0] != symbols[2]) &&
+              (symbols[1] != symbols[2]));
         break;
       case 2:
+        ok = (symbols[0] != symbols[1]);
         code_lengths[symbols[1]] = 1;
         break;
       case 4:
+        ok = ((symbols[0] != symbols[1]) &&
+              (symbols[0] != symbols[2]) &&
+              (symbols[0] != symbols[3]) &&
+              (symbols[1] != symbols[2]) &&
+              (symbols[1] != symbols[3]) &&
+              (symbols[2] != symbols[3]));
         if (BrotliReadBits(br, 1)) {
           code_lengths[symbols[2]] = 3;
           code_lengths[symbols[3]] = 3;
@@ -266,6 +277,7 @@ static int ReadHuffmanCode(int alphabet_size,
     int i;
     uint8_t code_length_code_lengths[CODE_LENGTH_CODES] = { 0 };
     int space = 32;
+    int num_codes = 0;
     /* Static Huffman code for the code length code lengths */
     static const HuffmanCode huff[16] = {
       {2, 0}, {2, 4}, {2, 3}, {3, 2}, {2, 0}, {2, 4}, {2, 3}, {4, 1},
@@ -283,10 +295,12 @@ static int ReadHuffmanCode(int alphabet_size,
       BROTLI_LOG_ARRAY_INDEX(code_length_code_lengths, code_len_idx);
       if (v != 0) {
         space -= (32 >> v);
+        ++num_codes;
       }
     }
-    ok = ReadHuffmanCodeLengths(code_length_code_lengths,
-                                alphabet_size, code_lengths, br);
+    ok = (num_codes == 1 || space == 0) &&
+        ReadHuffmanCodeLengths(code_length_code_lengths,
+                               alphabet_size, code_lengths, br);
   }
   if (ok) {
     table_size = BrotliBuildHuffmanTable(table, HUFFMAN_TABLE_BITS,
@@ -961,10 +975,6 @@ int BrotliDecompress(BrotliInput input, BrotliOutput output) {
         ok = 0;
         goto End;
       }
-      if (distance_code > 0) {
-        dist_rb[dist_rb_idx & 3] = distance;
-        ++dist_rb_idx;
-      }
       BROTLI_LOG_UINT(distance);
 
       if (pos < max_backward_distance &&
@@ -1016,6 +1026,11 @@ int BrotliDecompress(BrotliInput input, BrotliOutput output) {
           goto End;
         }
       } else {
+        if (distance_code > 0) {
+          dist_rb[dist_rb_idx & 3] = distance;
+          ++dist_rb_idx;
+        }
+
         if (copy_length > meta_block_remaining_len) {
           printf("Invalid backward reference. pos: %d distance: %d "
                  "len: %d bytes left: %d\n", pos, distance, copy_length,

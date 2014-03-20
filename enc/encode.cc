@@ -168,15 +168,6 @@ void EncodeMetaBlockLength(size_t meta_block_size,
   }
 }
 
-template<int kSize>
-void EntropyEncode(int val, const EntropyCode<kSize>& code,
-                   int* storage_ix, uint8_t* storage) {
-  if (code.count_ <= 1) {
-    return;
-  };
-  WriteBits(code.depth_[val], code.bits_[val], storage_ix, storage);
-}
-
 void StoreHuffmanTreeOfHuffmanTreeToBitMask(
     const uint8_t* code_length_bitdepth,
     int* storage_ix, uint8_t* storage) {
@@ -225,7 +216,9 @@ void StoreHuffmanTreeToBitMask(
   for (int i = 0; i < huffman_tree_size; ++i) {
     const int ix = huffman_tree[i];
     const int extra_bits = huffman_tree_extra_bits[i];
-    EntropyEncode(ix, entropy, storage_ix, storage);
+    if (entropy.count_ > 1) {
+      WriteBits(entropy.depth_[ix], entropy.bits_[ix], storage_ix, storage);
+    }
     switch (ix) {
       case 16:
         WriteBits(2, extra_bits, storage_ix, storage);
@@ -240,8 +233,7 @@ void StoreHuffmanTreeToBitMask(
 template<int kSize>
 void StoreHuffmanCodeSimple(
     const EntropyCode<kSize>& code, int alphabet_size,
-    int max_bits,
-    int* storage_ix, uint8_t* storage) {
+    int max_bits, int* storage_ix, uint8_t* storage) {
   const uint8_t *depth = &code.depth_[0];
   int symbols[4];
   // Quadratic sort.
@@ -304,37 +296,66 @@ void StoreHuffmanCodeComplex(
                             storage_ix, storage);
 }
 
-
 template<int kSize>
-void StoreHuffmanCode(const EntropyCode<kSize>& code, int alphabet_size,
-                      int* storage_ix, uint8_t* storage) {
+void BuildAndStoreEntropyCode(const Histogram<kSize>& histogram,
+                              const int tree_limit,
+                              const int alphabet_size,
+                              EntropyCode<kSize>* code,
+                              int* storage_ix, uint8_t* storage) {
+  memset(code->depth_, 0, sizeof(code->depth_));
+  memset(code->bits_, 0, sizeof(code->bits_));
+  memset(code->symbols_, 0, sizeof(code->symbols_));
+  code->count_ = 0;
+
   int max_bits_counter = alphabet_size - 1;
   int max_bits = 0;
   while (max_bits_counter) {
     max_bits_counter >>= 1;
     ++max_bits;
   }
-  if (code.count_ == 0) {
-    // Emit a minimal tree for empty cases.
-    // bits: small tree marker: 1, count-1: 0, max_bits-sized encoding for 0
-    WriteBits(4 + max_bits, 0x1, storage_ix, storage);
-  } else if (code.count_ <= 4) {
-    StoreHuffmanCodeSimple(
-        code, alphabet_size, max_bits,
-        storage_ix, storage);
+
+  for (size_t i = 0; i < alphabet_size; i++) {
+    if (histogram.data_[i] > 0) {
+      if (code->count_ < 4) code->symbols_[code->count_] = i;
+      ++code->count_;
+    }
+  }
+
+  if (code->count_ <= 1) {
+    WriteBits(2, 1, storage_ix, storage);
+    WriteBits(2, 0, storage_ix, storage);
+    WriteBits(max_bits, code->symbols_[0], storage_ix, storage);
+    return;
+  }
+
+  if (alphabet_size >= 50 && code->count_ >= 16) {
+    std::vector<int> counts(alphabet_size);
+    memcpy(&counts[0], histogram.data_, sizeof(counts[0]) * alphabet_size);
+    OptimizeHuffmanCountsForRle(alphabet_size, &counts[0]);
+    CreateHuffmanTree(&counts[0], alphabet_size, tree_limit, code->depth_);
   } else {
-    StoreHuffmanCodeComplex(
-        code, alphabet_size,
-        storage_ix, storage);
+    CreateHuffmanTree(histogram.data_, alphabet_size, tree_limit, code->depth_);
+  }
+  ConvertBitDepthsToSymbols(code->depth_, alphabet_size, code->bits_);
+
+  if (code->count_ <= 4) {
+    StoreHuffmanCodeSimple(*code, alphabet_size, max_bits, storage_ix, storage);
+  } else {
+    StoreHuffmanCodeComplex(*code, alphabet_size, storage_ix, storage);
   }
 }
 
 template<int kSize>
-void StoreHuffmanCodes(const std::vector<EntropyCode<kSize> >& codes,
-                       int alphabet_size,
-                       int* storage_ix, uint8_t* storage) {
-  for (int i = 0; i < codes.size(); ++i) {
-    StoreHuffmanCode(codes[i], alphabet_size, storage_ix, storage);
+void BuildAndStoreEntropyCodes(
+    const std::vector<Histogram<kSize> >& histograms,
+    int alphabet_size,
+    std::vector<EntropyCode<kSize> >* entropy_codes,
+    int* storage_ix, uint8_t* storage) {
+  entropy_codes->resize(histograms.size());
+  for (int i = 0; i < histograms.size(); ++i) {
+    BuildAndStoreEntropyCode(histograms[i], 15, alphabet_size,
+                             &(*entropy_codes)[i],
+                             storage_ix, storage);
   }
 }
 
@@ -342,7 +363,7 @@ void EncodeCommand(const Command& cmd,
                    const EntropyCodeCommand& entropy,
                    int* storage_ix, uint8_t* storage) {
   int code = cmd.command_prefix_;
-  EntropyEncode(code, entropy, storage_ix, storage);
+  WriteBits(entropy.depth_[code], entropy.bits_[code], storage_ix, storage);
   if (code >= 128) {
     code -= 128;
   }
@@ -364,13 +385,15 @@ void EncodeCopyDistance(const Command& cmd, const EntropyCodeDistance& entropy,
   int code = cmd.distance_prefix_;
   int extra_bits = cmd.distance_extra_bits_;
   uint64_t extra_bits_val = cmd.distance_extra_bits_value_;
-  EntropyEncode(code, entropy, storage_ix, storage);
+  WriteBits(entropy.depth_[code], entropy.bits_[code], storage_ix, storage);
   if (extra_bits > 0) {
     WriteBits(extra_bits, extra_bits_val, storage_ix, storage);
   }
 }
 
 void ComputeDistanceShortCodes(std::vector<Command>* cmds,
+                               size_t pos,
+                               const size_t max_backward,
                                int* dist_ringbuffer,
                                size_t* ringbuffer_idx) {
   static const int kIndexOffset[16] = {
@@ -380,30 +403,40 @@ void ComputeDistanceShortCodes(std::vector<Command>* cmds,
     0, 0, 0, 0, -1, 1, -2, 2, -3, 3, -1, 1, -2, 2, -3, 3
   };
   for (int i = 0; i < cmds->size(); ++i) {
+    pos += (*cmds)[i].insert_length_;
+    size_t max_distance = std::min(pos, max_backward);
     int cur_dist = (*cmds)[i].copy_distance_;
-    if (cur_dist == 0) break;
     int dist_code = cur_dist + 16;
-    int limits[16] = { 0, 4, 10, 11,
-                       6, 6, 11, 11,
-                       11, 11, 11, 11,
-                       12, 12, 12, 12 };
-    for (int k = 0; k < 16; ++k) {
-      // Only accept more popular choices.
-      if (cur_dist < limits[k]) {
-        // Typically unpopular ranges, don't replace a short distance
-        // with them.
-        continue;
+    if (cur_dist <= max_distance) {
+      if (cur_dist == 0) break;
+      int limits[16] = { 0, 0, 0, 0,
+                         6, 6, 11, 11,
+                         11, 11, 11, 11,
+                         12, 12, 12, 12 };
+      for (int k = 0; k < 16; ++k) {
+        // Only accept more popular choices.
+        if (cur_dist < limits[k]) {
+          // Typically unpopular ranges, don't replace a short distance
+          // with them.
+          continue;
+        }
+        int comp = (dist_ringbuffer[(*ringbuffer_idx + kIndexOffset[k]) & 3] +
+                    kValueOffset[k]);
+        if (cur_dist == comp) {
+          dist_code = k + 1;
+          break;
+        }
       }
-      int comp = (dist_ringbuffer[(*ringbuffer_idx + kIndexOffset[k]) & 3] +
-                  kValueOffset[k]);
-      if (cur_dist == comp) {
-        dist_code = k + 1;
-        break;
+      if (dist_code > 1) {
+        dist_ringbuffer[*ringbuffer_idx & 3] = cur_dist;
+        ++(*ringbuffer_idx);
       }
-    }
-    if (dist_code > 1) {
-      dist_ringbuffer[*ringbuffer_idx & 3] = cur_dist;
-      ++(*ringbuffer_idx);
+      pos += (*cmds)[i].copy_length_;
+    } else {
+      int word_idx = cur_dist - max_distance - 1;
+      const std::string word =
+          GetTransformedDictionaryWord((*cmds)[i].copy_length_code_, word_idx);
+      pos += word.size();
     }
     (*cmds)[i].distance_code_ = dist_code;
   }
@@ -558,33 +591,25 @@ void EncodeContextMap(const std::vector<int>& context_map,
   for (int i = 0; i < rle_symbols.size(); ++i) {
     symbol_histogram.Add(rle_symbols[i]);
   }
-  EntropyCodeContextMap symbol_code;
-  BuildEntropyCode(symbol_histogram, 15, num_clusters + max_run_length_prefix,
-                   &symbol_code);
   bool use_rle = max_run_length_prefix > 0;
   WriteBits(1, use_rle, storage_ix, storage);
   if (use_rle) {
     WriteBits(4, max_run_length_prefix - 1, storage_ix, storage);
   }
-  StoreHuffmanCode(symbol_code, num_clusters + max_run_length_prefix,
-                   storage_ix, storage);
+  EntropyCodeContextMap symbol_code;
+  BuildAndStoreEntropyCode(symbol_histogram, 15,
+                           num_clusters + max_run_length_prefix,
+                           &symbol_code,
+                           storage_ix, storage);
   for (int i = 0; i < rle_symbols.size(); ++i) {
-    EntropyEncode(rle_symbols[i], symbol_code, storage_ix, storage);
+    WriteBits(symbol_code.depth_[rle_symbols[i]],
+              symbol_code.bits_[rle_symbols[i]],
+              storage_ix, storage);
     if (rle_symbols[i] > 0 && rle_symbols[i] <= max_run_length_prefix) {
       WriteBits(rle_symbols[i], extra_bits[i], storage_ix, storage);
     }
   }
   WriteBits(1, 1, storage_ix, storage);  // use move-to-front
-}
-
-template<int kSize>
-void BuildEntropyCodes(const std::vector<Histogram<kSize> >& histograms,
-                       int alphabet_size,
-                       std::vector<EntropyCode<kSize> >* entropy_codes) {
-  entropy_codes->resize(histograms.size());
-  for (int i = 0; i < histograms.size(); ++i) {
-    BuildEntropyCode(histograms[i], 15, alphabet_size, &(*entropy_codes)[i]);
-  }
 }
 
 struct BlockSplitCode {
@@ -598,8 +623,8 @@ void EncodeBlockLength(const EntropyCodeBlockLength& entropy,
   int len_code = BlockLengthPrefix(length);
   int extra_bits = BlockLengthExtraBits(len_code);
   int extra_bits_value = length - BlockLengthOffset(len_code);
-  EntropyEncode(len_code, entropy, storage_ix, storage);
-
+  WriteBits(entropy.depth_[len_code], entropy.bits_[len_code],
+            storage_ix, storage);
   if (extra_bits > 0) {
     WriteBits(extra_bits, extra_bits_value, storage_ix, storage);
   }
@@ -632,26 +657,25 @@ void BuildAndEncodeBlockSplitCode(const BlockSplit& split,
                                   BlockSplitCode* code,
                                   int* storage_ix, uint8_t* storage) {
   EncodeVarLenUint8(split.num_types_ - 1, storage_ix, storage);
+
   if (split.num_types_ == 1) {
     return;
   }
 
   HistogramBlockType type_histo;
-  for (int i = 0; i < split.type_codes_.size(); ++i) {
+  for (int i = 1; i < split.type_codes_.size(); ++i) {
     type_histo.Add(split.type_codes_[i]);
   }
-  BuildEntropyCode(type_histo, 15, split.num_types_ + 2,
-                   &code->block_type_code);
   HistogramBlockLength length_histo;
   for (int i = 0; i < split.lengths_.size(); ++i) {
     length_histo.Add(BlockLengthPrefix(split.lengths_[i]));
   }
-  BuildEntropyCode(length_histo, 15, kNumBlockLenPrefixes,
-                   &code->block_len_code);
-  StoreHuffmanCode(code->block_type_code, split.num_types_ + 2,
-                   storage_ix, storage);
-  StoreHuffmanCode(code->block_len_code, kNumBlockLenPrefixes,
-                   storage_ix, storage);
+  BuildAndStoreEntropyCode(type_histo, 15, split.num_types_ + 2,
+                           &code->block_type_code,
+                           storage_ix, storage);
+  BuildAndStoreEntropyCode(length_histo, 15, kNumBlockLenPrefixes,
+                           &code->block_len_code,
+                           storage_ix, storage);
   EncodeBlockLength(code->block_len_code, split.lengths_[0],
                     storage_ix, storage);
 }
@@ -664,7 +688,9 @@ void MoveAndEncode(const BlockSplitCode& code,
     it->type_ = it->split_.types_[it->idx_];
     it->length_ = it->split_.lengths_[it->idx_];
     int type_code = it->split_.type_codes_[it->idx_];
-    EntropyEncode(type_code, code.block_type_code, storage_ix, storage);
+    WriteBits(code.block_type_code.depth_[type_code],
+              code.block_type_code.bits_[type_code],
+              storage_ix, storage);
     EncodeBlockLength(code.block_len_code, it->length_, storage_ix, storage);
   }
   --it->length_;
@@ -773,10 +799,8 @@ void StoreMetaBlock(const MetaBlock& mb,
                     int* storage_ix, uint8_t* storage) {
   size_t length = MetaBlockLength(mb.cmds);
   const size_t end_pos = *pos + length;
-  EncodeMetaBlockLength(length,
-                        is_last,
-                        false,
-                        storage_ix, storage);
+  EncodeMetaBlockLength(length, is_last, false, storage_ix, storage);
+
   if (length == 0) {
     return;
   }
@@ -792,26 +816,27 @@ void StoreMetaBlock(const MetaBlock& mb,
   WriteBits(2, mb.params.distance_postfix_bits, storage_ix, storage);
   WriteBits(4,
             mb.params.num_direct_distance_codes >>
-            mb.params.distance_postfix_bits, storage_ix, storage);
+            mb.params.distance_postfix_bits,
+            storage_ix, storage);
   int num_distance_codes =
       kNumDistanceShortCodes + mb.params.num_direct_distance_codes +
       (48 << mb.params.distance_postfix_bits);
   for (int i = 0; i < mb.literal_split.num_types_; ++i) {
     WriteBits(2, mb.literal_context_modes[i], storage_ix, storage);
   }
-  EncodeContextMap(mb.literal_context_map, mb.literal_histograms.size(), storage_ix, storage);
-  EncodeContextMap(mb.distance_context_map, mb.distance_histograms.size(), storage_ix, storage);
+  EncodeContextMap(mb.literal_context_map, mb.literal_histograms.size(),
+                   storage_ix, storage);
+  EncodeContextMap(mb.distance_context_map, mb.distance_histograms.size(),
+                   storage_ix, storage);
   std::vector<EntropyCodeLiteral> literal_codes;
   std::vector<EntropyCodeCommand> command_codes;
   std::vector<EntropyCodeDistance> distance_codes;
-  BuildEntropyCodes(mb.literal_histograms, 256, &literal_codes);
-  BuildEntropyCodes(mb.command_histograms, kNumCommandPrefixes,
-                    &command_codes);
-  BuildEntropyCodes(mb.distance_histograms, num_distance_codes,
-                    &distance_codes);
-  StoreHuffmanCodes(literal_codes, 256, storage_ix, storage);
-  StoreHuffmanCodes(command_codes, kNumCommandPrefixes, storage_ix, storage);
-  StoreHuffmanCodes(distance_codes, num_distance_codes, storage_ix, storage);
+  BuildAndStoreEntropyCodes(mb.literal_histograms, 256, &literal_codes,
+                            storage_ix, storage);
+  BuildAndStoreEntropyCodes(mb.command_histograms, kNumCommandPrefixes,
+                            &command_codes, storage_ix, storage);
+  BuildAndStoreEntropyCodes(mb.distance_histograms, num_distance_codes,
+                            &distance_codes, storage_ix, storage);
   BlockSplitIterator literal_it(mb.literal_split);
   BlockSplitIterator command_it(mb.command_split);
   BlockSplitIterator distance_it(mb.distance_split);
@@ -828,8 +853,10 @@ void StoreMetaBlock(const MetaBlock& mb,
                      Context(prev_byte, prev_byte2,
                              mb.literal_context_modes[literal_it.type_]));
       histogram_idx = mb.literal_context_map[context];
-      EntropyEncode(ringbuffer[*pos & mask],
-                    literal_codes[histogram_idx], storage_ix, storage);
+      int literal = ringbuffer[*pos & mask];
+      WriteBits(literal_codes[histogram_idx].depth_[literal],
+                literal_codes[histogram_idx].bits_[literal],
+                storage_ix, storage);
       ++(*pos);
     }
     if (*pos < end_pos && cmd.distance_prefix_ != 0xffff) {
@@ -845,9 +872,10 @@ void StoreMetaBlock(const MetaBlock& mb,
   }
 }
 
-BrotliCompressor::BrotliCompressor()
-    : window_bits_(kWindowBits),
-      hasher_(new Hasher),
+BrotliCompressor::BrotliCompressor(BrotliParams params)
+    : params_(params),
+      window_bits_(kWindowBits),
+      hashers_(new Hashers()),
       dist_ringbuffer_idx_(0),
       input_pos_(0),
       ringbuffer_(kRingBufferBits, kMetaBlockSizeBits),
@@ -859,28 +887,41 @@ BrotliCompressor::BrotliCompressor()
   dist_ringbuffer_[2] = 11;
   dist_ringbuffer_[3] = 4;
   storage_[0] = 0;
-  StoreDictionaryWordHashes();
+  switch (params.mode) {
+    case BrotliParams::MODE_TEXT: hash_type_ = Hashers::HASH_15_8_4; break;
+    case BrotliParams::MODE_FONT: hash_type_ = Hashers::HASH_15_8_2; break;
+    default: break;
+  }
+  hashers_->Init(hash_type_);
+  if (params.mode == BrotliParams::MODE_TEXT) {
+    StoreDictionaryWordHashes();
+  }
 }
 
 BrotliCompressor::~BrotliCompressor() {
-  delete hasher_;
   delete[] storage_;
 }
 
+StaticDictionary *BrotliCompressor::static_dictionary_ = NULL;
+
 void BrotliCompressor::StoreDictionaryWordHashes() {
-  for (int t = kNumTransforms - 1; t >= 0; --t) {
-    for (int i = kMaxDictionaryWordLength; i >= 3; --i) {
-      const int num_words = 1 << kBrotliDictionarySizeBitsByLength[i];
-      for (int j = num_words - 1; j >= 0; --j) {
-        int word_id = t * num_words + j;
-        std::string word = GetTransformedDictionaryWord(i, word_id);
-        if (word.size() >= 3) {
-          hasher_->Store(reinterpret_cast<const uint8_t*>(&word[0]),
-                         (-1) * ((i << 20) + word_id + 1));
+  const int num_transforms = kNumTransforms;
+  if (static_dictionary_ == NULL) {
+    static_dictionary_ = new StaticDictionary;
+    for (int t = num_transforms - 1; t >= 0; --t) {
+      for (int i = kMaxDictionaryWordLength; i >= 3; --i) {
+        const int num_words = 1 << kBrotliDictionarySizeBitsByLength[i];
+        for (int j = num_words - 1; j >= 0; --j) {
+          int word_id = t * num_words + j;
+          std::string word = GetTransformedDictionaryWord(i, word_id);
+          if (word.size() >= 3) {
+            static_dictionary_->Insert(word, i, word_id);
+          }
         }
       }
     }
   }
+  hashers_->SetStaticDictionary(static_dictionary_);
 }
 
 void BrotliCompressor::WriteStreamHeader() {
@@ -908,25 +949,30 @@ void BrotliCompressor::WriteMetaBlock(const size_t input_size,
       input_size, kMinUTF8Ratio);
     if (utf8_mode) {
       EstimateBitCostsForLiteralsUTF8(input_pos_, input_size,
-                                      kRingBufferMask, ringbuffer_.start(),
-                                      &literal_cost_[0]);
+                                      kRingBufferMask, kRingBufferMask,
+                                      ringbuffer_.start(), &literal_cost_[0]);
     } else {
       EstimateBitCostsForLiterals(input_pos_, input_size,
-                                  kRingBufferMask, ringbuffer_.start(),
-                                  &literal_cost_[0]);
+                                  kRingBufferMask, kRingBufferMask,
+                                  ringbuffer_.start(), &literal_cost_[0]);
     }
-    CreateBackwardReferences(input_size, input_pos_,
-                             ringbuffer_.start(),
-                             &literal_cost_[0],
-                             kRingBufferMask, kMaxBackwardDistance,
-                             hasher_,
-                             &commands);
-    ComputeDistanceShortCodes(&commands, dist_ringbuffer_,
+    CreateBackwardReferences(
+        input_size, input_pos_,
+        ringbuffer_.start(),
+        &literal_cost_[0],
+        kRingBufferMask, kMaxBackwardDistance,
+        hashers_.get(),
+        hash_type_,
+        &commands);
+    ComputeDistanceShortCodes(&commands, input_pos_, kMaxBackwardDistance,
+                              dist_ringbuffer_,
                               &dist_ringbuffer_idx_);
   }
   EncodingParams params;
-  params.num_direct_distance_codes = 12;
-  params.distance_postfix_bits = 1;
+  params.num_direct_distance_codes =
+      params_.mode == BrotliParams::MODE_FONT ? 12 : 0;
+  params.distance_postfix_bits =
+      params_.mode == BrotliParams::MODE_FONT ? 1 : 0;
   params.literal_context_mode = CONTEXT_SIGNED;
   const int storage_ix0 = storage_ix_;
   MetaBlock mb;
@@ -935,6 +981,7 @@ void BrotliCompressor::WriteMetaBlock(const size_t input_size,
   StoreMetaBlock(mb, is_last, ringbuffer_.start(), kRingBufferMask,
                  &input_pos_, &storage_ix_, storage_);
   size_t output_size = is_last ? ((storage_ix_ + 7) >> 3) : (storage_ix_ >> 3);
+  output_size -= (storage_ix0 >> 3);
   if (input_size + 4 < output_size) {
     storage_ix_ = storage_ix0;
     storage_[storage_ix_ >> 3] &= (1 << (storage_ix_ & 7)) - 1;
@@ -968,7 +1015,8 @@ void BrotliCompressor::FinishStream(
 }
 
 
-int BrotliCompressBuffer(size_t input_size,
+int BrotliCompressBuffer(BrotliParams params,
+                         size_t input_size,
                          const uint8_t* input_buffer,
                          size_t* encoded_size,
                          uint8_t* encoded_buffer) {
@@ -978,7 +1026,7 @@ int BrotliCompressBuffer(size_t input_size,
     return 1;
   }
 
-  BrotliCompressor compressor;
+  BrotliCompressor compressor(params);
   compressor.WriteStreamHeader();
 
   const int max_block_size = 1 << kMetaBlockSizeBits;

@@ -26,11 +26,11 @@ namespace brotli {
 // ringbuffer (data, mask) will take entropy coded and writes these estimates
 // to the ringbuffer (cost, mask).
 void EstimateBitCostsForLiterals(size_t pos, size_t len, size_t mask,
-                                 const uint8_t *data,
+                                 size_t cost_mask, const uint8_t *data,
                                  float *cost);
 
 void EstimateBitCostsForLiteralsUTF8(size_t pos, size_t len, size_t mask,
-                                     const uint8_t *data,
+                                     size_t cost_mask, const uint8_t *data,
                                      float *cost);
 
 }  // namespace brotli

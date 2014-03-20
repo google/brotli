@@ -589,7 +589,9 @@ Abstract
    in the sequence of distances) is not pushed to the ring-buffer of
    last distances, in other words, the expression "(second, third,
    fourth) last distance" means the (second, third, fourth) last
-   distance that was not represented by a 0 distance code.
+   distance that was not represented by a 0 distance code. Similarly,
+   distances that represent static dictionary words (see Section 8.) are
+   not pushed to the ringbuffer of last distances.
 
    The next NDIRECT distance codes, from 16 to 15 + NDIRECT, represent
    distances from 1 to NDIRECT. Neither the distance short codes, nor

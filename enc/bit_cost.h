@@ -46,6 +46,7 @@ static inline int HuffmanBitCost(const uint8_t* depth, int length) {
   int max_depth = 1;
   int histogram[kCodeLengthCodes] = { 0 };
   int tail_start = 0;
+  int prev_value = 8;
   // compute histogram of compacted huffman tree
   for (int i = 0; i < length;) {
     const int value = depth[i];
@@ -57,29 +58,32 @@ static inline int HuffmanBitCost(const uint8_t* depth, int length) {
       ++reps;
     }
     i += reps;
+    if (i == length && value == 0)
+      break;
     if (value == 0) {
       if (reps < 3) {
         histogram[0] += reps;
       } else {
-        reps -= 3;
-        while (reps >= 0) {
+        reps -= 2;
+        while (reps > 0) {
           ++histogram[17];
           reps >>= 3;
-          --reps;
         }
       }
     } else {
       tail_start = i;
-      ++histogram[value];
-      --reps;
+      if (value != prev_value) {
+        ++histogram[value];
+        --reps;
+      }
+      prev_value = value;
       if (reps < 3) {
         histogram[value] += reps;
       } else {
-        reps -= 3;
-        while (reps >= 0) {
+        reps -= 2;
+        while (reps > 0) {
           ++histogram[16];
           reps >>= 2;
-          --reps;
         }
       }
     }
@@ -93,7 +97,7 @@ static inline int HuffmanBitCost(const uint8_t* depth, int length) {
   cost[17] += 3;
 
   int tree_size = 0;
-  int bits = 6 + 2 * max_depth;  // huffman tree of huffman tree cost
+  int bits = 18 + 2 * max_depth;  // huffman tree of huffman tree cost
   for (int i = 0; i < kCodeLengthCodes; ++i) {
     bits += histogram[i] * cost[i];  // huffman tree bit cost
     tree_size += histogram[i];

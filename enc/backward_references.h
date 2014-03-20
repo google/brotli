@@ -31,7 +31,8 @@ void CreateBackwardReferences(size_t num_bytes,
                               const float* literal_cost,
                               size_t ringbuffer_mask,
                               const size_t max_backward_limit,
-                              Hasher* hasher,
+                              Hashers* hashers,
+                              Hashers::Type hash_type,
                               std::vector<Command>* commands);
 
 }  // namespace brotli

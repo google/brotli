@@ -59,7 +59,8 @@ static int DecideMultiByteStatsLevel(size_t pos, size_t len, size_t mask,
 }
 
 void EstimateBitCostsForLiteralsUTF8(size_t pos, size_t len, size_t mask,
-                                     const uint8_t *data, float *cost) {
+                                     size_t cost_mask, const uint8_t *data,
+                                     float *cost) {
 
   // max_utf8 is 0 (normal ascii single byte modeling),
   // 1 (for 2-byte utf-8 modeling), or 2 (for 3-byte utf-8 modeling).
@@ -110,18 +111,20 @@ void EstimateBitCostsForLiteralsUTF8(size_t pos, size_t len, size_t mask,
     if (histo == 0) {
       histo = 1;
     }
-    cost[masked_pos] = log2(static_cast<double>(in_window_utf8[utf8_pos])
-                            / histo);
-    cost[masked_pos] += 0.02905;
-    if (cost[masked_pos] < 1.0) {
-      cost[masked_pos] *= 0.5;
-      cost[masked_pos] += 0.5;
+    float lit_cost = log2(static_cast<double>(in_window_utf8[utf8_pos])
+                          / histo);
+    lit_cost += 0.02905;
+    if (lit_cost < 1.0) {
+      lit_cost *= 0.5;
+      lit_cost += 0.5;
     }
+    cost[(pos + i) & cost_mask] = lit_cost;
   }
 }
 
 void EstimateBitCostsForLiterals(size_t pos, size_t len, size_t mask,
-                                 const uint8_t *data, float *cost) {
+                                 size_t cost_mask, const uint8_t *data,
+                                 float *cost) {
   int histogram[256] = { 0 };
   int window_half = 2000;
   int in_window = std::min(static_cast<size_t>(window_half), len);
@@ -143,17 +146,17 @@ void EstimateBitCostsForLiterals(size_t pos, size_t len, size_t mask,
       ++histogram[data[(pos + i + window_half) & mask]];
       ++in_window;
     }
-    int masked_pos = (pos + i) & mask;
-    int histo = histogram[data[masked_pos]];
+    int histo = histogram[data[(pos + i) & mask]];
     if (histo == 0) {
       histo = 1;
     }
-    cost[masked_pos] = log2(static_cast<double>(in_window) / histo);
-    cost[masked_pos] += 0.029;
-    if (cost[masked_pos] < 1.0) {
-      cost[masked_pos] *= 0.5;
-      cost[masked_pos] += 0.5;
+    float lit_cost = log2(static_cast<double>(in_window) / histo);
+    lit_cost += 0.029;
+    if (lit_cost < 1.0) {
+      lit_cost *= 0.5;
+      lit_cost += 0.5;
     }
+    cost[(pos + i) & cost_mask] = lit_cost;
   }
 }
 

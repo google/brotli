@@ -348,6 +348,7 @@ void SplitBlock(const std::vector<Command>& cmds,
                           &insert_and_copy_codes,
                           &distance_prefixes);
 
+
   SplitByteVector<HistogramLiteral>(
       literals,
       kSymbolsPerLiteralHistogram, kMaxLiteralHistograms,

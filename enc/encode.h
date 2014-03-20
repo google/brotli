@@ -23,12 +23,23 @@
 #include <vector>
 #include "./hash.h"
 #include "./ringbuffer.h"
+#include "./static_dict.h"
 
 namespace brotli {
 
+struct BrotliParams {
+  enum Mode {
+    MODE_TEXT = 0,
+    MODE_FONT = 1,
+  };
+  Mode mode;
+
+  BrotliParams() : mode(MODE_TEXT) {}
+};
+
 class BrotliCompressor {
  public:
-  BrotliCompressor();
+  explicit BrotliCompressor(BrotliParams params);
   ~BrotliCompressor();
 
   // Writes the stream header into the internal output buffer.
@@ -53,8 +64,10 @@ class BrotliCompressor {
   // Initializes the hasher with the hashes of dictionary words.
   void StoreDictionaryWordHashes();
 
+  BrotliParams params_;
   int window_bits_;
-  Hasher* hasher_;
+  std::unique_ptr<Hashers> hashers_;
+  Hashers::Type hash_type_;
   int dist_ringbuffer_[4];
   size_t dist_ringbuffer_idx_;
   size_t input_pos_;
@@ -62,12 +75,14 @@ class BrotliCompressor {
   std::vector<float> literal_cost_;
   int storage_ix_;
   uint8_t* storage_;
+  static StaticDictionary *static_dictionary_;
 };
 
 // Compresses the data in input_buffer into encoded_buffer, and sets
 // *encoded_size to the compressed length.
 // Returns 0 if there was an error and 1 otherwise.
-int BrotliCompressBuffer(size_t input_size,
+int BrotliCompressBuffer(BrotliParams params,
+                         size_t input_size,
                          const uint8_t* input_buffer,
                          size_t* encoded_size,
                          uint8_t* encoded_buffer);

@@ -23,6 +23,7 @@
 
 namespace brotli {
 
+template<typename Hasher>
 void CreateBackwardReferences(size_t num_bytes,
                               size_t position,
                               const uint8_t* ringbuffer,
@@ -37,6 +38,9 @@ void CreateBackwardReferences(size_t num_bytes,
   size_t i = position & ringbuffer_mask;
   const int i_diff = position - i;
   const size_t i_end = i + num_bytes;
+
+  const int random_heuristics_window_size = 512;
+  int apply_random_heuristics = i + random_heuristics_window_size;
 
   double average_cost = 0.0;
   for (int k = position; k < position + num_bytes; ++k) {
@@ -65,7 +69,8 @@ void CreateBackwardReferences(size_t num_bytes,
     bool match_found = hasher->FindLongestMatch(
         ringbuffer, literal_cost, ringbuffer_mask,
         i + i_diff, i_end - i, max_distance,
-        &best_len, &best_len_code, &best_dist, &best_score, &in_dictionary);
+        &best_len, &best_len_code, &best_dist, &best_score,
+        &in_dictionary);
     bool best_in_dictionary = in_dictionary;
     if (match_found) {
       if (match_found_M1 && best_score_M1 > best_score) {
@@ -138,16 +143,20 @@ void CreateBackwardReferences(size_t num_bytes,
           }
         }
       }
+      apply_random_heuristics =
+          i + 2 * best_len + random_heuristics_window_size;
       Command cmd;
       cmd.insert_length_ = insert_length;
       cmd.copy_length_ = best_len;
       cmd.copy_length_code_ = best_len_code;
       cmd.copy_distance_ = best_dist;
       commands->push_back(cmd);
-      hasher->set_last_distance(best_dist);
-
       insert_length = 0;
       ++i;
+      if (best_dist <= std::min(i + i_diff, max_backward_limit)) {
+        hasher->set_last_distance(best_dist);
+      }
+
       // Copy all copied literals to the hasher, except the last one.
       // We cannot store the last one yet, otherwise we couldn't find
       // the possible M1 match.
@@ -158,7 +167,8 @@ void CreateBackwardReferences(size_t num_bytes,
         ++i;
       }
       // Prepare M1 match.
-      if (best_len >= 4 && i + 20 < i_end && !best_in_dictionary) {
+      if (hasher->HasStaticDictionary() &&
+          best_len >= 4 && i + 20 < i_end && !best_in_dictionary) {
         max_distance = std::min(i + i_diff, max_backward_limit);
         match_found_M1 = hasher->FindLongestMatch(
             ringbuffer, literal_cost, ringbuffer_mask,
@@ -185,6 +195,32 @@ void CreateBackwardReferences(size_t num_bytes,
       ++insert_length;
       hasher->Store(ringbuffer + i, i + i_diff);
       ++i;
+      // If we have not seen matches for a long time, we can skip some
+      // match lookups. Unsuccessful match lookups are very very expensive
+      // and this kind of a heuristic speeds up compression quite
+      // a lot.
+      if (i > apply_random_heuristics) {
+        // Going through uncompressible data, jump.
+        if (i > apply_random_heuristics + 4 * random_heuristics_window_size) {
+          // It is quite a long time since we saw a copy, so we assume
+          // that this data is not compressible, and store hashes less
+          // often. Hashes of non compressible data are less likely to
+          // turn out to be useful in the future, too, so we store less of
+          // them to not to flood out the hash table of good compressible
+          // data.
+          int i_jump = std::min(i + 16, i_end - 4);
+          for (; i < i_jump; i += 4) {
+            hasher->Store(ringbuffer + i, i + i_diff);
+            insert_length += 4;
+          }
+        } else {
+          int i_jump = std::min(i + 8, i_end - 2);
+          for (; i < i_jump; i += 2) {
+            hasher->Store(ringbuffer + i, i + i_diff);
+            insert_length += 2;
+          }
+        }
+      }
     }
   }
   insert_length += (i_end - i);
@@ -197,5 +233,35 @@ void CreateBackwardReferences(size_t num_bytes,
     commands->push_back(cmd);
   }
 }
+
+void CreateBackwardReferences(size_t num_bytes,
+                              size_t position,
+                              const uint8_t* ringbuffer,
+                              const float* literal_cost,
+                              size_t ringbuffer_mask,
+                              const size_t max_backward_limit,
+                              Hashers* hashers,
+                              Hashers::Type hash_type,
+                              std::vector<Command>* commands) {
+  switch (hash_type) {
+    case Hashers::HASH_15_8_4:
+      CreateBackwardReferences(
+          num_bytes, position, ringbuffer, literal_cost,
+          ringbuffer_mask, max_backward_limit,
+          hashers->hash_15_8_4.get(),
+          commands);
+      break;
+    case Hashers::HASH_15_8_2:
+      CreateBackwardReferences(
+          num_bytes, position, ringbuffer, literal_cost,
+          ringbuffer_mask, max_backward_limit,
+          hashers->hash_15_8_2.get(),
+          commands);
+      break;
+    default:
+      break;
+  }
+}
+
 
 }  // namespace brotli

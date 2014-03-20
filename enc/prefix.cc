@@ -90,7 +90,7 @@ int CopyLengthPrefix(int length) {
 
 int CommandPrefix(int insert_length, int copy_length) {
   if (copy_length == 0) {
-    copy_length = 3;
+    copy_length = 4;
   }
   int insert_prefix = InsertLengthPrefix(insert_length);
   int copy_prefix = CopyLengthPrefix(copy_length);
