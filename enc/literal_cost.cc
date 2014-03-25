@@ -118,6 +118,13 @@ void EstimateBitCostsForLiteralsUTF8(size_t pos, size_t len, size_t mask,
       lit_cost *= 0.5;
       lit_cost += 0.5;
     }
+    // Make the first bytes more expensive -- seems to help, not sure why.
+    // Perhaps because the entropy source is changing its properties
+    // rapidly in the beginning of the file, perhaps because the beginning
+    // of the data is a statistical "anomaly".
+    if (i < 2000) {
+      lit_cost += 0.7 - ((2000 - i) / 2000.0 * 0.35);
+    }
     cost[(pos + i) & cost_mask] = lit_cost;
   }
 }

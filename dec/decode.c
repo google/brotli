@@ -987,7 +987,8 @@ int BrotliDecompress(BrotliInput input, BrotliOutput output) {
       copy_dst = &ringbuffer[pos & ringbuffer_mask];
 
       if (distance > max_distance) {
-        if (copy_length >= 3 && copy_length <= kMaxDictionaryWordLength) {
+        if (copy_length >= kMinDictionaryWordLength &&
+            copy_length <= kMaxDictionaryWordLength) {
           int offset = kBrotliDictionaryOffsetsByLength[copy_length];
           int word_id = distance - max_distance - 1;
           int shift = kBrotliDictionarySizeBitsByLength[copy_length];

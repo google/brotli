@@ -909,12 +909,13 @@ void BrotliCompressor::StoreDictionaryWordHashes() {
   if (static_dictionary_ == NULL) {
     static_dictionary_ = new StaticDictionary;
     for (int t = num_transforms - 1; t >= 0; --t) {
-      for (int i = kMaxDictionaryWordLength; i >= 3; --i) {
+      for (int i = kMaxDictionaryWordLength;
+           i >= kMinDictionaryWordLength; --i) {
         const int num_words = 1 << kBrotliDictionarySizeBitsByLength[i];
         for (int j = num_words - 1; j >= 0; --j) {
           int word_id = t * num_words + j;
           std::string word = GetTransformedDictionaryWord(i, word_id);
-          if (word.size() >= 3) {
+          if (word.size() >= 4) {
             static_dictionary_->Insert(word, i, word_id);
           }
         }

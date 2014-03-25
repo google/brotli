@@ -193,7 +193,7 @@ class HashLongestMatch {
         literal_cost[(cur_ix + 1) & ring_buffer_mask] + 1.2;
     bool match_found = false;
     // Don't accept a short copy from far away.
-    double best_score = 8.11;
+    double best_score = 8.115;
     if (insert_length_ < 4) {
       double cost_diff[4] = { 0.10, 0.04, 0.02, 0.01 };
       best_score += cost_diff[insert_length_];
