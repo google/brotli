@@ -553,7 +553,7 @@ int BestMaxZeroRunLengthPrefix(const std::vector<int>& v) {
     int max_run_length_prefix = max_prefix;
     RunLengthCodeZeros(v, &max_run_length_prefix, &rle_symbols, &extra_bits);
     if (max_run_length_prefix < max_prefix) break;
-    HistogramLiteral histogram;
+    HistogramContextMap histogram;
     for (int i = 0; i < rle_symbols.size(); ++i) {
       histogram.Add(rle_symbols[i]);
     }
