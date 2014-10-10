@@ -42,11 +42,16 @@ struct HuffmanTree {
 
 HuffmanTree::HuffmanTree() {}
 
-// Sort the root nodes, least popular first.
+// Sort the root nodes, least popular first, break ties by value.
 bool SortHuffmanTree(const HuffmanTree &v0, const HuffmanTree &v1) {
   if (v0.total_count_ == v1.total_count_) {
     return v0.index_right_or_value_ > v1.index_right_or_value_;
   }
+  return v0.total_count_ < v1.total_count_;
+}
+
+// Sort the root nodes, least popular first.
+bool SortHuffmanTreeFast(const HuffmanTree &v0, const HuffmanTree &v1) {
   return v0.total_count_ < v1.total_count_;
 }
 
@@ -83,6 +88,7 @@ void SetDepth(const HuffmanTree &p,
 void CreateHuffmanTree(const int *data,
                        const int length,
                        const int tree_limit,
+                       const int quality,
                        uint8_t *depth) {
   // For block sizes below 64 kB, we never need to do a second iteration
   // of this loop. Probably all of our block sizes will be smaller than
@@ -105,8 +111,11 @@ void CreateHuffmanTree(const int *data,
       break;
     }
 
-    std::sort(tree.begin(), tree.end(), SortHuffmanTree);
-
+    if (quality > 1) {
+      std::sort(tree.begin(), tree.end(), SortHuffmanTree);
+    } else {
+      std::sort(tree.begin(), tree.end(), SortHuffmanTreeFast);
+    }
     // The nodes are:
     // [0, n): the sorted leaf nodes that we start with.
     // [n]: we add a sentinel here.
@@ -158,12 +167,12 @@ void CreateHuffmanTree(const int *data,
   }
 }
 
-void Reverse(uint8_t* v, int start, int end) {
+void Reverse(std::vector<uint8_t>* v, int start, int end) {
   --end;
   while (start < end) {
-    int tmp = v[start];
-    v[start] = v[end];
-    v[end] = tmp;
+    int tmp = (*v)[start];
+    (*v)[start] = (*v)[end];
+    (*v)[end] = tmp;
     ++start;
     --end;
   }
@@ -173,74 +182,64 @@ void WriteHuffmanTreeRepetitions(
     const int previous_value,
     const int value,
     int repetitions,
-    uint8_t* tree,
-    uint8_t* extra_bits,
-    int* tree_size) {
+    std::vector<uint8_t> *tree,
+    std::vector<uint8_t> *extra_bits_data) {
   if (previous_value != value) {
-    tree[*tree_size] = value;
-    extra_bits[*tree_size] = 0;
-    ++(*tree_size);
+    tree->push_back(value);
+    extra_bits_data->push_back(0);
     --repetitions;
   }
   if (repetitions == 7) {
-    tree[*tree_size] = value;
-    extra_bits[*tree_size] = 0;
-    ++(*tree_size);
+    tree->push_back(value);
+    extra_bits_data->push_back(0);
     --repetitions;
   }
   if (repetitions < 3) {
     for (int i = 0; i < repetitions; ++i) {
-      tree[*tree_size] = value;
-      extra_bits[*tree_size] = 0;
-      ++(*tree_size);
+      tree->push_back(value);
+      extra_bits_data->push_back(0);
     }
   } else {
     repetitions -= 3;
-    int start = *tree_size;
+    int start = tree->size();
     while (repetitions >= 0) {
-      tree[*tree_size] = 16;
-      extra_bits[*tree_size] = repetitions & 0x3;
-      ++(*tree_size);
+      tree->push_back(16);
+      extra_bits_data->push_back(repetitions & 0x3);
       repetitions >>= 2;
       --repetitions;
     }
-    Reverse(tree, start, *tree_size);
-    Reverse(extra_bits, start, *tree_size);
+    Reverse(tree, start, tree->size());
+    Reverse(extra_bits_data, start, tree->size());
   }
 }
 
 void WriteHuffmanTreeRepetitionsZeros(
     int repetitions,
-    uint8_t* tree,
-    uint8_t* extra_bits,
-    int* tree_size) {
+    std::vector<uint8_t> *tree,
+    std::vector<uint8_t> *extra_bits_data) {
   if (repetitions == 11) {
-    tree[*tree_size] = 0;
-    extra_bits[*tree_size] = 0;
-    ++(*tree_size);
+    tree->push_back(0);
+    extra_bits_data->push_back(0);
     --repetitions;
   }
   if (repetitions < 3) {
     for (int i = 0; i < repetitions; ++i) {
-      tree[*tree_size] = 0;
-      extra_bits[*tree_size] = 0;
-      ++(*tree_size);
+      tree->push_back(0);
+      extra_bits_data->push_back(0);
     }
   } else {
     repetitions -= 3;
-    int start = *tree_size;
+    int start = tree->size();
     while (repetitions >= 0) {
-      tree[*tree_size] = 17;
-      extra_bits[*tree_size] = repetitions & 0x7;
-      ++(*tree_size);
+      tree->push_back(17);
+      extra_bits_data->push_back(repetitions & 0x7);
       repetitions >>= 3;
       --repetitions;
     }
-    Reverse(tree, start, *tree_size);
-    Reverse(extra_bits, start, *tree_size);
+    Reverse(tree, start, tree->size());
+    Reverse(extra_bits_data, start, tree->size());
   }
 }
-
 
 int OptimizeHuffmanCountsForRle(int length, int* counts) {
   int stride;
@@ -371,7 +370,6 @@ int OptimizeHuffmanCountsForRle(int length, int* counts) {
   return 1;
 }
 
-
 static void DecideOverRleUse(const uint8_t* depth, const int length,
                              bool *use_rle_for_non_zero,
                              bool *use_rle_for_zero) {
@@ -379,20 +377,10 @@ static void DecideOverRleUse(const uint8_t* depth, const int length,
   int total_reps_non_zero = 0;
   int count_reps_zero = 0;
   int count_reps_non_zero = 0;
-  int new_length = length;
-  for (int i = 0; i < length; ++i) {
-    if (depth[length - i - 1] == 0) {
-      --new_length;
-    } else {
-      break;
-    }
-  }
-  for (uint32_t i = 0; i < new_length;) {
+  for (uint32_t i = 0; i < length;) {
     const int value = depth[i];
     int reps = 1;
-    // Find rle coding for longer codes.
-    // Shorter codes seem not to benefit from rle.
-    for (uint32_t k = i + 1; k < new_length && depth[k] == value; ++k) {
+    for (uint32_t k = i + 1; k < length && depth[k] == value; ++k) {
       ++reps;
     }
     if (reps >= 3 && value == 0) {
@@ -411,47 +399,50 @@ static void DecideOverRleUse(const uint8_t* depth, const int length,
   *use_rle_for_zero = total_reps_zero > 2;
 }
 
-
-void WriteHuffmanTree(const uint8_t* depth, const int length,
-                      uint8_t* tree,
-                      uint8_t* extra_bits_data,
-                      int* huffman_tree_size) {
+void WriteHuffmanTree(const uint8_t* depth,
+                      uint32_t length,
+                      std::vector<uint8_t> *tree,
+                      std::vector<uint8_t> *extra_bits_data) {
   int previous_value = 8;
 
+  // Throw away trailing zeros.
+  int new_length = length;
+  for (int i = 0; i < length; ++i) {
+    if (depth[length - i - 1] == 0) {
+      --new_length;
+    } else {
+      break;
+    }
+  }
+
   // First gather statistics on if it is a good idea to do rle.
-  bool use_rle_for_non_zero;
-  bool use_rle_for_zero;
-  DecideOverRleUse(depth, length, &use_rle_for_non_zero, &use_rle_for_zero);
+  bool use_rle_for_non_zero = false;
+  bool use_rle_for_zero = false;
+  if (length > 50) {
+    // Find rle coding for longer codes.
+    // Shorter codes seem not to benefit from rle.
+    DecideOverRleUse(depth, new_length,
+                     &use_rle_for_non_zero, &use_rle_for_zero);
+  }
 
   // Actual rle coding.
-  for (uint32_t i = 0; i < length;) {
+  for (uint32_t i = 0; i < new_length;) {
     const int value = depth[i];
     int reps = 1;
-    if (length > 50) {
-      // Find rle coding for longer codes.
-      // Shorter codes seem not to benefit from rle.
-      if ((value != 0 && use_rle_for_non_zero) ||
-          (value == 0 && use_rle_for_zero)) {
-        for (uint32_t k = i + 1; k < length && depth[k] == value; ++k) {
-          ++reps;
-        }
+    if ((value != 0 && use_rle_for_non_zero) ||
+        (value == 0 && use_rle_for_zero)) {
+      for (uint32_t k = i + 1; k < new_length && depth[k] == value; ++k) {
+        ++reps;
       }
     }
     if (value == 0) {
-      WriteHuffmanTreeRepetitionsZeros(reps, tree, extra_bits_data,
-                                       huffman_tree_size);
+      WriteHuffmanTreeRepetitionsZeros(reps, tree, extra_bits_data);
     } else {
-      WriteHuffmanTreeRepetitions(previous_value, value, reps, tree,
-                                  extra_bits_data, huffman_tree_size);
+      WriteHuffmanTreeRepetitions(previous_value,
+                                  value, reps, tree, extra_bits_data);
       previous_value = value;
     }
     i += reps;
-  }
-  // Throw away trailing zeros.
-  for (; *huffman_tree_size > 0; --(*huffman_tree_size)) {
-    if (tree[*huffman_tree_size - 1] > 0 && tree[*huffman_tree_size - 1] < 17) {
-      break;
-    }
   }
 }
 
