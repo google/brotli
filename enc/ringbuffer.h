@@ -17,6 +17,9 @@
 #ifndef BROTLI_ENC_RINGBUFFER_H_
 #define BROTLI_ENC_RINGBUFFER_H_
 
+#include <stddef.h>
+#include <stdint.h>
+
 // A RingBuffer(window_bits, tail_bits) contains `1 << window_bits' bytes of
 // data in a circular manner: writing a byte writes it to
 // `position() % (1 << window_bits)'. For convenience, the RingBuffer array
@@ -26,10 +29,10 @@ class RingBuffer {
  public:
   RingBuffer(int window_bits, int tail_bits)
       : window_bits_(window_bits), tail_bits_(tail_bits), pos_(0) {
-    static const int kSlackForThreeByteHashingEverywhere = 2;
+    static const int kSlackForFourByteHashingEverywhere = 3;
     const int buflen = (1 << window_bits_) + (1 << tail_bits_);
-    buffer_ = new uint8_t[buflen + kSlackForThreeByteHashingEverywhere];
-    for (int i = 0; i < kSlackForThreeByteHashingEverywhere; ++i) {
+    buffer_ = new uint8_t[buflen + kSlackForFourByteHashingEverywhere];
+    for (int i = 0; i < kSlackForFourByteHashingEverywhere; ++i) {
       buffer_[buflen + i] = 0;
     }
   }

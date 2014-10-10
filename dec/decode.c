@@ -50,8 +50,9 @@ static const int kDistanceContextBits = 2;
 
 #define HUFFMAN_TABLE_BITS      8
 #define HUFFMAN_TABLE_MASK      0xff
-/* This is a rough estimate, not an exact bound. */
-#define HUFFMAN_MAX_TABLE_SIZE  2048
+/* Maximum possible Huffman table size for an alphabet size of 704, max code
+ * length 15 and root table bits 8. */
+#define HUFFMAN_MAX_TABLE_SIZE  1080
 
 #define CODE_LENGTH_CODES 18
 static const uint8_t kCodeLengthCodeOrder[CODE_LENGTH_CODES] = {
@@ -633,22 +634,62 @@ int CopyUncompressedBlockToOutput(BrotliOutput output, int len, int pos,
 int BrotliDecompressedSize(size_t encoded_size,
                            const uint8_t* encoded_buffer,
                            size_t* decoded_size) {
-  BrotliMemInput memin;
-  BrotliInput input = BrotliInitMemInput(encoded_buffer, encoded_size, &memin);
-  BrotliBitReader br;
-  int meta_block_len;
-  int input_end;
-  int is_uncompressed;
-  if (!BrotliInitBitReader(&br, input)) {
+  int i;
+  uint64_t val = 0;
+  int bit_pos = 0;
+  int is_last;
+  int is_uncompressed = 0;
+  int size_nibbles;
+  int meta_block_len = 0;
+  if (encoded_size == 0) {
     return 0;
   }
-  DecodeWindowBits(&br);
-  DecodeMetaBlockLength(&br, &meta_block_len, &input_end, &is_uncompressed);
-  if (!input_end) {
-    return 0;
+  /* Look at the first 8 bytes, it is enough to decode the length of the first
+     meta-block. */
+  for (i = 0; i < encoded_size && i < 8; ++i) {
+    val |= (uint64_t)encoded_buffer[i] << (8 * i);
   }
-  *decoded_size = (size_t)meta_block_len;
-  return 1;
+  /* Skip the window bits. */
+  bit_pos += (val & 1) ? 4 : 1;
+  /* Decode the ISLAST bit. */
+  is_last = (val >> bit_pos) & 1;
+  ++bit_pos;
+  if (is_last) {
+    /* Decode the ISEMPTY bit, if it is set to 1, we are done. */
+    if ((val >> bit_pos) & 1) {
+      *decoded_size = 0;
+      return 1;
+    }
+    ++bit_pos;
+  }
+  /* Decode the length of the first meta-block. */
+  size_nibbles = (int)((val >> bit_pos) & 3) + 4;
+  bit_pos += 2;
+  for (i = 0; i < size_nibbles; ++i) {
+    meta_block_len |= (int)((val >> bit_pos) & 0xf) << (4 * i);
+    bit_pos += 4;
+  }
+  ++meta_block_len;
+  if (is_last) {
+    /* If this meta-block is the only one, we are done. */
+    *decoded_size = (size_t)meta_block_len;
+    return 1;
+  }
+  is_uncompressed = (val >> bit_pos) & 1;
+  ++bit_pos;
+  if (is_uncompressed) {
+    /* If the first meta-block is uncompressed, we skip it and look at the
+       first two bits (ISLAST and ISEMPTY) of the next meta-block, and if
+       both are set to 1, we have a stream with an uncompressed meta-block
+       followed by an empty one, so the decompressed size is the size of the
+       first meta-block. */
+    int offset = ((bit_pos + 7) >> 3) + meta_block_len;
+    if (offset < encoded_size && ((encoded_buffer[offset] & 3) == 3)) {
+      *decoded_size = (size_t)meta_block_len;
+      return 1;
+    }
+  }
+  return 0;
 }
 
 int BrotliDecompressBuffer(size_t encoded_size,

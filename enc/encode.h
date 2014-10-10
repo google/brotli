@@ -59,7 +59,6 @@ class BrotliCompressor {
   // sets *encoded_size to the number of bytes written.
   void FinishStream(size_t* encoded_size, uint8_t* encoded_buffer);
 
-
  private:
   // Initializes the hasher with the hashes of dictionary words.
   void StoreDictionaryWordHashes();
@@ -67,12 +66,11 @@ class BrotliCompressor {
   BrotliParams params_;
   int window_bits_;
   std::unique_ptr<Hashers> hashers_;
-  Hashers::Type hash_type_;
-  int dist_ringbuffer_[4];
-  size_t dist_ringbuffer_idx_;
+  int hash_type_;
   size_t input_pos_;
   RingBuffer ringbuffer_;
   std::vector<float> literal_cost_;
+  int dist_cache_[4];
   int storage_ix_;
   uint8_t* storage_;
   static StaticDictionary *static_dictionary_;
@@ -86,7 +84,6 @@ int BrotliCompressBuffer(BrotliParams params,
                          const uint8_t* input_buffer,
                          size_t* encoded_size,
                          uint8_t* encoded_buffer);
-
 
 }  // namespace brotli
 
