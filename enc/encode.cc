@@ -22,6 +22,7 @@
 #include "./backward_references.h"
 #include "./bit_cost.h"
 #include "./block_splitter.h"
+#include "./brotli_bit_stream.h"
 #include "./cluster.h"
 #include "./context.h"
 #include "./transform.h"
@@ -63,19 +64,6 @@ double TotalBitCost(const std::vector<Histogram<kSize> >& histograms) {
     retval += PopulationCost(histograms[i]);
   }
   return retval;
-}
-
-void EncodeVarLenUint8(int n, int* storage_ix, uint8_t* storage) {
-  if (n == 0) {
-    WriteBits(1, 0, storage_ix, storage);
-  } else {
-    WriteBits(1, 1, storage_ix, storage);
-    int nbits = Log2Floor(n);
-    WriteBits(3, nbits, storage_ix, storage);
-    if (nbits > 0) {
-      WriteBits(nbits, n - (1 << nbits), storage_ix, storage);
-    }
-  }
 }
 
 int ParseAsUTF8(int* symbol, const uint8_t* input, int size) {
@@ -168,134 +156,6 @@ void EncodeMetaBlockLength(size_t meta_block_size,
   }
 }
 
-void StoreHuffmanTreeOfHuffmanTreeToBitMask(
-    const uint8_t* code_length_bitdepth,
-    int* storage_ix, uint8_t* storage) {
-  static const uint8_t kStorageOrder[kCodeLengthCodes] = {
-    1, 2, 3, 4, 0, 5, 17, 6, 16, 7, 8, 9, 10, 11, 12, 13, 14, 15,
-  };
-  // Throw away trailing zeros:
-  int codes_to_store = kCodeLengthCodes;
-  for (; codes_to_store > 0; --codes_to_store) {
-    if (code_length_bitdepth[kStorageOrder[codes_to_store - 1]] != 0) {
-      break;
-    }
-  }
-  int num_codes = 0;
-  for (int i = 0; i < codes_to_store; ++i) {
-    if (code_length_bitdepth[kStorageOrder[i]] != 0) {
-      ++num_codes;
-    }
-  }
-  if (num_codes == 1) {
-    codes_to_store = kCodeLengthCodes;
-  }
-  int skip_some = 0;  // skips none.
-  if (code_length_bitdepth[kStorageOrder[0]] == 0 &&
-      code_length_bitdepth[kStorageOrder[1]] == 0) {
-    skip_some = 2;  // skips two.
-    if (code_length_bitdepth[kStorageOrder[2]] == 0) {
-      skip_some = 3;  // skips three.
-    }
-  }
-  WriteBits(2, skip_some, storage_ix, storage);
-  for (int i = skip_some; i < codes_to_store; ++i) {
-    uint8_t len[] = { 2, 4, 3, 2, 2, 4 };
-    uint8_t bits[] = { 0, 7, 3, 2, 1, 15 };
-    int v = code_length_bitdepth[kStorageOrder[i]];
-    WriteBits(len[v], bits[v], storage_ix, storage);
-  }
-}
-
-void StoreHuffmanTreeToBitMask(
-    const uint8_t* huffman_tree,
-    const uint8_t* huffman_tree_extra_bits,
-    const int huffman_tree_size,
-    const EntropyCode<kCodeLengthCodes>& entropy,
-    int* storage_ix, uint8_t* storage) {
-  for (int i = 0; i < huffman_tree_size; ++i) {
-    const int ix = huffman_tree[i];
-    const int extra_bits = huffman_tree_extra_bits[i];
-    if (entropy.count_ > 1) {
-      WriteBits(entropy.depth_[ix], entropy.bits_[ix], storage_ix, storage);
-    }
-    switch (ix) {
-      case 16:
-        WriteBits(2, extra_bits, storage_ix, storage);
-        break;
-      case 17:
-        WriteBits(3, extra_bits, storage_ix, storage);
-        break;
-    }
-  }
-}
-
-template<int kSize>
-void StoreHuffmanCodeSimple(
-    const EntropyCode<kSize>& code, int alphabet_size,
-    int max_bits, int* storage_ix, uint8_t* storage) {
-  const uint8_t *depth = &code.depth_[0];
-  int symbols[4];
-  // Quadratic sort.
-  int k, j;
-  for (k = 0; k < code.count_; ++k) {
-    symbols[k] = code.symbols_[k];
-  }
-  for (k = 0; k < code.count_; ++k) {
-    for (j = k + 1; j < code.count_; ++j) {
-      if (depth[symbols[j]] < depth[symbols[k]]) {
-        int t = symbols[k];
-        symbols[k] = symbols[j];
-        symbols[j] = t;
-      }
-    }
-  }
-  // Small tree marker to encode 1-4 symbols.
-  WriteBits(2, 1, storage_ix, storage);
-  WriteBits(2, code.count_ - 1, storage_ix, storage);
-  for (int i = 0; i < code.count_; ++i) {
-    WriteBits(max_bits, symbols[i], storage_ix, storage);
-  }
-  if (code.count_ == 4) {
-    if (depth[symbols[0]] == 2 &&
-        depth[symbols[1]] == 2 &&
-        depth[symbols[2]] == 2 &&
-        depth[symbols[3]] == 2) {
-      WriteBits(1, 0, storage_ix, storage);
-    } else {
-      WriteBits(1, 1, storage_ix, storage);
-    }
-  }
-}
-
-template<int kSize>
-void StoreHuffmanCodeComplex(
-    const EntropyCode<kSize>& code, int alphabet_size,
-    int* storage_ix, uint8_t* storage) {
-  const uint8_t *depth = &code.depth_[0];
-  uint8_t huffman_tree[kSize];
-  uint8_t huffman_tree_extra_bits[kSize];
-  int huffman_tree_size = 0;
-  WriteHuffmanTree(depth,
-                   alphabet_size,
-                   &huffman_tree[0],
-                   &huffman_tree_extra_bits[0],
-                   &huffman_tree_size);
-  Histogram<kCodeLengthCodes> huffman_tree_histogram;
-  memset(huffman_tree_histogram.data_, 0, sizeof(huffman_tree_histogram.data_));
-  for (int i = 0; i < huffman_tree_size; ++i) {
-    huffman_tree_histogram.Add(huffman_tree[i]);
-  }
-  EntropyCode<kCodeLengthCodes> huffman_tree_entropy;
-  BuildEntropyCode(huffman_tree_histogram, 5, kCodeLengthCodes,
-                   &huffman_tree_entropy);
-  StoreHuffmanTreeOfHuffmanTreeToBitMask(
-      &huffman_tree_entropy.depth_[0], storage_ix, storage);
-  StoreHuffmanTreeToBitMask(&huffman_tree[0], &huffman_tree_extra_bits[0],
-                            huffman_tree_size, huffman_tree_entropy,
-                            storage_ix, storage);
-}
-
 template<int kSize>
 void BuildAndStoreEntropyCode(const Histogram<kSize>& histogram,
                               const int tree_limit,
@@ -304,45 +164,8 @@ void BuildAndStoreEntropyCode(const Histogram<kSize>& histogram,
                               int* storage_ix, uint8_t* storage) {
   memset(code->depth_, 0, sizeof(code->depth_));
   memset(code->bits_, 0, sizeof(code->bits_));
-  memset(code->symbols_, 0, sizeof(code->symbols_));
-  code->count_ = 0;
-
-  int max_bits_counter = alphabet_size - 1;
-  int max_bits = 0;
-  while (max_bits_counter) {
-    max_bits_counter >>= 1;
-    ++max_bits;
-  }
-
-  for (size_t i = 0; i < alphabet_size; i++) {
-    if (histogram.data_[i] > 0) {
-      if (code->count_ < 4) code->symbols_[code->count_] = i;
-      ++code->count_;
-    }
-  }
-
-  if (code->count_ <= 1) {
-    WriteBits(2, 1, storage_ix, storage);
-    WriteBits(2, 0, storage_ix, storage);
-    WriteBits(max_bits, code->symbols_[0], storage_ix, storage);
-    return;
-  }
-
-  if (alphabet_size >= 50 && code->count_ >= 16) {
-    std::vector<int> counts(alphabet_size);
-    memcpy(&counts[0], histogram.data_, sizeof(counts[0]) * alphabet_size);
-    OptimizeHuffmanCountsForRle(alphabet_size, &counts[0]);
-    CreateHuffmanTree(&counts[0], alphabet_size, tree_limit, code->depth_);
-  } else {
-    CreateHuffmanTree(histogram.data_, alphabet_size, tree_limit, code->depth_);
-  }
-  ConvertBitDepthsToSymbols(code->depth_, alphabet_size, code->bits_);
-
-  if (code->count_ <= 4) {
-    StoreHuffmanCodeSimple(*code, alphabet_size, max_bits, storage_ix, storage);
-  } else {
-    StoreHuffmanCodeComplex(*code, alphabet_size, storage_ix, storage);
-  }
+  BuildAndStoreHuffmanTree(histogram.data_, alphabet_size, 9,
+                           code->depth_, code->bits_, storage_ix, storage);
 }
 
 template<int kSize>
@@ -575,7 +398,7 @@ int BestMaxZeroRunLengthPrefix(const std::vector<int>& v) {
 void EncodeContextMap(const std::vector<int>& context_map,
                       int num_clusters,
                       int* storage_ix, uint8_t* storage) {
-  EncodeVarLenUint8(num_clusters - 1, storage_ix, storage);
+  StoreVarLenUint8(num_clusters - 1, storage_ix, storage);
 
   if (num_clusters == 1) {
     return;
@@ -656,7 +479,7 @@ void ComputeBlockTypeShortCodes(BlockSplit* split) {
 void BuildAndEncodeBlockSplitCode(const BlockSplit& split,
                                   BlockSplitCode* code,
                                   int* storage_ix, uint8_t* storage) {
-  EncodeVarLenUint8(split.num_types_ - 1, storage_ix, storage);
+  StoreVarLenUint8(split.num_types_ - 1, storage_ix, storage);
 
   if (split.num_types_ == 1) {
     return;
@@ -864,7 +687,6 @@ void StoreMetaBlock(const MetaBlock& mb,
       int context = (distance_it.type_ << 2) +
           ((cmd.copy_length_code_ > 4) ? 3 : cmd.copy_length_code_ - 2);
       int histogram_index = mb.distance_context_map[context];
-      size_t max_distance = std::min(*pos, (size_t)kMaxBackwardDistance);
       EncodeCopyDistance(cmd, distance_codes[histogram_index],
                          storage_ix, storage);
     }
@@ -1014,7 +836,6 @@ void BrotliCompressor::FinishStream(
     size_t* encoded_size, uint8_t* encoded_buffer) {
   WriteMetaBlock(0, NULL, true, encoded_size, encoded_buffer);
 }
-
 
 int BrotliCompressBuffer(BrotliParams params,
                          size_t input_size,
