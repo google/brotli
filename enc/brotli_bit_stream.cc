@@ -204,7 +204,7 @@ void StoreHuffmanTree(const uint8_t* depths, size_t num,
   // Write the Huffman tree into the brotli-representation.
   std::vector<uint8_t> huffman_tree;
   std::vector<uint8_t> huffman_tree_extra_bits;
-  // TODO(user): Consider allocating these from stack.
+  // TODO: Consider allocating these from stack.
   huffman_tree.reserve(256);
   huffman_tree_extra_bits.reserve(256);
   WriteHuffmanTree(depths, num, &huffman_tree, &huffman_tree_extra_bits);
@@ -231,7 +231,7 @@ void StoreHuffmanTree(const uint8_t* depths, size_t num,
 
   // Calculate another Huffman tree to use for compressing both the
   // earlier Huffman tree with.
-  // TODO(user): Consider allocating these from stack.
+  // TODO: Consider allocating these from stack.
   uint8_t code_length_bitdepth[kCodeLengthCodes] = { 0 };
   std::vector<uint16_t> code_length_bitdepth_symbols(kCodeLengthCodes);
   CreateHuffmanTree(&huffman_tree_histogram[0], kCodeLengthCodes,
