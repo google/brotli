@@ -42,7 +42,7 @@ struct HistogramPair {
 };
 
 struct HistogramPairComparator {
-  bool operator()(const HistogramPair& p1, const HistogramPair& p2) {
+  bool operator()(const HistogramPair& p1, const HistogramPair& p2) const {
     if (p1.cost_diff != p2.cost_diff) {
       return p1.cost_diff > p2.cost_diff;
     }
