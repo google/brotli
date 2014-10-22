@@ -18,15 +18,11 @@
 #define BROTLI_ENC_WRITE_BITS_H_
 
 #include <assert.h>
-#if defined(OS_MACOSX)
-  #include <machine/endian.h>
-#else
-  #include <endian.h>
-#endif
 #include <stdint.h>
 #include <stdio.h>
 
 #include "./port.h"
+#include "./endian.h"
 
 namespace brotli {
 
