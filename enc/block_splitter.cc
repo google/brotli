@@ -97,7 +97,8 @@ void InitialEntropyCodes(const DataType* data, size_t length,
   for (int i = 0; i < total_histograms; ++i) {
     int pos = length * i / total_histograms;
     if (i != 0) {
-      pos += rand_r(&seed) % block_length;
+      srand(seed);
+      pos += rand() % block_length;
     }
     if (pos + stride >= length) {
       pos = length - stride - 1;
@@ -119,7 +120,8 @@ void RandomSample(unsigned int* seed,
     pos = 0;
     stride = length;
   } else {
-    pos = rand_r(seed) % (length - stride + 1);
+    srand(*seed);
+    pos = rand() % (length - stride + 1);
   }
   sample->Add(data + pos, stride);
 }
