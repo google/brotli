@@ -66,12 +66,11 @@ class BrotliCompressor {
   BrotliParams params_;
   int window_bits_;
   std::unique_ptr<Hashers> hashers_;
-  Hashers::Type hash_type_;
-  int dist_ringbuffer_[4];
-  size_t dist_ringbuffer_idx_;
+  int hash_type_;
   size_t input_pos_;
   RingBuffer ringbuffer_;
   std::vector<float> literal_cost_;
+  int dist_cache_[4];
   int storage_ix_;
   uint8_t* storage_;
   static StaticDictionary *static_dictionary_;

@@ -45,8 +45,8 @@ void BuildHistograms(
     const Command &cmd = cmds[i];
     insert_and_copy_it.Next();
     (*insert_and_copy_histograms)[insert_and_copy_it.type_].Add(
-        cmd.command_prefix_);
-    for (int j = 0; j < cmd.insert_length_; ++j) {
+        cmd.cmd_prefix_);
+    for (int j = 0; j < cmd.insert_len_; ++j) {
       literal_it.Next();
       uint8_t prev_byte = pos > 0 ? ringbuffer[(pos - 1) & mask] : 0;
       uint8_t prev_byte2 = pos > 1 ? ringbuffer[(pos - 2) & mask] : 0;
@@ -55,12 +55,12 @@ void BuildHistograms(
       (*literal_histograms)[context].Add(ringbuffer[pos & mask]);
       ++pos;
     }
-    pos += cmd.copy_length_;
-    if (cmd.copy_length_ > 0 && cmd.distance_prefix_ != 0xffff) {
+    pos += cmd.copy_len_;
+    if (cmd.copy_len_ > 0 && cmd.cmd_prefix_ >= 128) {
       dist_it.Next();
       int context = (dist_it.type_ << kDistanceContextBits) +
-          ((cmd.copy_length_code_ > 4) ? 3 : cmd.copy_length_code_ - 2);
-      (*copy_dist_histograms)[context].Add(cmd.distance_prefix_);
+          cmd.DistanceContext();
+      (*copy_dist_histograms)[context].Add(cmd.dist_prefix_);
     }
   }
 }
@@ -77,7 +77,7 @@ void BuildLiteralHistogramsForBlockType(
   BlockSplitIterator literal_it(literal_split);
   for (int i = 0; i < cmds.size(); ++i) {
     const Command &cmd = cmds[i];
-    for (int j = 0; j < cmd.insert_length_; ++j) {
+    for (int j = 0; j < cmd.insert_len_; ++j) {
       literal_it.Next();
       if (literal_it.type_ == block_type) {
         uint8_t prev_byte = pos > 0 ? ringbuffer[(pos - 1) & mask] : 0;
@@ -87,7 +87,7 @@ void BuildLiteralHistogramsForBlockType(
       }
       ++pos;
     }
-    pos += cmd.copy_length_;
+    pos += cmd.copy_len_;
   }
 }
 

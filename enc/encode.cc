@@ -185,105 +185,41 @@ void BuildAndStoreEntropyCodes(
 void EncodeCommand(const Command& cmd,
                    const EntropyCodeCommand& entropy,
                    int* storage_ix, uint8_t* storage) {
-  int code = cmd.command_prefix_;
+  int code = cmd.cmd_prefix_;
   WriteBits(entropy.depth_[code], entropy.bits_[code], storage_ix, storage);
-  if (code >= 128) {
-    code -= 128;
-  }
-  int insert_extra_bits = InsertLengthExtraBits(code);
-  uint64_t insert_extra_bits_val =
-      cmd.insert_length_ - InsertLengthOffset(code);
-  int copy_extra_bits = CopyLengthExtraBits(code);
-  uint64_t copy_extra_bits_val = cmd.copy_length_code_ - CopyLengthOffset(code);
-  if (insert_extra_bits > 0) {
-    WriteBits(insert_extra_bits, insert_extra_bits_val, storage_ix, storage);
-  }
-  if (copy_extra_bits > 0) {
-    WriteBits(copy_extra_bits, copy_extra_bits_val, storage_ix, storage);
+  int nextra = cmd.cmd_extra_ >> 48;
+  uint64_t extra = cmd.cmd_extra_ & 0xffffffffffffULL;
+  if (nextra > 0) {
+    WriteBits(nextra, extra, storage_ix, storage);
   }
 }
 
 void EncodeCopyDistance(const Command& cmd, const EntropyCodeDistance& entropy,
                         int* storage_ix, uint8_t* storage) {
-  int code = cmd.distance_prefix_;
-  int extra_bits = cmd.distance_extra_bits_;
-  uint64_t extra_bits_val = cmd.distance_extra_bits_value_;
+  int code = cmd.dist_prefix_;
+  int extra_bits = cmd.dist_extra_ >> 24;
+  uint64_t extra_bits_val = cmd.dist_extra_ & 0xffffff;
   WriteBits(entropy.depth_[code], entropy.bits_[code], storage_ix, storage);
   if (extra_bits > 0) {
     WriteBits(extra_bits, extra_bits_val, storage_ix, storage);
   }
 }
 
-void ComputeDistanceShortCodes(std::vector<Command>* cmds,
-                               size_t pos,
-                               const size_t max_backward,
-                               int* dist_ringbuffer,
-                               size_t* ringbuffer_idx) {
-  static const int kIndexOffset[16] = {
-    3, 2, 1, 0, 3, 3, 3, 3, 3, 3, 2, 2, 2, 2, 2, 2
-  };
-  static const int kValueOffset[16] = {
-    0, 0, 0, 0, -1, 1, -2, 2, -3, 3, -1, 1, -2, 2, -3, 3
-  };
-  for (int i = 0; i < cmds->size(); ++i) {
-    pos += (*cmds)[i].insert_length_;
-    size_t max_distance = std::min(pos, max_backward);
-    int cur_dist = (*cmds)[i].copy_distance_;
-    int dist_code = cur_dist + 16;
-    if (cur_dist <= max_distance) {
-      if (cur_dist == 0) break;
-      int limits[16] = { 0, 0, 0, 0,
-                         6, 6, 11, 11,
-                         11, 11, 11, 11,
-                         12, 12, 12, 12 };
-      for (int k = 0; k < 16; ++k) {
-        // Only accept more popular choices.
-        if (cur_dist < limits[k]) {
-          // Typically unpopular ranges, don't replace a short distance
-          // with them.
-          continue;
-        }
-        int comp = (dist_ringbuffer[(*ringbuffer_idx + kIndexOffset[k]) & 3] +
-                    kValueOffset[k]);
-        if (cur_dist == comp) {
-          dist_code = k + 1;
-          break;
-        }
-      }
-      if (dist_code > 1) {
-        dist_ringbuffer[*ringbuffer_idx & 3] = cur_dist;
-        ++(*ringbuffer_idx);
-      }
-      pos += (*cmds)[i].copy_length_;
-    } else {
-      int word_idx = cur_dist - max_distance - 1;
-      const std::string word =
-          GetTransformedDictionaryWord((*cmds)[i].copy_length_code_, word_idx);
-      pos += word.size();
-    }
-    (*cmds)[i].distance_code_ = dist_code;
+void RecomputeDistancePrefixes(std::vector<Command>* cmds,
+                               int num_direct_distance_codes,
+                               int distance_postfix_bits) {
+  if (num_direct_distance_codes == 0 &&
+      distance_postfix_bits == 0) {
+    return;
   }
-}
-
-void ComputeCommandPrefixes(std::vector<Command>* cmds,
-                            int num_direct_distance_codes,
-                            int distance_postfix_bits) {
   for (int i = 0; i < cmds->size(); ++i) {
     Command* cmd = &(*cmds)[i];
-    cmd->command_prefix_ = CommandPrefix(cmd->insert_length_,
-                                         cmd->copy_length_code_);
-    if (cmd->copy_length_code_ > 0) {
-      PrefixEncodeCopyDistance(cmd->distance_code_,
+    if (cmd->copy_len_ > 0 && cmd->cmd_prefix_ >= 128) {
+      PrefixEncodeCopyDistance(cmd->DistanceCode(),
                                num_direct_distance_codes,
                                distance_postfix_bits,
-                               &cmd->distance_prefix_,
-                               &cmd->distance_extra_bits_,
-                               &cmd->distance_extra_bits_value_);
-    }
-    if (cmd->command_prefix_ < 128 && cmd->distance_prefix_ == 0) {
-      cmd->distance_prefix_ = 0xffff;
-    } else {
-      cmd->command_prefix_ += 128;
+                               &cmd->dist_prefix_,
+                               &cmd->dist_extra_);
     }
   }
 }
@@ -478,9 +414,9 @@ void BuildMetaBlock(const EncodingParams& params,
   if (cmds.empty()) {
     return;
   }
-  ComputeCommandPrefixes(&mb->cmds,
-                         mb->params.num_direct_distance_codes,
-                         mb->params.distance_postfix_bits);
+  RecomputeDistancePrefixes(&mb->cmds,
+                            mb->params.num_direct_distance_codes,
+                            mb->params.distance_postfix_bits);
   SplitBlock(mb->cmds,
              &ringbuffer[pos & mask],
              &mb->literal_split,
@@ -534,7 +470,7 @@ size_t MetaBlockLength(const std::vector<Command>& cmds) {
   size_t length = 0;
   for (int i = 0; i < cmds.size(); ++i) {
     const Command& cmd = cmds[i];
-    length += cmd.insert_length_ + cmd.copy_length_;
+    length += cmd.insert_len_ + cmd.copy_len_;
   }
   return length;
 }
@@ -604,7 +540,7 @@ void StoreMetaBlock(const MetaBlock& mb,
     const Command& cmd = mb.cmds[i];
     MoveAndEncode(command_split_code, &command_it, storage_ix, storage);
     EncodeCommand(cmd, command_codes[command_it.type_], storage_ix, storage);
-    for (int j = 0; j < cmd.insert_length_; ++j) {
+    for (int j = 0; j < cmd.insert_len_; ++j) {
       MoveAndEncode(literal_split_code, &literal_it, storage_ix, storage);
       int histogram_idx = literal_it.type_;
       uint8_t prev_byte = *pos > 0 ? ringbuffer[(*pos - 1) & mask] : 0;
@@ -619,15 +555,14 @@ void StoreMetaBlock(const MetaBlock& mb,
                 storage_ix, storage);
       ++(*pos);
     }
-    if (*pos < end_pos && cmd.distance_prefix_ != 0xffff) {
+    if (*pos < end_pos && cmd.cmd_prefix_ >= 128) {
       MoveAndEncode(distance_split_code, &distance_it, storage_ix, storage);
-      int context = (distance_it.type_ << 2) +
-          ((cmd.copy_length_code_ > 4) ? 3 : cmd.copy_length_code_ - 2);
+      int context = (distance_it.type_ << 2) + cmd.DistanceContext();
       int histogram_index = mb.distance_context_map[context];
       EncodeCopyDistance(cmd, distance_codes[histogram_index],
                          storage_ix, storage);
     }
-    *pos += cmd.copy_length_;
+    *pos += cmd.copy_len_;
   }
 }
 
@@ -635,20 +570,19 @@ BrotliCompressor::BrotliCompressor(BrotliParams params)
     : params_(params),
       window_bits_(kWindowBits),
       hashers_(new Hashers()),
-      dist_ringbuffer_idx_(0),
       input_pos_(0),
       ringbuffer_(kRingBufferBits, kMetaBlockSizeBits),
       literal_cost_(1 << kRingBufferBits),
       storage_ix_(0),
       storage_(new uint8_t[2 << kMetaBlockSizeBits]) {
-  dist_ringbuffer_[0] = 16;
-  dist_ringbuffer_[1] = 15;
-  dist_ringbuffer_[2] = 11;
-  dist_ringbuffer_[3] = 4;
+  dist_cache_[0] = 4;
+  dist_cache_[1] = 11;
+  dist_cache_[2] = 15;
+  dist_cache_[3] = 16;
   storage_[0] = 0;
   switch (params.mode) {
-    case BrotliParams::MODE_TEXT: hash_type_ = Hashers::HASH_15_8_4; break;
-    case BrotliParams::MODE_FONT: hash_type_ = Hashers::HASH_15_8_2; break;
+    case BrotliParams::MODE_TEXT: hash_type_ = 8; break;
+    case BrotliParams::MODE_FONT: hash_type_ = 9; break;
     default: break;
   }
   hashers_->Init(hash_type_);
@@ -701,7 +635,7 @@ void BrotliCompressor::WriteMetaBlock(const size_t input_size,
                                       uint8_t* encoded_buffer) {
   static const double kMinUTF8Ratio = 0.75;
   bool utf8_mode = false;
-  std::vector<Command> commands;
+  std::vector<Command> commands((input_size + 1) >> 1);
   if (input_size > 0) {
     ringbuffer_.Write(input_buffer, input_size);
     utf8_mode = IsMostlyUTF8(
@@ -716,17 +650,26 @@ void BrotliCompressor::WriteMetaBlock(const size_t input_size,
                                   kRingBufferMask, kRingBufferMask,
                                   ringbuffer_.start(), &literal_cost_[0]);
     }
+    int last_insert_len = 0;
+    int num_commands = 0;
+    double base_min_score = 8.115;
     CreateBackwardReferences(
         input_size, input_pos_,
-        ringbuffer_.start(),
-        &literal_cost_[0],
-        kRingBufferMask, kMaxBackwardDistance,
+        ringbuffer_.start(), kRingBufferMask,
+        &literal_cost_[0], kRingBufferMask,
+        kMaxBackwardDistance,
+        base_min_score,
+        9,  // quality
         hashers_.get(),
         hash_type_,
-        &commands);
-    ComputeDistanceShortCodes(&commands, input_pos_, kMaxBackwardDistance,
-                              dist_ringbuffer_,
-                              &dist_ringbuffer_idx_);
+        dist_cache_,
+        &last_insert_len,
+        &commands[0],
+        &num_commands);
+    commands.resize(num_commands);
+    if (last_insert_len > 0) {
+      commands.push_back(Command(last_insert_len));
+    }
   }
   EncodingParams params;
   params.num_direct_distance_codes =
@@ -807,7 +750,6 @@ int BrotliCompressBuffer(BrotliParams params,
     *encoded_size += output_size;
     max_output_size -= output_size;
   }
-
   return 1;
 }
 

@@ -28,12 +28,18 @@ namespace brotli {
 void CreateBackwardReferences(size_t num_bytes,
                               size_t position,
                               const uint8_t* ringbuffer,
-                              const float* literal_cost,
                               size_t ringbuffer_mask,
+                              const float* literal_cost,
+                              size_t literal_cost_mask,
                               const size_t max_backward_limit,
+                              const double base_min_score,
+                              const int quality,
                               Hashers* hashers,
-                              Hashers::Type hash_type,
-                              std::vector<Command>* commands);
+                              int hash_type,
+                              int* dist_cache,
+                              int* last_insert_len,
+                              Command* commands,
+                              int* num_commands);
 
 }  // namespace brotli
 
