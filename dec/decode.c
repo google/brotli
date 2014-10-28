@@ -50,8 +50,9 @@ static const int kDistanceContextBits = 2;
 
 #define HUFFMAN_TABLE_BITS      8
 #define HUFFMAN_TABLE_MASK      0xff
-/* This is a rough estimate, not an exact bound. */
-#define HUFFMAN_MAX_TABLE_SIZE  2048
+/* Maximum possible Huffman table size for an alphabet size of 704, max code
+ * length 15 and root table bits 8. */
+#define HUFFMAN_MAX_TABLE_SIZE  1080
 
 #define CODE_LENGTH_CODES 18
 static const uint8_t kCodeLengthCodeOrder[CODE_LENGTH_CODES] = {
@@ -985,7 +986,6 @@ int BrotliDecompress(BrotliInput input, BrotliOutput output) {
                           block_type_rb_index, &br);
           block_length[2] = ReadBlockLength(
               &block_len_trees[2 * HUFFMAN_MAX_TABLE_SIZE], &br);
-          dist_htree_index = (uint8_t)block_type[2];
           dist_context_offset = block_type[2] << kDistanceContextBits;
           dist_context_map_slice = dist_context_map + dist_context_offset;
         }

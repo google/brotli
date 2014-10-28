@@ -182,7 +182,7 @@ static const Transform kTransforms[] = {
 
 static const int kNumTransforms = sizeof(kTransforms) / sizeof(kTransforms[0]);
 
-static int ToUpperCase(uint8_t *p, int len) {
+static int ToUpperCase(uint8_t *p) {
   if (p[0] < 0xc0) {
     if (p[0] >= 'a' && p[0] <= 'z') {
       p[0] ^= 32;
@@ -220,10 +220,10 @@ static BROTLI_INLINE int TransformDictionaryWord(
   while (i < len) { dst[idx++] = word[i++]; }
   uppercase = &dst[idx - len];
   if (t == kUppercaseFirst) {
-    ToUpperCase(uppercase, len);
+    ToUpperCase(uppercase);
   } else if (t == kUppercaseAll) {
     while (len > 0) {
-      int step = ToUpperCase(uppercase, len);
+      int step = ToUpperCase(uppercase);
       uppercase += step;
       len -= step;
     }
