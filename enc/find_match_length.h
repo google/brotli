@@ -19,6 +19,8 @@
 
 #include <stdint.h>
 
+#include <stddef.h>
+
 #include "./port.h"
 
 namespace brotli {
