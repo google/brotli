@@ -301,7 +301,7 @@ void SplitByteVector(const std::vector<DataType>& data,
                      const double block_switch_cost,
                      BlockSplit* split) {
   if (data.empty()) {
-    split->num_types_ = 0;
+    split->num_types_ = 1;
     return;
   } else if (data.size() < kMinLengthForBlockSplitting) {
     split->num_types_ = 1;

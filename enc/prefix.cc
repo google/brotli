@@ -21,23 +21,6 @@
 
 namespace brotli {
 
-// Represents the range of values belonging to a prefix code:
-// [offset, offset + 2^nbits)
-struct PrefixCodeRange {
-  int offset;
-  int nbits;
-};
-
-static const PrefixCodeRange kBlockLengthPrefixCode[kNumBlockLenPrefixes] = {
-  {   1,  2}, {    5,  2}, {  9,   2}, {  13,  2},
-  {  17,  3}, {   25,  3}, {  33,  3}, {  41,  3},
-  {  49,  4}, {   65,  4}, {  81,  4}, {  97,  4},
-  { 113,  5}, {  145,  5}, { 177,  5}, { 209,  5},
-  { 241,  6}, {  305,  6}, { 369,  7}, { 497,  8},
-  { 753,  9}, { 1265, 10}, {2289, 11}, {4337, 12},
-  {8433, 13}, {16625, 24}
-};
-
 static const PrefixCodeRange kInsertLengthPrefixCode[kNumInsertLenPrefixes] = {
   {   0,  0}, {   1,  0}, {  2,   0}, {    3,  0},
   {   4,  0}, {   5,  0}, {  6,   1}, {    8,  1},
@@ -143,24 +126,6 @@ void PrefixEncodeCopyDistance(int distance_code,
   *code = kNumDistanceShortCodes + num_direct_codes +
       ((2 * (*nbits - 1) + prefix) << postfix_bits) + postfix;
   *extra_bits = (distance_code - offset) >> postfix_bits;
-}
-
-int BlockLengthPrefix(int length) {
-  for (int i = 0; i < kNumBlockLenPrefixes; ++i) {
-    const PrefixCodeRange& range = kBlockLengthPrefixCode[i];
-    if (length >= range.offset && length < range.offset + (1 << range.nbits)) {
-      return i;
-    }
-  }
-  return -1;
-}
-
-int BlockLengthExtraBits(int length_code) {
-  return kBlockLengthPrefixCode[length_code].nbits;
-}
-
-int BlockLengthOffset(int length_code) {
-  return kBlockLengthPrefixCode[length_code].offset;
 }
 
 }  // namespace brotli

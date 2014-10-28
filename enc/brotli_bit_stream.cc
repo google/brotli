@@ -22,6 +22,7 @@
 
 #include "./entropy_encode.h"
 #include "./fast_log.h"
+#include "./prefix.h"
 #include "./write_bits.h"
 
 namespace brotli {
@@ -302,6 +303,69 @@ void BuildAndStoreHuffmanTree(const int *histogram,
     StoreSimpleHuffmanTree(depth, s4, count, max_bits, storage_ix, storage);
   } else {
     StoreHuffmanTree(depth, length, quality, storage_ix, storage);
+  }
+}
+
+void StoreBlockSwitch(const BlockSplitCode& code,
+                      const int block_ix,
+                      int* storage_ix,
+                      uint8_t* storage) {
+  if (block_ix > 0) {
+    int typecode = code.type_code[block_ix];
+    WriteBits(code.type_depths[typecode], code.type_bits[typecode],
+              storage_ix, storage);
+  }
+  int lencode = code.length_prefix[block_ix];
+  WriteBits(code.length_depths[lencode], code.length_bits[lencode],
+            storage_ix, storage);
+  WriteBits(code.length_nextra[block_ix], code.length_extra[block_ix],
+            storage_ix, storage);
+}
+
+void BuildAndStoreBlockSplitCode(const std::vector<int>& types,
+                                 const std::vector<int>& lengths,
+                                 const int num_types,
+                                 const int quality,
+                                 BlockSplitCode* code,
+                                 int* storage_ix,
+                                 uint8_t* storage) {
+  const int num_blocks = types.size();
+  std::vector<int> type_histo(num_types + 2);
+  std::vector<int> length_histo(26);
+  int last_type = 1;
+  int second_last_type = 0;
+  code->type_code.resize(num_blocks);
+  code->length_prefix.resize(num_blocks);
+  code->length_nextra.resize(num_blocks);
+  code->length_extra.resize(num_blocks);
+  code->type_depths.resize(num_types + 2);
+  code->type_bits.resize(num_types + 2);
+  code->length_depths.resize(26);
+  code->length_bits.resize(26);
+  for (int i = 0; i < num_blocks; ++i) {
+    int type = types[i];
+    int type_code = (type == last_type + 1 ? 1 :
+                     type == second_last_type ? 0 :
+                     type + 2);
+    second_last_type = last_type;
+    last_type = type;
+    code->type_code[i] = type_code;
+    if (i > 0) ++type_histo[type_code];
+    GetBlockLengthPrefixCode(lengths[i],
+                             &code->length_prefix[i],
+                             &code->length_nextra[i],
+                             &code->length_extra[i]);
+    ++length_histo[code->length_prefix[i]];
+  }
+  StoreVarLenUint8(num_types - 1, storage_ix, storage);
+  if (num_types > 1) {
+    BuildAndStoreHuffmanTree(&type_histo[0], num_types + 2, quality,
+                             &code->type_depths[0], &code->type_bits[0],
+                             storage_ix, storage);
+    BuildAndStoreHuffmanTree(&length_histo[0], 26, quality,
+                             &code->length_depths[0], &code->length_bits[0],
+                             storage_ix, storage);
+    StoreBlockSwitch(*code, 0, storage_ix, storage);
   }
 }
 
