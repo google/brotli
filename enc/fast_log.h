@@ -46,6 +46,16 @@ inline int Log2Floor(uint32_t n) {
 #endif
 }
 
+static inline int Log2FloorNonZero(uint32_t n) {
+#ifdef __GNUC__
+  return 31 ^ __builtin_clz(n);
+#else
+  unsigned int result = 0;
+  while (n >>= 1) result++;
+  return result;
+#endif
+}
+
 // Return ceiling(log2(n)) for positive integer n.  Returns -1 iff n == 0.
 inline int Log2Ceiling(uint32_t n) {
   int floor = Log2Floor(n);
