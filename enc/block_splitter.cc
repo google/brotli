@@ -33,7 +33,7 @@ namespace brotli {
 
 static const int kMaxLiteralHistograms = 100;
 static const int kMaxCommandHistograms = 50;
-static const double kLiteralBlockSwitchCost = 26;
+static const double kLiteralBlockSwitchCost = 28.1;
 static const double kCommandBlockSwitchCost = 13.5;
 static const double kDistanceBlockSwitchCost = 14.6;
 static const int kLiteralStrideLength = 70;
