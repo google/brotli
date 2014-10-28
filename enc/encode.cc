@@ -481,7 +481,7 @@ void BrotliCompressor::WriteStreamHeader() {
   }
 }
 
-void BrotliCompressor::WriteMetaBlock(const size_t input_size,
+bool BrotliCompressor::WriteMetaBlock(const size_t input_size,
                                       const uint8_t* input_buffer,
                                       const bool is_last,
                                       size_t* encoded_size,
@@ -543,6 +543,9 @@ void BrotliCompressor::WriteMetaBlock(const size_t input_size,
     storage_[storage_ix_ >> 3] &= (1 << (storage_ix_ & 7)) - 1;
     EncodeMetaBlockLength(input_size, false, true, &storage_ix_, storage_);
     size_t hdr_size = (storage_ix_ + 7) >> 3;
+    if ((hdr_size + input_size + (is_last ? 1 : 0)) > *encoded_size) {
+      return false;
+    }
     memcpy(encoded_buffer, storage_, hdr_size);
     memcpy(encoded_buffer + hdr_size, input_buffer, input_size);
     *encoded_size = hdr_size + input_size;
@@ -553,6 +556,9 @@ void BrotliCompressor::WriteMetaBlock(const size_t input_size,
     storage_ix_ = 0;
     storage_[0] = 0;
   } else {
+    if (output_size > *encoded_size) {
+      return false;
+    }
     memcpy(encoded_buffer, storage_, output_size);
     *encoded_size = output_size;
     if (is_last) {
@@ -563,11 +569,12 @@ void BrotliCompressor::WriteMetaBlock(const size_t input_size,
       storage_[storage_ix_ >> 3] = storage_[output_size];
     }
   }
+  return true;
 }
 
-void BrotliCompressor::FinishStream(
+bool BrotliCompressor::FinishStream(
     size_t* encoded_size, uint8_t* encoded_buffer) {
-  WriteMetaBlock(0, NULL, true, encoded_size, encoded_buffer);
+  return WriteMetaBlock(0, NULL, true, encoded_size, encoded_buffer);
 }
 
 int BrotliCompressBuffer(BrotliParams params,
@@ -575,7 +582,10 @@ int BrotliCompressBuffer(BrotliParams params,
                          const uint8_t* input_buffer,
                          size_t* encoded_size,
                          uint8_t* encoded_buffer) {
-  if (input_size == 0) {
+  if (*encoded_size == 0) {
+    // Output buffer needs at least one byte.
+    return 0;
+  } else  if (input_size == 0) {
     encoded_buffer[0] = 6;
     *encoded_size = 1;
     return 1;
@@ -597,8 +607,11 @@ int BrotliCompressBuffer(BrotliParams params,
       is_last = true;
     }
     size_t output_size = max_output_size;
-    compressor.WriteMetaBlock(block_size, input_buffer, is_last,
-                              &output_size, &encoded_buffer[*encoded_size]);
+    if (!compressor.WriteMetaBlock(block_size, input_buffer,
+                                   is_last, &output_size,
+                                   &encoded_buffer[*encoded_size])) {
+      return 0;
+    }
     input_buffer += block_size;
     *encoded_size += output_size;
     max_output_size -= output_size;

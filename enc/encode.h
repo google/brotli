@@ -46,18 +46,21 @@ class BrotliCompressor {
   void WriteStreamHeader();
 
   // Encodes the data in input_buffer as a meta-block and writes it to
-  // encoded_buffer and sets *encoded_size to the number of bytes that was
-  // written.
-  void WriteMetaBlock(const size_t input_size,
+  // encoded_buffer (*encoded_size should be set to the size of
+  // encoded_buffer) and sets *encoded_size to the number of bytes that
+  // was written. Returns 0 if there was an error and 1 otherwise.
+  bool WriteMetaBlock(const size_t input_size,
                       const uint8_t* input_buffer,
                       const bool is_last,
                       size_t* encoded_size,
                       uint8_t* encoded_buffer);
 
   // Writes a zero-length meta-block with end-of-input bit set to the
-  // internal output buffer and copies the output buffer to encoded_buffer and
-  // sets *encoded_size to the number of bytes written.
-  void FinishStream(size_t* encoded_size, uint8_t* encoded_buffer);
+  // internal output buffer and copies the output buffer to encoded_buffer
+  // (*encoded_size should be set to the size of encoded_buffer) and sets
+  // *encoded_size to the number of bytes written. Returns false if there was
+  // an error and true otherwise.
+  bool FinishStream(size_t* encoded_size, uint8_t* encoded_buffer);
 
  private:
   // Initializes the hasher with the hashes of dictionary words.

@@ -17,6 +17,9 @@
 #ifndef BROTLI_ENC_RINGBUFFER_H_
 #define BROTLI_ENC_RINGBUFFER_H_
 
+#include <stddef.h>
+#include <stdint.h>
+
 // A RingBuffer(window_bits, tail_bits) contains `1 << window_bits' bytes of
 // data in a circular manner: writing a byte writes it to
 // `position() % (1 << window_bits)'. For convenience, the RingBuffer array
