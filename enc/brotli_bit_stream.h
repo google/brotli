@@ -53,6 +53,12 @@ void StoreTrivialContextMap(int num_types,
                             int* storage_ix,
                             uint8_t* storage);
 
+void StoreHuffmanTreeOfHuffmanTreeToBitMask(
+    const int num_codes,
+    const uint8_t *code_length_bitdepth,
+    int *storage_ix,
+    uint8_t *storage);
+
 // Builds a Huffman tree from histogram[0:length] into depth[0:length] and
 // bits[0:length] and stores the encoded tree to the bit stream.
 void BuildAndStoreHuffmanTree(const int *histogram,
@@ -62,6 +68,12 @@ void BuildAndStoreHuffmanTree(const int *histogram,
                               uint16_t* bits,
                               int* storage_ix,
                               uint8_t* storage);
+
+// Encodes the given context map to the bit stream. The number of different
+// histogram ids is given by num_clusters.
+void EncodeContextMap(const std::vector<int>& context_map,
+                      int num_clusters,
+                      int* storage_ix, uint8_t* storage);
 
 // Data structure that stores everything that is needed to encode each block
 // switch command.
