@@ -15,8 +15,8 @@
    Size-checked memory allocation.
 */
 
-#ifndef BROTLI_UTILS_UTILS_H_
-#define BROTLI_UTILS_UTILS_H_
+#ifndef BROTLI_DEC_SAFE_MALLOC_H_
+#define BROTLI_DEC_SAFE_MALLOC_H_
 
 #include <assert.h>
 
@@ -42,4 +42,4 @@ void* BrotliSafeMalloc(uint64_t nmemb, size_t size);
 }    /* extern "C" */
 #endif
 
-#endif  /* BROTLI_UTILS_UTILS_H_ */
+#endif  /* BROTLI_DEC_SAFE_MALLOC_H_ */
