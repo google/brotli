@@ -26,6 +26,7 @@
 
 #include <stddef.h>
 #include <stdint.h>
+#include <vector>
 
 namespace brotli {
 
@@ -61,6 +62,35 @@ void BuildAndStoreHuffmanTree(const int *histogram,
                               uint16_t* bits,
                               int* storage_ix,
                               uint8_t* storage);
+
+// Data structure that stores everything that is needed to encode each block
+// switch command.
+struct BlockSplitCode {
+  std::vector<int> type_code;
+  std::vector<int> length_prefix;
+  std::vector<int> length_nextra;
+  std::vector<int> length_extra;
+  std::vector<uint8_t> type_depths;
+  std::vector<uint16_t> type_bits;
+  std::vector<uint8_t> length_depths;
+  std::vector<uint16_t> length_bits;
+};
+
+// Builds a BlockSplitCode data structure from the block split given by the
+// vector of block types and block lengths and stores it to the bit stream.
+void BuildAndStoreBlockSplitCode(const std::vector<int>& types,
+                                 const std::vector<int>& lengths,
+                                 const int num_types,
+                                 const int quality,
+                                 BlockSplitCode* code,
+                                 int* storage_ix,
+                                 uint8_t* storage);
+
+// Stores the block switch command with index block_ix to the bit stream.
+void StoreBlockSwitch(const BlockSplitCode& code,
+                      const int block_ix,
+                      int* storage_ix,
+                      uint8_t* storage);
 
 }  // namespace brotli
 

@@ -435,74 +435,6 @@ void EncodeContextMap(const std::vector<int>& context_map,
   WriteBits(1, 1, storage_ix, storage);  // use move-to-front
 }
 
-struct BlockSplitCode {
-  EntropyCodeBlockType block_type_code;
-  EntropyCodeBlockLength block_len_code;
-};
-
-void EncodeBlockLength(const EntropyCodeBlockLength& entropy,
-                       int length,
-                       int* storage_ix, uint8_t* storage) {
-  int len_code = BlockLengthPrefix(length);
-  int extra_bits = BlockLengthExtraBits(len_code);
-  int extra_bits_value = length - BlockLengthOffset(len_code);
-  WriteBits(entropy.depth_[len_code], entropy.bits_[len_code],
-            storage_ix, storage);
-  if (extra_bits > 0) {
-    WriteBits(extra_bits, extra_bits_value, storage_ix, storage);
-  }
-}
-
-void ComputeBlockTypeShortCodes(BlockSplit* split) {
-  if (split->num_types_ <= 1) {
-    split->num_types_ = 1;
-    return;
-  }
-  int ringbuffer[2] = { 0, 1 };
-  size_t index = 0;
-  for (int i = 0; i < split->types_.size(); ++i) {
-    int type = split->types_[i];
-    int type_code;
-    if (type == ringbuffer[index & 1]) {
-      type_code = 0;
-    } else if (type == ringbuffer[(index - 1) & 1] + 1) {
-      type_code = 1;
-    } else {
-      type_code = type + 2;
-    }
-    ringbuffer[index & 1] = type;
-    ++index;
-    split->type_codes_.push_back(type_code);
-  }
-}
-
-void BuildAndEncodeBlockSplitCode(const BlockSplit& split,
-                                  BlockSplitCode* code,
-                                  int* storage_ix, uint8_t* storage) {
-  StoreVarLenUint8(split.num_types_ - 1, storage_ix, storage);
-
-  if (split.num_types_ == 1) {
-    return;
-  }
-
-  HistogramBlockType type_histo;
-  for (int i = 1; i < split.type_codes_.size(); ++i) {
-    type_histo.Add(split.type_codes_[i]);
-  }
-  HistogramBlockLength length_histo;
-  for (int i = 0; i < split.lengths_.size(); ++i) {
-    length_histo.Add(BlockLengthPrefix(split.lengths_[i]));
-  }
-  BuildAndStoreEntropyCode(type_histo, 15, split.num_types_ + 2,
-                           &code->block_type_code,
-                           storage_ix, storage);
-  BuildAndStoreEntropyCode(length_histo, 15, kNumBlockLenPrefixes,
-                           &code->block_len_code,
-                           storage_ix, storage);
-  EncodeBlockLength(code->block_len_code, split.lengths_[0],
-                    storage_ix, storage);
-}
-
 void MoveAndEncode(const BlockSplitCode& code,
                    BlockSplitIterator* it,
                    int* storage_ix, uint8_t* storage) {
@@ -510,11 +442,7 @@ void MoveAndEncode(const BlockSplitCode& code,
     ++it->idx_;
     it->type_ = it->split_.types_[it->idx_];
     it->length_ = it->split_.lengths_[it->idx_];
-    int type_code = it->split_.type_codes_[it->idx_];
-    WriteBits(code.block_type_code.depth_[type_code],
-              code.block_type_code.bits_[type_code],
-              storage_ix, storage);
-    EncodeBlockLength(code.block_len_code, it->length_, storage_ix, storage);
+    StoreBlockSwitch(code, it->idx_, storage_ix, storage);
   }
   --it->length_;
 }
@@ -558,9 +486,6 @@ void BuildMetaBlock(const EncodingParams& params,
              &mb->literal_split,
              &mb->command_split,
              &mb->distance_split);
-  ComputeBlockTypeShortCodes(&mb->literal_split);
-  ComputeBlockTypeShortCodes(&mb->command_split);
-  ComputeBlockTypeShortCodes(&mb->distance_split);
 
   mb->literal_context_modes.resize(mb->literal_split.num_types_,
                                    mb->params.literal_context_mode);
@@ -630,12 +555,24 @@ void StoreMetaBlock(const MetaBlock& mb,
   BlockSplitCode literal_split_code;
   BlockSplitCode command_split_code;
   BlockSplitCode distance_split_code;
-  BuildAndEncodeBlockSplitCode(mb.literal_split, &literal_split_code,
-                               storage_ix, storage);
-  BuildAndEncodeBlockSplitCode(mb.command_split, &command_split_code,
-                               storage_ix, storage);
-  BuildAndEncodeBlockSplitCode(mb.distance_split, &distance_split_code,
-                               storage_ix, storage);
+  BuildAndStoreBlockSplitCode(mb.literal_split.types_,
+                              mb.literal_split.lengths_,
+                              mb.literal_split.num_types_,
+                              9,  // quality
+                              &literal_split_code,
+                              storage_ix, storage);
+  BuildAndStoreBlockSplitCode(mb.command_split.types_,
+                              mb.command_split.lengths_,
+                              mb.command_split.num_types_,
+                              9,  // quality
+                              &command_split_code,
+                              storage_ix, storage);
+  BuildAndStoreBlockSplitCode(mb.distance_split.types_,
+                              mb.distance_split.lengths_,
+                              mb.distance_split.num_types_,
+                              9,  // quality
+                              &distance_split_code,
+                              storage_ix, storage);
   WriteBits(2, mb.params.distance_postfix_bits, storage_ix, storage);
   WriteBits(4,
             mb.params.num_direct_distance_codes >>
