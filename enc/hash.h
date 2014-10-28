@@ -194,8 +194,9 @@ class HashLongestMatch {
     bool match_found = false;
     // Don't accept a short copy from far away.
     double best_score = 8.115;
-    if (insert_length_ < 4) {
-      double cost_diff[4] = { 0.10, 0.04, 0.02, 0.01 };
+    if (insert_length_ < 8) {
+      double cost_diff[8] =
+          { 0.1, 0.038, 0.019, 0.013, 0.001, 0.001, 0.001, 0.001 };
       best_score += cost_diff[insert_length_];
     }
     size_t best_len = *best_len_out;
