@@ -51,19 +51,31 @@ void StoreVarLenUint8(int n, int* storage_ix, uint8_t* storage) {
   }
 }
 
-void StoreCompressedMetaBlockHeader(bool final_block,
+bool StoreCompressedMetaBlockHeader(bool final_block,
                                     int length,
                                     int* storage_ix,
                                     uint8_t* storage) {
   // Write ISLAST bit.
   WriteBits(1, final_block, storage_ix, storage);
   // Write ISEMPTY bit.
-  if (final_block) WriteBits(1, length == 0, storage_ix, storage);
+  if (final_block) {
+    WriteBits(1, length == 0, storage_ix, storage);
+    if (length == 0) {
+      return true;
+    }
+  }
+
+  if (length == 0) {
+    // Only the last meta-block can be empty.
+    return false;
+  }
 
   int lenbits;
   int nlenbits;
   int nibblesbits;
-  EncodeMlen(length, &lenbits, &nlenbits, &nibblesbits);
+  if (!EncodeMlen(length, &lenbits, &nlenbits, &nibblesbits)) {
+    return false;
+  }
 
   WriteBits(2, nibblesbits, storage_ix, storage);
   WriteBits(nlenbits, lenbits, storage_ix, storage);
@@ -72,9 +84,10 @@ void StoreCompressedMetaBlockHeader(bool final_block,
     // Write ISUNCOMPRESSED bit.
     WriteBits(1, 0, storage_ix, storage);
   }
+  return true;
 }
 
-void StoreUncompressedMetaBlockHeader(int length,
+bool StoreUncompressedMetaBlockHeader(int length,
                                       int* storage_ix,
                                       uint8_t* storage) {
   // Write ISLAST bit. Uncompressed block cannot be the last one, so set to 0.
@@ -82,11 +95,14 @@ void StoreUncompressedMetaBlockHeader(int length,
   int lenbits;
   int nlenbits;
   int nibblesbits;
-  EncodeMlen(length, &lenbits, &nlenbits, &nibblesbits);
+  if (!EncodeMlen(length, &lenbits, &nlenbits, &nibblesbits)) {
+    return false;
+  }
   WriteBits(2, nibblesbits, storage_ix, storage);
   WriteBits(nlenbits, lenbits, storage_ix, storage);
   // Write ISUNCOMPRESSED bit.
   WriteBits(1, 1, storage_ix, storage);
+  return true;
 }
 
 void StoreHuffmanTreeOfHuffmanTreeToBitMask(

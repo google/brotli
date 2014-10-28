@@ -37,13 +37,13 @@ namespace brotli {
 void StoreVarLenUint8(int n, int* storage_ix, uint8_t* storage);
 
 // Stores the compressed meta-block header.
-void StoreCompressedMetaBlockHeader(bool final_block,
+bool StoreCompressedMetaBlockHeader(bool final_block,
                                     int length,
                                     int* storage_ix,
                                     uint8_t* storage);
 
 // Stores the uncompressed meta-block header.
-void StoreUncompressedMetaBlockHeader(int length,
+bool StoreUncompressedMetaBlockHeader(int length,
                                       int* storage_ix,
                                       uint8_t* storage);
 
