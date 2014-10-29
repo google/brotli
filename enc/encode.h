@@ -34,7 +34,9 @@ struct BrotliParams {
   };
   Mode mode;
 
-  BrotliParams() : mode(MODE_TEXT) {}
+  bool enable_transforms;
+
+  BrotliParams() : mode(MODE_TEXT), enable_transforms(false) {}
 };
 
 class BrotliCompressor {
@@ -64,7 +66,7 @@ class BrotliCompressor {
 
  private:
   // Initializes the hasher with the hashes of dictionary words.
-  void StoreDictionaryWordHashes();
+  void StoreDictionaryWordHashes(bool enable_transforms);
 
   BrotliParams params_;
   int window_bits_;

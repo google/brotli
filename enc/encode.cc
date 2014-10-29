@@ -440,7 +440,7 @@ BrotliCompressor::BrotliCompressor(BrotliParams params)
   }
   hashers_->Init(hash_type_);
   if (params.mode == BrotliParams::MODE_TEXT) {
-    StoreDictionaryWordHashes();
+    StoreDictionaryWordHashes(params.enable_transforms);
   }
 }
 
@@ -450,8 +450,8 @@ BrotliCompressor::~BrotliCompressor() {
 
 StaticDictionary *BrotliCompressor::static_dictionary_ = NULL;
 
-void BrotliCompressor::StoreDictionaryWordHashes() {
-  const int num_transforms = kNumTransforms;
+void BrotliCompressor::StoreDictionaryWordHashes(bool enable_transforms) {
+  const int num_transforms = enable_transforms ? kNumTransforms : 1;
   if (static_dictionary_ == NULL) {
     static_dictionary_ = new StaticDictionary;
     for (int t = num_transforms - 1; t >= 0; --t) {
