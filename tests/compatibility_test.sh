@@ -19,5 +19,8 @@ for file in $INPUTS; do
   expected=${file%.compressed}
   $BRO -f -d -i $file -o $uncompressed
   diff -q $uncompressed $expected
+  # Test the streaming version
+  cat $file | $BRO -d > $uncompressed
+  diff -q $uncompressed $expected
 done
 
