@@ -92,6 +92,10 @@ BrotliInput BrotliStdinInput();
 int BrotliStdoutOutputFunction(void* data, const uint8_t* buf, size_t count);
 BrotliOutput BrotliStdoutOutput();
 
+/* Input callback that reads from a file. */
+int BrotliFileInputFunction(void* data, uint8_t* buf, size_t count);
+BrotliInput BrotliFileInput(FILE* f);
+
 /* Output callback that writes to a file. */
 int BrotliFileOutputFunction(void* data, const uint8_t* buf, size_t count);
 BrotliOutput BrotliFileOutput(FILE* f);

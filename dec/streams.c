@@ -100,6 +100,17 @@ BrotliOutput BrotliStdoutOutput() {
   return out;
 }
 
+int BrotliFileInputFunction(void* data, uint8_t* buf, size_t count) {
+  return (int)fread(buf, 1, count, (FILE*)data);
+}
+
+BrotliInput BrotliFileInput(FILE* f) {
+  BrotliInput in;
+  in.cb_ = BrotliFileInputFunction;
+  in.data_ = f;
+  return in;
+}
+
 int BrotliFileOutputFunction(void* data, const uint8_t* buf, size_t count) {
   return (int)fwrite(buf, 1, count, (FILE*)data);
 }
