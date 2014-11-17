@@ -27,43 +27,6 @@
 #include "../enc/encode.h"
 
 
-/* The returned pointer must be freed by the caller. */
-char *ReadFile(const char *path, size_t *file_size) {
-  FILE *fp = fopen(path, "rb");
-  if (!fp) {
-    perror("fopen");
-    exit(1);
-  }
-  if (fseek(fp, 0, SEEK_END) != 0) {
-    perror("fseek");
-    exit(1);
-  }
-  *file_size = ftell(fp);
-  if (*file_size == (size_t) -1) {
-    perror("ftell");
-    exit(1);
-  }
-  if (fseek(fp, 0, SEEK_SET) != 0) {
-    perror("fseek");
-    exit(1);
-  }
-  char *retval = (char *)malloc(*file_size + 1);
-  if (!retval) {
-    perror("malloc");
-    exit(1);
-  }
-  if (fread(retval, *file_size, 1, fp) != 1) {
-    perror("fread");
-    exit(1);
-  }
-  if (fclose(fp) != 0) {
-    perror("fclose");
-    exit(1);
-  }
-  retval[*file_size] = 0;
-  return retval;
-}
-
 static void ParseArgv(int argc, char **argv,
                       char **input_path,
                       char **output_path,
@@ -93,6 +56,7 @@ static void ParseArgv(int argc, char **argv,
     }
     if (k < argc - 1) {
       if (!strcmp("--input", argv[k]) ||
+          !strcmp("--in", argv[k]) ||
           !strcmp("-i", argv[k])) {
         if (*input_path != 0) {
           goto error;
@@ -101,6 +65,7 @@ static void ParseArgv(int argc, char **argv,
         ++k;
         continue;
       } else if (!strcmp("--output", argv[k]) ||
+                 !strcmp("--out", argv[k]) ||
                  !strcmp("-o", argv[k])) {
         if (*output_path != 0) {
           goto error;
@@ -112,24 +77,31 @@ static void ParseArgv(int argc, char **argv,
     }
     goto error;
   }
-  if (!*input_path) {
-    fprintf(stderr, "missing --input argument");
-    goto error;
-  }
-  if (!*output_path) {
-    fprintf(stderr, "missing --output argument");
-    goto error;
-  }
   return;
 error:
   fprintf(stderr,
           "Usage: %s [--force] [--decompress]"
-          " --input filename --output filename\n",
+          " [--input filename] [--output filename]\n",
           argv[0]);
   exit(1);
 }
 
+static FILE* OpenInputFile(const char* input_path) {
+  if (input_path == 0) {
+    return fdopen(STDIN_FILENO, "rb");
+  }
+  FILE* f = fopen(input_path, "rb");
+  if (f == 0) {
+    perror("fopen");
+    exit(1);
+  }
+  return f;
+}
+
 static FILE *OpenOutputFile(const char *output_path, const int force) {
+  if (output_path == 0) {
+    return fdopen(STDOUT_FILENO, "wb");
+  }
   if (!force) {
     struct stat statbuf;
     if (stat(output_path, &statbuf) == 0) {
@@ -152,16 +124,11 @@ int main(int argc, char** argv) {
   int force = 0;
   int decompress = 0;
   ParseArgv(argc, argv, &input_path, &output_path, &force, &decompress);
+  FILE* fin = OpenInputFile(input_path);
   FILE* fout = OpenOutputFile(output_path, force);
-  size_t input_size = 0;
-  char *input = ReadFile(input_path, &input_size);
   if (decompress) {
-    BrotliOutput out;
-    BrotliMemInput memin;
-    BrotliInput in =
-        BrotliInitMemInput(reinterpret_cast<const uint8_t*>(input),
-                           input_size, &memin);
-    out = BrotliFileOutput(fout);
+    BrotliInput in = BrotliFileInput(fin);
+    BrotliOutput out = BrotliFileOutput(fout);
     if (!BrotliDecompress(in, out)) {
       fprintf(stderr, "corrupt input\n");
       exit(1);
@@ -169,38 +136,37 @@ int main(int argc, char** argv) {
   } else {
     const int max_block_size = 1 << 21;
     const size_t max_output_size = 1 << 22;
+    uint8_t* input_buffer = new uint8_t[max_block_size];
     uint8_t* output_buffer = new uint8_t[max_output_size];
-    const uint8_t* input_buffer = NULL;
-    size_t input_pos = 0;
     bool input_end = false;
     int block_size;
-    input_buffer = reinterpret_cast<const uint8_t*>(input);
     brotli::BrotliParams params;
     brotli::BrotliCompressor compressor(params);
     compressor.WriteStreamHeader();
     while (!input_end) {
-      block_size = max_block_size;
-      if (block_size >= input_size - input_pos) {
-        block_size = input_size - input_pos;
+      block_size = fread(input_buffer, 1, max_block_size, fin);
+      if (block_size == 0) {
         input_end = true;
       }
       size_t output_size = max_output_size;
-      compressor.WriteMetaBlock(block_size, input_buffer + input_pos,
-                                input_end,
+      compressor.WriteMetaBlock(block_size, input_buffer, input_end,
                                 &output_size, output_buffer);
       if (fwrite(output_buffer, output_size, 1, fout) != 1) {
         perror("fwrite");
         unlink(output_path);
         exit(1);
       }
-      input_pos += block_size;
     }
+    delete[] input_buffer;
     delete[] output_buffer;
+  }
+  if (fclose(fin) != 0) {
+    perror("fclose");
+    exit(1);
   }
   if (fclose(fout) != 0) {
     perror("fclose");
     exit(1);
   }
-  free(input);
   return 0;
 }

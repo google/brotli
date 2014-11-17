@@ -23,4 +23,7 @@ for file in $INPUTS; do
   $BRO -f -i $file -o $compressed
   $BRO -f -d -i $compressed -o $uncompressed
   diff -q $file $uncompressed
+  # Test the streaming version
+  cat $file | $BRO | $BRO -d >$uncompressed
+  diff -q $file $uncompressed
 done
