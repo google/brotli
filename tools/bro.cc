@@ -16,7 +16,11 @@
 */
 
 #include <fcntl.h>
-#include <malloc.h>
+#if defined(OS_MACOSX)
+  #include <malloc/malloc.h>
+#else
+  #include <malloc.h>
+#endif
 #include <stdio.h>
 #include <string>
 #include <sys/stat.h>
