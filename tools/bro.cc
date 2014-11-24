@@ -16,7 +16,6 @@
 */
 
 #include <fcntl.h>
-#include <malloc.h>
 #include <stdio.h>
 #include <string>
 #include <sys/stat.h>
