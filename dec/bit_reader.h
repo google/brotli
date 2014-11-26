@@ -32,6 +32,7 @@ extern "C" {
 #define BROTLI_IBUF_MASK          (2 * BROTLI_READ_SIZE - 1)
 
 #define UNALIGNED_COPY64(dst, src) memcpy(dst, src, 8)
+#define UNALIGNED_MOVE64(dst, src) memmove(dst, src, 8)
 
 static const uint32_t kBitMask[BROTLI_MAX_NUM_BIT_READ] = {
   0, 1, 3, 7, 15, 31, 63, 127, 255, 511, 1023, 2047, 4095, 8191, 16383, 32767,

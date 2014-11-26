@@ -532,7 +532,7 @@ static BROTLI_INLINE void IncrementalCopyFastPath(
     uint8_t* dst, const uint8_t* src, int len) {
   if (src < dst) {
     while (dst - src < 8) {
-      UNALIGNED_COPY64(dst, src);
+      UNALIGNED_MOVE64(dst, src);
       len -= (int)(dst - src);
       dst += dst - src;
     }
