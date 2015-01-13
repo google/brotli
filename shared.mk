@@ -6,6 +6,9 @@ CPP = g++
 LFLAGS =
 CPPFLAGS = -c -std=c++0x $(GFLAGS)
 
+EMCC = emcc
+EMCCFLAGS = -O1 -W -Wall
+
 ifeq ($(OS), Darwin)
   CPPFLAGS += -DOS_MACOSX
 else
