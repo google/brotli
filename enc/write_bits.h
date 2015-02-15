@@ -22,7 +22,6 @@
 #include <stdio.h>
 
 #include "./port.h"
-#include "./endian.h"
 
 namespace brotli {
 
