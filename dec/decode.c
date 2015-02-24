@@ -683,7 +683,7 @@ int BrotliDecompressedSize(size_t encoded_size,
        both are set to 1, we have a stream with an uncompressed meta-block
        followed by an empty one, so the decompressed size is the size of the
        first meta-block. */
-    size_t offset = ((bit_pos + 7) >> 3) + meta_block_len;
+    size_t offset = (size_t)((bit_pos + 7) >> 3) + (size_t)meta_block_len;
     if (offset < encoded_size && ((encoded_buffer[offset] & 3) == 3)) {
       *decoded_size = (size_t)meta_block_len;
       return 1;
