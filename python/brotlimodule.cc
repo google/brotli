@@ -1,8 +1,8 @@
 #define PY_SSIZE_T_CLEAN 1
 #include <Python.h>
 #include <bytesobject.h>
-#include "enc/encode.h"
-#include "dec/decode.h"
+#include "../enc/encode.h"
+#include "../dec/decode.h"
 
 #if PY_MAJOR_VERSION >= 3
 #define PyInt_Check PyLong_Check
