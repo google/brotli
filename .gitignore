@@ -3,3 +3,5 @@
 *.bro
 *.unbro
 /tools/bro
+/python/build
+/python/dist
