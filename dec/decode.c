@@ -646,7 +646,7 @@ int BrotliDecompressedSize(size_t encoded_size,
   }
   /* Look at the first 8 bytes, it is enough to decode the length of the first
      meta-block. */
-  for (i = 0; i < encoded_size && i < 8; ++i) {
+  for (i = 0; (size_t)i < encoded_size && i < 8; ++i) {
     val |= (uint64_t)encoded_buffer[i] << (8 * i);
   }
   /* Skip the window bits. */
@@ -683,7 +683,7 @@ int BrotliDecompressedSize(size_t encoded_size,
        both are set to 1, we have a stream with an uncompressed meta-block
        followed by an empty one, so the decompressed size is the size of the
        first meta-block. */
-    int offset = ((bit_pos + 7) >> 3) + meta_block_len;
+    size_t offset = ((bit_pos + 7) >> 3) + meta_block_len;
     if (offset < encoded_size && ((encoded_buffer[offset] & 3) == 3)) {
       *decoded_size = (size_t)meta_block_len;
       return 1;
