@@ -342,7 +342,7 @@ void MoveToFront(std::vector<int>* v, int index) {
 
 std::vector<int> MoveToFrontTransform(const std::vector<int>& v) {
   if (v.empty()) return v;
-  std::vector<int> mtf(*max_element(v.begin(), v.end()) + 1);
+  std::vector<int> mtf(*std::max_element(v.begin(), v.end()) + 1);
   for (int i = 0; i < mtf.size(); ++i) mtf[i] = i;
   std::vector<int> result(v.size());
   for (int i = 0; i < v.size(); ++i) {
