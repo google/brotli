@@ -17,6 +17,7 @@
 #ifndef BROTLI_ENC_FAST_LOG_H_
 #define BROTLI_ENC_FAST_LOG_H_
 
+#include <assert.h>
 #include <math.h>
 #include <stdint.h>
 
@@ -163,7 +164,7 @@ static inline double FastLog2(int v) {
   if (v < (int)(sizeof(kLog2Table) / sizeof(kLog2Table[0]))) {
     return kLog2Table[v];
   }
-  return log2(v);
+  return log2(static_cast<double>(v));
 }
 
 }  // namespace brotli

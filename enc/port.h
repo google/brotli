@@ -50,6 +50,11 @@
 #endif
 #endif  // __BYTE_ORDER
 
+// Enable little-endian optimization for x64 architecture on Windows.
+#if (defined(_WIN32) || defined(_WIN64)) && defined(_M_X64)
+#define IS_LITTLE_ENDIAN
+#endif
+
 #if defined(COMPILER_GCC3)
 #define PREDICT_FALSE(x) (__builtin_expect(x, 0))
 #define PREDICT_TRUE(x) (__builtin_expect(!!(x), 1))
