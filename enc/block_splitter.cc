@@ -82,6 +82,14 @@ void CopyCommandsToByteArray(const std::vector<Command>& cmds,
   }
 }
 
+inline static unsigned int MyRand(unsigned int* seed) {
+  *seed *= 16807U;
+  if (*seed == 0) {
+    *seed = 1;
+  }
+  return *seed;
+}
+
 template<typename HistogramType, typename DataType>
 void InitialEntropyCodes(const DataType* data, size_t length,
                          int literals_per_histogram,
@@ -97,7 +105,7 @@ void InitialEntropyCodes(const DataType* data, size_t length,
   for (int i = 0; i < total_histograms; ++i) {
     int pos = length * i / total_histograms;
     if (i != 0) {
-      pos += rand_r(&seed) % block_length;
+      pos += MyRand(&seed) % block_length;
     }
     if (pos + stride >= length) {
       pos = length - stride - 1;
@@ -119,7 +127,7 @@ void RandomSample(unsigned int* seed,
     pos = 0;
     stride = length;
   } else {
-    pos = rand_r(seed) % (length - stride + 1);
+    pos = MyRand(seed) % (length - stride + 1);
   }
   sample->Add(data + pos, stride);
 }

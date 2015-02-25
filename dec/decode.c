@@ -553,6 +553,7 @@ int CopyUncompressedBlockToOutput(BrotliOutput output, int len, int pos,
   int rb_pos = pos & ringbuffer_mask;
   int br_pos = br->pos_ & BROTLI_IBUF_MASK;
   int nbytes;
+  uint32_t remaining_bits;
 
   /* For short lengths copy byte-by-byte */
   if (len < 8 || br->bit_pos_ + (uint32_t)(len << 3) < br->bit_end_pos_) {
@@ -575,8 +576,16 @@ int CopyUncompressedBlockToOutput(BrotliOutput output, int len, int pos,
     return 0;
   }
 
-  /* Copy remaining 0-8 bytes from br->val_ to ringbuffer. */
-  while (br->bit_pos_ < 64) {
+  /*
+   * Copy remaining 0-4 in 32-bit case or 0-8 bytes in the 64-bit case
+   * from br->val_ to ringbuffer.
+   */
+#if (BROTLI_USE_64_BITS)
+  remaining_bits = 64;
+#else
+  remaining_bits = 32;
+#endif
+  while (br->bit_pos_ < remaining_bits) {
     ringbuffer[rb_pos] = (uint8_t)(br->val_ >> br->bit_pos_);
     br->bit_pos_ += 8;
     ++rb_pos;
