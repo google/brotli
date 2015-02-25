@@ -102,7 +102,7 @@ void CompareAndPushToHeap(const HistogramType* out,
   if (store_pair) {
     p.cost_diff += p.cost_combo;
     pairs->push_back(p);
-    push_heap(pairs->begin(), pairs->end(), HistogramPairComparator());
+    std::push_heap(pairs->begin(), pairs->end(), HistogramPairComparator());
   }
 }
 
@@ -165,7 +165,7 @@ void HistogramCombine(HistogramType* out,
     }
     // Pop invalid pairs from the top of the heap.
     while (!pairs.empty() && !pairs[0].valid) {
-      pop_heap(pairs.begin(), pairs.end(), HistogramPairComparator());
+      std::pop_heap(pairs.begin(), pairs.end(), HistogramPairComparator());
       pairs.pop_back();
     }
     // Push new pairs formed with the combined histogram to the heap.
