@@ -27,6 +27,11 @@
 #define __BYTE_ORDER  BYTE_ORDER
 #define __LITTLE_ENDIAN LITTLE_ENDIAN
 #define __BIG_ENDIAN BIG_ENDIAN
+#elif defined _WIN32 || defined _WIN64
+/* Assume Windows is little-endian */
+#define __LITTLE_ENDIAN 1234
+#define __BIG_ENDIAN 4321
+#define __BYTE_ORDER __LITTLE_ENDIAN
 #endif
 
 // define the macros IS_LITTLE_ENDIAN or IS_BIG_ENDIAN
