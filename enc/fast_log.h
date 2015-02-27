@@ -159,6 +159,13 @@ static const float kLog2Table[] = {
   7.9943534368588578f
 };
 
+#if defined(_MSC_VER) && _MSC_VER <= 1600
+// Calculates log2 of number (missing from MSC v.1600 required for Python bindings)
+inline double log2( double n ) {
+    return log( n ) / log( 2. );
+}
+#endif
+
 // Faster logarithm for small integers, with the property of log2(0) == 0.
 static inline double FastLog2(int v) {
   if (v < (int)(sizeof(kLog2Table) / sizeof(kLog2Table[0]))) {

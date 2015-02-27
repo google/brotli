@@ -21,8 +21,11 @@ class BuildExt(build_ext):
 
         objects = []
         for lang, sources in (("c", c_sources), ("c++", cxx_sources)):
-            if lang == "c++":
-                extra_args.append("-std=c++0x")
+            if lang == "c++": 
+                if self.compiler.compiler_type in ["unix", "cygwin", "mingw32"]:
+                    extra_args.append("-std=c++0x")
+                elif self.compiler.compiler_type == "msvc":
+                    extra_args.append("/EHsc")
 
             macros = ext.define_macros[:]
             if platform.system() == "Darwin":
