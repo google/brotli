@@ -158,7 +158,7 @@ void EstimateBitCostsForLiterals(size_t pos, size_t len, size_t mask,
     if (histo == 0) {
       histo = 1;
     }
-    float lit_cost = log2(static_cast<double>(in_window) / histo);
+    float lit_cost = FastLog2(in_window) - FastLog2(histo);
     lit_cost += 0.029;
     if (lit_cost < 1.0) {
       lit_cost *= 0.5;
