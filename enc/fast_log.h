@@ -164,7 +164,14 @@ static inline double FastLog2(int v) {
   if (v < (int)(sizeof(kLog2Table) / sizeof(kLog2Table[0]))) {
     return kLog2Table[v];
   }
+#if defined(_MSC_VER) && _MSC_VER <= 1600
+  // Visual Studio 2010 does not have the log2() function defined, so we use
+  // log() and a multiplication instead.
+  static const double kLog2Inv = 1.4426950408889634f;
+  return log(static_cast<double>(v)) * kLog2Inv;
+#else
   return log2(static_cast<double>(v));
+#endif
 }
 
 }  // namespace brotli
