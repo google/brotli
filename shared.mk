@@ -1,19 +1,18 @@
 OS := $(shell uname)
 
-GFLAGS=-no-canonical-prefixes -fno-omit-frame-pointer -m64
-
-CPP = g++
-LFLAGS =
-CPPFLAGS = -c -std=c++0x $(GFLAGS)
+CC ?= gcc
+CXX ?= g++
 
 EMCC = emcc
 EMCCFLAGS = -O1 -W -Wall
 
+COMMON_FLAGS = -fno-omit-frame-pointer -no-canonical-prefixes
+
 ifeq ($(OS), Darwin)
   CPPFLAGS += -DOS_MACOSX
 else
-  CPPFLAGS += -fno-tree-vrp
+  COMMON_FLAGS += -fno-tree-vrp
 endif
 
-%.o : %.c
-	$(CPP) $(CPPFLAGS) $< -o $@
+CFLAGS += $(COMMON_FLAGS)
+CXXFLAGS += $(COMMON_FLAGS) -std=c++11
