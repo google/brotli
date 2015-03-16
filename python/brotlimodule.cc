@@ -1,8 +1,8 @@
 #define PY_SSIZE_T_CLEAN 1
 #include <Python.h>
 #include <bytesobject.h>
-#include "enc/encode.h"
-#include "dec/decode.h"
+#include "../enc/encode.h"
+#include "../dec/decode.h"
 
 #if PY_MAJOR_VERSION >= 3
 #define PyInt_Check PyLong_Check
@@ -74,37 +74,39 @@ static PyObject* brotli_compress(PyObject *self, PyObject *args) {
   return ret;
 }
 
+int output_callback(void* data, const uint8_t* buf, size_t count) {
+  std::vector<uint8_t> *output = (std::vector<uint8_t> *)data;
+  output->insert(output->end(), buf, buf + count);
+  return (int)count;
+}
+
 PyDoc_STRVAR(decompress__doc__,
-"decompress(string[, bufsize]) -- Return decompressed string."
-"\n"
-"Optional arg bufsize is the initial output buffer size.");
+"decompress(string) -- Return decompressed string.");
 
 static PyObject* brotli_decompress(PyObject *self, PyObject *args) {
   PyObject *ret = NULL;
-  uint8_t *input, *output;
-  size_t length, output_length = 0;
+  uint8_t *input;
+  size_t length;
   int ok;
 
-  ok = PyArg_ParseTuple(args, "s#|n:decompress",
-                        &input, &length, &output_length);
+  ok = PyArg_ParseTuple(args, "s#:decompress", &input, &length);
   if (!ok)
     return NULL;
 
-  if (output_length <= 0) {
-    // Just an arbitrary value, should be big enough
-    output_length = 4 * length;
-  }
+  BrotliMemInput memin;
+  BrotliInput in = BrotliInitMemInput(input, length, &memin);
 
-  output = new uint8_t[output_length];
+  BrotliOutput out;
+  std::vector<uint8_t> output;
+  out.cb_ = &output_callback;
+  out.data_ = &output;
 
-  ok = BrotliDecompressBuffer(length, input, &output_length, output);
+  ok = BrotliDecompress(in, out);
   if (ok) {
-    ret = PyBytes_FromStringAndSize((char*)output, output_length);
+    ret = PyBytes_FromStringAndSize((char*)output.data(), output.size());
   } else {
-    PyErr_SetString(BrotliError, "BrotliDecompressBuffer failed");
+    PyErr_SetString(BrotliError, "BrotliDecompress failed");
   }
-
-  delete[] output;
 
   return ret;
 }
