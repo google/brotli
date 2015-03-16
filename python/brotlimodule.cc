@@ -77,6 +77,7 @@ static PyObject* brotli_compress(PyObject *self, PyObject *args) {
 int output_callback(void* data, const uint8_t* buf, size_t count) {
   std::vector<uint8_t> *output = (std::vector<uint8_t> *)data;
   output->insert(output->end(), buf, buf + count);
+  return (int)count;
 }
 
 PyDoc_STRVAR(decompress__doc__,
