@@ -1,6 +1,7 @@
 from distutils.core import setup, Extension
 from distutils.command.build_ext import build_ext
 import platform
+from os.path import abspath
 
 class BuildExt(build_ext):
     def get_source_files(self):
@@ -21,8 +22,11 @@ class BuildExt(build_ext):
 
         objects = []
         for lang, sources in (("c", c_sources), ("c++", cxx_sources)):
-            if lang == "c++":
-                extra_args.append("-std=c++0x")
+            if lang == "c++": 
+                if self.compiler.compiler_type in ["unix", "cygwin", "mingw32"]:
+                    extra_args.append("-std=c++0x")
+                elif self.compiler.compiler_type == "msvc":
+                    extra_args.append("/EHsc")
 
             macros = ext.define_macros[:]
             if platform.system() == "Darwin":
@@ -62,51 +66,51 @@ class BuildExt(build_ext):
 brotli = Extension("brotli",
                     sources=[
                         "brotlimodule.cc",
-                        "enc/backward_references.cc",
-                        "enc/block_splitter.cc",
-                        "enc/brotli_bit_stream.cc",
-                        "enc/encode.cc",
-                        "enc/entropy_encode.cc",
-                        "enc/histogram.cc",
-                        "enc/literal_cost.cc",
-                        "dec/bit_reader.c",
-                        "dec/decode.c",
-                        "dec/huffman.c",
-                        "dec/safe_malloc.c",
-                        "dec/streams.c",
+                        abspath("../enc/backward_references.cc"),
+                        abspath("../enc/block_splitter.cc"),
+                        abspath("../enc/brotli_bit_stream.cc"),
+                        abspath("../enc/encode.cc"),
+                        abspath("../enc/entropy_encode.cc"),
+                        abspath("../enc/histogram.cc"),
+                        abspath("../enc/literal_cost.cc"),
+                        abspath("../dec/bit_reader.c"),
+                        abspath("../dec/decode.c"),
+                        abspath("../dec/huffman.c"),
+                        abspath("../dec/safe_malloc.c"),
+                        abspath("../dec/streams.c"),
                     ],
                     depends=[
-                        "enc/backward_references.h",
-                        "enc/bit_cost.h",
-                        "enc/block_splitter.h",
-                        "enc/brotli_bit_stream.h",
-                        "enc/cluster.h",
-                        "enc/command.h",
-                        "enc/context.h",
-                        "enc/dictionary.h",
-                        "enc/encode.h",
-                        "enc/entropy_encode.h",
-                        "enc/fast_log.h",
-                        "enc/find_match_length.h",
-                        "enc/hash.h",
-                        "enc/histogram.h",
-                        "enc/literal_cost.h",
-                        "enc/port.h",
-                        "enc/prefix.h",
-                        "enc/ringbuffer.h",
-                        "enc/static_dict.h",
-                        "enc/transform.h",
-                        "enc/write_bits.h",
-                        "dec/bit_reader.h",
-                        "dec/context.h",
-                        "dec/decode.h",
-                        "dec/dictionary.h",
-                        "dec/huffman.h",
-                        "dec/prefix.h",
-                        "dec/safe_malloc.h",
-                        "dec/streams.h",
-                        "dec/transform.h",
-                        "dec/types.h",
+                        abspath("../enc/backward_references.h"),
+                        abspath("../enc/bit_cost.h"),
+                        abspath("../enc/block_splitter.h"),
+                        abspath("../enc/brotli_bit_stream.h"),
+                        abspath("../enc/cluster.h"),
+                        abspath("../enc/command.h"),
+                        abspath("../enc/context.h"),
+                        abspath("../enc/dictionary.h"),
+                        abspath("../enc/encode.h"),
+                        abspath("../enc/entropy_encode.h"),
+                        abspath("../enc/fast_log.h"),
+                        abspath("../enc/find_match_length.h"),
+                        abspath("../enc/hash.h"),
+                        abspath("../enc/histogram.h"),
+                        abspath("../enc/literal_cost.h"),
+                        abspath("../enc/port.h"),
+                        abspath("../enc/prefix.h"),
+                        abspath("../enc/ringbuffer.h"),
+                        abspath("../enc/static_dict.h"),
+                        abspath("../enc/transform.h"),
+                        abspath("../enc/write_bits.h"),
+                        abspath("../dec/bit_reader.h"),
+                        abspath("../dec/context.h"),
+                        abspath("../dec/decode.h"),
+                        abspath("../dec/dictionary.h"),
+                        abspath("../dec/huffman.h"),
+                        abspath("../dec/prefix.h"),
+                        abspath("../dec/safe_malloc.h"),
+                        abspath("../dec/streams.h"),
+                        abspath("../dec/transform.h"),
+                        abspath("../dec/types.h"),
                     ],
                     language="c++",
                     )
