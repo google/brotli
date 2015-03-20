@@ -25,6 +25,10 @@
 extern "C" {
 #endif
 
+/* Maximum possible Huffman table size for an alphabet size of 704, max code
+ * length 15 and root table bits 8. */
+#define BROTLI_HUFFMAN_MAX_TABLE_SIZE  1080
+
 typedef struct {
   uint8_t bits;     /* number of bits used for this symbol */
   uint16_t value;   /* symbol value or table offset */
@@ -36,6 +40,18 @@ int BrotliBuildHuffmanTable(HuffmanCode* root_table,
                             int root_bits,
                             const uint8_t* const code_lengths,
                             int code_lengths_size);
+
+/* Contains a collection of huffman trees with the same alphabet size. */
+typedef struct {
+  int alphabet_size;
+  int num_htrees;
+  HuffmanCode* codes;
+  HuffmanCode** htrees;
+} HuffmanTreeGroup;
+
+void BrotliHuffmanTreeGroupInit(HuffmanTreeGroup* group,
+                                int alphabet_size, int ntrees);
+void BrotliHuffmanTreeGroupRelease(HuffmanTreeGroup* group);
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }    /* extern "C" */

@@ -159,6 +159,24 @@ int BrotliBuildHuffmanTable(HuffmanCode* root_table,
   return total_size;
 }
 
+void BrotliHuffmanTreeGroupInit(HuffmanTreeGroup* group, int alphabet_size,
+                                int ntrees) {
+  group->alphabet_size = alphabet_size;
+  group->num_htrees = ntrees;
+  group->codes = (HuffmanCode*)malloc(
+      sizeof(HuffmanCode) * (size_t)(ntrees * BROTLI_HUFFMAN_MAX_TABLE_SIZE));
+  group->htrees = (HuffmanCode**)malloc(sizeof(HuffmanCode*) * (size_t)ntrees);
+}
+
+void BrotliHuffmanTreeGroupRelease(HuffmanTreeGroup* group) {
+  if (group->codes) {
+    free(group->codes);
+  }
+  if (group->htrees) {
+    free(group->htrees);
+  }
+}
+
 #if defined(__cplusplus) || defined(c_plusplus)
 }    /* extern "C" */
 #endif
