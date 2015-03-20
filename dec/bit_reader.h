@@ -60,9 +60,23 @@ typedef struct {
   uint32_t    bit_pos_;      /* current bit-reading position in val_ */
   uint32_t    bit_end_pos_;  /* bit-reading end position from LSB of val_ */
   int         eos_;          /* input stream is finished */
+
+  /* Set to 0 to support partial data streaming. Set to 1 to expect full data or
+     for the last chunk of partial data. */
+  int         finish_;
+  /* indicates how much bytes already read when reading partial data */
+  int         tmp_bytes_read_;
 } BrotliBitReader;
 
-int BrotliInitBitReader(BrotliBitReader* const br, BrotliInput input);
+/* Initializes the bitreader fields. After this, BrotliWarmupBitReader must
+   be used. */
+void BrotliInitBitReader(BrotliBitReader* const br,
+                         BrotliInput input, int finish);
+
+/* Fetches data to fill up internal buffers. Returns 0 if there wasn't enough */
+/* data to read. It then buffers the read data and can be called again with */
+/* more data. If br->finish_ is 1, never fails. */
+int BrotliWarmupBitReader(BrotliBitReader* const br);
 
 /* Return the prefetched bits, so they can be looked up. */
 static BROTLI_INLINE uint32_t BrotliPrefetchBits(BrotliBitReader* const br) {
@@ -100,9 +114,12 @@ static BROTLI_INLINE void ShiftBytes32(BrotliBitReader* const br) {
 
    Does nothing if there are at least 32 bytes present after current position.
 
-   Returns 0 if either:
+   Returns 0 if one of:
     - the input callback returned an error, or
     - there is no more input and the position is past the end of the stream.
+    - finish is false and less than BROTLI_READ_SIZE are available - a next call
+      when more data is available makes it continue including the partially read
+      data
 
    After encountering the end of the input stream, 32 additional zero bytes are
    copied to the ringbuffer, therefore it is safe to call this function after
@@ -115,11 +132,18 @@ static BROTLI_INLINE int BrotliReadMoreInput(BrotliBitReader* const br) {
     return br->bit_pos_ <= br->bit_end_pos_;
   } else {
     uint8_t* dst = br->buf_ptr_;
-    int bytes_read = BrotliRead(br->input_, dst, BROTLI_READ_SIZE);
+    int bytes_read = BrotliRead(br->input_, dst + br->tmp_bytes_read_,
+        (size_t) (BROTLI_READ_SIZE - br->tmp_bytes_read_));
     if (bytes_read < 0) {
       return 0;
     }
+    bytes_read += br->tmp_bytes_read_;
+    br->tmp_bytes_read_ = 0;
     if (bytes_read < BROTLI_READ_SIZE) {
+      if (!br->finish_) {
+        br->tmp_bytes_read_ = bytes_read;
+        return 0;
+      }
       br->eos_ = 1;
       /* Store 32 bytes of zero after the stream end. */
 #if (BROTLI_USE_64_BITS)

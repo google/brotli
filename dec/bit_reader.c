@@ -24,9 +24,12 @@
 extern "C" {
 #endif
 
-int BrotliInitBitReader(BrotliBitReader* const br, BrotliInput input) {
-  size_t i;
+void BrotliInitBitReader(BrotliBitReader* const br,
+                         BrotliInput input, int finish) {
   assert(br != NULL);
+
+  br->finish_ = finish;
+  br->tmp_bytes_read_ = 0;
 
   br->buf_ptr_ = br->buf_;
   br->input_ = input;
@@ -35,6 +38,12 @@ int BrotliInitBitReader(BrotliBitReader* const br, BrotliInput input) {
   br->bit_pos_ = 0;
   br->bit_end_pos_ = 0;
   br->eos_ = 0;
+}
+
+
+int BrotliWarmupBitReader(BrotliBitReader* const br) {
+  size_t i;
+
   if (!BrotliReadMoreInput(br)) {
     return 0;
   }
