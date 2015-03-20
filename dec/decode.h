@@ -11,9 +11,9 @@
    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
    See the License for the specific language governing permissions and
    limitations under the License.
-
-   API for Brotli decompression
 */
+
+/* API for Brotli decompression */
 
 #ifndef BROTLI_DEC_DECODE_H_
 #define BROTLI_DEC_DECODE_H_

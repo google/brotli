@@ -11,9 +11,9 @@
    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
    See the License for the specific language governing permissions and
    limitations under the License.
-
-   Bit reading helpers
 */
+
+/* Bit reading helpers */
 
 #ifndef BROTLI_DEC_BIT_READER_H_
 #define BROTLI_DEC_BIT_READER_H_
