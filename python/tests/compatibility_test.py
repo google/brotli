@@ -2,7 +2,7 @@
 from __future__ import print_function
 import sys
 import os
-from subprocess import call, Popen, PIPE
+from subprocess import check_call
 import filecmp
 
 
@@ -14,6 +14,7 @@ def diff_q(first_file, second_file):
     return 0
 
 
+PYTHON = sys.executable or "python"
 BRO = os.path.abspath("../bro.py")
 
 INPUTS = """\
@@ -42,15 +43,11 @@ for filename in INPUTS.splitlines():
     print('Testing decompression of file "%s"' % os.path.basename(filename))
     uncompressed = os.path.splitext(filename)[0] + ".uncompressed"
     expected = os.path.splitext(filename)[0]
-    call('"%s" -f -d -i "%s" -o "%s"' % (BRO, filename, uncompressed),
-         shell=True)
+    check_call([PYTHON, BRO, "-f", "-d", "-i", filename, "-o", uncompressed])
     if diff_q(uncompressed, expected) != 0:
         sys.exit(1)
     # Test the streaming version
-    with open(filename, "rb") as infile:
-        p = Popen('"%s" -d' % BRO, stdin=infile, stdout=PIPE, shell=True)
-    output = p.communicate()[0]
-    with open(uncompressed, "wb") as outfile:
-	    outfile.write(output)
+    with open(filename, "rb") as infile, open(uncompressed, "wb") as outfile:
+        check_call([PYTHON, BRO, '-d'], stdin=infile, stdout=outfile)
     if diff_q(uncompressed, expected) != 0:
         sys.exit(1)
