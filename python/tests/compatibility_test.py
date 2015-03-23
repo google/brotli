@@ -47,9 +47,10 @@ for filename in INPUTS.splitlines():
     if diff_q(uncompressed, expected) != 0:
         sys.exit(1)
     # Test the streaming version
-    p = Popen('"%s" -d > "%s"' % (BRO, uncompressed), shell=True, stdin=PIPE)
     with open(filename, "rb") as infile:
-        data = infile.read()
-    p.communicate(data)
+        p = Popen('"%s" -d' % BRO, stdin=infile, stdout=PIPE, shell=True)
+    output = p.communicate()[0]
+    with open(uncompressed, "wb") as outfile:
+	    outfile.write(output)
     if diff_q(uncompressed, expected) != 0:
         sys.exit(1)

@@ -78,6 +78,7 @@ brotli = Extension("brotli",
                         abspath("../dec/huffman.c"),
                         abspath("../dec/safe_malloc.c"),
                         abspath("../dec/streams.c"),
+                        abspath("../dec/state.c")
                     ],
                     depends=[
                         abspath("../enc/backward_references.h"),
@@ -111,6 +112,7 @@ brotli = Extension("brotli",
                         abspath("../dec/streams.h"),
                         abspath("../dec/transform.h"),
                         abspath("../dec/types.h"),
+                        abspath("../dec/state.h")
                     ],
                     language="c++",
                     )
