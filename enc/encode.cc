@@ -128,34 +128,6 @@ bool IsMostlyUTF8(const uint8_t* data, size_t length, double min_fraction) {
   return size_utf8 > min_fraction * length;
 }
 
-void EncodeMetaBlockLength(size_t meta_block_size,
-                           bool is_last,
-                           bool is_uncompressed,
-                           int* storage_ix, uint8_t* storage) {
-  WriteBits(1, is_last, storage_ix, storage);
-  if (is_last) {
-    if (meta_block_size == 0) {
-      WriteBits(1, 1, storage_ix, storage);
-      return;
-    }
-    WriteBits(1, 0, storage_ix, storage);
-  }
-  --meta_block_size;
-  int num_bits = Log2Floor(meta_block_size) + 1;
-  if (num_bits < 16) {
-    num_bits = 16;
-  }
-  WriteBits(2, (num_bits - 13) >> 2, storage_ix, storage);
-  while (num_bits > 0) {
-    WriteBits(4, meta_block_size & 0xf, storage_ix, storage);
-    meta_block_size >>= 4;
-    num_bits -= 4;
-  }
-  if (!is_last) {
-    WriteBits(1, is_uncompressed, storage_ix, storage);
-  }
-}
-
 template<int kSize>
 void BuildAndStoreEntropyCode(const Histogram<kSize>& histogram,
                               const int tree_limit,
@@ -328,7 +300,7 @@ size_t MetaBlockLength(const std::vector<Command>& cmds) {
   return length;
 }
 
-void StoreMetaBlock(const MetaBlock& mb,
+bool StoreMetaBlock(const MetaBlock& mb,
                     const bool is_last,
                     const uint8_t* ringbuffer,
                     const size_t mask,
@@ -336,10 +308,12 @@ void StoreMetaBlock(const MetaBlock& mb,
                     int* storage_ix, uint8_t* storage) {
   size_t length = MetaBlockLength(mb.cmds);
   const size_t end_pos = *pos + length;
-  EncodeMetaBlockLength(length, is_last, false, storage_ix, storage);
+  if (!StoreCompressedMetaBlockHeader(is_last, length, storage_ix, storage)) {
+    return false;
+  }
 
   if (length == 0) {
-    return;
+    return true;
   }
   BlockSplitCode literal_split_code;
   BlockSplitCode command_split_code;
@@ -417,6 +391,7 @@ void StoreMetaBlock(const MetaBlock& mb,
     }
     *pos += cmd.copy_len_;
   }
+  return true;
 }
 
 BrotliCompressor::BrotliCompressor(BrotliParams params)
@@ -534,14 +509,18 @@ bool BrotliCompressor::WriteMetaBlock(const size_t input_size,
   MetaBlock mb;
   BuildMetaBlock(params, commands, ringbuffer_.start(), input_pos_,
                  kRingBufferMask, &mb);
-  StoreMetaBlock(mb, is_last, ringbuffer_.start(), kRingBufferMask,
-                 &input_pos_, &storage_ix_, storage_);
+  if (!StoreMetaBlock(mb, is_last, ringbuffer_.start(), kRingBufferMask,
+                      &input_pos_, &storage_ix_, storage_)) {
+    return false;
+  }
   size_t output_size = is_last ? ((storage_ix_ + 7) >> 3) : (storage_ix_ >> 3);
   output_size -= (storage_ix0 >> 3);
   if (input_size + 4 < output_size) {
     storage_ix_ = storage_ix0;
     storage_[storage_ix_ >> 3] &= (1 << (storage_ix_ & 7)) - 1;
-    EncodeMetaBlockLength(input_size, false, true, &storage_ix_, storage_);
+    if (!StoreUncompressedMetaBlockHeader(input_size, &storage_ix_, storage_)) {
+      return false;
+    }
     size_t hdr_size = (storage_ix_ + 7) >> 3;
     if ((hdr_size + input_size + (is_last ? 1 : 0)) > *encoded_size) {
       return false;
