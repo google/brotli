@@ -38,12 +38,12 @@ void StoreVarLenUint8(int n, int* storage_ix, uint8_t* storage);
 
 // Stores the compressed meta-block header.
 bool StoreCompressedMetaBlockHeader(bool final_block,
-                                    int length,
+                                    size_t length,
                                     int* storage_ix,
                                     uint8_t* storage);
 
 // Stores the uncompressed meta-block header.
-bool StoreUncompressedMetaBlockHeader(int length,
+bool StoreUncompressedMetaBlockHeader(size_t length,
                                       int* storage_ix,
                                       uint8_t* storage);
 
