@@ -323,7 +323,7 @@ static int ReadHuffmanCode(int alphabet_size,
       case BROTLI_STATE_SUB_HUFFMAN_LENGTH_SYMBOLS:
         ok = ReadHuffmanCodeLengths(s->code_length_code_lengths,
                                     alphabet_size, s->code_lengths, s);
-        if (ok == 2) return 2;
+        if (ok != 1) return ok;
         s->sub_state[1] = BROTLI_STATE_SUB_HUFFMAN_DONE;
         /* No break, go to next state */
       case BROTLI_STATE_SUB_HUFFMAN_DONE:
