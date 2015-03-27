@@ -284,21 +284,21 @@ void ClusterBlocks(const DataType* data, const size_t length,
 void BuildBlockSplit(const std::vector<uint8_t>& block_ids, BlockSplit* split) {
   int cur_id = block_ids[0];
   int cur_length = 1;
-  split->num_types_ = -1;
+  split->num_types = -1;
   for (int i = 1; i < block_ids.size(); ++i) {
     if (block_ids[i] != cur_id) {
-      split->types_.push_back(cur_id);
-      split->lengths_.push_back(cur_length);
-      split->num_types_ = std::max(split->num_types_, cur_id);
+      split->types.push_back(cur_id);
+      split->lengths.push_back(cur_length);
+      split->num_types = std::max(split->num_types, cur_id);
       cur_id = block_ids[i];
       cur_length = 0;
     }
     ++cur_length;
   }
-  split->types_.push_back(cur_id);
-  split->lengths_.push_back(cur_length);
-  split->num_types_ = std::max(split->num_types_, cur_id);
-  ++split->num_types_;
+  split->types.push_back(cur_id);
+  split->lengths.push_back(cur_length);
+  split->num_types = std::max(split->num_types, cur_id);
+  ++split->num_types;
 }
 
 template<typename HistogramType, typename DataType>
@@ -309,12 +309,12 @@ void SplitByteVector(const std::vector<DataType>& data,
                      const double block_switch_cost,
                      BlockSplit* split) {
   if (data.empty()) {
-    split->num_types_ = 1;
+    split->num_types = 1;
     return;
   } else if (data.size() < kMinLengthForBlockSplitting) {
-    split->num_types_ = 1;
-    split->types_.push_back(0);
-    split->lengths_.push_back(data.size());
+    split->num_types = 1;
+    split->types.push_back(0);
+    split->lengths.push_back(data.size());
     return;
   }
   std::vector<HistogramType> histograms;
@@ -355,7 +355,6 @@ void SplitBlock(const std::vector<Command>& cmds,
   CopyCommandsToByteArray(cmds,
                           &insert_and_copy_codes,
                           &distance_prefixes);
-
 
   SplitByteVector<HistogramLiteral>(
       literals,

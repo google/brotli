@@ -28,6 +28,8 @@
 #include <stdint.h>
 #include <vector>
 
+#include "./metablock.h"
+
 namespace brotli {
 
 // All Store functions here will use a storage_ix, which is always the bit
@@ -103,6 +105,30 @@ void StoreBlockSwitch(const BlockSplitCode& code,
                       const int block_ix,
                       int* storage_ix,
                       uint8_t* storage);
+
+bool StoreMetaBlock(const uint8_t* input,
+                    size_t start_pos,
+                    size_t length,
+                    size_t mask,
+                    bool final_block,
+                    int quality,
+                    int num_direct_distance_codes,
+                    int distance_postfix_bits,
+                    int literal_context_mode,
+                    const brotli::Command *commands,
+                    size_t n_commands,
+                    const MetaBlockSplit& mb,
+                    int *storage_ix,
+                    uint8_t *storage);
+
+// This is for storing uncompressed blocks (simple raw storage of
+// bytes-as-bytes).
+bool StoreUncompressedMetaBlock(bool final_block,
+                                const uint8_t* input,
+                                size_t position, size_t mask,
+                                size_t len,
+                                int* storage_ix,
+                                uint8_t* storage);
 
 }  // namespace brotli
 
