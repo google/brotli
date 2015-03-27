@@ -24,28 +24,23 @@
 #include <utility>
 
 #include "./command.h"
+#include "./metablock.h"
 
 namespace brotli {
-
-struct BlockSplit {
-  int num_types_;
-  std::vector<int> types_;
-  std::vector<int> lengths_;
-};
 
 struct BlockSplitIterator {
   explicit BlockSplitIterator(const BlockSplit& split)
       : split_(split), idx_(0), type_(0), length_(0) {
-    if (!split.lengths_.empty()) {
-      length_ = split.lengths_[0];
+    if (!split.lengths.empty()) {
+      length_ = split.lengths[0];
     }
   }
 
   void Next() {
     if (length_ == 0) {
       ++idx_;
-      type_ = split_.types_[idx_];
-      length_ = split_.lengths_[idx_];
+      type_ = split_.types[idx_];
+      length_ = split_.lengths[idx_];
     }
     --length_;
   }

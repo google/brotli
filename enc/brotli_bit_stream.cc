@@ -23,6 +23,7 @@
 #include <vector>
 
 #include "./bit_cost.h"
+#include "./context.h"
 #include "./entropy_encode.h"
 #include "./fast_log.h"
 #include "./prefix.h"
@@ -570,6 +571,255 @@ void StoreTrivialContextMap(int num_types,
     // Write IMTF (inverse-move-to-front) bit.
     WriteBits(1, 1, storage_ix, storage);
   }
+}
+
+// Manages the encoding of one block category (literal, command or distance).
+class BlockEncoder {
+ public:
+  BlockEncoder(int alphabet_size,
+               int num_block_types,
+               const std::vector<int>& block_types,
+               const std::vector<int>& block_lengths)
+      : alphabet_size_(alphabet_size),
+        num_block_types_(num_block_types),
+        block_types_(block_types),
+        block_lengths_(block_lengths),
+        block_ix_(0),
+        block_len_(block_lengths.empty() ? 0 : block_lengths[0]),
+        entropy_ix_(0) {}
+
+  // Creates entropy codes of block lengths and block types and stores them
+  // to the bit stream.
+  void BuildAndStoreBlockSwitchEntropyCodes(int quality,
+                                            int* storage_ix, uint8_t* storage) {
+    BuildAndStoreBlockSplitCode(
+        block_types_, block_lengths_, num_block_types_,
+        quality, &block_split_code_, storage_ix, storage);
+  }
+
+  // Creates entropy codes for all block types and stores them to the bit
+  // stream.
+  template<int kSize>
+  void BuildAndStoreEntropyCodes(
+      const std::vector<Histogram<kSize> >& histograms,
+      int quality,
+      int* storage_ix, uint8_t* storage) {
+    depths_.resize(histograms.size() * alphabet_size_);
+    bits_.resize(histograms.size() * alphabet_size_);
+    for (int i = 0; i < histograms.size(); ++i) {
+      int ix = i * alphabet_size_;
+      BuildAndStoreHuffmanTree(&histograms[i].data_[0], alphabet_size_,
+                               quality,
+                               &depths_[ix], &bits_[ix],
+                               storage_ix, storage);
+    }
+  }
+
+  // Stores the next symbol with the entropy code of the current block type.
+  // Updates the block type and block length at block boundaries.
+  void StoreSymbol(int symbol, int* storage_ix, uint8_t* storage) {
+    if (block_len_ == 0) {
+      ++block_ix_;
+      block_len_ = block_lengths_[block_ix_];
+      entropy_ix_ = block_types_[block_ix_] * alphabet_size_;
+      StoreBlockSwitch(block_split_code_, block_ix_, storage_ix, storage);
+    }
+    --block_len_;
+    int ix = entropy_ix_ + symbol;
+    WriteBits(depths_[ix], bits_[ix], storage_ix, storage);
+  }
+
+  // Stores the next symbol with the entropy code of the current block type and
+  // context value.
+  // Updates the block type and block length at block boundaries.
+  template<int kContextBits>
+  void StoreSymbolWithContext(int symbol, int context,
+                              const std::vector<int>& context_map,
+                              int* storage_ix, uint8_t* storage) {
+    if (block_len_ == 0) {
+      ++block_ix_;
+      block_len_ = block_lengths_[block_ix_];
+      entropy_ix_ = block_types_[block_ix_] << kContextBits;
+      StoreBlockSwitch(block_split_code_, block_ix_, storage_ix, storage);
+    }
+    --block_len_;
+    int histo_ix = context_map[entropy_ix_ + context];
+    int ix = histo_ix * alphabet_size_ + symbol;
+    WriteBits(depths_[ix], bits_[ix], storage_ix, storage);
+  }
+
+ private:
+  const int alphabet_size_;
+  const int num_block_types_;
+  const std::vector<int>& block_types_;
+  const std::vector<int>& block_lengths_;
+  BlockSplitCode block_split_code_;
+  int block_ix_;
+  int block_len_;
+  int entropy_ix_;
+  std::vector<uint8_t> depths_;
+  std::vector<uint16_t> bits_;
+};
+
+bool StoreMetaBlock(const uint8_t* input,
+                    size_t start_pos,
+                    size_t length,
+                    size_t mask,
+                    bool is_last,
+                    int quality,
+                    int num_direct_distance_codes,
+                    int distance_postfix_bits,
+                    int literal_context_mode,
+                    const brotli::Command *commands,
+                    size_t n_commands,
+                    const MetaBlockSplit& mb,
+                    int *storage_ix,
+                    uint8_t *storage) {
+  if (!StoreCompressedMetaBlockHeader(is_last, length, storage_ix, storage)) {
+    return false;
+  }
+
+  if (length == 0) {
+    return true;
+  }
+
+  int num_distance_codes =
+      kNumDistanceShortCodes + num_direct_distance_codes +
+      (48 << distance_postfix_bits);
+
+  BlockEncoder literal_enc(256,
+                           mb.literal_split.num_types,
+                           mb.literal_split.types,
+                           mb.literal_split.lengths);
+  BlockEncoder command_enc(kNumCommandPrefixes,
+                           mb.command_split.num_types,
+                           mb.command_split.types,
+                           mb.command_split.lengths);
+  BlockEncoder distance_enc(num_distance_codes,
+                            mb.distance_split.num_types,
+                            mb.distance_split.types,
+                            mb.distance_split.lengths);
+
+  literal_enc.BuildAndStoreBlockSwitchEntropyCodes(
+      quality, storage_ix, storage);
+  command_enc.BuildAndStoreBlockSwitchEntropyCodes(
+      quality, storage_ix, storage);
+  distance_enc.BuildAndStoreBlockSwitchEntropyCodes(
+      quality, storage_ix, storage);
+
+  WriteBits(2, distance_postfix_bits, storage_ix, storage);
+  WriteBits(4, num_direct_distance_codes >> distance_postfix_bits,
+            storage_ix, storage);
+  for (int i = 0; i < mb.literal_split.num_types; ++i) {
+    WriteBits(2, literal_context_mode, storage_ix, storage);
+  }
+
+  if (mb.literal_context_map.empty()) {
+    StoreTrivialContextMap(mb.literal_histograms.size(), kLiteralContextBits,
+                           storage_ix, storage);
+  } else {
+    EncodeContextMap(mb.literal_context_map, mb.literal_histograms.size(),
+                     storage_ix, storage);
+  }
+
+  if (mb.distance_context_map.empty()) {
+    StoreTrivialContextMap(mb.distance_histograms.size(), kDistanceContextBits,
+                           storage_ix, storage);
+  } else {
+    EncodeContextMap(mb.distance_context_map, mb.distance_histograms.size(),
+                     storage_ix, storage);
+  }
+
+  literal_enc.BuildAndStoreEntropyCodes(mb.literal_histograms, quality,
+                                        storage_ix, storage);
+  command_enc.BuildAndStoreEntropyCodes(mb.command_histograms, quality,
+                                        storage_ix, storage);
+  distance_enc.BuildAndStoreEntropyCodes(mb.distance_histograms, quality,
+                                         storage_ix, storage);
+
+  size_t pos = start_pos;
+  for (int i = 0; i < n_commands; ++i) {
+    const Command cmd = commands[i];
+    int cmd_code = cmd.cmd_prefix_;
+    int lennumextra = cmd.cmd_extra_ >> 48;
+    uint64_t lenextra = cmd.cmd_extra_ & 0xffffffffffffULL;
+    command_enc.StoreSymbol(cmd_code, storage_ix, storage);
+    WriteBits(lennumextra, lenextra, storage_ix, storage);
+    if (mb.literal_context_map.empty()) {
+      for (int j = 0; j < cmd.insert_len_; j++) {
+        literal_enc.StoreSymbol(input[pos & mask], storage_ix, storage);
+        ++pos;
+      }
+    } else {
+      for (int j = 0; j < cmd.insert_len_; ++j) {
+        uint8_t prev_byte = pos > 0 ? input[(pos - 1) & mask] : 0;
+        uint8_t prev_byte2 = pos > 1 ? input[(pos - 2) & mask] : 0;
+        int context = Context(prev_byte, prev_byte2,
+                              literal_context_mode);
+        int literal = input[pos & mask];
+        literal_enc.StoreSymbolWithContext<kLiteralContextBits>(
+            literal, context, mb.literal_context_map, storage_ix, storage);
+        ++pos;
+      }
+    }
+    if (cmd.copy_len_ > 0 && cmd.cmd_prefix_ >= 128) {
+      int dist_code = cmd.dist_prefix_;
+      int distnumextra = cmd.dist_extra_ >> 24;
+      int distextra = cmd.dist_extra_ & 0xffffff;
+      if (mb.distance_context_map.empty()) {
+        distance_enc.StoreSymbol(dist_code, storage_ix, storage);
+      } else {
+        int context = cmd.DistanceContext();
+        distance_enc.StoreSymbolWithContext<kDistanceContextBits>(
+            dist_code, context, mb.distance_context_map, storage_ix, storage);
+      }
+      brotli::WriteBits(distnumextra, distextra, storage_ix, storage);
+    }
+    pos += cmd.copy_len_;
+  }
+  return true;
+}
+
+// This is for storing uncompressed blocks (simple raw storage of
+// bytes-as-bytes).
+bool StoreUncompressedMetaBlock(bool final_block,
+                                const uint8_t * __restrict input,
+                                size_t position, size_t mask,
+                                size_t len,
+                                int * __restrict storage_ix,
+                                uint8_t * __restrict storage) {
+  if (!brotli::StoreUncompressedMetaBlockHeader(len, storage_ix, storage)) {
+    return false;
+  }
+  *storage_ix = ((*storage_ix + 7) / 8) * 8;  // Go to next byte
+
+  size_t masked_pos = position & mask;
+  if (masked_pos + len > mask + 1) {
+    size_t len1 = mask + 1 - masked_pos;
+    memcpy(&storage[*storage_ix >> 3], &input[masked_pos], len1);
+    *storage_ix += len1 << 3;
+    len -= len1;
+    masked_pos = 0;
+  }
+  memcpy(&storage[*storage_ix >> 3], &input[masked_pos], len);
+  *storage_ix += len << 3;
+
+  // We need to clear the next 4 bytes to continue to be
+  // compatible with WriteBits.
+  brotli::WriteBitsPrepareStorage(*storage_ix, storage);
+
+  // Since the uncomressed block itself may not be the final block, add an empty
+  // one after this.
+  if (final_block) {
+    brotli::WriteBits(1, 1, storage_ix, storage);  // islast
+    brotli::WriteBits(1, 1, storage_ix, storage);  // isempty
+    *storage_ix = ((*storage_ix + 7) / 8) * 8;  // Go to next byte
+
+    // We need to clear the next 4 bytes to continue to be
+    // compatible with WriteBits.
+    brotli::WriteBitsPrepareStorage(*storage_ix, storage);
+  }
+  return true;
 }
 
 }  // namespace brotli

@@ -28,6 +28,11 @@
 namespace brotli {
 
 struct BrotliParams {
+  BrotliParams()
+      : mode(MODE_TEXT),
+        enable_transforms(false),
+        greedy_block_split(false) {}
+
   enum Mode {
     MODE_TEXT = 0,
     MODE_FONT = 1,
@@ -35,8 +40,7 @@ struct BrotliParams {
   Mode mode;
 
   bool enable_transforms;
-
-  BrotliParams() : mode(MODE_TEXT), enable_transforms(false) {}
+  bool greedy_block_split;
 };
 
 class BrotliCompressor {
