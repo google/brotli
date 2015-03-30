@@ -26,25 +26,37 @@
 extern "C" {
 #endif
 
+typedef enum {
+  /* Decoding error, e.g. corrupt input or no memory */
+  BROTLI_RESULT_ERROR = 0,
+  /* Successfully completely done */
+  BROTLI_RESULT_SUCCESS = 1,
+  /* Partially done, but must be called again with more input */
+  BROTLI_RESULT_PARTIAL = 2
+} BrotliResult;
+
 /* Sets *decoded_size to the decompressed size of the given encoded stream. */
 /* This function only works if the encoded buffer has a single meta block, */
 /* or if it has two meta-blocks, where the first is uncompressed and the */
 /* second is empty. */
 /* Returns 1 on success, 0 on failure. */
-int BrotliDecompressedSize(size_t encoded_size, const uint8_t* encoded_buffer,
-                           size_t* decoded_size);
+BrotliResult BrotliDecompressedSize(size_t encoded_size,
+                                    const uint8_t* encoded_buffer,
+                                    size_t* decoded_size);
 
 /* Decompresses the data in encoded_buffer into decoded_buffer, and sets */
 /* *decoded_size to the decompressed length. */
 /* Returns 0 if there was either a bit stream error or memory allocation */
 /* error, and 1 otherwise. */
 /* If decoded size is zero, returns 1 and keeps decoded_buffer unchanged. */
-int BrotliDecompressBuffer(size_t encoded_size, const uint8_t* encoded_buffer,
-                           size_t* decoded_size, uint8_t* decoded_buffer);
+BrotliResult BrotliDecompressBuffer(size_t encoded_size,
+                                    const uint8_t* encoded_buffer,
+                                    size_t* decoded_size,
+                                    uint8_t* decoded_buffer);
 
 /* Same as above, but uses the specified input and output callbacks instead */
 /* of reading from and writing to pre-allocated memory buffers. */
-int BrotliDecompress(BrotliInput input, BrotliOutput output);
+BrotliResult BrotliDecompress(BrotliInput input, BrotliOutput output);
 
 /* Same as above, but supports the caller to call the decoder repeatedly with
    partial data to support streaming. The state must be initialized with
@@ -71,8 +83,8 @@ int BrotliDecompress(BrotliInput input, BrotliOutput output);
    it returning a smaller value than the amount of bytes to write always results
    in an error.
 */
-int BrotliDecompressStreaming(BrotliInput input, BrotliOutput output,
-                              int finish, BrotliState* s);
+BrotliResult BrotliDecompressStreaming(BrotliInput input, BrotliOutput output,
+                                       int finish, BrotliState* s);
 
 /* Same as above, but with memory buffers.
    Must be called with an allocated input buffer in *next_in and an allocated
@@ -101,10 +113,13 @@ int BrotliDecompressStreaming(BrotliInput input, BrotliOutput output,
    *available_out yourself before a next call, e.g. to point to a new larger
    buffer.
 */
-int BrotliDecompressBufferStreaming(size_t* available_in,
-                                    const uint8_t** next_in, int finish,
-                                    size_t* available_out, uint8_t** next_out,
-                                    size_t* total_out, BrotliState* s);
+BrotliResult BrotliDecompressBufferStreaming(size_t* available_in,
+                                             const uint8_t** next_in,
+                                             int finish,
+                                             size_t* available_out,
+                                             uint8_t** next_out,
+                                             size_t* total_out,
+                                             BrotliState* s);
 
 #if defined(__cplusplus) || defined(c_plusplus)
 } /* extern "C" */
