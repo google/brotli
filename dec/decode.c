@@ -432,7 +432,6 @@ static BrotliResult DecodeContextMap(int context_map_size,
   BrotliBitReader* br = &s->br;
   BrotliResult result = BROTLI_RESULT_SUCCESS;
   int use_rle_for_zeros;
-  int max_run_length_prefix = 0;
 
   switch(s->sub_state[0]) {
     case BROTLI_STATE_SUB_NONE:
@@ -457,7 +456,9 @@ static BrotliResult DecodeContextMap(int context_map_size,
 
       use_rle_for_zeros = (int)BrotliReadBits(br, 1);
       if (use_rle_for_zeros) {
-        max_run_length_prefix = (int)BrotliReadBits(br, 4) + 1;
+        s->max_run_length_prefix = (int)BrotliReadBits(br, 4) + 1;
+      } else {
+        s->max_run_length_prefix = 0;
       }
       s->context_map_table = (HuffmanCode*)malloc(
           BROTLI_HUFFMAN_MAX_TABLE_SIZE * sizeof(*s->context_map_table));
@@ -467,8 +468,8 @@ static BrotliResult DecodeContextMap(int context_map_size,
       s->sub_state[0] = BROTLI_STATE_SUB_CONTEXT_MAP_HUFFMAN;
       /* No break, continue to next state. */
     case BROTLI_STATE_SUB_CONTEXT_MAP_HUFFMAN:
-      result = ReadHuffmanCode(
-          *num_htrees + max_run_length_prefix, s->context_map_table, NULL, s);
+      result = ReadHuffmanCode(*num_htrees + s->max_run_length_prefix,
+                               s->context_map_table, NULL, s);
       if (result != BROTLI_RESULT_SUCCESS) return result;
       s->sub_state[0] = BROTLI_STATE_SUB_CONTEXT_MAPS;
       /* No break, continue to next state. */
@@ -482,7 +483,7 @@ static BrotliResult DecodeContextMap(int context_map_size,
         if (code == 0) {
           (*context_map)[s->context_index] = 0;
           ++s->context_index;
-        } else if (code <= max_run_length_prefix) {
+        } else if (code <= s->max_run_length_prefix) {
           int reps = 1 + (1 << code) + (int)BrotliReadBits(br, code);
           while (--reps) {
             if (s->context_index >= context_map_size) {
@@ -493,7 +494,7 @@ static BrotliResult DecodeContextMap(int context_map_size,
           }
         } else {
           (*context_map)[s->context_index] =
-              (uint8_t)(code - max_run_length_prefix);
+              (uint8_t)(code - s->max_run_length_prefix);
           ++s->context_index;
         }
       }
@@ -960,6 +961,7 @@ BrotliResult BrotliDecompressStreaming(BrotliInput input, BrotliOutput output,
           break;
         }
         if (s->is_uncompressed) {
+          BrotliSetBitPos(br, (s->br.bit_pos_ + 7) & (uint32_t)(~7UL));
           s->state = BROTLI_STATE_UNCOMPRESSED;
           break;
         }
@@ -967,7 +969,6 @@ BrotliResult BrotliDecompressStreaming(BrotliInput input, BrotliOutput output,
         s->state = BROTLI_STATE_HUFFMAN_CODE_0;
         break;
       case BROTLI_STATE_UNCOMPRESSED:
-        BrotliSetBitPos(br, (s->br.bit_pos_ + 7) & (uint32_t)(~7UL));
         initial_remaining_len = s->meta_block_remaining_len;
         /* pos is given as argument since s->pos is only updated at the end. */
         result = CopyUncompressedBlockToOutput(output, pos, s);

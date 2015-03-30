@@ -150,6 +150,7 @@ typedef struct {
 
   /* For DecodeContextMap */
   int context_index;
+  int max_run_length_prefix;
   HuffmanCode* context_map_table;
 } BrotliState;
 
