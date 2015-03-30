@@ -41,7 +41,7 @@ static inline double BitsEntropy(const int *population, int size) {
     sum += p;
     retval -= p * FastLog2(p);
   }
-  if (sum) retval -= sum * log(sum);
+  if (sum) retval -= sum * FastLog2(sum);
   if (retval < sum) {
     // At least one bit per literal is needed.
     retval = sum;
