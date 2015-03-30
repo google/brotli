@@ -1,7 +1,36 @@
 from distutils.core import setup, Extension
 from distutils.command.build_ext import build_ext
+from distutils.cmd import Command
 import platform
 from os.path import abspath
+
+
+class TestCommand(Command):
+    """ Run all *_test.py scripts in 'tests' folder with the same Python
+    interpreter used to run setup.py.
+    """
+
+    user_options = []
+
+    def initialize_options(self):
+        pass
+
+    def finalize_options(self):
+        pass
+
+    def run(self):
+        import sys, os, subprocess, glob
+
+        curr_dir = os.path.abspath(os.path.dirname(os.path.realpath(__file__)))
+        test_dir = os.path.join(curr_dir, 'tests')
+        os.chdir(test_dir)
+
+        for test in glob.glob("*_test.py"):
+            try:
+                subprocess.check_call([sys.executable, test])
+            except subprocess.CalledProcessError:
+                raise SystemExit(1)
+
 
 class BuildExt(build_ext):
     def get_source_files(self):
@@ -128,5 +157,8 @@ setup(
     author_email="khaledhosny@eglug.org",
     license="Apache 2.0",
     ext_modules=[brotli],
-    cmdclass={'build_ext': BuildExt},
+    cmdclass={
+        'build_ext': BuildExt,
+        'test': TestCommand
+        },
 )
