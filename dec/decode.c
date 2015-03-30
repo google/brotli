@@ -464,11 +464,13 @@ static BrotliResult DecodeContextMap(int context_map_size,
       if (s->context_map_table == NULL) {
         return BROTLI_RESULT_ERROR;
       }
+      s->sub_state[0] = BROTLI_STATE_SUB_CONTEXT_MAP_HUFFMAN;
       /* No break, continue to next state. */
     case BROTLI_STATE_SUB_CONTEXT_MAP_HUFFMAN:
       result = ReadHuffmanCode(
           *num_htrees + max_run_length_prefix, s->context_map_table, NULL, s);
       if (result != BROTLI_RESULT_SUCCESS) return result;
+      s->sub_state[0] = BROTLI_STATE_SUB_CONTEXT_MAPS;
       /* No break, continue to next state. */
     case BROTLI_STATE_SUB_CONTEXT_MAPS:
       while (s->context_index < context_map_size) {
