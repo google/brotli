@@ -29,12 +29,15 @@ namespace brotli {
 
 static const int kMaxWindowBits = 24;
 static const int kMinWindowBits = 16;
+static const int kMinInputBlockBits = 16;
+static const int kMaxInputBlockBits = 28;
 
 struct BrotliParams {
   BrotliParams()
       : mode(MODE_TEXT),
         quality(11),
         lgwin(22),
+        lgblock(0),
         enable_transforms(false),
         greedy_block_split(false) {}
 
@@ -49,6 +52,9 @@ struct BrotliParams {
   int quality;
   // Base 2 logarithm of the sliding window size. Range is 16 to 24.
   int lgwin;
+  // Base 2 logarithm of the maximum input block size. Range is 16 to 28.
+  // If set to 0, the value will be set based on the quality.
+  int lgblock;
 
   bool enable_transforms;
   bool greedy_block_split;
@@ -60,7 +66,7 @@ class BrotliCompressor {
   ~BrotliCompressor();
 
   // The maximum input size that can be processed at once.
-  size_t input_block_size() const { return input_block_size_; }
+  size_t input_block_size() const { return 1 << params_.lgblock; }
 
   // Encodes the data in input_buffer as a meta-block and writes it to
   // encoded_buffer (*encoded_size should be set to the size of
@@ -98,7 +104,6 @@ class BrotliCompressor {
   int dist_cache_[4];
   uint8_t last_byte_;
   uint8_t last_byte_bits_;
-  int input_block_size_;
   int storage_size_;
   std::unique_ptr<uint8_t[]> storage_;
   static StaticDictionary *static_dictionary_;

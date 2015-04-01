@@ -142,28 +142,29 @@ BrotliCompressor::BrotliCompressor(BrotliParams params)
   // Sanitize params.
   if (params_.lgwin < kMinWindowBits) {
     params_.lgwin = kMinWindowBits;
-  }
-  if (params_.lgwin > kMaxWindowBits) {
+  } else if (params_.lgwin > kMaxWindowBits) {
     params_.lgwin = kMaxWindowBits;
+  }
+  if (params_.lgblock == 0) {
+    params_.lgblock = 16;
+    if (params_.quality >= 9 && params_.lgwin > params_.lgblock) {
+      params_.lgblock = std::min(21, params_.lgwin);
+    }
+  } else {
+    params_.lgblock = std::min(kMaxInputBlockBits,
+                               std::max(kMinInputBlockBits, params_.lgblock));
   }
 
   // Set maximum distance, see section 9.1. of the spec.
   max_backward_distance_ = (1 << params_.lgwin) - 16;
-
-  // Set input block size.
-  int input_block_size_bits = 16;
-  if (params_.quality >= 9 && params_.lgwin > input_block_size_bits) {
-    input_block_size_bits = std::min(21, params_.lgwin);
-  }
-  input_block_size_ = 1 << input_block_size_bits;
 
   // Initialize input and literal cost ring buffers.
   // We allocate at least lgwin + 1 bits for the ring buffer so that the newly
   // added block fits there completely and we still get lgwin bits and at least
   // read_block_size_bits + 1 bits because the copy tail length needs to be
   // smaller than ringbuffer size.
-  int ringbuffer_bits = std::max(params_.lgwin + 1, input_block_size_bits + 1);
-  ringbuffer_.reset(new RingBuffer(ringbuffer_bits, input_block_size_bits));
+  int ringbuffer_bits = std::max(params_.lgwin + 1, params_.lgblock + 1);
+  ringbuffer_.reset(new RingBuffer(ringbuffer_bits, params_.lgblock));
   literal_cost_.resize(1 << ringbuffer_bits);
 
   // Initialize storage.
@@ -202,22 +203,9 @@ BrotliCompressor::~BrotliCompressor() {
 StaticDictionary *BrotliCompressor::static_dictionary_ = NULL;
 
 void BrotliCompressor::StoreDictionaryWordHashes(bool enable_transforms) {
-  const int num_transforms = enable_transforms ? kNumTransforms : 1;
   if (static_dictionary_ == NULL) {
     static_dictionary_ = new StaticDictionary;
-    for (int t = num_transforms - 1; t >= 0; --t) {
-      for (int i = kMaxDictionaryWordLength;
-           i >= kMinDictionaryWordLength; --i) {
-        const int num_words = 1 << kBrotliDictionarySizeBitsByLength[i];
-        for (int j = num_words - 1; j >= 0; --j) {
-          int word_id = t * num_words + j;
-          std::string word = GetTransformedDictionaryWord(i, word_id);
-          if (word.size() >= 4) {
-            static_dictionary_->Insert(word, i, word_id);
-          }
-        }
-      }
-    }
+    static_dictionary_->Fill(enable_transforms);
   }
   hashers_->SetStaticDictionary(static_dictionary_);
 }
@@ -227,7 +215,7 @@ bool BrotliCompressor::WriteMetaBlock(const size_t input_size,
                                       const bool is_last,
                                       size_t* encoded_size,
                                       uint8_t* encoded_buffer) {
-  if (input_size > input_block_size_) {
+  if (input_size > input_block_size()) {
     return false;
   }
   static const double kMinUTF8Ratio = 0.75;
