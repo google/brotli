@@ -21,11 +21,30 @@
 #include <unordered_map>
 #include <string>
 
+#include "./dictionary.h"
+#include "./transform.h"
+
 namespace brotli {
 
 class StaticDictionary {
  public:
   StaticDictionary() {}
+  void Fill(bool enable_transforms) {
+    const int num_transforms = enable_transforms ? kNumTransforms : 1;
+    for (int t = num_transforms - 1; t >= 0; --t) {
+      for (int i = kMaxDictionaryWordLength;
+           i >= kMinDictionaryWordLength; --i) {
+        const int num_words = 1 << kBrotliDictionarySizeBitsByLength[i];
+        for (int j = num_words - 1; j >= 0; --j) {
+          int word_id = t * num_words + j;
+          std::string word = GetTransformedDictionaryWord(i, word_id);
+          if (word.size() >= 4) {
+            Insert(word, i, word_id);
+          }
+        }
+      }
+    }
+  }
   void Insert(const std::string &str, int len, int dist) {
     int ix = (dist << 6) + len;
     std::unordered_map<std::string, int>::const_iterator it = map_.find(str);
