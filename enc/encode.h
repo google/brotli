@@ -27,9 +27,14 @@
 
 namespace brotli {
 
+static const int kMaxWindowBits = 24;
+static const int kMinWindowBits = 16;
+
 struct BrotliParams {
   BrotliParams()
       : mode(MODE_TEXT),
+        quality(11),
+        lgwin(22),
         enable_transforms(false),
         greedy_block_split(false) {}
 
@@ -38,6 +43,12 @@ struct BrotliParams {
     MODE_FONT = 1,
   };
   Mode mode;
+
+  // Controls the compression-speed vs compression-density tradeoffs. The higher
+  // the quality, the slower the compression. Range is 0 to 11.
+  int quality;
+  // Base 2 logarithm of the sliding window size. Range is 16 to 24.
+  int lgwin;
 
   bool enable_transforms;
   bool greedy_block_split;
@@ -48,8 +59,8 @@ class BrotliCompressor {
   explicit BrotliCompressor(BrotliParams params);
   ~BrotliCompressor();
 
-  // Writes the stream header into the internal output buffer.
-  void WriteStreamHeader();
+  // The maximum input size that can be processed at once.
+  size_t input_block_size() const { return input_block_size_; }
 
   // Encodes the data in input_buffer as a meta-block and writes it to
   // encoded_buffer (*encoded_size should be set to the size of
@@ -68,20 +79,28 @@ class BrotliCompressor {
   // an error and true otherwise.
   bool FinishStream(size_t* encoded_size, uint8_t* encoded_buffer);
 
+  // No-op, but we keep it here for API backward-compatibility.
+  void WriteStreamHeader() {}
+
  private:
   // Initializes the hasher with the hashes of dictionary words.
   void StoreDictionaryWordHashes(bool enable_transforms);
 
+  uint8_t* GetBrotliStorage(size_t size);
+
   BrotliParams params_;
-  int window_bits_;
+  int max_backward_distance_;
   std::unique_ptr<Hashers> hashers_;
   int hash_type_;
   size_t input_pos_;
-  RingBuffer ringbuffer_;
+  std::unique_ptr<RingBuffer> ringbuffer_;
   std::vector<float> literal_cost_;
   int dist_cache_[4];
-  int storage_ix_;
-  uint8_t* storage_;
+  uint8_t last_byte_;
+  uint8_t last_byte_bits_;
+  int input_block_size_;
+  int storage_size_;
+  std::unique_ptr<uint8_t[]> storage_;
   static StaticDictionary *static_dictionary_;
 };
 

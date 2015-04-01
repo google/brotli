@@ -661,6 +661,11 @@ class BlockEncoder {
   std::vector<uint16_t> bits_;
 };
 
+void JumpToByteBoundary(int* storage_ix, uint8_t* storage) {
+  *storage_ix = (*storage_ix + 7) & ~7;
+  storage[*storage_ix >> 3] = 0;
+}
+
 bool StoreMetaBlock(const uint8_t* input,
                     size_t start_pos,
                     size_t length,
@@ -680,6 +685,8 @@ bool StoreMetaBlock(const uint8_t* input,
   }
 
   if (length == 0) {
+    // Only the last meta-block can be empty, so jump to next byte.
+    JumpToByteBoundary(storage_ix, storage);
     return true;
   }
 
@@ -777,6 +784,9 @@ bool StoreMetaBlock(const uint8_t* input,
     }
     pos += cmd.copy_len_;
   }
+  if (is_last) {
+    JumpToByteBoundary(storage_ix, storage);
+  }
   return true;
 }
 
@@ -791,7 +801,7 @@ bool StoreUncompressedMetaBlock(bool final_block,
   if (!brotli::StoreUncompressedMetaBlockHeader(len, storage_ix, storage)) {
     return false;
   }
-  *storage_ix = ((*storage_ix + 7) / 8) * 8;  // Go to next byte
+  JumpToByteBoundary(storage_ix, storage);
 
   size_t masked_pos = position & mask;
   if (masked_pos + len > mask + 1) {
@@ -813,11 +823,7 @@ bool StoreUncompressedMetaBlock(bool final_block,
   if (final_block) {
     brotli::WriteBits(1, 1, storage_ix, storage);  // islast
     brotli::WriteBits(1, 1, storage_ix, storage);  // isempty
-    *storage_ix = ((*storage_ix + 7) / 8) * 8;  // Go to next byte
-
-    // We need to clear the next 4 bytes to continue to be
-    // compatible with WriteBits.
-    brotli::WriteBitsPrepareStorage(*storage_ix, storage);
+    JumpToByteBoundary(storage_ix, storage);
   }
   return true;
 }
