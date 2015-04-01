@@ -539,6 +539,22 @@ static BROTLI_INLINE void DecodeBlockType(const int max_block_type,
   ++(*index);
 }
 
+/* Decodes the block type and updates the state for literal context. */
+static BROTLI_INLINE void DecodeBlockTypeWithContext(BrotliState* s,
+                                                     BrotliBitReader* br) {
+  DecodeBlockType(s->num_block_types[0],
+                  s->block_type_trees, 0,
+                  s->block_type, s->block_type_rb,
+                  s->block_type_rb_index, br);
+  s->block_length[0] = ReadBlockLength(s->block_len_trees, br);
+  s->context_offset = s->block_type[0] << kLiteralContextBits;
+  s->context_map_slice = s->context_map + s->context_offset;
+  s->literal_htree_index = s->context_map_slice[0];
+  s->context_mode = s->context_modes[s->block_type[0]];
+  s->context_lookup_offset1 = kContextLookupOffsets[s->context_mode];
+  s->context_lookup_offset2 = kContextLookupOffsets[s->context_mode + 1];
+}
+
 /* Copy len bytes from src to dst. It can write up to ten extra bytes
    after the end of the copy.
 
@@ -1042,6 +1058,15 @@ BrotliResult BrotliDecompressStreaming(BrotliInput input, BrotliOutput output,
       case BROTLI_STATE_CONTEXT_MAP_1:
         result = DecodeContextMap(s->num_block_types[0] << kLiteralContextBits,
                                   &s->num_literal_htrees, &s->context_map, s);
+
+        s->trivial_literal_context = 1;
+        for (i = 0; i < s->num_block_types[0] << kLiteralContextBits; i++) {
+          if (s->context_map[i] != i >> kLiteralContextBits) {
+            s->trivial_literal_context = 0;
+            break;
+          }
+        }
+
         if (result != BROTLI_RESULT_SUCCESS) break;
         s->state = BROTLI_STATE_CONTEXT_MAP_2;
         /* No break, continue to next state */
@@ -1128,45 +1153,66 @@ BrotliResult BrotliDecompressStreaming(BrotliInput input, BrotliOutput output,
         s->state = BROTLI_STATE_BLOCK_INNER;
         /* No break, go to next state */
       case BROTLI_STATE_BLOCK_INNER:
-        while (i < s->insert_length) {
-          if (!BrotliReadMoreInput(br)) {
-            result = BROTLI_RESULT_PARTIAL;
-            break;
-          }
-          if (s->block_length[0] == 0) {
-            DecodeBlockType(s->num_block_types[0],
-                            s->block_type_trees, 0,
-                            s->block_type, s->block_type_rb,
-                            s->block_type_rb_index, br);
-            s->block_length[0] = ReadBlockLength(s->block_len_trees, br);
-            s->context_offset = s->block_type[0] << kLiteralContextBits;
-            s->context_map_slice = s->context_map + s->context_offset;
-            s->context_mode = s->context_modes[s->block_type[0]];
-            s->context_lookup_offset1 = kContextLookupOffsets[s->context_mode];
-            s->context_lookup_offset2 =
-                kContextLookupOffsets[s->context_mode + 1];
-          }
-          context = (kContextLookup[s->context_lookup_offset1 + s->prev_byte1] |
-                     kContextLookup[s->context_lookup_offset2 + s->prev_byte2]);
-          BROTLI_LOG_UINT(context);
-          s->literal_htree_index = s->context_map_slice[context];
-          --s->block_length[0];
-          s->prev_byte2 = s->prev_byte1;
-          s->prev_byte1 = (uint8_t)ReadSymbol(
-              s->hgroup[0].htrees[s->literal_htree_index], br);
-          s->ringbuffer[pos & s->ringbuffer_mask] = s->prev_byte1;
-          BROTLI_LOG_UINT(s->literal_htree_index);
-          BROTLI_LOG_ARRAY_INDEX(s->ringbuffer, pos & s->ringbuffer_mask);
-          if ((pos & s->ringbuffer_mask) == s->ringbuffer_mask) {
-            if (BrotliWrite(output, s->ringbuffer,
-                            (size_t)s->ringbuffer_size) < 0) {
-              result = BROTLI_RESULT_ERROR;
+        if (s->trivial_literal_context) {
+          while (i < s->insert_length) {
+            if (!BrotliReadMoreInput(br)) {
+              result = BROTLI_RESULT_PARTIAL;
               break;
             }
+            if (s->block_length[0] == 0) {
+              DecodeBlockTypeWithContext(s, br);
+            }
+
+            s->ringbuffer[pos & s->ringbuffer_mask] = (uint8_t)ReadSymbol(
+                s->hgroup[0].htrees[s->literal_htree_index], br);
+
+            --s->block_length[0];
+            BROTLI_LOG_UINT(s->literal_htree_index);
+            BROTLI_LOG_ARRAY_INDEX(s->ringbuffer, pos & s->ringbuffer_mask);
+            if ((pos & s->ringbuffer_mask) == s->ringbuffer_mask) {
+              if (BrotliWrite(output, s->ringbuffer,
+                              (size_t)s->ringbuffer_size) < 0) {
+                result = BROTLI_RESULT_ERROR;
+                break;
+              }
+            }
+            ++pos;
+            ++i;
           }
-          ++pos;
-          ++i;
+        } else {
+          while (i < s->insert_length) {
+            if (!BrotliReadMoreInput(br)) {
+              result = BROTLI_RESULT_PARTIAL;
+              break;
+            }
+            if (s->block_length[0] == 0) {
+              DecodeBlockTypeWithContext(s, br);
+            }
+
+            context =
+                (kContextLookup[s->context_lookup_offset1 + s->prev_byte1] |
+                 kContextLookup[s->context_lookup_offset2 + s->prev_byte2]);
+            BROTLI_LOG_UINT(context);
+            s->literal_htree_index = s->context_map_slice[context];
+            --s->block_length[0];
+            s->prev_byte2 = s->prev_byte1;
+            s->prev_byte1 = (uint8_t)ReadSymbol(
+                s->hgroup[0].htrees[s->literal_htree_index], br);
+            s->ringbuffer[pos & s->ringbuffer_mask] = s->prev_byte1;
+            BROTLI_LOG_UINT(s->literal_htree_index);
+            BROTLI_LOG_ARRAY_INDEX(s->ringbuffer, pos & s->ringbuffer_mask);
+            if ((pos & s->ringbuffer_mask) == s->ringbuffer_mask) {
+              if (BrotliWrite(output, s->ringbuffer,
+                              (size_t)s->ringbuffer_size) < 0) {
+                result = BROTLI_RESULT_ERROR;
+                break;
+              }
+            }
+            ++pos;
+            ++i;
+          }
         }
+
         if (result != BROTLI_RESULT_SUCCESS) break;
 
         s->meta_block_remaining_len -= s->insert_length;

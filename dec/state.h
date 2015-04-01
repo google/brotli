@@ -86,6 +86,9 @@ typedef struct {
   BrotliBitReader br;
   /* This counter is reused for several disjoint loops. */
   int loop_counter;
+  /* This is true if the literal context map histogram type always matches the
+  block type. It is then not needed to keep the context (faster decoding). */
+  int trivial_literal_context;
 
   int meta_block_remaining_len;
   int is_uncompressed;
