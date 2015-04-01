@@ -853,6 +853,7 @@ BrotliResult BrotliDecompressStreaming(BrotliInput input, BrotliOutput output,
   BrotliResult result = BROTLI_RESULT_SUCCESS;
   BrotliBitReader* br = &s->br;
   int initial_remaining_len;
+  int bytes_copied;
 
   /* We need the slack region for the following reasons:
        - always doing two 8-byte copies for fast backward copying
@@ -989,7 +990,13 @@ BrotliResult BrotliDecompressStreaming(BrotliInput input, BrotliOutput output,
         initial_remaining_len = s->meta_block_remaining_len;
         /* pos is given as argument since s->pos is only updated at the end. */
         result = CopyUncompressedBlockToOutput(output, pos, s);
-        pos += (initial_remaining_len - s->meta_block_remaining_len);
+        bytes_copied = initial_remaining_len - s->meta_block_remaining_len;
+        pos += bytes_copied;
+        if (bytes_copied > 0) {
+          s->prev_byte2 = bytes_copied == 1 ? s->prev_byte1 :
+              s->ringbuffer[(pos - 2) & s->ringbuffer_mask];
+          s->prev_byte1 = s->ringbuffer[(pos - 1) & s->ringbuffer_mask];
+        }
         if (result != BROTLI_RESULT_SUCCESS) break;
         s->state = BROTLI_STATE_METABLOCK_DONE;
         break;
