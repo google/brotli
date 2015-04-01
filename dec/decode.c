@@ -683,6 +683,7 @@ BrotliResult CopyUncompressedBlockToOutput(BrotliOutput output,
           }
           s->meta_block_remaining_len--;
         }
+        s->sub_state[0] = BROTLI_STATE_SUB_NONE;
         return BROTLI_RESULT_SUCCESS;
       case BROTLI_STATE_SUB_UNCOMPRESSED_FILL:
         /* If we have more to copy than the remaining size of the ringbuffer,
