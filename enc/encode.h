@@ -30,7 +30,7 @@ namespace brotli {
 static const int kMaxWindowBits = 24;
 static const int kMinWindowBits = 16;
 static const int kMinInputBlockBits = 16;
-static const int kMaxInputBlockBits = 28;
+static const int kMaxInputBlockBits = 24;
 
 struct BrotliParams {
   BrotliParams()
@@ -52,7 +52,7 @@ struct BrotliParams {
   int quality;
   // Base 2 logarithm of the sliding window size. Range is 16 to 24.
   int lgwin;
-  // Base 2 logarithm of the maximum input block size. Range is 16 to 28.
+  // Base 2 logarithm of the maximum input block size. Range is 16 to 24.
   // If set to 0, the value will be set based on the quality.
   int lgblock;
 
