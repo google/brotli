@@ -220,12 +220,12 @@ class HashLongestMatchQuickly {
       uint32_t *bucket = buckets_ + key;
       prev_ix = *bucket++;
       for (int i = 0; i < kBucketSweep; ++i, prev_ix = *bucket++) {
-        const int backward = cur_ix - prev_ix;
+        const int backward_distance = cur_ix - prev_ix;
         prev_ix &= ring_buffer_mask;
         if (compare_char != ring_buffer[prev_ix + best_len]) {
           continue;
         }
-        if (PREDICT_FALSE(backward == 0 || backward > max_backward)) {
+        if (PREDICT_FALSE(backward_distance == 0 || backward_distance > max_backward)) {
           continue;
         }
         const int len =
@@ -234,13 +234,13 @@ class HashLongestMatchQuickly {
                                      max_length);
         if (len >= 4) {
           const double score = BackwardReferenceScore(average_cost,
-                                                      len, backward);
+                                                      len, backward_distance);
           if (best_score < score) {
             best_score = score;
             best_len = len;
             *best_len_out = best_len;
             *best_len_code_out = best_len;
-            *best_distance_out = backward;
+            *best_distance_out = backward_distance;
             *best_score_out = score;
             compare_char = ring_buffer[cur_ix_masked + best_len];
             match_found = true;

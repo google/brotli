@@ -53,10 +53,10 @@ class StaticDictionary {
     }
     map_[str] = ix;
     int v = 0;
-    for (int i = 0; i < 4 && i < str.size(); ++i) {
+    for (unsigned int i = 0; i < 4 && i < str.size(); ++i) {
       v += str[i] << (8 * i);
     }
-    if (prefix_map_[v] < str.size()) {
+    if (prefix_map_[v] < static_cast<int>(str.size())) {
       prefix_map_[v] = str.size();
     }
   }
