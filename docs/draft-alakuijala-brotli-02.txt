@@ -77,7 +77,7 @@ Table of Contents
       3.4.  Simple Huffman codes  . . . . . . . . . . . . . . . . . . 10
       3.5.  Complex Huffman codes . . . . . . . . . . . . . . . . . . 11
    4.  Encoding of distances  . . . . . . . . . . . . . . . . . . . . 13
-   5.  Encoding of literal insertion lengths and copy lengths . . . . 14
+   5.  Encoding of literal insertion lengths and copy lengths . . . . 15
    6.  Encoding of block switch commands  . . . . . . . . . . . . . . 17
    7.  Context modeling . . . . . . . . . . . . . . . . . . . . . . . 18
       7.1.  Context modes and context ID lookup for literals  . . . . 18
@@ -264,8 +264,8 @@ Internet-Draft                   Brotli                     October 2014
 
    Each meta-block is compressed using a combination of the LZ77
    algorithm (Lempel-Ziv 1977, [LZ77]) and Huffman coding. The Huffman
-   trees for each block are independent of those for previous or
-   subsequent blocks; the LZ77 algorithm may use a reference to a
+   trees for each meta-block are independent of those for previous or
+   subsequent meta-blocks; the LZ77 algorithm may use a reference to a
    duplicated string occurring in a previous meta-block, up to sliding
    window size input bytes before.
 
@@ -293,30 +293,35 @@ Internet-Draft                   Brotli                     October 2014
    distances. The code trees for each meta-block appear in a compact
    form just before the compressed data in the meta-block header.
 
-   The sequence of each type of value in the representation of a command
-   (insert-and-copy lengths, literals and distances) within a meta-
-   block is further divided into blocks. In the "brotli" format, blocks
-   are not contiguous chunks of compressed data, but rather the pieces
-   of compressed data belonging to a block are interleaved with pieces
-   of data belonging to other blocks. Each meta-block can be logically
-   decomposed into a series of insert-and-copy length blocks, a series
-   of literal blocks and a series of distance blocks. These are also
-   called the three block categories: a meta-block has a series of
+   The sequence of each category of value in the representation of a
+   command (insert-and-copy lengths, literals and distances) within a
+   meta- block is further divided into blocks. In the "brotli" format,
+   blocks are not contiguous chunks of compressed data, but rather the
+   pieces of compressed data belonging to a block are interleaved with
+   pieces of data belonging to other blocks. Each meta-block can be
+   logically decomposed into a series of insert-and-copy length blocks,
+   a series of literal blocks and a series of distance blocks. These are
+   also called the three block categories: a meta-block has a series of
    blocks for each block category. Note that the physical structure of
    the meta-block is a series of commands, while the three series of
-   blocks is the logical structure. Consider the following example:
+   blocks is the logical structure.
+
+   A block is defined by a type (0-255) and a length. The length is the
+   amount of huffman symbols of its category, the type dictates which
+   huffman code is used for these symbols. Consider the following
+   example:
 
       (IaC0, L0, L1, L2, D0)(IaC1, D1)(IaC2, L3, L4, D2)(IaC3, L5, D3)
 
-   The meta-block here has 4 commands, and each three types of symbols
-   within these commands can be rearranged for example into the
-   following logical block structure:
+   The meta-block here has 4 commands, and each of the three categories
+   of symbols within these commands are part of a logical block
+   structure, for example the following:
 
-      [IaC0, IaC1][IaC2, IaC3]  <-- block types 0 and 1
+      [IaC0, IaC1][IaC2, IaC3]  <-- insert-and-copy: block types 0 and 1
 
-      [L0, L1][L2, L3, L4][L5]  <-- block types 0, 1, and 0
+      [L0, L1][L2, L3, L4][L5]  <-- literals: block types 0, 1, and 0
 
-      [D0][D1, D2, D3]          <-- block types 0 and 1
+      [D0][D1, D2, D3]          <-- distances: block types 0 and 1
 
    The subsequent blocks within each block category must have different
    block types, but blocks further away in the block sequence can have
@@ -327,11 +332,6 @@ Internet-Draft                   Brotli                     October 2014
    where a block-switch command is a pair <block type, block length>.
    The block-switch commands are represented in the compressed data
    before the start of each new block using a Huffman code tree for
-   block types and a separate Huffman code tree for block lengths for
-   each block category. In the above example the physical layout of the
-   meta-block is the following:
-
-      IaC0 L0 L1 LBlockSwitch(1, 3) L2 D0 IaC1 DBlockSwitch(1, 1) D1
 
 
 
@@ -340,6 +340,11 @@ Alakuijala & Szabadka    Expires April 27, 2015                 [Page 6]
 Internet-Draft                   Brotli                     October 2014
 
 
+   block types and a separate Huffman code tree for block lengths for
+   each block category. In the above example the physical layout of the
+   meta-block is the following:
+
+      IaC0 L0 L1 LBlockSwitch(1, 3) L2 D0 IaC1 DBlockSwitch(1, 1) D1
       IaCBlockSwitch(1, 2) IaC2 L3 L4 D2 IaC3 LBlockSwitch(0, 1) D3
 
    Note that the block switch commands for the first blocks are not part
@@ -383,11 +388,6 @@ Internet-Draft                   Brotli                     October 2014
 
    We define a prefix code in terms of a binary tree in which the two
    edges descending from each non-leaf node are labeled 0 and 1 and in
-   which the leaf nodes correspond one-for-one with (are labeled with)
-   the symbols of the alphabet; then the code for a symbol is the
-   sequence of 0's and 1's on the edges leading from the root to the
-   leaf labeled with that symbol.  For example:
-
 
 
 
@@ -395,6 +395,11 @@ Alakuijala & Szabadka    Expires April 27, 2015                 [Page 7]
 
 Internet-Draft                   Brotli                     October 2014
 
+
+   which the leaf nodes correspond one-for-one with (are labeled with)
+   the symbols of the alphabet; then the code for a symbol is the
+   sequence of 0's and 1's on the edges leading from the root to the
+   leaf labeled with that symbol.  For example:
 
                /\              Symbol    Code
               0  1             ------    ----
@@ -437,12 +442,7 @@ Internet-Draft                   Brotli                     October 2014
    We could recode the example above to follow this rule as follows,
    assuming that the order of the alphabet is ABCD:
 
-      Symbol  Code
-      ------  ----
-      A       10
-      B       0
-      C       110
-      D       111
+
 
 
 
@@ -451,6 +451,13 @@ Alakuijala & Szabadka    Expires April 27, 2015                 [Page 8]
 
 Internet-Draft                   Brotli                     October 2014
 
+
+      Symbol  Code
+      ------  ----
+      A       10
+      B       0
+      C       110
+      D       111
 
    I.e., 0 precedes 10 which precedes 11x, and 110 and 111 are
    lexicographically consecutive.
@@ -493,13 +500,6 @@ Internet-Draft                   Brotli                     October 2014
 
    Example:
 
-   Consider the alphabet ABCDEFGH, with bit lengths (3, 3, 3, 3, 3, 2,
-   4, 4).  After step 1, we have:
-
-
-
-
-
 
 
 
@@ -507,6 +507,9 @@ Alakuijala & Szabadka    Expires April 27, 2015                 [Page 9]
 
 Internet-Draft                   Brotli                     October 2014
 
+
+   Consider the alphabet ABCDEFGH, with bit lengths (3, 3, 3, 3, 3, 2,
+   4, 4).  After step 1, we have:
 
       N      bl_count[N]
       -      -----------
@@ -553,9 +556,6 @@ Internet-Draft                   Brotli                     October 2014
    value is 1, then a simple Huffman code follows.  Otherwise the value
    indicates the number of leading zeros.
 
-   A simple Huffman code can have only up to four symbols with non- zero
-   code length. The format of the simple Huffman code is as follows:
-
 
 
 
@@ -563,6 +563,9 @@ Alakuijala & Szabadka    Expires April 27, 2015                [Page 10]
 
 Internet-Draft                   Brotli                     October 2014
 
+
+   A simple Huffman code can have only up to four symbols with non- zero
+   code length. The format of the simple Huffman code is as follows:
 
       2 bits: value of 1 indicates a simple Huffman code
       2 bits: NSYM - 1, where NSYM = # of symbols with non-zero
@@ -609,9 +612,6 @@ Internet-Draft                   Brotli                     October 2014
    follows:
 
       0 - 15: Represent code lengths of 0 - 15
-          16: Copy the previous non-zero code length 3 - 6 times
-              The next 2 bits indicate repeat length
-                    (0 = 3, ... , 3 = 6)
 
 
 
@@ -620,6 +620,9 @@ Alakuijala & Szabadka    Expires April 27, 2015                [Page 11]
 Internet-Draft                   Brotli                     October 2014
 
 
+          16: Copy the previous non-zero code length 3 - 6 times
+              The next 2 bits indicate repeat length
+                    (0 = 3, ... , 3 = 6)
               If this is the first code length, or all previous
               code lengths are zero, a code length of 8 is
               repeated 3 - 6 times
@@ -665,9 +668,6 @@ Internet-Draft                   Brotli                     October 2014
          8, 9, 10, 11, 12, 13, 14, 15
 
          The code lengths of code length symbols are between 0 and
-         5 and they are represented with 2 - 5 bits according to
-         the static Huffman code above. A code length of 0 means
-         the corresponding code length symbol is not used.
 
 
 
@@ -675,6 +675,10 @@ Alakuijala & Szabadka    Expires April 27, 2015                [Page 12]
 
 Internet-Draft                   Brotli                     October 2014
 
+
+         5 and they are represented with 2 - 5 bits according to
+         the static Huffman code above. A code length of 0 means
+         the corresponding code length symbol is not used.
 
          If HSKIP is 2 or 3, a respective number of leading code
          lengths are implicit zeros and are not present in the
@@ -720,10 +724,6 @@ Internet-Draft                   Brotli                     October 2014
 
       0: last distance
       1: second last distance
-      2: third last distance
-      3: fourth last distance
-      4: last distance - 1
-      5: last distance + 1
 
 
 
@@ -732,6 +732,10 @@ Alakuijala & Szabadka    Expires April 27, 2015                [Page 13]
 Internet-Draft                   Brotli                     October 2014
 
 
+      2: third last distance
+      3: fourth last distance
+      4: last distance - 1
+      5: last distance + 1
       6: last distance - 2
       7: last distance + 2
       8: last distance - 3
@@ -777,10 +781,6 @@ Internet-Draft                   Brotli                     October 2014
       offset = ((2 + (hcode & 1)) << ndistbits) - 4;
       distance = ((offset + dextra) << NPOSTFIX) + lcode + NDIRECT + 1
 
-5. Encoding of literal insertion lengths and copy lengths
-
-   As described in Section 2, the literal insertion lengths and backward
-
 
 
 Alakuijala & Szabadka    Expires April 27, 2015                [Page 14]
@@ -788,6 +788,9 @@ Alakuijala & Szabadka    Expires April 27, 2015                [Page 14]
 Internet-Draft                   Brotli                     October 2014
 
 
+5. Encoding of literal insertion lengths and copy lengths
+
+   As described in Section 2, the literal insertion lengths and backward
    copy lengths are encoded using a single Huffman code. This section
    provides the details to this encoding.
 
@@ -829,9 +832,6 @@ Internet-Draft                   Brotli                     October 2014
 
    The symbols of the copy length code alphabet, along with the number
    of copy extra bits and the range of copy lengths are as follows:
-
-
-
 
 
 
