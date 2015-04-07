@@ -235,10 +235,10 @@ point during decoding the stream.
 
 Each meta-block is compressed using a combination of the LZ77
 algorithm (Lempel-Ziv 1977, [LZ77]) and Huffman
-coding. The Huffman trees for each block are independent of those for
-previous or subsequent blocks; the LZ77 algorithm may use a
-reference to a duplicated string occurring in a previous meta-block,
-up to sliding window size input bytes before.
+coding. The Huffman trees for each meta-block are independent of
+those for previous or subsequent meta-blocks; the LZ77 algorithm may
+use a reference to a duplicated string occurring in a previous
+meta-block, up to sliding window size input bytes before.
 
 Each meta-block consists of two parts: a meta-block header that
 describes the representation of the compressed data part, and a
@@ -250,15 +250,15 @@ represented as a pair <length, backward distance>.
 
 Each command in the compressed data is represented using three kinds
 of Huffman codes: one kind of code tree for the literal sequence
-lengths (also referred to as literal insertion lengths) and backward 
+lengths (also referred to as literal insertion lengths) and backward
 copy lengths (that is, a single code word represents two lengths,
 one of the literal sequence and one of the backward copy), a separate
 kind of code tree for literals, and a third kind of code tree for
 distances. The code trees for each meta-block appear in a compact
 form just before the compressed data in the meta-block header.
 
-The sequence of each type of value in the representation of a command
-(insert-and-copy lengths, literals and distances) within a meta-
+The sequence of each category of value in the representation of a
+command (insert-and-copy lengths, literals and distances) within a meta-
 block is further divided into blocks. In the "brotli" format, blocks
 are not contiguous chunks of compressed data, but rather the pieces
 of compressed data belonging to a block are interleaved with pieces
@@ -268,19 +268,24 @@ of literal blocks and a series of distance blocks. These are also
 called the three block categories: a meta-block has a series of
 blocks for each block category. Note that the physical structure of
 the meta-block is a series of commands, while the three series of
-blocks is the logical structure. Consider the following example:
+blocks is the logical structure.
+
+A block is defined by a type (0-255) and a length. The length is the
+amount of huffman symbols of its category, the type dictates which
+huffman code is used for these symbols. Consider the following
+example:
 
    (IaC0, L0, L1, L2, D0)(IaC1, D1)(IaC2, L3, L4, D2)(IaC3, L5, D3)
 
-The meta-block here has 4 commands, and each three types of symbols
-within these commands can be rearranged for example into the
-following logical block structure:
+The meta-block here has 4 commands, and each of the three categories of
+symbols within these commands are part of a logical block structure,
+for example the following:
 
-   [IaC0, IaC1][IaC2, IaC3]  <-- block types 0 and 1
+   [IaC0, IaC1][IaC2, IaC3]  <-- insert-and-copy: block types 0 and 1
 
-   [L0, L1][L2, L3, L4][L5]  <-- block types 0, 1, and 0
+   [L0, L1][L2, L3, L4][L5]  <-- literals: block types 0, 1, and 0
 
-   [D0][D1, D2, D3]          <-- block types 0 and 1
+   [D0][D1, D2, D3]          <-- distances: block types 0 and 1
 
 The subsequent blocks within each block category must have different
 block types, but blocks further away in the block sequence can have
