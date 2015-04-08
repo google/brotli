@@ -922,7 +922,8 @@ tree in the array of literal and distance Huffman trees.
 The context for encoding the next literal is defined by the last
 two bytes in the stream (p1, p2, where p1 is the most recent
 byte), regardless if these bytes are produced by backward
-references or by literal insertions.
+references or by literal insertions. At the start of the stream
+p1 and p2 are initizalized to zero.
 
 There are four methods, called context modes, to compute the
 Context ID:
@@ -996,6 +997,16 @@ using the following lookup tables Lut0, Lut1, and Lut2.
       6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 7
 .fi
 
+The lengths and CRC32 checksums of these tables are as follows:
+
+.nf
+   Table    Length    CRC32
+   -----    ------    -----
+   Lut0     256       0x09a6512a
+   Lut1     256       0x572d8c69
+   Lut2     256       0x8ae01e4b
+.fi
+
 Given p1 is the last decoded byte and p2 is the second last
 decoded byte the context IDs can be computed as follows:
 
@@ -1054,8 +1065,8 @@ RLEMAX + NTREES symbols:
    1: repeat a zero 2-3 times, read 1 bit for repeat length
    2: repeat a zero 4-7 times, read 2 bits for repeat length
    ...
-   RLEMAX: repeat a zero (2^RLEMAX)-(2^(RLEMAX+1) - 1) times,
-           read RLEMAX bits for repeat length
+   RLEMAX: repeat a zero (1 << RLEMAX) to (1 << (RLEMAX+1))-1
+           times, read RLEMAX bits for repeat length
    RLEMAX + 1: value 1
    ...
    RLEMAX + NTREES - 1: value NTREES - 1
@@ -1080,7 +1091,28 @@ for literal and distance context maps):
            the Huffman code indexes
 .fi
 
-For the encoding of NTREES see Section 9.2.
+For the encoding of NTREES see Section 9.2. We define the
+inverse move-to-front transform used in this specification by the
+following C language function:
+
+.nf
+   void InverseMoveToFrontTransform(uint8_t* v, int v_len) {
+     uint8_t mtf[256];
+     int i;
+     for (i = 0; i < 256; ++i) {
+       mtf[i] = (uint8_t)i;
+     }
+     for (i = 0; i < v_len; ++i) {
+       uint8_t index = v[i];
+       uint8_t value = mtf[index];
+       v[i] = value;
+       for (; index; --index) {
+         mtf[index] = mtf[index - 1];
+       }
+       mtf[0] = value;
+     }
+   }
+.fi
 
 .ti 0
 8. Static dictionary
