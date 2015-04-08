@@ -1106,7 +1106,7 @@ The number of static dictionary words for a given length is:
 
 .nf
    NWORDS[length] = 0                       (if length < 4)
-   NWORDS[length] = (1 << NDBITS[lengths])  (if length >= 4)
+   NWORDS[length] = (1 << NDBITS[length])   (if length >= 4)
 .fi
 
 DOFFSET and DICTSIZE are defined by the following recursion:
@@ -1122,7 +1122,7 @@ index is:
 
    offset(length, index) = DOFFSET[length] + index * length
 
-Each static dictionary word has NTRANSFORMS different forms, given by
+Each static dictionary word has 121 different forms, given by
 applying a word transformation to a base word in the DICT array. The
 list of word transformations is given in Appendix B. The static
 dictionary word for a <length, distance> pair can be reconstructed as
@@ -1131,21 +1131,21 @@ follows:
 .nf
    word_id = distance - (max allowed distance + 1)
    index = word_id % NWORDS[length]
-   base_word = DICT[offset(length, index)..offset(length, index+1))
+   base_word = DICT[offset(length, index)..offset(length, index+1)-1]
    transform_id = word_id >> NDBITS[length]
 .fi
 
 The string copied to the output stream is computed by applying the
 transformation to the base dictionary word. If transform_id is
-greater than NTRANSFORMS - 1 or length is greater than 24, the
+greater than 120 or length is greater than 24, the
 compressed data set is invalid.
 
-Each word transformation has the follwing form:
+Each word transformation has the following form:
 
    transform_i(word) = prefix_i + T_i(word) + suffix_i
 
 where the _i subscript denotes the transform_id above. Each T_i
-is one of the following 20 elementary transforms:
+is one of the following 21 elementary transforms:
 
 .nf
    Identity, OmitLast1, ..., OmitLast9, UppercaseFirst, UppercaseAll,
@@ -1169,7 +1169,7 @@ The form of these elementary transforms are as follows:
 .fi
 
 For the purposes of UppercaseAll, word is parsed into UTF-8
-characters an coverted to upper-case by taking 1 - 3 bytes at a time,
+characters and converted to upper-case by taking 1 - 3 bytes at a time,
 using the algorithm below:
 
 .nf
@@ -1179,15 +1179,15 @@ using the algorithm below:
       if word[i] < 192:
          if word[i] >= 97 and word[i] <= 122:
             word[i] = word[i] ^ 32
-            i = i + 1
+         i = i + 1
       else if word[i] < 224:
          if i + 1 < length(word):
             word[i + 1] = word[i + 1] ^ 32
-            i = i + 2
+         i = i + 2
       else:
          if i + 2 < length(word):
             word[i + 2] = word[i + 2] ^ 5
-            i = i + 3
+         i = i + 3
 .KE
 .fi
 
@@ -1196,6 +1196,9 @@ executed only once.
 
 Appendix B. contains the list of transformations by specifying the
 prefix, elementary transform and suffix components of each of them.
+Note that the OmitFirst8 elementary transform is not used in the list
+of transformations. The strings in Appendix B. are in C string format
+with respect to escape (backslash) characters.
 
 .ti 0
 9. Compressed data format
