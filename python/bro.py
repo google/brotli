@@ -6,6 +6,7 @@ import getopt
 import sys
 import os
 import brotli
+import platform
 
 __usage__ = """\
 Usage: bro [--force] [--decompress] [--input filename] [--output filename]
@@ -29,8 +30,15 @@ def get_binary_stdio(stream):
     if sys.version_info[0] < 3:
         if sys.platform == 'win32':
             # set I/O stream binary flag on python2.x (Windows)
-            import msvcrt
-            msvcrt.setmode(stdio.fileno(), os.O_BINARY)
+            runtime = platform.python_implementation()
+            if runtime == "PyPy":
+                # the msvcrt trick doesn't work in pypy, so I use fdopen
+                mode = "rb" if stream == "stdin" else "wb"
+                stdio = os.fdopen(stdio.fileno(), mode, 0)
+            else:
+                # this works with CPython -- untested on other implementations
+                import msvcrt
+                msvcrt.setmode(stdio.fileno(), os.O_BINARY)
         return stdio
     else:
         # get 'buffer' attribute to read/write binary data on python3.x
