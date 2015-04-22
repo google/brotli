@@ -427,12 +427,12 @@ Internet-Draft                   Brotli                       April 2015
    is encoded in a compact form in the meta- block header.
 
    For example, the prefix code to use to decode L2 depends on the block
-   type (1), the literal context ID for block type 1 defined in the
-   meta-block header, and the two uncompressed bytes that were decoded
-   from L0 and L1.  Similarly, the prefix code to use to decode D0
-   depends on the block type (0), the distance context ID for block type
-   0, and the copy length decoded from IaC0. The prefix code to use to
-   decode IaC3 depends only on the block type (1).
+   type (1), and the literal context ID determined by the two
+   uncompressed bytes that were decoded from L0 and L1.  Similarly, the
+   prefix code to use to decode D0 depends on the block type (0), and
+   the distance context ID determined by the copy length decoded from
+   IaC0. The prefix code to use to decode IaC3 depends only on the block
+   type (1).
 
    In addition to the parts listed above (prefix code for insert- and-
    copy lengths, literals, distances, block types and block counts and
@@ -806,9 +806,8 @@ Internet-Draft                   Brotli                       April 2015
          length. In this case, that symbol results in no bits
          being emitted by the compressor, and no bits consumed by
          the decompressor. That single symbol is immediately
-         returned when this code is decoded. (If the ignored non-
-         zero length is not 1, then the stream should be rejected
-         as invalid.)  An example of where this occurs is if the
+         returned when this code is decoded.
+         An example of where this occurs is if the
          entire code to be represented has symbols of length 8.
          E.g. a literal code that represents all literal values
          with equal probability. In this case the single symbol
@@ -836,6 +835,7 @@ Internet-Draft                   Brotli                       April 2015
    is encoded using a prefix code over the distance alphabet, while the
    extra bits value is encoded as a fixed-width integer value. The
    number of extra bits can be 0 - 24, and it is dependent on the
+   distance code.
 
 
 
@@ -843,8 +843,6 @@ Alakuijala & Szabadka    Expires April 27, 2015                [Page 15]
 
 Internet-Draft                   Brotli                       April 2015
 
-
-   distance code.
 
    To convert a distance code and associated extra bits to a backward
    distance, we need the sequence of past distances and two additional
@@ -893,6 +891,8 @@ Internet-Draft                   Brotli                       April 2015
    nor the NDIRECT direct distance symbols are followed by any extra
    bits.
 
+   Distance symbols 16 + NDIRECT and greater all have extra bits, where
+
 
 
 Alakuijala & Szabadka    Expires April 27, 2015                [Page 16]
@@ -900,7 +900,6 @@ Alakuijala & Szabadka    Expires April 27, 2015                [Page 16]
 Internet-Draft                   Brotli                       April 2015
 
 
-   Distance symbols 16 + NDIRECT and greater all have extra bits, where
    the number of extra bits for a distance symbol "dcode" is given by
    the following formula:
 
@@ -946,6 +945,7 @@ Internet-Draft                   Brotli                       April 2015
    alphabets. The symbols of the insert length code alphabet, along with
    the number of insert extra bits and the range of the insert lengths
    are as follows:
+
 
 
 
@@ -1078,9 +1078,10 @@ Internet-Draft                   Brotli                       April 2015
    compressed data. Instead the block count for each category that has
    more than one type is encoded in the meta-block header.
 
-   The block counts for all three categories should count down to
-   exactly zero at the end of the meta-block. If any do not, then the
-   stream should be rejected as invalid.
+   Since the end of the meta-block is detected by the number of
+   uncompressed bytes produced, the block counts for any of the three
+   categories need not count down to exactly zero at the end of the
+   meta-block.
 
    The number of different block types in each block category, denoted
    by NBLTYPESL, NBLTYPESI, and NBLTYPESD for literals, insert-and-copy
@@ -1115,7 +1116,6 @@ Internet-Draft                   Brotli                       April 2015
        7    3   41-48     16    6   241-304   25   24   16625-16793840
        8    4   49-64     17    6   305-368
 
-   The first block switch command of each block category is special in
 
 
 
@@ -1124,6 +1124,7 @@ Alakuijala & Szabadka    Expires April 27, 2015                [Page 20]
 Internet-Draft                   Brotli                       April 2015
 
 
+   The first block switch command of each block category is special in
    the sense that it is encoded in the meta-block header, and as
    described earlier the block type code is omitted, since it is an
    implicit zero.
@@ -1171,7 +1172,6 @@ Internet-Draft                   Brotli                       April 2015
          0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1,
          0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1,
          0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1,
-         0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1,
 
 
 
@@ -1180,6 +1180,7 @@ Alakuijala & Szabadka    Expires April 27, 2015                [Page 21]
 Internet-Draft                   Brotli                       April 2015
 
 
+         0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1,
          2, 3, 2, 3, 2, 3, 2, 3, 2, 3, 2, 3, 2, 3, 2, 3,
          2, 3, 2, 3, 2, 3, 2, 3, 2, 3, 2, 3, 2, 3, 2, 3,
          2, 3, 2, 3, 2, 3, 2, 3, 2, 3, 2, 3, 2, 3, 2, 3,
@@ -1227,7 +1228,6 @@ Internet-Draft                   Brotli                       April 2015
       Table    Length    CRC-32
       -----    ------    -----
       Lut0     256       0x8e91efb7
-      Lut1     256       0xd01a32f4
 
 
 
@@ -1236,6 +1236,7 @@ Alakuijala & Szabadka    Expires April 27, 2015                [Page 22]
 Internet-Draft                   Brotli                       April 2015
 
 
+      Lut1     256       0xd01a32f4
       Lut2     256       0x0dd7a0d6
 
    Given p1 is the last uncompressed byte and p2 is the second-to-last
@@ -1283,7 +1284,6 @@ Internet-Draft                   Brotli                       April 2015
    the context map plus one. NTREES must equal the number of different
    values in the context map, in other words, the different values in
    the context map must be the [0..NTREES-1] interval. The alphabet of
-   the prefix code has the following RLEMAX + NTREES symbols:
 
 
 
@@ -1291,6 +1291,8 @@ Alakuijala & Szabadka    Expires April 27, 2015                [Page 23]
 
 Internet-Draft                   Brotli                       April 2015
 
+
+   the prefix code has the following RLEMAX + NTREES symbols:
 
       0: value zero
       1: repeat a zero 2 to 3 times, read 1 bit for repeat length
@@ -1338,8 +1340,6 @@ Internet-Draft                   Brotli                       April 2015
             mtf[index] = mtf[index - 1];
           }
           mtf[0] = value;
-        }
-      }
 
 
 
@@ -1347,6 +1347,9 @@ Alakuijala & Szabadka    Expires April 27, 2015                [Page 24]
 
 Internet-Draft                   Brotli                       April 2015
 
+
+        }
+      }
 
 8. Static dictionary
 
@@ -1393,9 +1396,6 @@ Internet-Draft                   Brotli                       April 2015
       transform_id = word_id >> NDBITS[length]
 
    The string copied to the uncompressed stream is computed by applying
-   the transformation to the base dictionary word. If transform_id is
-   greater than 120 or length is greater than 24, the compressed data
-   set is invalid.
 
 
 
@@ -1403,6 +1403,10 @@ Alakuijala & Szabadka    Expires April 27, 2015                [Page 25]
 
 Internet-Draft                   Brotli                       April 2015
 
+
+   the transformation to the base dictionary word. If transform_id is
+   greater than 120 or length is greater than 24, the compressed data
+   set is invalid.
 
    Each word transformation has the following form:
 
@@ -1448,10 +1452,6 @@ Internet-Draft                   Brotli                       April 2015
             i = i + 3
 
    For UppercaseFirst, the same algorithm is used, but the loop is
-   executed only once.
-
-   Appendix B. contains the list of transformations by specifying the
-   prefix, elementary transform and suffix components of each of them.
 
 
 
@@ -1460,6 +1460,10 @@ Alakuijala & Szabadka    Expires April 27, 2015                [Page 26]
 Internet-Draft                   Brotli                       April 2015
 
 
+   executed only once.
+
+   Appendix B. contains the list of transformations by specifying the
+   prefix, elementary transform and suffix components of each of them.
    Note that the OmitFirst8 elementary transform is not used in the list
    of transformations. The strings in Appendix B. are in C string format
    with respect to escape (backslash) characters.
@@ -1504,10 +1508,6 @@ Internet-Draft                   Brotli                       April 2015
                  represent the length
 
          MNIBBLES x 4 bits: MLEN - 1, where MLEN is the length
-                 of the meta-block uncompressed data in bytes (if the
-                 number of nibbles is greater than 4, and the last
-                 nibble is all zeros, then the stream should be
-                 rejected as invalid)
 
 
 
@@ -1515,6 +1515,11 @@ Alakuijala & Szabadka    Expires April 27, 2015                [Page 27]
 
 Internet-Draft                   Brotli                       April 2015
 
+
+                 of the meta-block uncompressed data in bytes (if the
+                 number of nibbles is greater than 4, and the last
+                 nibble is all zeros, then the stream should be
+                 rejected as invalid)
 
          1 bit:  ISUNCOMPRESSED, if set to 1, any bits of compressed
                  data up to the next byte boundary are ignored, and
@@ -1559,11 +1564,6 @@ Internet-Draft                   Brotli                       April 2015
             and-copy block counts, only if NBLTYPESI >= 2
 
          Block count code + Extra bits for first insert-and-copy
-            block count, only if NBLTYPESI >= 2
-
-      1-11 bits: NBLTYPESD, # of distance block types, encoded with
-                 the same variable length code as above
-
 
 
 
@@ -1571,6 +1571,11 @@ Alakuijala & Szabadka    Expires April 27, 2015                [Page 28]
 
 Internet-Draft                   Brotli                       April 2015
 
+
+            block count, only if NBLTYPESI >= 2
+
+      1-11 bits: NBLTYPESD, # of distance block types, encoded with
+                 the same variable length code as above
 
          Prefix code over the block type code alphabet for distance
             block types, appears only if NBLTYPESD >= 2
@@ -1615,11 +1620,6 @@ Internet-Draft                   Brotli                       April 2015
    commands. Each command has the following format:
 
          Block type code for next insert-and-copy block type, appears
-            only if NBLTYPESI >= 2 and the previous insert-and-copy
-            block count is zero
-
-         Block count code + Extra bits for next insert-and-copy
-            block count, appears only if NBLTYPESI >= 2 and the
 
 
 
@@ -1628,6 +1628,11 @@ Alakuijala & Szabadka    Expires April 27, 2015                [Page 29]
 Internet-Draft                   Brotli                       April 2015
 
 
+            only if NBLTYPESI >= 2 and the previous insert-and-copy
+            block count is zero
+
+         Block count code + Extra bits for next insert-and-copy
+            block count, appears only if NBLTYPESI >= 2 and the
             previous insert-and-copy block count is zero
 
          Insert-and-copy length, encoded as in section 5, using the
@@ -1672,11 +1677,6 @@ Internet-Draft                   Brotli                       April 2015
    The decoding algorithm that produces the uncompressed data is as
    follows:
 
-      read window size
-      do
-         read ISLAST bit
-         if ISLAST
-
 
 
 Alakuijala & Szabadka    Expires April 27, 2015                [Page 30]
@@ -1684,6 +1684,10 @@ Alakuijala & Szabadka    Expires April 27, 2015                [Page 30]
 Internet-Draft                   Brotli                       April 2015
 
 
+      read window size
+      do
+         read ISLAST bit
+         if ISLAST
             read ISEMPTY bit
             if ISEMPTY
                break from loop
@@ -1728,10 +1732,6 @@ Internet-Draft                   Brotli                       April 2015
             decrement BLEN_I
             read insert and copy length, ILEN, CLEN with HTREEI[BTYPE_I]
             loop for ILEN
-               if BLEN_L is zero
-                  read block type using HTREE_BTYPE_L and set BTYPE_L
-                     save previous block type
-                  read block count using HTREE_BLEN_L and set BLEN_L
 
 
 
@@ -1740,15 +1740,18 @@ Alakuijala & Szabadka    Expires April 27, 2015                [Page 31]
 Internet-Draft                   Brotli                       April 2015
 
 
+               if BLEN_L is zero
+                  read block type using HTREE_BTYPE_L and set BTYPE_L
+                     save previous block type
+                  read block count using HTREE_BLEN_L and set BLEN_L
                decrement BLEN_L
                look up context mode CMODE[BTYPE_L]
                compute context ID, CIDL from last two uncompressed bytes
                read literal using HTREEL[CMAPL[64 * BTYPE_L + CIDL]]
                write literal to uncompressed stream
             if number of uncompressed bytes produced in the loop for
-               this meta-block is MLEN, then break from loop (if the
-               discarded copy length is not 4, then reject the stream as
-               invalid)
+               this meta-block is MLEN, then break from loop (in this
+               case the copy length is ignored and can have any value)
             if distance code is implicit zero from insert-and-copy code
                set backward distance to the last distance
             else
@@ -1785,9 +1788,6 @@ Internet-Draft                   Brotli                       April 2015
    conform to this specification, where non-conformant compressed data
    sequences should be discarded.  A possible attack against a system
    containing a decompressor implementation (e.g. a web browser) is to
-   exploit a buffer overflow caused by an invalid compressed data.
-   Therefore decompressor implementations should perform bound-checking
-   for each memory access that result from values decoded from the
 
 
 
@@ -1796,6 +1796,9 @@ Alakuijala & Szabadka    Expires April 27, 2015                [Page 32]
 Internet-Draft                   Brotli                       April 2015
 
 
+   exploit a buffer overflow caused by an invalid compressed data.
+   Therefore decompressor implementations should perform bound-checking
+   for each memory access that result from values decoded from the
    compressed stream.
 
 12. IANA Considerations
@@ -1841,9 +1844,6 @@ Appendix A. Static dictionary data
       7468656d7669657766696e64706167656461797366756c6c686561647465726d
       656163686172656166726f6d747275656d61726b61626c6575706f6e68696768
       646174656c616e646e6577736576656e6e65787463617365626f7468706f7374
-      757365646d61646568616e6468657265776861746e616d654c696e6b626c6f67
-      73697a656261736568656c646d616b656d61696e757365722729202b686f6c64
-      656e6473776974684e65777372656164776572657369676e74616b6568617665
 
 
 
@@ -1852,6 +1852,9 @@ Alakuijala & Szabadka    Expires April 27, 2015                [Page 33]
 Internet-Draft                   Brotli                       April 2015
 
 
+      757365646d61646568616e6468657265776861746e616d654c696e6b626c6f67
+      73697a656261736568656c646d616b656d61696e757365722729202b686f6c64
+      656e6473776974684e65777372656164776572657369676e74616b6568617665
       67616d657365656e63616c6c7061746877656c6c706c75736d656e7566696c6d
       706172746a6f696e746869736c697374676f6f646e6565647761797377657374
       6a6f62736d696e64616c736f6c6f676f72696368757365736c6173747465616d
@@ -1897,9 +1900,6 @@ Internet-Draft                   Brotli                       April 2015
       6167656467726579474554226561736561696d736769726c616964733870783b
       6e617679677269647469707323393939776172736c61647963617273293b207d
       7068703f68656c6c74616c6c77686f6d7a683ae52a2f0d0a2031303068616c6c
-      2e0a0a413770783b70757368636861743070783b637265772a2f3c2f68617368
-      37357078666c6174726172652026262074656c6c63616d706f6e746f6c616964
-      6d697373736b697074656e7466696e656d616c6567657473706c6f743430302c
 
 
 
@@ -1908,6 +1908,9 @@ Alakuijala & Szabadka    Expires April 27, 2015                [Page 34]
 Internet-Draft                   Brotli                       April 2015
 
 
+      2e0a0a413770783b70757368636861743070783b637265772a2f3c2f68617368
+      37357078666c6174726172652026262074656c6c63616d706f6e746f6c616964
+      6d697373736b697074656e7466696e656d616c6567657473706c6f743430302c
       0d0a0d0a636f6f6c666565742e7068703c62723e657269636d6f737467756964
       62656c6c64657363686169726d61746861746f6d2f696d67262338326c75636b
       63656e743030303b74696e79676f6e6568746d6c73656c6c6472756746524545
@@ -1953,9 +1956,6 @@ Internet-Draft                   Brotli                       April 2015
       3230323032303231323032323230323332303234323032353230323632303237
       3230323832303239323033303230333132303332323033333230333432303335
       3230333632303337323031333230313232303131323031303230303932303038
-      3230303732303036323030353230303432303033323030323230303132303030
-      3139393931393938313939373139393631393935313939343139393331393932
-      3139393131393930313938393139383831393837313938363139383531393834
 
 
 
@@ -1964,6 +1964,9 @@ Alakuijala & Szabadka    Expires April 27, 2015                [Page 35]
 Internet-Draft                   Brotli                       April 2015
 
 
+      3230303732303036323030353230303432303033323030323230303132303030
+      3139393931393938313939373139393631393935313939343139393331393932
+      3139393131393930313938393139383831393837313938363139383531393834
       3139383331393832313938313139383031393739313937383139373731393736
       3139373531393734313937333139373231393731313937303139363931393638
       3139363731393636313936353139363431393633313936323139363131393630
@@ -2009,9 +2012,6 @@ Internet-Draft                   Brotli                       April 2015
       73697465736d6f6e746877686572656275696c6477686963686561727468666f
       72756d746872656573706f72747061727479436c69636b6c6f7765726c697665
       73636c6173736c61796572656e74727973746f72797573616765736f756e6463
-      6f757274796f7572206269727468706f70757074797065736170706c79496d61
-      67656265696e6775707065726e6f746573657665727973686f77736d65616e73
-      65787472616d61746368747261636b6b6e6f776e6561726c79626567616e7375
 
 
 
@@ -2020,6 +2020,9 @@ Alakuijala & Szabadka    Expires April 27, 2015                [Page 36]
 Internet-Draft                   Brotli                       April 2015
 
 
+      6f757274796f7572206269727468706f70757074797065736170706c79496d61
+      67656265696e6775707065726e6f746573657665727973686f77736d65616e73
+      65787472616d61746368747261636b6b6e6f776e6561726c79626567616e7375
       70657270617065726e6f7274686c6561726e676976656e6e616d6564656e6465
       645465726d73706172747347726f75706272616e647573696e67776f6d616e66
       616c73657265616479617564696f74616b65737768696c652e636f6d2f6c6976
@@ -2065,9 +2068,6 @@ Internet-Draft                   Brotli                       April 2015
       656173747374657073436f756e74636f756c64676c617373736964657366756e
       6473686f74656c61776172646d6f7574686d6f76657370617269736769766573
       6475746368746578617366727569746e756c6c2c7c7c5b5d3b746f70223e0a3c
-      212d2d504f5354226f6365616e3c62722f3e666c6f6f72737065616b64657074
-      682073697a6562616e6b7363617463686368617274323070783b616c69676e64
-      65616c73776f756c64353070783b75726c3d227061726b736d6f7573654d6f73
 
 
 
@@ -2076,6 +2076,9 @@ Alakuijala & Szabadka    Expires April 27, 2015                [Page 37]
 Internet-Draft                   Brotli                       April 2015
 
 
+      212d2d504f5354226f6365616e3c62722f3e666c6f6f72737065616b64657074
+      682073697a6562616e6b7363617463686368617274323070783b616c69676e64
+      65616c73776f756c64353070783b75726c3d227061726b736d6f7573654d6f73
       74202e2e2e3c2f616d6f6e67627261696e626f6479206e6f6e653b6261736564
       636172727964726166747265666572706167655f686f6d652e6d657465726465
       6c6179647265616d70726f76656a6f696e743c2f74723e64727567733c212d2d
@@ -2121,9 +2124,6 @@ Internet-Draft                   Brotli                       April 2015
       7565737472756c7964617669732e6a73273b3e0d0a3c21737465656c20796f75
       2068323e0d0a666f726d206a6573757331303025206d656e752e0d0a090d0a77
       616c65737269736b73756d656e746464696e67622d6c696b7465616368676966
-      2220766567617364616e736b6565737469736871697073756f6d69736f627265
-      6465736465656e747265746f646f73707565646561c3b16f73657374c3a17469
-      656e6568617374616f74726f737061727465646f6e64656e7565766f68616365
 
 
 
@@ -2132,6 +2132,9 @@ Alakuijala & Szabadka    Expires April 27, 2015                [Page 38]
 Internet-Draft                   Brotli                       April 2015
 
 
+      2220766567617364616e736b6565737469736871697073756f6d69736f627265
+      6465736465656e747265746f646f73707565646561c3b16f73657374c3a17469
+      656e6568617374616f74726f737061727465646f6e64656e7565766f68616365
       72666f726d616d69736d6f6d656a6f726d756e646f617175c3ad64c3ad617373
       c3b36c6f61797564616665636861746f64617374616e746f6d656e6f73646174
       6f736f74726173736974696f6d7563686f61686f72616c756761726d61796f72
@@ -2177,9 +2180,6 @@ Internet-Draft                   Brotli                       April 2015
       726d616c74726176656c697373756573736f7572636574617267657473707269
       6e676d6f64756c656d6f62696c6573776974636870686f746f73626f72646572
       726567696f6e697473656c66736f6369616c616374697665636f6c756d6e7265
-      636f7264666f6c6c6f777469746c653e6569746865726c656e67746866616d69
-      6c79667269656e646c61796f7574617574686f72637265617465726576696577
-      73756d6d6572736572766572706c61796564706c61796572657870616e64706f
 
 
 
@@ -2188,6 +2188,9 @@ Alakuijala & Szabadka    Expires April 27, 2015                [Page 39]
 Internet-Draft                   Brotli                       April 2015
 
 
+      636f7264666f6c6c6f777469746c653e6569746865726c656e67746866616d69
+      6c79667269656e646c61796f7574617574686f72637265617465726576696577
+      73756d6d6572736572766572706c61796564706c61796572657870616e64706f
       6c696379666f726d6174646f75626c65706f696e747373657269657370657273
       6f6e6c6976696e6764657369676e6d6f6e746873666f72636573756e69717565
       77656967687470656f706c65656e657267796e61747572657365617263686669
@@ -2233,9 +2236,6 @@ Internet-Draft                   Brotli                       April 2015
       72696e6772656c6f61644d6f62696c65696e636f6d65737570706c79536f7572
       63656f7264657273766965776564266e6273703b636f7572736541626f757420
       69736c616e643c68746d6c20636f6f6b69656e616d653d22616d617a6f6e6d6f
-      6465726e616476696365696e3c2f613e3a20546865206469616c6f67686f7573
-      6573424547494e204d657869636f73746172747363656e747265686569676874
-      616464696e6749736c616e64617373657473456d706972655363686f6f6c6566
 
 
 
@@ -2244,6 +2244,9 @@ Alakuijala & Szabadka    Expires April 27, 2015                [Page 40]
 Internet-Draft                   Brotli                       April 2015
 
 
+      6465726e616476696365696e3c2f613e3a20546865206469616c6f67686f7573
+      6573424547494e204d657869636f73746172747363656e747265686569676874
+      616464696e6749736c616e64617373657473456d706972655363686f6f6c6566
       666f72746469726563746e6561726c796d616e75616c53656c6563742e0a0a4f
       6e656a6f696e65646d656e75223e5068696c697061776172647368616e646c65
       696d706f72744f6666696365726567617264736b696c6c736e6174696f6e5370
@@ -2289,9 +2292,6 @@ Internet-Draft                   Brotli                       April 2015
       61726473636f6c6f727363616d7075736669727374207c7c205b5d3b6d656469
       612e67756974617266696e69736877696474683a73686f7765644f7468657220
       2e7068702220617373756d656c617965727377696c736f6e73746f7265737265
-      6c69656673776564656e437573746f6d656173696c7920796f75722053747269
-      6e670a0a5768696c7461796c6f72636c6561723a7265736f72746672656e6368
-      74686f7567682229202b20223c626f64793e627579696e676272616e64734d65
 
 
 
@@ -2300,6 +2300,9 @@ Alakuijala & Szabadka    Expires April 27, 2015                [Page 41]
 Internet-Draft                   Brotli                       April 2015
 
 
+      6c69656673776564656e437573746f6d656173696c7920796f75722053747269
+      6e670a0a5768696c7461796c6f72636c6561723a7265736f72746672656e6368
+      74686f7567682229202b20223c626f64793e627579696e676272616e64734d65
       6d6265726e616d65223e6f7070696e67736563746f723570783b223e76737061
       6365706f737465726d616a6f7220636f666665656d617274696e6d6174757265
       68617070656e3c2f6e61763e6b616e7361736c696e6b223e496d616765733d66
@@ -2345,9 +2348,6 @@ Internet-Draft                   Brotli                       April 2015
       8ee59bbde6b1bde8bda6e4bb8be7bb8de4bd86e698afe4baa4e6b581e7949fe4
       baa7e68980e4bba5e794b5e8af9de698bee7a4bae4b880e4ba9be58d95e4bd8d
       e4babae59198e58886e69e90e59cb0e59bbee69785e6b8b8e5b7a5e585b7e5ad
-      a6e7949fe7b3bbe58897e7bd91e58f8be5b896e5ad90e5af86e7a081e9a291e9
-      8193e68ea7e588b6e59cb0e58cbae59fbae69cace585a8e59bbde7bd91e4b88a
-      e9878de8a681e7acace4ba8ce5969ce6aca2e8bf9be585a5e58f8be68385e8bf
 
 
 
@@ -2356,6 +2356,9 @@ Alakuijala & Szabadka    Expires April 27, 2015                [Page 42]
 Internet-Draft                   Brotli                       April 2015
 
 
+      a6e7949fe7b3bbe58897e7bd91e58f8be5b896e5ad90e5af86e7a081e9a291e9
+      8193e68ea7e588b6e59cb0e58cbae59fbae69cace585a8e59bbde7bd91e4b88a
+      e9878de8a681e7acace4ba8ce5969ce6aca2e8bf9be585a5e58f8be68385e8bf
       99e4ba9be88083e8af95e58f91e78eb0e59fb9e8aeade4bba5e4b88ae694bfe5
       ba9ce68890e4b8bae78eafe5a283e9a699e6b8afe5908ce697b6e5a8b1e4b990
       e58f91e98081e4b880e5ae9ae5bc80e58f91e4bd9ce59381e6a087e58786e6ac
@@ -2401,9 +2404,6 @@ Internet-Draft                   Brotli                       April 2015
       bee7bdaee9a286e5afbce5b7a5e4b89ae58cbbe999a2e79c8be79c8be7bb8fe5
       85b8e58e9fe59ba0e5b9b3e58fb0e59084e7a78de5a29ee58aa0e69d90e69699
       e696b0e5a29ee4b98be5908ee8818ce4b89ae69588e69e9ce4bb8ae5b9b4e8ae
-      bae69687e68891e59bbde5918ae8af89e78988e4b8bbe4bfaee694b9e58f82e4
-      b88ee68993e58db0e5bfabe4b990e69cbae6a2b0e8a782e782b9e5ad98e59ca8
-      e7b2bee7a59ee88eb7e5be97e588a9e794a8e7bba7e7bbade4bda0e4bbace8bf
 
 
 
@@ -2412,6 +2412,9 @@ Alakuijala & Szabadka    Expires April 27, 2015                [Page 43]
 Internet-Draft                   Brotli                       April 2015
 
 
+      bae69687e68891e59bbde5918ae8af89e78988e4b8bbe4bfaee694b9e58f82e4
+      b88ee68993e58db0e5bfabe4b990e69cbae6a2b0e8a782e782b9e5ad98e59ca8
+      e7b2bee7a59ee88eb7e5be97e588a9e794a8e7bba7e7bbade4bda0e4bbace8bf
       99e4b988e6a8a1e5bc8fe8afade8a880e883bde5a49fe99b85e8998ee6938de4
       bd9ce9a38ee6a0bce4b880e8b5b7e7a791e5ada6e4bd93e882b2e79fade4bfa1
       e69da1e4bbb6e6b2bbe79697e8bf90e58aa8e4baa7e4b89ae4bc9ae8aeaee5af
@@ -2457,9 +2460,6 @@ Internet-Draft                   Brotli                       April 2015
       bbe58aa1e6ada3e5bc8fe789b9e889b2e4b88be69da5e58d8fe4bc9ae58faae8
       83bde5bd93e784b6e9878de696b0e585a7e5aeb9e68c87e5afbce8bf90e8a18c
       e697a5e5bf97e8b3a3e5aeb6e8b685e8bf87e59c9fe59cb0e6b599e6b19fe694
-      afe4bb98e68ea8e587bae7ab99e995bfe69dade5b79ee689a7e8a18ce588b6e9
-      80a0e4b98be4b880e68ea8e5b9bfe78eb0e59cbae68f8fe8bfb0e58f98e58c96
-      e4bca0e7bb9fe6ad8ce6898be4bf9de999a9e8afbee7a88be58cbbe79697e7bb
 
 
 
@@ -2468,6 +2468,9 @@ Alakuijala & Szabadka    Expires April 27, 2015                [Page 44]
 Internet-Draft                   Brotli                       April 2015
 
 
+      afe4bb98e68ea8e587bae7ab99e995bfe69dade5b79ee689a7e8a18ce588b6e9
+      80a0e4b98be4b880e68ea8e5b9bfe78eb0e59cbae68f8fe8bfb0e58f98e58c96
+      e4bca0e7bb9fe6ad8ce6898be4bf9de999a9e8afbee7a88be58cbbe79697e7bb
       8fe8bf87e8bf87e58ebbe4b98be5898de694b6e585a5e5b9b4e5baa6e69d82e5
       bf97e7be8ee4b8bde69c80e9ab98e799bbe99986e69caae69da5e58aa0e5b7a5
       e5858de8b4a3e69599e7a88be78988e59d97e8baabe4bd93e9878de5ba86e587
@@ -2513,9 +2516,6 @@ Internet-Draft                   Brotli                       April 2015
       a8e4ba8ee4bf9de79599e59ba0e7b4a0e4b8ade59c8be5ad98e582a8e8b4b4e5
       9bbee69c80e6849be995bfe69c9fe58fa3e4bbb7e79086e8b4a2e59fbae59cb0
       e5ae89e68e92e6ada6e6b189e9878ce99da2e5889be5bbbae5a4a9e7a9bae9a6
-      96e58588e5ae8ce59684e9a9b1e58aa8e4b88be99da2e4b88de5868de8af9ae4
-      bfa1e6848fe4b989e998b3e58589e88bb1e59bbde6bc82e4baaee5869be4ba8b
-      e78ea9e5aeb6e7bea4e4bc97e5869ce6b091e58db3e58fafe5908de7a8b1e5ae
 
 
 
@@ -2524,6 +2524,9 @@ Alakuijala & Szabadka    Expires April 27, 2015                [Page 45]
 Internet-Draft                   Brotli                       April 2015
 
 
+      96e58588e5ae8ce59684e9a9b1e58aa8e4b88be99da2e4b88de5868de8af9ae4
+      bfa1e6848fe4b989e998b3e58589e88bb1e59bbde6bc82e4baaee5869be4ba8b
+      e78ea9e5aeb6e7bea4e4bc97e5869ce6b091e58db3e58fafe5908de7a8b1e5ae
       b6e585b7e58aa8e794bbe683b3e588b0e6b3a8e6988ee5b08fe5ada6e680a7e8
       83bde88083e7a094e7a1ace4bbb6e8a782e79c8be6b885e6a59ae6909ee7ac91
       e9a696e9a081e9bb84e98791e98082e794a8e6b19fe88b8fe79c9fe5ae9ee4b8
@@ -2569,9 +2572,6 @@ Internet-Draft                   Brotli                       April 2015
       d0b0d0b7d0bed0bdd0b0d0b3d0b4d0b5d0bcd0bdd0b5d094d0bbd18fd09fd180
       d0b8d0bdd0b0d181d0bdd0b8d185d182d0b5d0bcd0bad182d0bed0b3d0bed0b4
       d0b2d0bed182d182d0b0d0bcd0a1d0a8d090d0bcd0b0d18fd0a7d182d0bed0b2
-      d0b0d181d0b2d0b0d0bcd0b5d0bcd183d0a2d0b0d0bad0b4d0b2d0b0d0bdd0b0
-      d0bcd18dd182d0b8d18dd182d183d092d0b0d0bcd182d0b5d185d0bfd180d0be
-      d182d183d182d0bdd0b0d0b4d0b4d0bdd18fd092d0bed182d182d180d0b8d0bd
 
 
 
@@ -2580,6 +2580,9 @@ Alakuijala & Szabadka    Expires April 27, 2015                [Page 46]
 Internet-Draft                   Brotli                       April 2015
 
 
+      d0b0d181d0b2d0b0d0bcd0b5d0bcd183d0a2d0b0d0bad0b4d0b2d0b0d0bdd0b0
+      d0bcd18dd182d0b8d18dd182d183d092d0b0d0bcd182d0b5d185d0bfd180d0be
+      d182d183d182d0bdd0b0d0b4d0b4d0bdd18fd092d0bed182d182d180d0b8d0bd
       d0b5d0b9d092d0b0d181d0bdd0b8d0bcd181d0b0d0bcd182d0bed182d180d183
       d0b1d09ed0bdd0b8d0bcd0b8d180d0bdd0b5d0b5d09ed09ed09ed0bbd0b8d186
       d18dd182d0b0d09ed0bdd0b0d0bdd0b5d0bcd0b4d0bed0bcd0bcd0bed0b9d0b4
@@ -2625,9 +2628,6 @@ Internet-Draft                   Brotli                       April 2015
       6f6365737377726974696e676f626a6563747376697369626c6577656c636f6d
       6561727469636c65756e6b6e6f776e6e6574776f726b636f6d70616e7964796e
       616d696362726f777365727072697661637970726f626c656d53657276696365
-      72657370656374646973706c6179726571756573747265736572766577656273
-      697465686973746f7279667269656e64736f7074696f6e73776f726b696e6776
-      657273696f6e6d696c6c696f6e6368616e6e656c77696e646f772e6164647265
 
 
 
@@ -2636,6 +2636,9 @@ Alakuijala & Szabadka    Expires April 27, 2015                [Page 47]
 Internet-Draft                   Brotli                       April 2015
 
 
+      72657370656374646973706c6179726571756573747265736572766577656273
+      697465686973746f7279667269656e64736f7074696f6e73776f726b696e6776
+      657273696f6e6d696c6c696f6e6368616e6e656c77696e646f772e6164647265
       73737669736974656477656174686572636f727265637470726f647563746564
       6972656374666f7277617264796f752063616e72656d6f7665647375626a6563
       74636f6e74726f6c6172636869766563757272656e7472656164696e676c6962
@@ -2681,9 +2684,6 @@ Internet-Draft                   Brotli                       April 2015
       6d3e696e636c75646577686574686572646566696e6564536369656e63656361
       74616c6f6741727469636c65627574746f6e736c617267657374756e69666f72
       6d6a6f75726e6579736964656261724368696361676f686f6c6964617947656e
-      6572616c706173736167652c2671756f743b616e696d6174656665656c696e67
-      6172726976656470617373696e676e61747572616c726f7567686c792e0a0a54
-      686520627574206e6f7464656e736974794272697461696e4368696e6573656c
 
 
 
@@ -2692,6 +2692,9 @@ Alakuijala & Szabadka    Expires April 27, 2015                [Page 48]
 Internet-Draft                   Brotli                       April 2015
 
 
+      6572616c706173736167652c2671756f743b616e696d6174656665656c696e67
+      6172726976656470617373696e676e61747572616c726f7567686c792e0a0a54
+      686520627574206e6f7464656e736974794272697461696e4368696e6573656c
       61636b206f66747269627574654972656c616e642220646174612d666163746f
       727372656365697665746861742069734c69627261727968757362616e64696e
       206661637461666661697273436861726c65737261646963616c62726f756768
@@ -2737,9 +2740,6 @@ Internet-Draft                   Brotli                       April 2015
       657374696e67636c6561726c796578706f73656442726f777365726c69626572
       616c7d20636174636850726f6a6563746578616d706c656869646528293b466c
       6f72696461616e7377657273616c6c6f776564456d7065726f72646566656e73
-      65736572696f757366726565646f6d5365766572616c2d627574746f6e467572
-      746865726f7574206f6620213d206e756c6c747261696e656444656e6d61726b
-      766f69642830292f616c6c2e6a7370726576656e745265717565737453746570
 
 
 
@@ -2748,6 +2748,9 @@ Alakuijala & Szabadka    Expires April 27, 2015                [Page 49]
 Internet-Draft                   Brotli                       April 2015
 
 
+      65736572696f757366726565646f6d5365766572616c2d627574746f6e467572
+      746865726f7574206f6620213d206e756c6c747261696e656444656e6d61726b
+      766f69642830292f616c6c2e6a7370726576656e745265717565737453746570
       68656e0a0a5768656e206f6273657276653c2f68323e0d0a4d6f6465726e2070
       726f766964652220616c743d22626f72646572732e0a0a466f72200a0a4d616e
       792061727469737473706f7765726564706572666f726d66696374696f6e7479
@@ -2793,9 +2796,6 @@ Internet-Draft                   Brotli                       April 2015
       61746564656772656573736f757263653d52696368617264636c6f73656c7970
       6c6173746963656e74726965733c2f74723e0d0a636f6c6f723a23756c206964
       3d22706f7373657373726f6c6c696e67706879736963736661696c696e676578
-      6563757465636f6e746573746c696e6b20746f44656661756c743c6272202f3e
-      0a3a20747275652c63686172746572746f757269736d636c617373696370726f
-      636565646578706c61696e3c2f68313e0d0a6f6e6c696e652e3f786d6c207665
 
 
 
@@ -2804,6 +2804,9 @@ Alakuijala & Szabadka    Expires April 27, 2015                [Page 50]
 Internet-Draft                   Brotli                       April 2015
 
 
+      6563757465636f6e746573746c696e6b20746f44656661756c743c6272202f3e
+      0a3a20747275652c63686172746572746f757269736d636c617373696370726f
+      636565646578706c61696e3c2f68313e0d0a6f6e6c696e652e3f786d6c207665
       68656c70696e676469616d6f6e64757365207468656169726c696e65656e6420
       2d2d3e292e617474722872656164657273686f7374696e672366666666666672
       65616c697a6556696e63656e747369676e616c73207372633d222f50726f6475
@@ -2849,9 +2852,6 @@ Internet-Draft                   Brotli                       April 2015
       2d736861646f774e6f7461626c653c2f74643e0d0a2072657475726e73746164
       69756d7769646765747376617279696e6774726176656c7368656c6420627977
       686f20617265776f726b20696e666163756c7479616e67756c617277686f2068
-      6164616972706f7274746f776e206f660a0a536f6d652027636c69636b276368
-      61726765736b6579776f726469742077696c6c63697479206f66287468697329
-      3b416e6472657720756e6971756520636865636b65646f72206d6f7265333030
 
 
 
@@ -2860,6 +2860,9 @@ Alakuijala & Szabadka    Expires April 27, 2015                [Page 51]
 Internet-Draft                   Brotli                       April 2015
 
 
+      6164616972706f7274746f776e206f660a0a536f6d652027636c69636b276368
+      61726765736b6579776f726469742077696c6c63697479206f66287468697329
+      3b416e6472657720756e6971756520636865636b65646f72206d6f7265333030
       70783b2072657475726e3b7273696f6e3d22706c7567696e7377697468696e20
       68657273656c6653746174696f6e4665646572616c76656e747572657075626c
       69736873656e7420746f74656e73696f6e61637472657373636f6d6520746f66
@@ -2905,9 +2908,6 @@ Internet-Draft                   Brotli                       April 2015
       20776173526563656e742070617469656e746261636b20696e3d66616c736526
       4c696e636f6c6e7765206b6e6f77436f756e7465724a75646169736d73637269
       707420616c7465726564275d293b0a202068617320746865756e636c65617245
-      76656e74272c626f746820696e6e6f7420616c6c0a0a3c212d2d20706c616369
-      6e676861726420746f2063656e746572736f7274206f66636c69656e74737374
-      72656574734265726e6172646173736572747374656e6420746f66616e746173
 
 
 
@@ -2916,6 +2916,9 @@ Alakuijala & Szabadka    Expires April 27, 2015                [Page 52]
 Internet-Draft                   Brotli                       April 2015
 
 
+      76656e74272c626f746820696e6e6f7420616c6c0a0a3c212d2d20706c616369
+      6e676861726420746f2063656e746572736f7274206f66636c69656e74737374
+      72656574734265726e6172646173736572747374656e6420746f66616e746173
       79646f776e20696e686172626f757246726565646f6d6a6577656c72792f6162
       6f75742e2e7365617263686c6567656e64736973206d6164656d6f6465726e20
       6f6e6c79206f6e6f6e6c7920746f696d61676522206c696e656172207061696e
@@ -2961,9 +2964,6 @@ Internet-Draft                   Brotli                       April 2015
       2065616427295b304372697469637373747564696f733e26636f70793b67726f
       7570223e617373656d626c6d616b696e6720707265737365647769646765742e
       70733a22203f2072656275696c74627920736f6d65466f726d65722065646974
-      6f727364656c6179656443616e6f6e69636861642074686570757368696e6763
-      6c6173733d22627574206172657061727469616c426162796c6f6e626f74746f
-      6d2063617272696572436f6d6d616e646974732075736541732077697468636f
 
 
 
@@ -2972,6 +2972,9 @@ Alakuijala & Szabadka    Expires April 27, 2015                [Page 53]
 Internet-Draft                   Brotli                       April 2015
 
 
+      6f727364656c6179656443616e6f6e69636861642074686570757368696e6763
+      6c6173733d22627574206172657061727469616c426162796c6f6e626f74746f
+      6d2063617272696572436f6d6d616e646974732075736541732077697468636f
       75727365736120746869726464656e6f746573616c736f20696e486f7573746f
       6e323070783b223e61636375736564646f75626c6520676f616c206f6646616d
       6f757320292e62696e642870726965737473204f6e6c696e65696e204a756c79
@@ -3017,9 +3020,6 @@ Internet-Draft                   Brotli                       April 2015
       63203d20276d616b652061207365637572656442617074697374766f74696e67
       200a0909766172204d61726368203267726577207570436c696d6174652e7265
       6d6f7665736b696c6c6564776179207468653c2f686561643e66616365206f66
-      616374696e67207269676874223e746f20776f726b7265647563657368617320
-      6861646572656374656473686f7728293b616374696f6e3d626f6f6b206f6661
-      6e20617265613d3d20226874743c6865616465720a3c68746d6c3e636f6e666f
 
 
 
@@ -3028,6 +3028,9 @@ Alakuijala & Szabadka    Expires April 27, 2015                [Page 54]
 Internet-Draft                   Brotli                       April 2015
 
 
+      616374696e67207269676874223e746f20776f726b7265647563657368617320
+      6861646572656374656473686f7728293b616374696f6e3d626f6f6b206f6661
+      6e20617265613d3d20226874743c6865616465720a3c68746d6c3e636f6e666f
       726d666163696e6720636f6f6b69652e72656c79206f6e686f73746564202e63
       7573746f6d68652077656e7462757420666f727370726561642046616d696c79
       2061206d65616e736f757420746865666f72756d732e666f6f74616765223e4d
@@ -3073,9 +3076,6 @@ Internet-Draft                   Brotli                       April 2015
       746f69662877696e64616e6420697473736f6c656c79206d2671756f743b7265
       6e65776564446574726f6974616d6f6e677374656974686572207468656d2069
       6e53656e61746f7255733c2f613e3c4b696e67206f664672616e6369732d7072
-      6f6475636865207573656461727420616e6468696d20616e6475736564206279
-      73636f72696e67617420686f6d65746f206861766572656c617465736962696c
-      69747966616374696f6e42756666616c6f6c696e6b223e3c7768617420686566
 
 
 
@@ -3084,6 +3084,9 @@ Alakuijala & Szabadka    Expires April 27, 2015                [Page 55]
 Internet-Draft                   Brotli                       April 2015
 
 
+      6f6475636865207573656461727420616e6468696d20616e6475736564206279
+      73636f72696e67617420686f6d65746f206861766572656c617465736962696c
+      69747966616374696f6e42756666616c6f6c696e6b223e3c7768617420686566
       72656520746f43697479206f66636f6d6520696e736563746f7273636f756e74
       65646f6e65206461796e6572766f7573737175617265207d3b696628676f696e
       2077686174696d672220616c6973206f6e6c797365617263682f747565736461
@@ -3129,9 +3132,6 @@ Internet-Draft                   Brotli                       April 2015
       6e756e63696f656d626172676f6d65726361646f6772616e6465736573747564
       696f6d656a6f7265736665627265726f64697365c3b16f74757269736d6f63c3
       b36469676f706f72746164616573706163696f66616d696c6961616e746f6e69
-      6f7065726d69746567756172646172616c67756e617370726563696f73616c67
-      7569656e73656e7469646f7669736974617374c3ad74756c6f636f6e6f636572
-      736567756e646f636f6e73656a6f6672616e6369616d696e75746f7373656775
 
 
 
@@ -3140,6 +3140,9 @@ Alakuijala & Szabadka    Expires April 27, 2015                [Page 56]
 Internet-Draft                   Brotli                       April 2015
 
 
+      6f7065726d69746567756172646172616c67756e617370726563696f73616c67
+      7569656e73656e7469646f7669736974617374c3ad74756c6f636f6e6f636572
+      736567756e646f636f6e73656a6f6672616e6369616d696e75746f7373656775
       6e646174656e656d6f7365666563746f736dc3a16c61676173657369c3b36e72
       6576697374616772616e616461636f6d70726172696e677265736f67617263c3
       ad6161636369c3b36e65637561646f72717569656e6573696e636c75736f6465
@@ -3185,9 +3188,6 @@ Internet-Draft                   Brotli                       April 2015
       70726f766964657361636164656d6963657865726369736561637475616c6c79
       6d65646963696e65636f6e7374616e746163636964656e744d6167617a696e65
       646f63756d656e747374617274696e67626f74746f6d223e6f62736572766564
-      3a202671756f743b657874656e64656470726576696f7573536f667477617265
-      637573746f6d65726465636973696f6e737472656e67746864657461696c6564
-      736c696768746c79706c616e6e696e67746578746172656163757272656e6379
 
 
 
@@ -3196,6 +3196,9 @@ Alakuijala & Szabadka    Expires April 27, 2015                [Page 57]
 Internet-Draft                   Brotli                       April 2015
 
 
+      3a202671756f743b657874656e64656470726576696f7573536f667477617265
+      637573746f6d65726465636973696f6e737472656e67746864657461696c6564
+      736c696768746c79706c616e6e696e67746578746172656163757272656e6379
       65766572796f6e6573747261696768747472616e73666572706f736974697665
       70726f647563656468657269746167657368697070696e676162736f6c757465
       726563656976656472656c6576616e74627574746f6e222076696f6c656e6365
@@ -3241,9 +3244,6 @@ Internet-Draft                   Brotli                       April 2015
       636f6e7461696e7361726368697665736d696e69737465727265616374696f6e
       646973636f756e744974616c69616e6f63726974657269617374726f6e676c79
       3a2027687474703a2773637269707427636f766572696e676f66666572696e67
-      617070656172656442726974697368206964656e7469667946616365626f6f6b
-      6e756d65726f757376656869636c6573636f6e6365726e73416d65726963616e
-      68616e646c696e676469762069643d2257696c6c69616d2070726f7669646572
 
 
 
@@ -3252,6 +3252,9 @@ Alakuijala & Szabadka    Expires April 27, 2015                [Page 58]
 Internet-Draft                   Brotli                       April 2015
 
 
+      617070656172656442726974697368206964656e7469667946616365626f6f6b
+      6e756d65726f757376656869636c6573636f6e6365726e73416d65726963616e
+      68616e646c696e676469762069643d2257696c6c69616d2070726f7669646572
       5f636f6e74656e74616363757261637973656374696f6e20616e646572736f6e
       666c657869626c6543617465676f72796c617772656e63653c7363726970743e
       6c61796f75743d22617070726f766564206d6178696d756d686561646572223e
@@ -3297,9 +3300,6 @@ Internet-Draft                   Brotli                       April 2015
       6d61676e657469633e3c2f613e3c2f68666f7265636173742e205768696c6520
       74687572736461796476657274697365266561637574653b686173436c617373
       6576616c756174656f72646572696e676578697374696e6770617469656e7473
-      204f6e6c696e6520636f6c6f7261646f4f7074696f6e732263616d7062656c6c
-      3c212d2d20656e643c2f7370616e3e3c3c6272202f3e0d0a5f706f707570737c
-      736369656e6365732c2671756f743b207175616c6974792057696e646f777320
 
 
 
@@ -3308,6 +3308,9 @@ Alakuijala & Szabadka    Expires April 27, 2015                [Page 59]
 Internet-Draft                   Brotli                       April 2015
 
 
+      204f6e6c696e6520636f6c6f7261646f4f7074696f6e732263616d7062656c6c
+      3c212d2d20656e643c2f7370616e3e3c3c6272202f3e0d0a5f706f707570737c
+      736369656e6365732c2671756f743b207175616c6974792057696e646f777320
       61737369676e65646865696768743a203c6220636c6173736c652671756f743b
       2076616c75653d2220436f6d70616e796578616d706c65733c696672616d6520
       62656c696576657370726573656e74736d61727368616c6c70617274206f6620
@@ -3353,9 +3356,6 @@ Internet-Draft                   Brotli                       April 2015
       70c3a167696e6173736f6369616c6573626c6f71756561726765737469c3b36e
       616c7175696c657273697374656d61736369656e63696173636f6d706c65746f
       7665727369c3b36e636f6d706c6574616573747564696f7370c3ba626c696361
-      6f626a657469766f616c6963616e74656275736361646f7263616e7469646164
-      656e747261646173616363696f6e65736172636869766f737375706572696f72
-      6d61796f72c3ad61616c656d616e696166756e6369c3b36ec3ba6c74696d6f73
 
 
 
@@ -3364,6 +3364,9 @@ Alakuijala & Szabadka    Expires April 27, 2015                [Page 60]
 Internet-Draft                   Brotli                       April 2015
 
 
+      6f626a657469766f616c6963616e74656275736361646f7263616e7469646164
+      656e747261646173616363696f6e65736172636869766f737375706572696f72
+      6d61796f72c3ad61616c656d616e696166756e6369c3b36ec3ba6c74696d6f73
       68616369656e646f617175656c6c6f736564696369c3b36e6665726e616e646f
       616d6269656e746566616365626f6f6b6e75657374726173636c69656e746573
       70726f6365736f7362617374616e746570726573656e74617265706f72746172
@@ -3409,9 +3412,6 @@ Internet-Draft                   Brotli                       April 2015
       d0b4d0b5d0bbd0b5d181d180d0bed0bad0b8d18ed0bdd18fd0b2d0b5d181d18c
       d095d181d182d18cd180d0b0d0b7d0b0d0bdd0b0d188d0b8d8a7d984d984d987
       d8a7d984d8aad98ad8acd985d98ad8b9d8aed8a7d8b5d8a9d8a7d984d8b0d98a
-      d8b9d984d98ad987d8acd8afd98ad8afd8a7d984d8a2d986d8a7d984d8b1d8af
-      d8aad8add983d985d8b5d981d8add8a9d983d8a7d986d8aad8a7d984d984d98a
-      d98ad983d988d986d8b4d8a8d983d8a9d981d98ad987d8a7d8a8d986d8a7d8aa
 
 
 
@@ -3420,6 +3420,9 @@ Alakuijala & Szabadka    Expires April 27, 2015                [Page 61]
 Internet-Draft                   Brotli                       April 2015
 
 
+      d8b9d984d98ad987d8acd8afd98ad8afd8a7d984d8a2d986d8a7d984d8b1d8af
+      d8aad8add983d985d8b5d981d8add8a9d983d8a7d986d8aad8a7d984d984d98a
+      d98ad983d988d986d8b4d8a8d983d8a9d981d98ad987d8a7d8a8d986d8a7d8aa
       d8add988d8a7d8a1d8a3d983d8abd8b1d8aed984d8a7d984d8a7d984d8add8a8
       d8afd984d98ad984d8afd8b1d988d8b3d8a7d8b6d8bad8b7d8aad983d988d986
       d987d986d8a7d983d8b3d8a7d8add8a9d986d8a7d8afd98ad8a7d984d8b7d8a8
@@ -3465,9 +3468,6 @@ Internet-Draft                   Brotli                       April 2015
       76657220746865206d6967726174696f6e616e6e6f756e636564666f6f746572
       223e0a657863657074696f6e6c657373207468616e657870656e73697665666f
       726d6174696f6e6672616d65776f726b7465727269746f72796e646963617469
-      6f6e63757272656e746c79636c6173734e616d6563726974696369736d747261
-      646974696f6e656c73657768657265416c6578616e6465726170706f696e7465
-      646d6174657269616c7362726f6164636173746d656e74696f6e656461666669
 
 
 
@@ -3476,6 +3476,9 @@ Alakuijala & Szabadka    Expires April 27, 2015                [Page 62]
 Internet-Draft                   Brotli                       April 2015
 
 
+      6f6e63757272656e746c79636c6173734e616d6563726974696369736d747261
+      646974696f6e656c73657768657265416c6578616e6465726170706f696e7465
+      646d6174657269616c7362726f6164636173746d656e74696f6e656461666669
       6c696174653c2f6f7074696f6e3e74726561746d656e74646966666572656e74
       2f64656661756c742e507265736964656e746f6e636c69636b3d2262696f6772
       617068796f74686572776973657065726d616e656e744672616ec3a761697348
@@ -3521,9 +3524,6 @@ Internet-Draft                   Brotli                       April 2015
       6f6e28616c74686f756768666561747572696e67636f6e647563746564292c20
       776869636820636f6e74696e7565642d686561646572223e4665627275617279
       206e756d65726f7573206f766572666c6f773a636f6d706f6e656e7466726167
-      6d656e7473657863656c6c656e74636f6c7370616e3d22746563686e6963616c
-      6e6561722074686520416476616e63656420736f75726365206f666578707265
-      73736564486f6e67204b6f6e672046616365626f6f6b6d756c7469706c65206d
 
 
 
@@ -3532,6 +3532,9 @@ Alakuijala & Szabadka    Expires April 27, 2015                [Page 63]
 Internet-Draft                   Brotli                       April 2015
 
 
+      6d656e7473657863656c6c656e74636f6c7370616e3d22746563686e6963616c
+      6e6561722074686520416476616e63656420736f75726365206f666578707265
+      73736564486f6e67204b6f6e672046616365626f6f6b6d756c7469706c65206d
       656368616e69736d656c65766174696f6e6f6666656e736976653c2f666f726d
       3e0a0973706f6e736f726564646f63756d656e742e6f72202671756f743b7468
       6572652061726574686f73652077686f6d6f76656d656e747370726f63657373
@@ -3577,9 +3580,6 @@ Internet-Draft                   Brotli                       April 2015
       656475726567726f777468206f666865616465642062794575726f7065616e20
       6469766973696f6e736d6f6c6563756c65736672616e6368697365696e74656e
       74696f6e6174747261637465646368696c64686f6f64616c736f207573656464
-      656469636174656473696e6761706f7265646567726565206f66666174686572
-      206f66636f6e666c696374733c2f613e3c2f703e0a63616d652066726f6d7765
-      726520757365646e6f74652074686174726563656976696e6745786563757469
 
 
 
@@ -3588,6 +3588,9 @@ Alakuijala & Szabadka    Expires April 27, 2015                [Page 64]
 Internet-Draft                   Brotli                       April 2015
 
 
+      656469636174656473696e6761706f7265646567726565206f66666174686572
+      206f66636f6e666c696374733c2f613e3c2f703e0a63616d652066726f6d7765
+      726520757365646e6f74652074686174726563656976696e6745786563757469
       76656576656e206d6f726561636365737320746f636f6d6d616e646572506f6c
       69746963616c6d7573696369616e7364656c6963696f7573707269736f6e6572
       73616476656e74206f665554462d3822202f3e3c215b43444154415b223e436f
@@ -3633,9 +3636,6 @@ Internet-Draft                   Brotli                       April 2015
       756e67617269616e737461747573206f66736572766573206173556e69766572
       73616c657865637574696f6e616767726567617465666f72207768696368696e
       66656374696f6e61677265656420746f686f77657665722c20706f70756c6172
-      223e706c61636564206f6e636f6e737472756374656c6563746f72616c73796d
-      626f6c206f66696e636c7564696e6772657475726e20746f6172636869746563
-      7443687269737469616e70726576696f7573206c6976696e6720696e65617369
 
 
 
@@ -3644,6 +3644,9 @@ Alakuijala & Szabadka    Expires April 27, 2015                [Page 65]
 Internet-Draft                   Brotli                       April 2015
 
 
+      223e706c61636564206f6e636f6e737472756374656c6563746f72616c73796d
+      626f6c206f66696e636c7564696e6772657475726e20746f6172636869746563
+      7443687269737469616e70726576696f7573206c6976696e6720696e65617369
       657220746f70726f666573736f720a266c743b212d2d20656666656374206f66
       616e616c79746963737761732074616b656e776865726520746865746f6f6b20
       6f76657262656c69656620696e416672696b61616e7361732066617220617370
@@ -3689,9 +3692,6 @@ Internet-Draft                   Brotli                       April 2015
       6f6672657475726e696e67646566656e73697665303070787c726967686d6164
       652066726f6d6d6f7573656f76657222207374796c653d22737461746573206f
       66287768696368206973636f6e74696e7565734672616e636973636f6275696c
-      64696e6720776974686f757420617769746820736f6d6577686f20776f756c64
-      6120666f726d206f66612070617274206f666265666f72652069746b6e6f776e
-      206173202053657276696365736c6f636174696f6e20616e64206f6674656e6d
 
 
 
@@ -3700,6 +3700,9 @@ Alakuijala & Szabadka    Expires April 27, 2015                [Page 66]
 Internet-Draft                   Brotli                       April 2015
 
 
+      64696e6720776974686f757420617769746820736f6d6577686f20776f756c64
+      6120666f726d206f66612070617274206f666265666f72652069746b6e6f776e
+      206173202053657276696365736c6f636174696f6e20616e64206f6674656e6d
       6561737572696e67616e6420697420697370617065726261636b76616c756573
       206f660d0a3c7469746c653e3d2077696e646f772e64657465726d696e656572
       2671756f743b20706c61796564206279616e64206561726c793c2f63656e7465
@@ -3745,9 +3748,6 @@ Internet-Draft                   Brotli                       April 2015
       a4b9e0a4bee0a4b8e0a4ade0a580e0a4b9e0a581e0a48fe0a4b0e0a4b9e0a580
       e0a4aee0a588e0a482e0a4a6e0a4bfe0a4a8e0a4ace0a4bee0a4a46469706c6f
       646f6373e0a4b8e0a4aee0a4afe0a4b0e0a582e0a4aae0a4a8e0a4bee0a4aee0
-      a4aae0a4a4e0a4bee0a4abe0a4bfe0a4b0e0a494e0a4b8e0a4a4e0a4a4e0a4b0
-      e0a4b9e0a4b2e0a58be0a497e0a4b9e0a581e0a486e0a4ace0a4bee0a4b0e0a4
-      a6e0a587e0a4b6e0a4b9e0a581e0a488e0a496e0a587e0a4b2e0a4afe0a4a6e0
 
 
 
@@ -3756,6 +3756,9 @@ Alakuijala & Szabadka    Expires April 27, 2015                [Page 67]
 Internet-Draft                   Brotli                       April 2015
 
 
+      a4aae0a4a4e0a4bee0a4abe0a4bfe0a4b0e0a494e0a4b8e0a4a4e0a4a4e0a4b0
+      e0a4b9e0a4b2e0a58be0a497e0a4b9e0a581e0a486e0a4ace0a4bee0a4b0e0a4
+      a6e0a587e0a4b6e0a4b9e0a581e0a488e0a496e0a587e0a4b2e0a4afe0a4a6e0
       a4bfe0a495e0a4bee0a4aee0a4b5e0a587e0a4ace0a4a4e0a580e0a4a8e0a4ac
       e0a580e0a49ae0a4aee0a58ce0a4a4e0a4b8e0a4bee0a4b2e0a4b2e0a587e0a4
       96e0a49ce0a589e0a4ace0a4aee0a4a6e0a4a6e0a4a4e0a4a5e0a4bee0a4a8e0
@@ -3801,9 +3804,6 @@ Internet-Draft                   Brotli                       April 2015
       756e64657273746f6f646e6f7363726970743e3c7065726d697373696f6e6561
       6368206f7468657261746d6f737068657265206f6e666f6375733d223c666f72
       6d2069643d2270726f63657373696e67746869732e76616c756567656e657261
-      74696f6e436f6e666572656e636573756273657175656e7477656c6c2d6b6e6f
-      776e766172696174696f6e7372657075746174696f6e7068656e6f6d656e6f6e
-      6469736369706c696e656c6f676f2e706e67222028646f63756d656e742c626f
 
 
 
@@ -3812,6 +3812,9 @@ Alakuijala & Szabadka    Expires April 27, 2015                [Page 68]
 Internet-Draft                   Brotli                       April 2015
 
 
+      74696f6e436f6e666572656e636573756273657175656e7477656c6c2d6b6e6f
+      776e766172696174696f6e7372657075746174696f6e7068656e6f6d656e6f6e
+      6469736369706c696e656c6f676f2e706e67222028646f63756d656e742c626f
       756e64617269657365787072657373696f6e736574746c656d656e744261636b
       67726f756e646f7574206f6620746865656e7465727072697365282268747470
       733a2220756e657363617065282270617373776f7264222064656d6f63726174
@@ -3857,9 +3860,6 @@ Internet-Draft                   Brotli                       April 2015
       7269616c656e636f757261676564616d6f756e74206f6620756e6f6666696369
       616c656666696369656e63795265666572656e636573636f6f7264696e617465
       646973636c61696d657265787065646974696f6e646576656c6f70696e676361
-      6c63756c6174656473696d706c69666965646c65676974696d61746573756273
-      7472696e6728302220636c6173733d22636f6d706c6574656c79696c6c757374
-      7261746566697665207965617273696e737472756d656e745075626c69736869
 
 
 
@@ -3868,6 +3868,9 @@ Alakuijala & Szabadka    Expires April 27, 2015                [Page 69]
 Internet-Draft                   Brotli                       April 2015
 
 
+      6c63756c6174656473696d706c69666965646c65676974696d61746573756273
+      7472696e6728302220636c6173733d22636f6d706c6574656c79696c6c757374
+      7261746566697665207965617273696e737472756d656e745075626c69736869
       6e67312220636c6173733d2270737963686f6c6f6779636f6e666964656e6365
       6e756d626572206f6620616273656e6365206f66666f6375736564206f6e6a6f
       696e6564207468657374727563747572657370726576696f75736c793e3c2f69
@@ -3913,9 +3916,6 @@ Internet-Draft                   Brotli                       April 2015
       636f726174696f6e683320636c6173733d226f726967696e73206f666f626c69
       676174696f6e726567756c6174696f6e636c61737369666965642866756e6374
       696f6e28616476616e74616765736265696e672074686520686973746f726961
-      6e733c62617365206872656672657065617465646c7977696c6c696e6720746f
-      636f6d70617261626c6564657369676e617465646e6f6d696e6174696f6e6675
-      6e6374696f6e616c696e7369646520746865726576656c6174696f6e656e6420
 
 
 
@@ -3924,6 +3924,9 @@ Alakuijala & Szabadka    Expires April 27, 2015                [Page 70]
 Internet-Draft                   Brotli                       April 2015
 
 
+      6e733c62617365206872656672657065617465646c7977696c6c696e6720746f
+      636f6d70617261626c6564657369676e617465646e6f6d696e6174696f6e6675
+      6e6374696f6e616c696e7369646520746865726576656c6174696f6e656e6420
       6f66207468657320666f722074686520617574686f72697a6564726566757365
       6420746f74616b6520706c6163656175746f6e6f6d6f7573636f6d70726f6d69
       7365706f6c69746963616c2072657374617572616e7474776f206f6620746865
@@ -3969,9 +3972,6 @@ Internet-Draft                   Brotli                       April 2015
       656473616e732d73657269666f6e6b657970726573733b2070616464696e673a
       48652077617320746865756e6465726c79696e677479706963616c6c79202c20
       616e642074686520737263456c656d656e747375636365737369766573696e63
-      65207468652073686f756c64206265206e6574776f726b696e676163636f756e
-      74696e67757365206f66207468656c6f776572207468616e73686f7773207468
-      61743c2f7370616e3e0a0909636f6d706c61696e7473636f6e74696e756f7573
 
 
 
@@ -3980,6 +3980,9 @@ Alakuijala & Szabadka    Expires April 27, 2015                [Page 71]
 Internet-Draft                   Brotli                       April 2015
 
 
+      65207468652073686f756c64206265206e6574776f726b696e676163636f756e
+      74696e67757365206f66207468656c6f776572207468616e73686f7773207468
+      61743c2f7370616e3e0a0909636f6d706c61696e7473636f6e74696e756f7573
       7175616e746974696573617374726f6e6f6d6572686520646964206e6f746475
       6520746f206974736170706c69656420746f616e20617665726167656566666f
       72747320746f74686520667574757265617474656d707420746f546865726566
@@ -4025,9 +4028,6 @@ Internet-Draft                   Brotli                       April 2015
       656e74696f6e7768696c652074686520656475636174696f6e2c636f6e6e6563
       74696e6761636375726174656c7977657265206275696c74776173206b696c6c
       656461677265656d656e74736d756368206d6f72652044756520746f20746865
-      77696474683a20313030736f6d65206f746865724b696e67646f6d206f667468
-      6520656e7469726566616d6f757320666f72746f20636f6e6e6563746f626a65
-      637469766573746865204672656e636870656f706c6520616e64666561747572
 
 
 
@@ -4036,6 +4036,9 @@ Alakuijala & Szabadka    Expires April 27, 2015                [Page 72]
 Internet-Draft                   Brotli                       April 2015
 
 
+      77696474683a20313030736f6d65206f746865724b696e67646f6d206f667468
+      6520656e7469726566616d6f757320666f72746f20636f6e6e6563746f626a65
+      637469766573746865204672656e636870656f706c6520616e64666561747572
       6564223e6973207361696420746f7374727563747572616c7265666572656e64
       756d6d6f7374206f6674656e612073657061726174652d3e0a3c646976206964
       204f6666696369616c20776f726c64776964652e617269612d6c6162656c7468
@@ -4081,9 +4084,6 @@ Internet-Draft                   Brotli                       April 2015
       6469666572656e63696165636f6ec3b36d6963617472616e73706f727465726f
       6472c3ad6775657a70617274696369706172656e6375656e7472616e64697363
       757369c3b36e6573747275637475726166756e64616369c3b36e667265637565
-      6e7465737065726d616e656e7465746f74616c6d656e7465d0bcd0bed0b6d0bd
-      d0bed0b1d183d0b4d0b5d182d0bcd0bed0b6d0b5d182d0b2d180d0b5d0bcd18f
-      d182d0b0d0bad0b6d0b5d187d182d0bed0b1d18bd0b1d0bed0bbd0b5d0b5d0be
 
 
 
@@ -4092,6 +4092,9 @@ Alakuijala & Szabadka    Expires April 27, 2015                [Page 73]
 Internet-Draft                   Brotli                       April 2015
 
 
+      6e7465737065726d616e656e7465746f74616c6d656e7465d0bcd0bed0b6d0bd
+      d0bed0b1d183d0b4d0b5d182d0bcd0bed0b6d0b5d182d0b2d180d0b5d0bcd18f
+      d182d0b0d0bad0b6d0b5d187d182d0bed0b1d18bd0b1d0bed0bbd0b5d0b5d0be
       d187d0b5d0bdd18cd18dd182d0bed0b3d0bed0bad0bed0b3d0b4d0b0d0bfd0be
       d181d0bbd0b5d0b2d181d0b5d0b3d0bed181d0b0d0b9d182d0b5d187d0b5d180
       d0b5d0b7d0bcd0bed0b3d183d182d181d0b0d0b9d182d0b0d0b6d0b8d0b7d0bd
@@ -4137,9 +4140,6 @@ Internet-Draft                   Brotli                       April 2015
       d98ad988d8a5d8afd8a7d8b1d8a9d8aad8a7d8b1d98ad8aed8a7d984d8b5d8ad
       d8a9d8aad8b3d8acd98ad984d8a7d984d988d982d8aad8b9d986d8afd985d8a7
       d985d8afd98ad986d8a9d8aad8b5d985d98ad985d8a3d8b1d8b4d98ad981d8a7
-      d984d8b0d98ad986d8b9d8b1d8a8d98ad8a9d8a8d988d8a7d8a8d8a9d8a3d984
-      d8b9d8a7d8a8d8a7d984d8b3d981d8b1d985d8b4d8a7d983d984d8aad8b9d8a7
-      d984d989d8a7d984d8a3d988d984d8a7d984d8b3d986d8a9d8acd8a7d985d8b9
 
 
 
@@ -4148,6 +4148,9 @@ Alakuijala & Szabadka    Expires April 27, 2015                [Page 74]
 Internet-Draft                   Brotli                       April 2015
 
 
+      d984d8b0d98ad986d8b9d8b1d8a8d98ad8a9d8a8d988d8a7d8a8d8a9d8a3d984
+      d8b9d8a7d8a8d8a7d984d8b3d981d8b1d985d8b4d8a7d983d984d8aad8b9d8a7
+      d984d989d8a7d984d8a3d988d984d8a7d984d8b3d986d8a9d8acd8a7d985d8b9
       d8a9d8a7d984d8b5d8add981d8a7d984d8afd98ad986d983d984d985d8a7d8aa
       d8a7d984d8aed8a7d8b5d8a7d984d985d984d981d8a3d8b9d8b6d8a7d8a1d983
       d8aad8a7d8a8d8a9d8a7d984d8aed98ad8b1d8b1d8b3d8a7d8a6d984d8a7d984
@@ -4193,9 +4196,6 @@ Internet-Draft                   Brotli                       April 2015
       696f6e6578616d696e6174696f6e7072657061726174696f6e6578706c616e61
       74696f6e3c696e7075742069643d223c2f613e3c2f7370616e3e76657273696f
       6e73206f66696e737472756d656e74736265666f72652074686520203d202768
-      7474703a2f2f4465736372697074696f6e72656c61746976656c79202e737562
-      737472696e672865616368206f66207468656578706572696d656e7473696e66
-      6c75656e7469616c696e746567726174696f6e6d616e792070656f706c656475
 
 
 
@@ -4204,6 +4204,9 @@ Alakuijala & Szabadka    Expires April 27, 2015                [Page 75]
 Internet-Draft                   Brotli                       April 2015
 
 
+      7474703a2f2f4465736372697074696f6e72656c61746976656c79202e737562
+      737472696e672865616368206f66207468656578706572696d656e7473696e66
+      6c75656e7469616c696e746567726174696f6e6d616e792070656f706c656475
       6520746f2074686520636f6d62696e6174696f6e646f206e6f7420686176654d
       6964646c6520456173743c6e6f7363726970743e3c636f707972696768742220
       7065726861707320746865696e737469747574696f6e696e20446563656d6265
@@ -4249,9 +4252,6 @@ Internet-Draft                   Brotli                       April 2015
       63757272656e746120736572696573206f6661726520757375616c6c79726f6c
       6520696e2074686570726576696f75736c792064657269766174697665736576
       6964656e6365206f66657870657269656e636573636f6c6f72736368656d6573
-      7461746564207468617463657274696669636174653c2f613e3c2f6469763e0a
-      2073656c65637465643d2268696768207363686f6f6c726573706f6e73652074
-      6f636f6d666f727461626c6561646f7074696f6e206f66746872656520796561
 
 
 
@@ -4260,6 +4260,9 @@ Alakuijala & Szabadka    Expires April 27, 2015                [Page 76]
 Internet-Draft                   Brotli                       April 2015
 
 
+      7461746564207468617463657274696669636174653c2f613e3c2f6469763e0a
+      2073656c65637465643d2268696768207363686f6f6c726573706f6e73652074
+      6f636f6d666f727461626c6561646f7074696f6e206f66746872656520796561
       727374686520636f756e747279696e204665627275617279736f207468617420
       74686570656f706c652077686f2070726f76696465642062793c706172616d20
       6e616d656166666563746564206279696e207465726d73206f666170706f696e
@@ -4305,9 +4308,6 @@ Internet-Draft                   Brotli                       April 2015
       2c73616e732d736572696664657465726d696e696e67506572666f726d616e63
       65617070656172616e6365732c20776869636820697320666f756e646174696f
       6e736162627265766961746564686967686572207468616e732066726f6d2074
-      686520696e646976696475616c20636f6d706f736564206f66737570706f7365
-      6420746f636c61696d7320746861746174747269627574696f6e666f6e742d73
-      697a653a31656c656d656e7473206f66486973746f726963616c206869732062
 
 
 
@@ -4316,6 +4316,9 @@ Alakuijala & Szabadka    Expires April 27, 2015                [Page 77]
 Internet-Draft                   Brotli                       April 2015
 
 
+      686520696e646976696475616c20636f6d706f736564206f66737570706f7365
+      6420746f636c61696d7320746861746174747269627574696f6e666f6e742d73
+      697a653a31656c656d656e7473206f66486973746f726963616c206869732062
       726f746865726174207468652074696d65616e6e6976657273617279676f7665
       726e656420627972656c6174656420746f20756c74696d6174656c7920696e6e
       6f766174696f6e736974206973207374696c6c63616e206f6e6c792062656465
@@ -4361,9 +4364,6 @@ Internet-Draft                   Brotli                       April 2015
       66746572697420686164206265656e6d6f737420636f6d6d6f6e746f20726566
       657220746f6275742074686973206973636f6e736563757469766574656d706f
       726172696c79496e2067656e6572616c2c636f6e76656e74696f6e7374616b65
-      7320706c6163657375626469766973696f6e7465727269746f7269616c6f7065
-      726174696f6e616c7065726d616e656e746c79776173206c617267656c796f75
-      74627265616b206f66696e207468652070617374666f6c6c6f77696e67206120
 
 
 
@@ -4372,6 +4372,9 @@ Alakuijala & Szabadka    Expires April 27, 2015                [Page 78]
 Internet-Draft                   Brotli                       April 2015
 
 
+      7320706c6163657375626469766973696f6e7465727269746f7269616c6f7065
+      726174696f6e616c7065726d616e656e746c79776173206c617267656c796f75
+      74627265616b206f66696e207468652070617374666f6c6c6f77696e67206120
       786d6c6e733a6f673d223e3c6120636c6173733d22636c6173733d2274657874
       436f6e76657273696f6e206d617920626520757365646d616e75666163747572
       656166746572206265696e67636c656172666978223e0a7175657374696f6e20
@@ -4417,9 +4420,6 @@ Internet-Draft                   Brotli                       April 2015
       636f6d6d6f6e6c79726561736f6e7320666f72202671756f743b746865206361
       6e206265206d6164657761732061626c6520746f7768696368206d65616e7362
       757420646964206e6f746f6e4d6f7573654f766572617320706f737369626c65
-      6f70657261746564206279636f6d696e672066726f6d746865207072696d6172
-      796164646974696f6e206f66666f72207365766572616c7472616e7366657272
-      65646120706572696f64206f666172652061626c6520746f686f77657665722c
 
 
 
@@ -4428,6 +4428,9 @@ Alakuijala & Szabadka    Expires April 27, 2015                [Page 79]
 Internet-Draft                   Brotli                       April 2015
 
 
+      6f70657261746564206279636f6d696e672066726f6d746865207072696d6172
+      796164646974696f6e206f66666f72207365766572616c7472616e7366657272
+      65646120706572696f64206f666172652061626c6520746f686f77657665722c
       20697473686f756c6420686176656d756368206c61726765720a093c2f736372
       6970743e61646f707465642074686570726f7065727479206f66646972656374
       65642062796566666563746976656c797761732062726f756768746368696c64
@@ -4473,9 +4476,6 @@ Internet-Draft                   Brotli                       April 2015
       3e6f6620686973206c6966656163636f6d70616e696564636c69656e74576964
       746870726576656e74207468654c656769736c6174697665646966666572656e
       746c79746f67657468657220696e686173207365766572616c666f7220616e6f
-      7468657274657874206f6620746865666f756e64656420746865652077697468
-      20746865206973207573656420666f726368616e67656420746865757375616c
-      6c7920746865706c61636520776865726577686572656173207468653e203c61
 
 
 
@@ -4484,6 +4484,9 @@ Alakuijala & Szabadka    Expires April 27, 2015                [Page 80]
 Internet-Draft                   Brotli                       April 2015
 
 
+      7468657274657874206f6620746865666f756e64656420746865652077697468
+      20746865206973207573656420666f726368616e67656420746865757375616c
+      6c7920746865706c61636520776865726577686572656173207468653e203c61
       20687265663d22223e3c6120687265663d227468656d73656c7665732c616c74
       686f756768206865746861742063616e206265747261646974696f6e616c726f
       6c65206f66207468656173206120726573756c7472656d6f76654368696c6464
@@ -4529,9 +4532,6 @@ Internet-Draft                   Brotli                       April 2015
       697469616c6c61756e6368656420696e70726f7669646520746865746f207468
       6520776573747768657265207468657265616e642073696d696c617262657477
       65656e2074776f697320616c736f20746865456e676c69736820616e64636f6e
-      646974696f6e732c7468617420697420776173656e7469746c656420746f7468
-      656d73656c7665732e7175616e74697479206f6672616e73706172656e637974
-      68652073616d65206173746f206a6f696e20746865636f756e74727920616e64
 
 
 
@@ -4540,6 +4540,9 @@ Alakuijala & Szabadka    Expires April 27, 2015                [Page 81]
 Internet-Draft                   Brotli                       April 2015
 
 
+      646974696f6e732c7468617420697420776173656e7469746c656420746f7468
+      656d73656c7665732e7175616e74697479206f6672616e73706172656e637974
+      68652073616d65206173746f206a6f696e20746865636f756e74727920616e64
       746869732069732074686554686973206c656420746f612073746174656d656e
       74636f6e747261737420746f6c617374496e6465784f667468726f7567682068
       697369732064657369676e6564746865207465726d20697369732070726f7669
@@ -4585,9 +4588,6 @@ Internet-Draft                   Brotli                       April 2015
       6820416672696361756e7375636365737366756c50656e6e73796c76616e6961
       4173206120726573756c742c3c68746d6c206c616e673d22266c743b2f737570
       2667743b6465616c696e6720776974687068696c6164656c7068696168697374
-      6f726963616c6c79293b3c2f7363726970743e0a70616464696e672d746f703a
-      6578706572696d656e74616c676574417474726962757465696e737472756374
-      696f6e73746563686e6f6c6f6769657370617274206f6620746865203d66756e
 
 
 
@@ -4596,6 +4596,9 @@ Alakuijala & Szabadka    Expires April 27, 2015                [Page 82]
 Internet-Draft                   Brotli                       April 2015
 
 
+      6f726963616c6c79293b3c2f7363726970743e0a70616464696e672d746f703a
+      6578706572696d656e74616c676574417474726962757465696e737472756374
+      696f6e73746563686e6f6c6f6769657370617274206f6620746865203d66756e
       6374696f6e28297b737562736372697074696f6e6c2e647464223e0d0a3c6874
       67656f67726170686963616c436f6e737469747574696f6e272c2066756e6374
       696f6e28737570706f727465642062796167726963756c747572616c636f6e73
@@ -4641,9 +4644,6 @@ Internet-Draft                   Brotli                       April 2015
       73703b3c2f74643e636f6e7461696e6572223e0a737563682061732074686520
       696e666c75656e6365206f666120706172746963756c61727372633d27687474
       703a2f2f6e617669676174696f6e222068616c66206f66207468652073756273
-      74616e7469616c20266e6273703b3c2f6469763e616476616e74616765206f66
-      646973636f76657279206f6666756e64616d656e74616c206d6574726f706f6c
-      6974616e746865206f70706f736974652220786d6c3a6c616e673d2264656c69
 
 
 
@@ -4652,6 +4652,9 @@ Alakuijala & Szabadka    Expires April 27, 2015                [Page 83]
 Internet-Draft                   Brotli                       April 2015
 
 
+      74616e7469616c20266e6273703b3c2f6469763e616476616e74616765206f66
+      646973636f76657279206f6666756e64616d656e74616c206d6574726f706f6c
+      6974616e746865206f70706f736974652220786d6c3a6c616e673d2264656c69
       6265726174656c79616c69676e3d63656e74657265766f6c7574696f6e206f66
       707265736572766174696f6e696d70726f76656d656e7473626567696e6e696e
       6720696e4a65737573204368726973745075626c69636174696f6e7364697361
@@ -4697,9 +4700,6 @@ Internet-Draft                   Brotli                       April 2015
       696e6720746861746e6f77206b6e6f776e206173496e20746865206561726c79
       696e7465726d656469617465646572697665642066726f6d5363616e64696e61
       7669616e3c2f613e3c2f6469763e0d0a636f6e736964657220746865616e2065
-      7374696d61746564746865204e6174696f6e616c3c6469762069643d22706167
-      726573756c74696e6720696e636f6d6d697373696f6e6564616e616c6f676f75
-      7320746f6172652072657175697265642f756c3e0a3c2f6469763e0a77617320
 
 
 
@@ -4708,6 +4708,9 @@ Alakuijala & Szabadka    Expires April 27, 2015                [Page 84]
 Internet-Draft                   Brotli                       April 2015
 
 
+      7374696d61746564746865204e6174696f6e616c3c6469762069643d22706167
+      726573756c74696e6720696e636f6d6d697373696f6e6564616e616c6f676f75
+      7320746f6172652072657175697265642f756c3e0a3c2f6469763e0a77617320
       6261736564206f6e616e6420626563616d652061266e6273703b266e6273703b
       74222076616c75653d2222207761732063617074757265646e6f206d6f726520
       7468616e726573706563746976656c79636f6e74696e756520746f203e0d0a3c
@@ -4753,9 +4756,6 @@ Internet-Draft                   Brotli                       April 2015
       6f736f7068657273706f776572206f6620746865636f6e7461696e656420696e
       706572666f726d6564206279696e6162696c69747920746f7765726520777269
       7474656e7370616e207374796c653d22696e707574206e616d653d2274686520
-      7175657374696f6e696e74656e64656420666f7272656a656374696f6e206f66
-      696d706c6965732074686174696e76656e74656420746865746865207374616e
-      646172647761732070726f6261626c796c696e6b206265747765656e70726f66
 
 
 
@@ -4764,6 +4764,9 @@ Alakuijala & Szabadka    Expires April 27, 2015                [Page 85]
 Internet-Draft                   Brotli                       April 2015
 
 
+      7175657374696f6e696e74656e64656420666f7272656a656374696f6e206f66
+      696d706c6965732074686174696e76656e74656420746865746865207374616e
+      646172647761732070726f6261626c796c696e6b206265747765656e70726f66
       6573736f72206f66696e746572616374696f6e736368616e67696e6720746865
       496e6469616e204f6365616e20636c6173733d226c617374776f726b696e6720
       7769746827687474703a2f2f7777772e7965617273206265666f726554686973
@@ -4809,9 +4812,6 @@ Internet-Draft                   Brotli                       April 2015
       67656420776974687265666c656374656420696e7375626a656374656420746f
       6d696c697461727920616e64746f2074686520706f696e7465636f6e6f6d6963
       616c6c79736574546172676574696e676172652061637475616c6c7976696374
-      6f7279206f76657228293b3c2f7363726970743e636f6e74696e756f75736c79
-      726571756972656420666f7265766f6c7574696f6e617279616e206566666563
-      746976656e6f727468206f66207468652c207768696368207761732066726f6e
 
 
 
@@ -4820,6 +4820,9 @@ Alakuijala & Szabadka    Expires April 27, 2015                [Page 86]
 Internet-Draft                   Brotli                       April 2015
 
 
+      6f7279206f76657228293b3c2f7363726970743e636f6e74696e756f75736c79
+      726571756972656420666f7265766f6c7574696f6e617279616e206566666563
+      746976656e6f727468206f66207468652c207768696368207761732066726f6e
       74206f66207468656f72206f7468657277697365736f6d6520666f726d206f66
       686164206e6f74206265656e67656e657261746564206279696e666f726d6174
       696f6e2e7065726d697474656420746f696e636c756465732074686564657665
@@ -4865,9 +4868,6 @@ Internet-Draft                   Brotli                       April 2015
       617465676f726961d182d0bed0bbd18cd0bad0bed0a0d0bed181d181d0b8d0b8
       d180d0b0d0b1d0bed182d18bd0b1d0bed0bbd18cd188d0b5d0bfd180d0bed181
       d182d0bed0bcd0bed0b6d0b5d182d0b5d0b4d180d183d0b3d0b8d185d181d0bb
-      d183d187d0b0d0b5d181d0b5d0b9d187d0b0d181d0b2d181d0b5d0b3d0b4d0b0
-      d0a0d0bed181d181d0b8d18fd09cd0bed181d0bad0b2d0b5d0b4d180d183d0b3
-      d0b8d0b5d0b3d0bed180d0bed0b4d0b0d0b2d0bed0bfd180d0bed181d0b4d0b0
 
 
 
@@ -4876,6 +4876,9 @@ Alakuijala & Szabadka    Expires April 27, 2015                [Page 87]
 Internet-Draft                   Brotli                       April 2015
 
 
+      d183d187d0b0d0b5d181d0b5d0b9d187d0b0d181d0b2d181d0b5d0b3d0b4d0b0
+      d0a0d0bed181d181d0b8d18fd09cd0bed181d0bad0b2d0b5d0b4d180d183d0b3
+      d0b8d0b5d0b3d0bed180d0bed0b4d0b0d0b2d0bed0bfd180d0bed181d0b4d0b0
       d0bdd0bdd18bd185d0b4d0bed0bbd0b6d0bdd18bd0b8d0bcd0b5d0bdd0bdd0be
       d09cd0bed181d0bad0b2d18bd180d183d0b1d0bbd0b5d0b9d09cd0bed181d0ba
       d0b2d0b0d181d182d180d0b0d0bdd18bd0bdd0b8d187d0b5d0b3d0bed180d0b0
@@ -4921,9 +4924,6 @@ Internet-Draft                   Brotli                       April 2015
       a4b0e0a4a8e0a4bee0a489e0a4a8e0a495e0a587e0a4afe0a4b9e0a4bee0a481
       e0a4b8e0a4ace0a4b8e0a587e0a4ade0a4bee0a4b7e0a4bee0a486e0a4aae0a4
       95e0a587e0a4b2e0a4bfe0a4afe0a587e0a4b6e0a581e0a4b0e0a582e0a487e0
-      a4b8e0a495e0a587e0a498e0a482e0a49fe0a587e0a4aee0a587e0a4b0e0a580
-      e0a4b8e0a495e0a4a4e0a4bee0a4aee0a587e0a4b0e0a4bee0a4b2e0a587e0a4
-      95e0a4b0e0a485e0a4a7e0a4bfe0a495e0a485e0a4aae0a4a8e0a4bee0a4b8e0
 
 
 
@@ -4932,6 +4932,9 @@ Alakuijala & Szabadka    Expires April 27, 2015                [Page 88]
 Internet-Draft                   Brotli                       April 2015
 
 
+      a4b8e0a495e0a587e0a498e0a482e0a49fe0a587e0a4aee0a587e0a4b0e0a580
+      e0a4b8e0a495e0a4a4e0a4bee0a4aee0a587e0a4b0e0a4bee0a4b2e0a587e0a4
+      95e0a4b0e0a485e0a4a7e0a4bfe0a495e0a485e0a4aae0a4a8e0a4bee0a4b8e0
       a4aee0a4bee0a49ce0a4aee0a581e0a49de0a587e0a495e0a4bee0a4b0e0a4a3
       e0a4b9e0a58be0a4a4e0a4bee0a495e0a4a1e0a4bce0a580e0a4afe0a4b9e0a4
       bee0a482e0a4b9e0a58be0a49fe0a4b2e0a4b6e0a4ace0a58de0a4a6e0a4b2e0
@@ -4977,9 +4980,6 @@ Internet-Draft                   Brotli                       April 2015
       a58de0a4a5e0a4b2e0a4aee0a4bfe0a4b2e0a587e0a4b2e0a587e0a496e0a495
       e0a4b5e0a4bfe0a4b7e0a4afe0a495e0a58de0a4b0e0a482e0a4b8e0a4aee0a5
       82e0a4b9e0a4a5e0a4bee0a4a8e0a4bed8aad8b3d8aad8b7d98ad8b9d985d8b4
-      d8a7d8b1d983d8a9d8a8d988d8a7d8b3d8b7d8a9d8a7d984d8b5d981d8add8a9
-      d985d988d8a7d8b6d98ad8b9d8a7d984d8aed8a7d8b5d8a9d8a7d984d985d8b2
-      d98ad8afd8a7d984d8b9d8a7d985d8a9d8a7d984d983d8a7d8aad8a8d8a7d984
 
 
 
@@ -4988,6 +4988,9 @@ Alakuijala & Szabadka    Expires April 27, 2015                [Page 89]
 Internet-Draft                   Brotli                       April 2015
 
 
+      d8a7d8b1d983d8a9d8a8d988d8a7d8b3d8b7d8a9d8a7d984d8b5d981d8add8a9
+      d985d988d8a7d8b6d98ad8b9d8a7d984d8aed8a7d8b5d8a9d8a7d984d985d8b2
+      d98ad8afd8a7d984d8b9d8a7d985d8a9d8a7d984d983d8a7d8aad8a8d8a7d984
       d8b1d8afd988d8afd8a8d8b1d986d8a7d985d8acd8a7d984d8afd988d984d8a9
       d8a7d984d8b9d8a7d984d985d8a7d984d985d988d982d8b9d8a7d984d8b9d8b1
       d8a8d98ad8a7d984d8b3d8b1d98ad8b9d8a7d984d8acd988d8a7d984d8a7d984
@@ -5033,9 +5036,6 @@ Internet-Draft                   Brotli                       April 2015
       20696e7374616e63652c636f6e73697374696e67206f6622206d61786c656e67
       74683d2272657475726e2066616c73653b636f6e7363696f75736e6573734d65
       646974657272616e65616e65787472616f7264696e617279617373617373696e
-      6174696f6e73756273657175656e746c7920627574746f6e20747970653d2274
-      6865206e756d626572206f66746865206f726967696e616c20636f6d70726568
-      656e7369766572656665727320746f207468653c2f756c3e0a3c2f6469763e0a
 
 
 
@@ -5044,6 +5044,9 @@ Alakuijala & Szabadka    Expires April 27, 2015                [Page 90]
 Internet-Draft                   Brotli                       April 2015
 
 
+      6174696f6e73756273657175656e746c7920627574746f6e20747970653d2274
+      6865206e756d626572206f66746865206f726967696e616c20636f6d70726568
+      656e7369766572656665727320746f207468653c2f756c3e0a3c2f6469763e0a
       7068696c6f736f70686963616c6c6f636174696f6e2e68726566776173207075
       626c697368656453616e204672616e636973636f2866756e6374696f6e28297b
       0a3c6469762069643d226d61696e736f70686973746963617465646d61746865
@@ -5089,9 +5092,6 @@ Internet-Draft                   Brotli                       April 2015
       6576656c6f706564496e646f2d4575726f7065616e76756c6e657261626c6520
       746f70726f706f6e656e7473206f6661726520736f6d6574696d6573636c6f73
       657220746f207468654e657720596f726b2043697479206e616d653d22736561
-      7263686174747269627574656420746f636f75727365206f66207468656d6174
-      68656d6174696369616e62792074686520656e64206f6661742074686520656e
-      64206f662220626f726465723d22302220746563686e6f6c6f676963616c2e72
 
 
 
@@ -5100,6 +5100,9 @@ Alakuijala & Szabadka    Expires April 27, 2015                [Page 91]
 Internet-Draft                   Brotli                       April 2015
 
 
+      7263686174747269627574656420746f636f75727365206f66207468656d6174
+      68656d6174696369616e62792074686520656e64206f6661742074686520656e
+      64206f662220626f726465723d22302220746563686e6f6c6f676963616c2e72
       656d6f7665436c617373286272616e6368206f662074686565766964656e6365
       2074686174215b656e6469665d2d2d3e0d0a496e73746974757465206f662069
       6e746f20612073696e676c65726573706563746976656c792e616e6420746865
@@ -5145,9 +5148,6 @@ Internet-Draft                   Brotli                       April 2015
       6f7220746865666f756e646174696f6e206f66636f6e747269627574696f6e73
       706f70756c6172697479206f6663656e746572206f6620746865746f20726564
       756365207468656a7572697364696374696f6e73617070726f78696d6174696f
-      6e206f6e6d6f7573656f75743d224e65772054657374616d656e74636f6c6c65
-      6374696f6e206f663c2f7370616e3e3c2f613e3c2f696e2074686520556e6974
-      656466696c6d206469726563746f722d7374726963742e647464223e68617320
 
 
 
@@ -5156,6 +5156,9 @@ Alakuijala & Szabadka    Expires April 27, 2015                [Page 92]
 Internet-Draft                   Brotli                       April 2015
 
 
+      6e206f6e6d6f7573656f75743d224e65772054657374616d656e74636f6c6c65
+      6374696f6e206f663c2f7370616e3e3c2f613e3c2f696e2074686520556e6974
+      656466696c6d206469726563746f722d7374726963742e647464223e68617320
       6265656e207573656472657475726e20746f20746865616c74686f7567682074
       6869736368616e676520696e207468657365766572616c206f74686572627574
       20746865726520617265756e707265636564656e74656469732073696d696c61
@@ -5201,9 +5204,6 @@ Internet-Draft                   Brotli                       April 2015
       6963616c696e74726f647563656420696e73756666696369656e7420746f6465
       736372697074696f6e223e73686f72742073746f726965737365706172617469
       6f6e206f66617320746f20776865746865726b6e6f776e20666f722069747377
-      617320696e697469616c6c79646973706c61793a626c6f636b697320616e2065
-      78616d706c65746865207072696e636970616c636f6e7369737473206f662061
-      7265636f676e697a65642061732f626f64793e3c2f68746d6c3e612073756273
 
 
 
@@ -5212,6 +5212,9 @@ Alakuijala & Szabadka    Expires April 27, 2015                [Page 93]
 Internet-Draft                   Brotli                       April 2015
 
 
+      617320696e697469616c6c79646973706c61793a626c6f636b697320616e2065
+      78616d706c65746865207072696e636970616c636f6e7369737473206f662061
+      7265636f676e697a65642061732f626f64793e3c2f68746d6c3e612073756273
       74616e7469616c7265636f6e737472756374656468656164206f662073746174
       65726573697374616e636520746f756e64657267726164756174655468657265
       206172652074776f6772617669746174696f6e616c6172652064657363726962
@@ -5257,9 +5260,6 @@ Internet-Draft                   Brotli                       April 2015
       5b656e6469665d2d2d3e0a3c2f3e3c6d657461206e616d653d22696d706c656d
       656e746174696f6e696e667261737472756374757265726570726573656e7461
       74696f6e626f726465722d626f74746f6d3a3c2f686561643e0a3c626f64793e
-      3d687474702533412532462532463c666f726d206d6574686f643d226d657468
-      6f643d22706f737422202f66617669636f6e2e69636f22207d293b0a3c2f7363
-      726970743e0a2e7365744174747269627574652841646d696e69737472617469
 
 
 
@@ -5268,6 +5268,9 @@ Alakuijala & Szabadka    Expires April 27, 2015                [Page 94]
 Internet-Draft                   Brotli                       April 2015
 
 
+      3d687474702533412532462532463c666f726d206d6574686f643d226d657468
+      6f643d22706f737422202f66617669636f6e2e69636f22207d293b0a3c2f7363
+      726970743e0a2e7365744174747269627574652841646d696e69737472617469
       6f6e3d206e657720417272617928293b3c215b656e6469665d2d2d3e0d0a6469
       73706c61793a626c6f636b3b556e666f7274756e6174656c792c223e266e6273
       703b3c2f6469763e2f66617669636f6e2e69636f223e3d277374796c65736865
@@ -5313,9 +5316,6 @@ Internet-Draft                   Brotli                       April 2015
       6173093c6c693e3c6120687265663d223e3c696e707574206e616d653d227365
       706172617465642066726f6d726566657272656420746f2061732076616c6967
       6e3d22746f70223e666f756e646572206f6620746865617474656d7074696e67
-      20746f20636172626f6e2064696f786964650a0a3c64697620636c6173733d22
-      636c6173733d227365617263682d2f626f64793e0a3c2f68746d6c3e6f70706f
-      7274756e69747920746f636f6d6d756e69636174696f6e733c2f686561643e0d
 
 
 
@@ -5324,6 +5324,9 @@ Alakuijala & Szabadka    Expires April 27, 2015                [Page 95]
 Internet-Draft                   Brotli                       April 2015
 
 
+      20746f20636172626f6e2064696f786964650a0a3c64697620636c6173733d22
+      636c6173733d227365617263682d2f626f64793e0a3c2f68746d6c3e6f70706f
+      7274756e69747920746f636f6d6d756e69636174696f6e733c2f686561643e0d
       0a3c626f6479207374796c653d2277696474683a5469e1babf6e67205669e1bb
       87746368616e67657320696e20746865626f726465722d636f6c6f723a233022
       20626f726465723d223022203c2f7370616e3e3c2f6469763e3c776173206469
@@ -5369,9 +5372,6 @@ Internet-Draft                   Brotli                       April 2015
       6f66207468656861732073696e6365206265656e4575726f7065616e20556e69
       6f6e72656d696e697363656e74206f666d6f726520646966666963756c745669
       636520507265736964656e74636f6d706f736974696f6e206f66706173736564
-      207468726f7567686d6f726520696d706f7274616e74666f6e742d73697a653a
-      313170786578706c616e6174696f6e206f6674686520636f6e63657074206f66
-      7772697474656e20696e20746865093c7370616e20636c6173733d226973206f
 
 
 
@@ -5380,6 +5380,9 @@ Alakuijala & Szabadka    Expires April 27, 2015                [Page 96]
 Internet-Draft                   Brotli                       April 2015
 
 
+      207468726f7567686d6f726520696d706f7274616e74666f6e742d73697a653a
+      313170786578706c616e6174696f6e206f6674686520636f6e63657074206f66
+      7772697474656e20696e20746865093c7370616e20636c6173733d226973206f
       6e65206f662074686520726573656d626c616e636520746f6f6e207468652067
       726f756e6473776869636820636f6e7461696e73696e636c7564696e67207468
       6520646566696e6564206279207468657075626c69636174696f6e206f666d65
@@ -5425,9 +5428,6 @@ Internet-Draft                   Brotli                       April 2015
       697374696e67756973683c7370616e20636c6173733d226274616b657320706c
       61636520696e756e64657220746865206e616d656e6f74656420746861742074
       68653e3c215b656e6469665d2d2d3e0a7374796c653d226d617267696e2d696e
-      7374656164206f6620746865696e74726f647563656420746865746865207072
-      6f63657373206f66696e6372656173696e6720746865646966666572656e6365
-      7320696e657374696d617465642074686174657370656369616c6c7920746865
 
 
 
@@ -5436,6 +5436,9 @@ Alakuijala & Szabadka    Expires April 27, 2015                [Page 97]
 Internet-Draft                   Brotli                       April 2015
 
 
+      7374656164206f6620746865696e74726f647563656420746865746865207072
+      6f63657373206f66696e6372656173696e6720746865646966666572656e6365
+      7320696e657374696d617465642074686174657370656369616c6c7920746865
       2f6469763e3c6469762069643d22776173206576656e7475616c6c797468726f
       7567686f75742068697374686520646966666572656e6365736f6d657468696e
       6720746861747370616e3e3c2f7370616e3e3c2f7369676e69666963616e746c
@@ -5481,9 +5484,6 @@ Internet-Draft                   Brotli                       April 2015
       d181d0bad0b0d187d0b0d182d18cd0bdd0bed0b2d0bed181d182d0b8d0a3d0ba
       d180d0b0d0b8d0bdd18bd0b2d0bed0bfd180d0bed181d18bd0bad0bed182d0be
       d180d0bed0b9d181d0b4d0b5d0bbd0b0d182d18cd0bfd0bed0bcd0bed189d18c
-      d18ed181d180d0b5d0b4d181d182d0b2d0bed0b1d180d0b0d0b7d0bed0bcd181
-      d182d0bed180d0bed0bdd18bd183d187d0b0d181d182d0b8d0b5d182d0b5d187
-      d0b5d0bdd0b8d0b5d093d0bbd0b0d0b2d0bdd0b0d18fd0b8d181d182d0bed180
 
 
 
@@ -5492,6 +5492,9 @@ Alakuijala & Szabadka    Expires April 27, 2015                [Page 98]
 Internet-Draft                   Brotli                       April 2015
 
 
+      d18ed181d180d0b5d0b4d181d182d0b2d0bed0b1d180d0b0d0b7d0bed0bcd181
+      d182d0bed180d0bed0bdd18bd183d187d0b0d181d182d0b8d0b5d182d0b5d187
+      d0b5d0bdd0b8d0b5d093d0bbd0b0d0b2d0bdd0b0d18fd0b8d181d182d0bed180
       d0b8d0b8d181d0b8d181d182d0b5d0bcd0b0d180d0b5d188d0b5d0bdd0b8d18f
       d0a1d0bad0b0d187d0b0d182d18cd0bfd0bed18dd182d0bed0bcd183d181d0bb
       d0b5d0b4d183d0b5d182d181d0bad0b0d0b7d0b0d182d18cd182d0bed0b2d0b0
@@ -5537,9 +5540,6 @@ Internet-Draft                   Brotli                       April 2015
       68746d6c3e686973746f7279206f662074686520223e3c696e70757420747970
       653d22706f7274696f6e206f66207468652061732070617274206f6620746865
       20266e6273703b3c6120687265663d226f7468657220636f756e747269657322
-      3e0a3c64697620636c6173733d223c2f7370616e3e3c2f7370616e3e3c496e20
-      6f7468657220776f7264732c646973706c61793a20626c6f636b3b636f6e7472
-      6f6c206f662074686520696e74726f64756374696f6e206f662f3e0a3c6d6574
 
 
 
@@ -5548,6 +5548,9 @@ Alakuijala & Szabadka    Expires April 27, 2015                [Page 99]
 Internet-Draft                   Brotli                       April 2015
 
 
+      3e0a3c64697620636c6173733d223c2f7370616e3e3c2f7370616e3e3c496e20
+      6f7468657220776f7264732c646973706c61793a20626c6f636b3b636f6e7472
+      6f6c206f662074686520696e74726f64756374696f6e206f662f3e0a3c6d6574
       61206e616d653d2261732077656c6c2061732074686520696e20726563656e74
       2079656172730d0a093c64697620636c6173733d223c2f6469763e0a093c2f64
       69763e0a696e7370697265642062792074686574686520656e64206f66207468
@@ -5593,9 +5596,6 @@ Internet-Draft                   Brotli                       April 2015
       2f7363726970743e3c2f6469763e66756e6374696f6e28297b7661722072656c
       617469766520746f207468656173206120726573756c74206f66207468652070
       6f736974696f6e206f66466f72206578616d706c652c20696e206d6574686f64
-      3d22706f7374222077617320666f6c6c6f77656420627926616d703b6d646173
-      683b20746865746865206170706c69636174696f6e6a73223e3c2f7363726970
-      743e0d0a756c3e3c2f6469763e3c2f6469763e61667465722074686520646561
 
 
 
@@ -5604,6 +5604,9 @@ Alakuijala & Szabadka    Expires April 27, 2015               [Page 100]
 Internet-Draft                   Brotli                       April 2015
 
 
+      3d22706f7374222077617320666f6c6c6f77656420627926616d703b6d646173
+      683b20746865746865206170706c69636174696f6e6a73223e3c2f7363726970
+      743e0d0a756c3e3c2f6469763e3c2f6469763e61667465722074686520646561
       746877697468207265737065637420746f7374796c653d2270616464696e673a
       697320706172746963756c61726c79646973706c61793a696e6c696e653b2074
       7970653d227375626d697422206973206469766964656420696e746fe4b8ade6
@@ -5649,9 +5652,6 @@ Internet-Draft                   Brotli                       April 2015
       a49ae0a4bee0a4b0e0a4b8e0a582e0a49ae0a4a8e0a4bee0a4aee0a582e0a4b2
       e0a58de0a4afe0a4a6e0a587e0a496e0a587e0a482e0a4b9e0a4aee0a587e0a4
       b6e0a4bee0a4b8e0a58de0a495e0a582e0a4b2e0a4aee0a588e0a482e0a4a8e0
-      a587e0a4a4e0a588e0a4afe0a4bee0a4b0e0a49ce0a4bfe0a4b8e0a495e0a587
-      7273732b786d6c22207469746c653d222d747970652220636f6e74656e743d22
-      7469746c652220636f6e74656e743d226174207468652073616d652074696d65
 
 
 
@@ -5660,6 +5660,9 @@ Alakuijala & Szabadka    Expires April 27, 2015               [Page 101]
 Internet-Draft                   Brotli                       April 2015
 
 
+      a587e0a4a4e0a588e0a4afe0a4bee0a4b0e0a49ce0a4bfe0a4b8e0a495e0a587
+      7273732b786d6c22207469746c653d222d747970652220636f6e74656e743d22
+      7469746c652220636f6e74656e743d226174207468652073616d652074696d65
       2e6a73223e3c2f7363726970743e0a3c22206d6574686f643d22706f73742220
       3c2f7370616e3e3c2f613e3c2f6c693e766572746963616c2d616c69676e3a74
       2f6a71756572792e6d696e2e6a73223e2e636c69636b2866756e6374696f6e28
@@ -5705,9 +5708,6 @@ Internet-Draft                   Brotli                       April 2015
       626563616d652074686520666972737462616861736120496e646f6e65736961
       656e676c697368202873696d706c6529ce95cebbcebbceb7cebdceb9cebaceac
       d185d180d0b2d0b0d182d181d0bad0b8d0bad0bed0bcd0bfd0b0d0bdd0b8d0b8
-      d18fd0b2d0bbd18fd0b5d182d181d18fd094d0bed0b1d0b0d0b2d0b8d182d18c
-      d187d0b5d0bbd0bed0b2d0b5d0bad0b0d180d0b0d0b7d0b2d0b8d182d0b8d18f
-      d098d0bdd182d0b5d180d0bdd0b5d182d09ed182d0b2d0b5d182d0b8d182d18c
 
 
 
@@ -5716,6 +5716,9 @@ Alakuijala & Szabadka    Expires April 27, 2015               [Page 102]
 Internet-Draft                   Brotli                       April 2015
 
 
+      d18fd0b2d0bbd18fd0b5d182d181d18fd094d0bed0b1d0b0d0b2d0b8d182d18c
+      d187d0b5d0bbd0bed0b2d0b5d0bad0b0d180d0b0d0b7d0b2d0b8d182d0b8d18f
+      d098d0bdd182d0b5d180d0bdd0b5d182d09ed182d0b2d0b5d182d0b8d182d18c
       d0bdd0b0d0bfd180d0b8d0bcd0b5d180d0b8d0bdd182d0b5d180d0bdd0b5d182
       d0bad0bed182d0bed180d0bed0b3d0bed181d182d180d0b0d0bdd0b8d186d18b
       d0bad0b0d187d0b5d181d182d0b2d0b5d183d181d0bbd0bed0b2d0b8d18fd185
@@ -5761,9 +5764,6 @@ Internet-Draft                   Brotli                       April 2015
       666978223e2f6469763e0d0a3c2f6469763e0d0a0d0a74687265652d64696d65
       6e73696f6e616c436875726368206f6620456e676c616e646f66204e6f727468
       204361726f6c696e61737175617265206b696c6f6d65747265732e6164644576
-      656e744c697374656e657264697374696e63742066726f6d20746865636f6d6d
-      6f6e6c79206b6e6f776e20617350686f6e6574696320416c7068616265746465
-      636c61726564207468617420746865636f6e74726f6c6c656420627920746865
 
 
 
@@ -5772,6 +5772,9 @@ Alakuijala & Szabadka    Expires April 27, 2015               [Page 103]
 Internet-Draft                   Brotli                       April 2015
 
 
+      656e744c697374656e657264697374696e63742066726f6d20746865636f6d6d
+      6f6e6c79206b6e6f776e20617350686f6e6574696320416c7068616265746465
+      636c61726564207468617420746865636f6e74726f6c6c656420627920746865
       42656e6a616d696e204672616e6b6c696e726f6c652d706c6179696e67206761
       6d6574686520556e6976657273697479206f66696e205765737465726e204575
       726f7065706572736f6e616c20636f6d707574657250726f6a65637420477574
@@ -5817,9 +5820,6 @@ Internet-Draft                   Brotli                       April 2015
       763e3c64697620636c6173733d223c646976207374796c653d22666c6f61743a
       6e696e657465656e74682063656e747572793c2f626f64793e0d0a3c2f68746d
       6c3e0d0a3c696d67207372633d22687474703a2f2f733b746578742d616c6967
-      6e3a63656e746572666f6e742d7765696768743a20626f6c643b204163636f72
-      64696e6720746f2074686520646966666572656e6365206265747765656e2220
-      6672616d65626f726465723d2230222022207374796c653d22706f736974696f
 
 
 
@@ -5828,6 +5828,9 @@ Alakuijala & Szabadka    Expires April 27, 2015               [Page 104]
 Internet-Draft                   Brotli                       April 2015
 
 
+      6e3a63656e746572666f6e742d7765696768743a20626f6c643b204163636f72
+      64696e6720746f2074686520646966666572656e6365206265747765656e2220
+      6672616d65626f726465723d2230222022207374796c653d22706f736974696f
       6e3a6c696e6b20687265663d22687474703a2f2f68746d6c342f6c6f6f73652e
       647464223e0a647572696e67207468697320706572696f643c2f74643e3c2f74
       723e3c2f7461626c653e636c6f73656c792072656c6174656420746f666f7220
@@ -5873,9 +5876,6 @@ Internet-Draft                   Brotli                       April 2015
       617665206265656e696e766f6c76656d656e7420696e20746865646976696465
       6420696e746f20746872656561646a6163656e7420636f756e74726965736973
       20726573706f6e7369626c6520666f72646973736f6c7574696f6e206f662074
-      6865636f6c6c61626f726174696f6e2077697468776964656c79207265676172
-      64656420617368697320636f6e74656d706f726172696573666f756e64696e67
-      206d656d626572206f66446f6d696e6963616e2052657075626c696367656e65
 
 
 
@@ -5884,6 +5884,9 @@ Alakuijala & Szabadka    Expires April 27, 2015               [Page 105]
 Internet-Draft                   Brotli                       April 2015
 
 
+      6865636f6c6c61626f726174696f6e2077697468776964656c79207265676172
+      64656420617368697320636f6e74656d706f726172696573666f756e64696e67
+      206d656d626572206f66446f6d696e6963616e2052657075626c696367656e65
       72616c6c7920616363657074656474686520706f73736962696c697479206f66
       61726520616c736f20617661696c61626c65756e64657220636f6e7374727563
       74696f6e726573746f726174696f6e206f66207468657468652067656e657261
@@ -5929,9 +5932,6 @@ Internet-Draft                   Brotli                       April 2015
       a580e0a487e0a482e0a4a1e0a4bfe0a4afe0a4bee0a4a6e0a4bfe0a4b2e0a58d
       e0a4b2e0a580e0a485e0a4a7e0a4bfe0a495e0a4bee0a4b0e0a4b5e0a580e0a4
       a1e0a4bfe0a4afe0a58be0a49ae0a4bfe0a49fe0a58de0a4a0e0a587e0a4b8e0
-      a4aee0a4bee0a49ae0a4bee0a4b0e0a49ce0a482e0a495e0a58de0a4b6e0a4a8
-      e0a4a6e0a581e0a4a8e0a4bfe0a4afe0a4bee0a4aae0a58de0a4b0e0a4afe0a5
-      8be0a497e0a485e0a4a8e0a581e0a4b8e0a4bee0a4b0e0a491e0a4a8e0a4b2e0
 
 
 
@@ -5940,6 +5940,9 @@ Alakuijala & Szabadka    Expires April 27, 2015               [Page 106]
 Internet-Draft                   Brotli                       April 2015
 
 
+      a4aee0a4bee0a49ae0a4bee0a4b0e0a49ce0a482e0a495e0a58de0a4b6e0a4a8
+      e0a4a6e0a581e0a4a8e0a4bfe0a4afe0a4bee0a4aae0a58de0a4b0e0a4afe0a5
+      8be0a497e0a485e0a4a8e0a581e0a4b8e0a4bee0a4b0e0a491e0a4a8e0a4b2e0
       a4bee0a487e0a4a8e0a4aae0a4bee0a4b0e0a58de0a49fe0a580e0a4b6e0a4b0
       e0a58de0a4a4e0a58be0a482e0a4b2e0a58be0a495e0a4b8e0a4ade0a4bee0a4
       abe0a4bce0a58de0a4b2e0a588e0a4b6e0a4b6e0a4b0e0a58de0a4a4e0a587e0
@@ -5985,9 +5988,6 @@ Internet-Draft                   Brotli                       April 2015
       633d22687474703a2f2f637269707422207372633d22687474703a2f2f0a3c73
       6372697074206c616e67756167653d222f2f454e222022687474703a2f2f7777
       772e77656e636f6465555249436f6d706f6e656e74282220687265663d226a61
-      76617363726970743a3c64697620636c6173733d22636f6e74656e74646f6375
-      6d656e742e777269746528273c7363706f736974696f6e3a206162736f6c7574
-      653b736372697074207372633d22687474703a2f2f207374796c653d226d6172
 
 
 
@@ -5996,6 +5996,9 @@ Alakuijala & Szabadka    Expires April 27, 2015               [Page 107]
 Internet-Draft                   Brotli                       April 2015
 
 
+      76617363726970743a3c64697620636c6173733d22636f6e74656e74646f6375
+      6d656e742e777269746528273c7363706f736974696f6e3a206162736f6c7574
+      653b736372697074207372633d22687474703a2f2f207374796c653d226d6172
       67696e2d746f703a2e6d696e2e6a73223e3c2f7363726970743e0a3c2f646976
       3e0a3c64697620636c6173733d2277332e6f72672f313939392f7868746d6c22
       200a0d0a3c2f626f64793e0d0a3c2f68746d6c3e64697374696e6374696f6e20
@@ -6041,9 +6044,6 @@ Internet-Draft                   Brotli                       April 2015
       3c2f74723e3c2f7461626c653e52657075626c6963206f66204972656c616e64
       0a3c2f7363726970743e0a3c73637269707420756e6465722074686520696e66
       6c75656e6365636f6e747269627574696f6e20746f207468654f666669636961
-      6c2077656273697465206f66686561647175617274657273206f662074686563
-      656e74657265642061726f756e6420746865696d706c69636174696f6e73206f
-      662074686568617665206265656e20646576656c6f7065644665646572616c20
 
 
 
@@ -6052,6 +6052,9 @@ Alakuijala & Szabadka    Expires April 27, 2015               [Page 108]
 Internet-Draft                   Brotli                       April 2015
 
 
+      6c2077656273697465206f66686561647175617274657273206f662074686563
+      656e74657265642061726f756e6420746865696d706c69636174696f6e73206f
+      662074686568617665206265656e20646576656c6f7065644665646572616c20
       52657075626c6963206f66626563616d6520696e6372656173696e676c79636f
       6e74696e756174696f6e206f66207468654e6f74652c20686f77657665722c20
       7468617473696d696c617220746f2074686174206f66206361706162696c6974
@@ -6097,9 +6100,6 @@ Internet-Draft                   Brotli                       April 2015
       63793d227374796c6573686565742220747970653d2274650d0a3c6d65746120
       687474702d65717569763d223e3c2f7370616e3e3c7370616e20636c6173733d
       2230222063656c6c73706163696e673d2230223e3b0a3c2f7363726970743e0a
-      3c73637269707420736f6d6574696d65732063616c6c656420746865646f6573
-      206e6f74206e65636573736172696c79466f72206d6f726520696e666f726d61
-      74696f6e61742074686520626567696e6e696e67206f66203c21444f43545950
 
 
 
@@ -6108,6 +6108,9 @@ Alakuijala & Szabadka    Expires April 27, 2015               [Page 109]
 Internet-Draft                   Brotli                       April 2015
 
 
+      3c73637269707420736f6d6574696d65732063616c6c656420746865646f6573
+      206e6f74206e65636573736172696c79466f72206d6f726520696e666f726d61
+      74696f6e61742074686520626567696e6e696e67206f66203c21444f43545950
       452068746d6c3e3c68746d6c706172746963756c61726c7920696e2074686520
       747970653d2268696464656e22206e616d653d226a6176617363726970743a76
       6f69642830293b226566666563746976656e657373206f662074686520617574
@@ -6153,9 +6156,6 @@ Internet-Draft                   Brotli                       April 2015
       d181d182d0b2d0bed0b8d0bdd184d0bed180d0bcd0b0d186d0b8d18ed182d0b5
       d180d180d0b8d182d0bed180d0b8d0b8d0b4d0bed181d182d0b0d182d0bed187
       d0bdd0bed8a7d984d985d8aad988d8a7d8acd8afd988d986d8a7d984d8a7d8b4
-      d8aad8b1d8a7d983d8a7d8aad8a7d984d8a7d982d8aad8b1d8a7d8add8a7d8aa
-      68746d6c3b20636861727365743d5554462d38222073657454696d656f757428
-      66756e6374696f6e2829646973706c61793a696e6c696e652d626c6f636b3b3c
 
 
 
@@ -6164,6 +6164,9 @@ Alakuijala & Szabadka    Expires April 27, 2015               [Page 110]
 Internet-Draft                   Brotli                       April 2015
 
 
+      d8aad8b1d8a7d983d8a7d8aad8a7d984d8a7d982d8aad8b1d8a7d8add8a7d8aa
+      68746d6c3b20636861727365743d5554462d38222073657454696d656f757428
+      66756e6374696f6e2829646973706c61793a696e6c696e652d626c6f636b3b3c
       696e70757420747970653d227375626d6974222074797065203d202774657874
       2f6a617661736372693c696d67207372633d22687474703a2f2f7777772e2220
       22687474703a2f2f7777772e77332e6f72672f73686f72746375742069636f6e
@@ -6209,9 +6212,6 @@ Internet-Draft                   Brotli                       April 2015
       65283c21444f43545950452068746d6c3e0a3c68746d6c203c6d657461206368
       61727365743d227574662d38223e3a75726c2220636f6e74656e743d22687474
       703a2f2f2e637373222072656c3d227374796c657368656574227374796c6520
-      747970653d22746578742f637373223e747970653d22746578742f6373732220
-      687265663d2277332e6f72672f313939392f7868746d6c2220786d6c74797065
-      3d22746578742f6a61766173637269707422206d6574686f643d226765742220
 
 
 
@@ -6220,6 +6220,9 @@ Alakuijala & Szabadka    Expires April 27, 2015               [Page 111]
 Internet-Draft                   Brotli                       April 2015
 
 
+      747970653d22746578742f637373223e747970653d22746578742f6373732220
+      687265663d2277332e6f72672f313939392f7868746d6c2220786d6c74797065
+      3d22746578742f6a61766173637269707422206d6574686f643d226765742220
       616374696f6e3d226c696e6b2072656c3d227374796c6573686565742220203d
       20646f63756d656e742e676574456c656d656e74747970653d22696d6167652f
       782d69636f6e22202f3e63656c6c70616464696e673d2230222063656c6c7370
@@ -6265,9 +6268,6 @@ Internet-Draft                   Brotli                       April 2015
       78742f6a617661736372697074273b3c6d657461206e616d653d226465736372
       697074696f6e706172656e744e6f64652e696e736572744265666f72653c696e
       70757420747970653d2268696464656e22206e616a732220747970653d227465
-      78742f6a6176617363726928646f63756d656e74292e72656164792866756e63
-      746973637269707420747970653d22746578742f6a61766173696d6167652220
-      636f6e74656e743d22687474703a2f2f55412d436f6d70617469626c65222063
 
 
 
@@ -6276,6 +6276,9 @@ Alakuijala & Szabadka    Expires April 27, 2015               [Page 112]
 Internet-Draft                   Brotli                       April 2015
 
 
+      78742f6a6176617363726928646f63756d656e74292e72656164792866756e63
+      746973637269707420747970653d22746578742f6a61766173696d6167652220
+      636f6e74656e743d22687474703a2f2f55412d436f6d70617469626c65222063
       6f6e74656e743d746d6c3b20636861727365743d7574662d3822202f3e0a6c69
       6e6b2072656c3d2273686f72746375742069636f6e3c6c696e6b2072656c3d22
       7374796c65736865657422203c2f7363726970743e0a3c736372697074207479
@@ -6321,9 +6324,6 @@ Internet-Draft                   Brotli                       April 2015
 
 Appendix B. List of word transformations
 
-The string literals are in C format, with respect to the use of
-backslash escape characters.
-
 
 
 
@@ -6331,6 +6331,9 @@ Alakuijala & Szabadka    Expires April 27, 2015               [Page 113]
 
 Internet-Draft                   Brotli                       April 2015
 
+
+The string literals are in C format, with respect to the use of
+backslash escape characters.
 
 In order to generate a length and check value, the transforms can be
 converted to a series of bytes, where each transform is the prefix
@@ -6377,9 +6380,6 @@ zlib CRC is 0x00f1fd60.
        29           ""     Identity           " that "
        30          " "     UppercaseFirst           ""
        31           ""     Identity               ". "
-       32          "."     Identity                 ""
-       33          " "     Identity               ", "
-       34           ""     OmitFirst4               ""
 
 
 
@@ -6388,6 +6388,9 @@ Alakuijala & Szabadka    Expires April 27, 2015               [Page 114]
 Internet-Draft                   Brotli                       April 2015
 
 
+       32          "."     Identity                 ""
+       33          " "     Identity               ", "
+       34           ""     OmitFirst4               ""
        35           ""     Identity           " with "
        36           ""     Identity                "'"
        37           ""     Identity           " from "
@@ -6433,9 +6436,6 @@ Internet-Draft                   Brotli                       April 2015
        77          "."     Identity                " "
        78           ""     UppercaseFirst          "("
        79           ""     UppercaseFirst          "."
-       80           ""     Identity            " not "
-       81          " "     Identity              "=\""
-       82           ""     Identity              "er "
 
 
 
@@ -6444,6 +6444,9 @@ Alakuijala & Szabadka    Expires April 27, 2015               [Page 115]
 Internet-Draft                   Brotli                       April 2015
 
 
+       80           ""     Identity            " not "
+       81          " "     Identity              "=\""
+       82           ""     Identity              "er "
        83          " "     UppercaseAll            " "
        84           ""     Identity              "al "
        85          " "     UppercaseAll             ""
@@ -6489,9 +6492,6 @@ Authors' Addresses
    Jyrki Alakuijala
    Google, Inc
 
-   Email: jyrki@google.com
-
-
 
 
 
@@ -6500,13 +6500,13 @@ Alakuijala & Szabadka    Expires April 27, 2015               [Page 116]
 Internet-Draft                   Brotli                       April 2015
 
 
+   Email: jyrki@google.com
+
+
    Zoltan Szabadka
    Google, Inc
 
    Email: szabadka@google.com
-
-
-
 
 
 
