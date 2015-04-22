@@ -7,11 +7,11 @@
 Network Working Group                                      J. Alakuijala
 Internet-Draft                                               Z. Szabadka
 Intended Status: Informational                               Google, Inc
-Expires: April 27, 2015                                     October 2014
+Expires: April 27, 2015                                       April 2015
 
 
                      Brotli Compressed Data Format
-                       draft-alakuijala-brotli-02
+                    draft-alakuijala-brotli-02-edit
 
 Abstract
 
@@ -39,7 +39,7 @@ Status of this Memo
 
 Copyright Notice
 
-   Copyright (c) 2014 IETF Trust and the persons identified as the
+   Copyright (c) 2014, 2015 IETF Trust and the persons identified as the
    document authors.  All rights reserved.
 
    This document is subject to BCP 78 and the IETF Trust's Legal
@@ -57,7 +57,7 @@ Copyright Notice
 
 Alakuijala & Szabadka    Expires April 27, 2015                 [Page 1]
 
-Internet-Draft                   Brotli                     October 2014
+Internet-Draft                   Brotli                       April 2015
 
 
 Table of Contents
@@ -70,32 +70,32 @@ Table of Contents
       1.5.  Definitions of terms and conventions used  . . . . . . . . 4
          1.5.1.  Packing into bytes  . . . . . . . . . . . . . . . . . 4
    2.  Compressed representation overview  . . . . . . . . . . . . . . 5
-   3.  Compressed representation of Huffman codes  . . . . . . . . . . 7
-      3.1.  Introduction to prefix and Huffman coding  . . . . . . . . 7
-      3.2.  Use of Huffman coding in the "brotli" format . . . . . . . 8
-      3.3.  Alphabet sizes  . . . . . . . . . . . . . . . . . . . . . 10
-      3.4.  Simple Huffman codes  . . . . . . . . . . . . . . . . . . 10
-      3.5.  Complex Huffman codes . . . . . . . . . . . . . . . . . . 11
-   4.  Encoding of distances  . . . . . . . . . . . . . . . . . . . . 13
-   5.  Encoding of literal insertion lengths and copy lengths . . . . 15
-   6.  Encoding of block switch commands  . . . . . . . . . . . . . . 17
-   7.  Context modeling . . . . . . . . . . . . . . . . . . . . . . . 18
-      7.1.  Context modes and context ID lookup for literals  . . . . 18
-      7.2.  Context ID for distances  . . . . . . . . . . . . . . . . 20
-      7.3.  Encoding of the context map . . . . . . . . . . . . . . . 20
-   8.  Static dictionary  . . . . . . . . . . . . . . . . . . . . . . 22
-   9.  Compressed data format . . . . . . . . . . . . . . . . . . . . 24
-      9.1.  Format of the stream header . . . . . . . . . . . . . . . 24
-      9.2.  Format of the meta-block header . . . . . . . . . . . . . 24
-      9.3.  Format of the meta-block data . . . . . . . . . . . . . . 26
-   10.  Decoding algorithm  . . . . . . . . . . . . . . . . . . . . . 28
-   11.  Security Considerations . . . . . . . . . . . . . . . . . . . 29
-   12.  IANA Considerations . . . . . . . . . . . . . . . . . . . . . 30
-   13.  Informative References  . . . . . . . . . . . . . . . . . . . 30
-   14.  Source code . . . . . . . . . . . . . . . . . . . . . . . . . 30
-   Appendix A.  Static dictionary data  . . . . . . . . . . . . . . . 30
-   Appendix B.  List of word transformations . . . . . . . . . . . . 110
-   Authors' Addresses  . . . . . . . . . . . . . . . . . . . . . . . 113
+   3.  Compressed representation of prefix codes . . . . . . . . . . . 9
+      3.1.  Introduction to prefix coding  . . . . . . . . . . . . . . 9
+      3.2.  Use of prefix coding in the brotli format . . . . . . . . 10
+      3.3.  Alphabet sizes  . . . . . . . . . . . . . . . . . . . . . 12
+      3.4.  Simple prefix codes . . . . . . . . . . . . . . . . . . . 12
+      3.5.  Complex prefix codes  . . . . . . . . . . . . . . . . . . 13
+   4.  Encoding of distances  . . . . . . . . . . . . . . . . . . . . 15
+   5.  Encoding of literal insertion lengths and copy lengths . . . . 17
+   6.  Encoding of block switch commands  . . . . . . . . . . . . . . 19
+   7.  Context modeling . . . . . . . . . . . . . . . . . . . . . . . 21
+      7.1.  Context modes and context ID lookup for literals  . . . . 21
+      7.2.  Context ID for distances  . . . . . . . . . . . . . . . . 23
+      7.3.  Encoding of the context map . . . . . . . . . . . . . . . 23
+   8.  Static dictionary  . . . . . . . . . . . . . . . . . . . . . . 25
+   9.  Compressed data format . . . . . . . . . . . . . . . . . . . . 27
+      9.1.  Format of the stream header . . . . . . . . . . . . . . . 27
+      9.2.  Format of the meta-block header . . . . . . . . . . . . . 27
+      9.3.  Format of the meta-block data . . . . . . . . . . . . . . 29
+   10.  Decoding algorithm  . . . . . . . . . . . . . . . . . . . . . 30
+   11.  Security Considerations . . . . . . . . . . . . . . . . . . . 32
+   12.  IANA Considerations . . . . . . . . . . . . . . . . . . . . . 33
+   13.  Informative References  . . . . . . . . . . . . . . . . . . . 33
+   14.  Source code . . . . . . . . . . . . . . . . . . . . . . . . . 33
+   Appendix A.  Static dictionary data  . . . . . . . . . . . . . . . 33
+   Appendix B.  List of word transformations . . . . . . . . . . . . 113
+   Authors' Addresses  . . . . . . . . . . . . . . . . . . . . . . . 116
 
 
 
@@ -113,7 +113,7 @@ Table of Contents
 
 Alakuijala & Szabadka    Expires April 27, 2015                 [Page 2]
 
-Internet-Draft                   Brotli                     October 2014
+Internet-Draft                   Brotli                       April 2015
 
 
 1. Introduction
@@ -142,7 +142,7 @@ Internet-Draft                   Brotli                     October 2014
 1.2. Intended audience
 
    This specification is intended for use by software implementers to
-   compress data into and/or decompress data from "brotli" format.
+   compress data into and/or decompress data from the brotli format.
 
    The text of the specification assumes a basic background in
    programming at the level of bits and other primitive data
@@ -169,7 +169,7 @@ Internet-Draft                   Brotli                     October 2014
 
 Alakuijala & Szabadka    Expires April 27, 2015                 [Page 3]
 
-Internet-Draft                   Brotli                     October 2014
+Internet-Draft                   Brotli                       April 2015
 
 
    packing the latter bit sequence into bytes.
@@ -225,7 +225,7 @@ Internet-Draft                   Brotli                     October 2014
 
 Alakuijala & Szabadka    Expires April 27, 2015                 [Page 4]
 
-Internet-Draft                   Brotli                     October 2014
+Internet-Draft                   Brotli                       April 2015
 
 
    data format described here is byte- rather than bit-oriented.
@@ -237,10 +237,11 @@ Internet-Draft                   Brotli                     October 2014
       * Data elements are packed into bytes in order of
         increasing bit number within the byte, i.e., starting
         with the least-significant bit of the byte.
-      * Data elements other than Huffman codes are packed
+      * Data elements other than prefix codes are packed
         starting with the least-significant bit of the data
-        element.
-      * Huffman codes are packed starting with the most-
+        element. These are referred to here as integer values
+        and are considered unsigned.
+      * Prefix codes are packed starting with the most-
         significant bit of the code.
 
    In other words, if one were to print out the compressed data as a
@@ -248,26 +249,42 @@ Internet-Draft                   Brotli                     October 2014
    and proceeding to the *left*, with the most- significant bit of each
    byte on the left as usual, one would be able to parse the result from
    right to left, with fixed-width elements in the correct MSB-to-LSB
-   order and Huffman codes in bit-reversed order (i.e., with the first
+   order and prefix codes in bit-reversed order (i.e., with the first
    bit of the code in the relative LSB position).
 
 2. Compressed representation overview
 
    A compressed data set consists of a header and a series of meta-
-   blocks corresponding to successive meta-blocks of input data. The
-   meta-block sizes are limited to bytes and the maximum meta-block size
-   is 268,435,456 bytes.
+   blocks. Each meta-block decompresses to a sequence of 1 to
+   268,435,456 (256 MiB) uncompressed bytes.  The final uncompressed
+   data is the concatenation of the uncompressed sequences from each
+   meta-block.
 
-   The header contains the size of a sliding window on the input data
-   that is sufficient to keep on the intermediate storage at any given
-   point during decoding the stream.
+   The header contains the size of the sliding window that was used
+   during compression.  The decompressor must retain at least that
+   amount of uncompressed data prior to the current position in the
+   stream, in order to be able to decompress what follows.  The sliding
+   window size is a power of two, minus 16, where the power is in the
+   range of 16 to 24.  The possible sliding window sizes range from 64
+   KiB - 16 B to 16 MiB - 16 B.
 
    Each meta-block is compressed using a combination of the LZ77
-   algorithm (Lempel-Ziv 1977, [LZ77]) and Huffman coding. The Huffman
-   trees for each meta-block are independent of those for previous or
+   algorithm (Lempel-Ziv 1977, [LZ77]) and Huffman coding.  The result
+   of Huffman coding is referred to here as a prefix code.  The prefix
+   codes for each meta-block are independent of those for previous or
    subsequent meta-blocks; the LZ77 algorithm may use a reference to a
-   duplicated string occurring in a previous meta-block, up to sliding
-   window size input bytes before.
+   duplicated string occurring in a previous meta-block, up to the
+   sliding window size of uncompressed bytes before.  In addition, in
+   the brotli format, a string reference may instead refer to a static
+
+
+
+Alakuijala & Szabadka    Expires April 27, 2015                 [Page 5]
+
+Internet-Draft                   Brotli                       April 2015
+
+
+   dictionary entry.
 
    Each meta-block consists of two parts: a meta-block header that
    describes the representation of the compressed data part, and a
@@ -275,47 +292,80 @@ Internet-Draft                   Brotli                     October 2014
    commands. Each command consists of two parts: a sequence of literal
    bytes (of strings that have not been detected as duplicated within
    the sliding window), and a pointer to a duplicated string,
-   represented as a pair <length, backward distance>.
+   represented as a pair <length, backward distance>.  There can be zero
+   literal bytes in the command.  The minimum length of the string to be
+   duplicated is two, but the last command in the meta-block is
+   permitted to have only literals and no pointer to a string to
+   duplicate.
+
+   Each command in the compressed data is represented using three
+   categories of prefix codes: one set of prefix codes are for the
+   literal sequence lengths (also referred to as literal insertion
+   lengths) and backward copy lengths (that is, a single code word
+   represents two lengths, one of the literal sequence and one of the
+   backward copy), a separate set of prefix codes are for literals, and
+   a third set of prefix codes are for distances. The prefix code
+   descriptions for each meta-block appear in a compact form just before
+   the compressed data in the meta-block header.  The insert and copy
+   length and distance prefix codes may be followed by extra bits that
+   are added to the base values determined by the codes.  The number of
+   extra bits is determined by the code.
+
+   One meta-block command then appears as a sequence of prefix codes:
+
+      Insert and copy length, literal, literal, ..., literal, distance
+
+   where the insert and copy defines the number of literals that
+   immediately follow and the copy length, and the distance defines how
+   far back to go for the copy, used in combination with the copy
+   length.  The resulting uncompressed data is the sequence of bytes:
+
+      literal, literal, ..., literal, copy, copy, ..., copy
+
+   where the number of literal bytes and copy bytes are determined by
+   the insert and copy length code.  (The number of bytes copied for a
+   static dictionary entry can vary from the copy length.)
+
+   The last command in the meta-block may end with the last literal if
+   the total uncompressed length of the meta-block has been satisfied.
+   In that case there is no distance in the last command, and the copy
+   length is ignored.
+
+   There can be more than one prefix code for each category, where the
 
 
 
-Alakuijala & Szabadka    Expires April 27, 2015                 [Page 5]
+Alakuijala & Szabadka    Expires April 27, 2015                 [Page 6]
 
-Internet-Draft                   Brotli                     October 2014
+Internet-Draft                   Brotli                       April 2015
 
 
-   Each command in the compressed data is represented using three kinds
-   of Huffman codes: one kind of code tree for the literal sequence
-   lengths (also referred to as literal insertion lengths) and backward
-   copy lengths (that is, a single code word represents two lengths, one
-   of the literal sequence and one of the backward copy), a separate
-   kind of code tree for literals, and a third kind of code tree for
-   distances. The code trees for each meta-block appear in a compact
-   form just before the compressed data in the meta-block header.
+   prefix code to use for the next element of that category is
+   determined by the context of the compressed stream that precedes that
+   element.  Part of that context is three current block types, one for
+   each category.  A block type is in the range of 0..255.  For each
+   category there is a count of how many elements of that category
+   remain to be decoded using the current block type.  Once that count
+   is expended, a new block type and block count is read from the stream
+   immediately preceding the next element of that category, which will
+   use the new block type.
 
-   The sequence of each category of value in the representation of a
-   command (insert-and-copy lengths, literals and distances) within a
-   meta- block is further divided into blocks. In the "brotli" format,
-   blocks are not contiguous chunks of compressed data, but rather the
-   pieces of compressed data belonging to a block are interleaved with
-   pieces of data belonging to other blocks. Each meta-block can be
-   logically decomposed into a series of insert-and-copy length blocks,
-   a series of literal blocks and a series of distance blocks. These are
-   also called the three block categories: a meta-block has a series of
-   blocks for each block category. Note that the physical structure of
-   the meta-block is a series of commands, while the three series of
-   blocks is the logical structure.
+   The insert and copy block type directly determines which prefix code
+   to use for the next insert and copy element. For the literal and
+   distance elements, the respective block type is used in combination
+   with other context information to determine which prefix code to use
+   for the next element.
 
-   A block is defined by a type (0-255) and a length. The length is the
-   amount of huffman symbols of its category, the type dictates which
-   huffman code is used for these symbols. Consider the following
-   example:
+   Consider the following example:
 
       (IaC0, L0, L1, L2, D0)(IaC1, D1)(IaC2, L3, L4, D2)(IaC3, L5, D3)
 
-   The meta-block here has 4 commands, and each of the three categories
-   of symbols within these commands are part of a logical block
-   structure, for example the following:
+   The meta-block here has four commands, contained in parentheses for
+   clarity, where each of the three categories of symbols within these
+   commands can be interpreted using different block types.  Here we
+   separate out each category as its own sequence to show an example of
+   block types assigned to those elements.  Each square-bracketed group
+   is a block that uses the same block type:
 
       [IaC0, IaC1][IaC2, IaC3]  <-- insert-and-copy: block types 0 and 1
 
@@ -324,61 +374,99 @@ Internet-Draft                   Brotli                     October 2014
       [D0][D1, D2, D3]          <-- distances: block types 0 and 1
 
    The subsequent blocks within each block category must have different
-   block types, but blocks further away in the block sequence can have
-   the same types. The block types are numbered from 0 to the maximum
-   block type number of 255 and the first block of each block category
-   must have type 0. The block structure of a meta-block is represented
-   by the sequence of block-switch commands for each block category,
-   where a block-switch command is a pair <block type, block length>.
-   The block-switch commands are represented in the compressed data
-   before the start of each new block using a Huffman code tree for
+   block types, but we see that block types can be reused later in the
+   meta-block.  The block types are numbered from 0 to the maximum block
+   type number of 255 and the first block of each block category is type
+   0. The block structure of a meta-block is represented by the sequence
+   of block-switch commands for each block category, where a block-
+   switch command is a pair <block type, block count>.  The block-switch
+   commands are represented in the compressed data before the start of
+   each new block using a prefix code for block types and a separate
+   prefix code for block counts for each block category. For the above
+   example the physical layout of the meta-block is then:
+
+      IaC0 L0 L1 LBlockSwitch(1, 3) L2 D0 IaC1 DBlockSwitch(1, 3) D1
+      IaCBlockSwitch(1, 2) IaC2 L3 L4 D2 IaC3 LBlockSwitch(0, 1) L5 D3
 
 
 
-Alakuijala & Szabadka    Expires April 27, 2015                 [Page 6]
+
+Alakuijala & Szabadka    Expires April 27, 2015                 [Page 7]
 
-Internet-Draft                   Brotli                     October 2014
+Internet-Draft                   Brotli                       April 2015
 
 
-   block types and a separate Huffman code tree for block lengths for
-   each block category. In the above example the physical layout of the
-   meta-block is the following:
+   where *BlockSwitch(t, n) switches to block type t for a count of n
+   elements.  Note that in this example DBlockSwitch(1, 3) immediately
+   precedes the next required distance D1.  It does not follow the last
+   distance of the previous block, D0.  Whenever an element of a
+   category is needed, and the block count for that category has reached
+   zero, then a new block type and count is read from the stream just
+   before reading that next element.
 
-      IaC0 L0 L1 LBlockSwitch(1, 3) L2 D0 IaC1 DBlockSwitch(1, 1) D1
-      IaCBlockSwitch(1, 2) IaC2 L3 L4 D2 IaC3 LBlockSwitch(0, 1) D3
+   The block switch commands for the first blocks of each category are
+   not part of the meta-block compressed data. Instead the first block
+   type is defined to be 0, and the first block count for each category
+   is encoded in the meta-block header. The prefix codes for the block
+   types and counts, a total of six prefix codes over the three
+   categories, are defined in a compact form in the meta-block header.
 
-   Note that the block switch commands for the first blocks are not part
-   of the meta-block compressed data part, they are encoded in the meta-
-   block header. The code trees for block types and lengths (total of
-   six Huffman code trees) appear in a compact form in the meta-block
-   header.
+   Each category of value (insert-and-copy lengths, literals and
+   distances) can be encoded with any prefix code from a collection of
+   prefix codes belonging to the same category appearing in the meta-
+   block header. The particular prefix code used can depend on two
+   factors: the block type of the block the value appears in, and the
+   context of the value.  In the case of the literals, the context is
+   the previous two bytes in the uncompressed data, and in the case of
+   distances, the context is the copy length from the same command. For
+   insert-and-copy lengths, no context is used and the prefix code
+   depends only on the block type. In the case of literals and
+   distances, the context is mapped to a context ID in the range 0..63
+   for literals and 0..3 for distances and the matrix of the prefix code
+   indices for each block type and context ID, called the context map,
+   is encoded in a compact form in the meta- block header.
 
-   Each type of value (insert-and-copy lengths, literals and distances)
-   can be encoded with any Huffman tree from a collection of Huffman
-   trees of the same kind appearing in the meta-block header. The
-   particular Huffman tree used can depend on two factors: the block
-   type of the block the value appears in, and the context of the value.
-   In the case of the literals, the context is the previous two bytes in
-   the input data, and in the case of distances, the context is the copy
-   length from the same command. For insert-and-copy lengths, no context
-   is used and the Huffman tree depends only on the block type (in fact,
-   the index of the Huffman tree is the block type number). In the case
-   of literals and distances, the context is mapped to a context ID in
-   the rage [0, 63] for literals and [0, 3] for distances and the matrix
-   of the Huffman tree indices for each block type and context ID,
-   called the context map, is encoded in a compact form in the meta-
-   block header.
+   For example, the prefix code to use to decode L2 depends on the block
+   type (1), the literal context ID for block type 1 defined in the
+   meta-block header, and the two uncompressed bytes that were decoded
+   from L0 and L1.  Similarly, the prefix code to use to decode D0
+   depends on the block type (0), the distance context ID for block type
+   0, and the copy length decoded from IaC0.  The prefix code to use to
+   decode IaC3 depends only on the block type (1).
 
-   In addition to the parts listed above (Huffman code trees for insert-
-   and-copy lengths, literals, distances, block types and block lengths
-   and the context map), the meta-block header contains the number of
-   input bytes in the meta-block and two additional parameters used in
-   the representation of copy distances (number of "postfix bits" and
-   number of direct distance codes).
+   In addition to the parts listed above (prefix code for insert- and-
+   copy lengths, literals, distances, block types and block counts and
+   the context map), the meta-block header contains the number of
+   uncompressed bytes coded in the meta-block and two additional
+   parameters used in the representation of match distances: the number
+   of postfix bits and the number of direct distance codes.
 
-3. Compressed representation of Huffman codes
+   A compressed meta-block may be marked in the header as the last meta-
+   block, which terminates the compressed stream.
 
-3.1. Introduction to prefix and Huffman coding
+
+
+
+Alakuijala & Szabadka    Expires April 27, 2015                 [Page 8]
+
+Internet-Draft                   Brotli                       April 2015
+
+
+   A meta-block may instead simply store the uncompressed data directly
+   as bytes on byte boundaries with no coding or matching strings.  In
+   this case the meta-block header information only contains the number
+   of uncompressed bytes and the indication that the meta-block is
+   uncompressed.  An uncompressed meta-block cannot be the last meta-
+   block.
+
+   A meta-block may also be empty, which generates no uncompressed data
+   at all.  An empty block can only be the last block, which can be used
+   to mark the end of a stream whose last productive meta-block was an
+   uncompressed block.
+
+3. Compressed representation of prefix codes
+
+3.1. Introduction to prefix coding
 
    Prefix coding represents symbols from an a priori known alphabet by
    bit sequences (codes), one code for each symbol, in a manner such
@@ -388,14 +476,6 @@ Internet-Draft                   Brotli                     October 2014
 
    We define a prefix code in terms of a binary tree in which the two
    edges descending from each non-leaf node are labeled 0 and 1 and in
-
-
-
-Alakuijala & Szabadka    Expires April 27, 2015                 [Page 7]
-
-Internet-Draft                   Brotli                     October 2014
-
-
    which the leaf nodes correspond one-for-one with (are labeled with)
    the symbols of the alphabet; then the code for a symbol is the
    sequence of 0's and 1's on the edges leading from the root to the
@@ -412,26 +492,34 @@ Internet-Draft                   Brotli                     October 2014
              /    \
             D      C
 
-   A parser can decode the next symbol from an encoded input stream by
+   A parser can decode the next symbol from the compressed stream by
    walking down the tree from the root, at each step choosing the edge
-   corresponding to the next input bit.
+   corresponding to the next compressed data bit.
 
    Given an alphabet with known symbol frequencies, the Huffman
    algorithm allows the construction of an optimal prefix code (one
    which represents strings with those symbol frequencies using the
    fewest bits of any possible prefix codes for that alphabet). Such a
-   code is called a Huffman code. (See [HUFFMAN] in Chapter 5,
+
+
+
+Alakuijala & Szabadka    Expires April 27, 2015                 [Page 9]
+
+Internet-Draft                   Brotli                       April 2015
+
+
+   prefix code is called a Huffman code. (See [HUFFMAN] in Chapter 5,
    references for additional information on Huffman codes.)
 
-   Note that in the "brotli" format, the Huffman codes for the various
+   Note that in the brotli format, the prefix codes for the various
    alphabets must not exceed certain maximum code lengths.  This
    constraint complicates the algorithm for computing code lengths from
    symbol frequencies. Again, see Chapter 5, references for details.
 
-3.2. Use of Huffman coding in the "brotli" format
+3.2. Use of prefix coding in the brotli format
 
-   The Huffman codes used for each alphabet in the "brotli" format are
-   canonical Huffman codes, which have two additional rules:
+   The prefix codes used for each alphabet in the brotli format are
+   canonical prefix codes, which have two additional rules:
 
       * All codes of a given bit length have lexicographically
         consecutive values, in the same order as the symbols they
@@ -441,16 +529,6 @@ Internet-Draft                   Brotli                     October 2014
 
    We could recode the example above to follow this rule as follows,
    assuming that the order of the alphabet is ABCD:
-
-
-
-
-
-
-Alakuijala & Szabadka    Expires April 27, 2015                 [Page 8]
-
-Internet-Draft                   Brotli                     October 2014
-
 
       Symbol  Code
       ------  ----
@@ -462,7 +540,7 @@ Internet-Draft                   Brotli                     October 2014
    I.e., 0 precedes 10 which precedes 11x, and 110 and 111 are
    lexicographically consecutive.
 
-   Given this rule, we can define the canonical Huffman code for an
+   Given this rule, we can define the canonical prefix code for an
    alphabet just by giving the bit lengths of the codes for each symbol
    of the alphabet in order; this is sufficient to determine the actual
    codes. In our example, the code is completely defined by the sequence
@@ -476,6 +554,15 @@ Internet-Draft                   Brotli                     October 2014
 
       2)  Find the numerical value of the smallest code for each
           code length:
+
+
+
+
+
+Alakuijala & Szabadka    Expires April 27, 2015                [Page 10]
+
+Internet-Draft                   Brotli                       April 2015
+
 
              code = 0;
              bl_count[0] = 0;
@@ -500,14 +587,6 @@ Internet-Draft                   Brotli                     October 2014
 
    Example:
 
-
-
-
-Alakuijala & Szabadka    Expires April 27, 2015                 [Page 9]
-
-Internet-Draft                   Brotli                     October 2014
-
-
    Consider the alphabet ABCDEFGH, with bit lengths (3, 3, 3, 3, 3, 2,
    4, 4).  After step 1, we have:
 
@@ -528,6 +607,19 @@ Internet-Draft                   Brotli                     October 2014
 
    Step 3 produces the following code values:
 
+
+
+
+
+
+
+
+
+Alakuijala & Szabadka    Expires April 27, 2015                [Page 11]
+
+Internet-Draft                   Brotli                       April 2015
+
+
       Symbol Length   Code
       ------ ------   ----
       A       3        010
@@ -541,85 +633,80 @@ Internet-Draft                   Brotli                     October 2014
 
 3.3. Alphabet sizes
 
-   Huffman codes are used for different purposes in the "brotli" format,
+   Prefix codes are used for different purposes in the brotli format,
    and each purpose has a different alphabet size. For literal codes the
    alphabet size is 256. For insert-and-copy length codes the alphabet
-   size is 704. For block length codes, the alphabet size is 26. For
-   distance codes, block type codes and the Huffman codes used in
+   size is 704. For block count codes, the alphabet size is 26. For
+   distance codes, block type codes and the prefix codes used in
    compressing the context map, the alphabet size is dynamic and is
    based on other parameters.
 
-3.4. Simple Huffman codes
+3.4. Simple prefix codes
 
-   The first two bits of the compressed representation of each Huffman
-   code distinguishes between simple and complex Huffman codes. If this
-   value is 1, then a simple Huffman code follows.  Otherwise the value
+   The first two bits of the compressed representation of each prefix
+   code distinguishes between simple and complex prefix codes. If this
+   value is 1, then a simple prefix code follows.  Otherwise the value
    indicates the number of leading zeros.
 
+   A simple prefix code can have only up to four symbols with non- zero
+   code length. The format of the simple prefix code is as follows:
 
-
-
-Alakuijala & Szabadka    Expires April 27, 2015                [Page 10]
-
-Internet-Draft                   Brotli                     October 2014
-
-
-   A simple Huffman code can have only up to four symbols with non- zero
-   code length. The format of the simple Huffman code is as follows:
-
-      2 bits: value of 1 indicates a simple Huffman code
-      2 bits: NSYM - 1, where NSYM = # of symbols with non-zero
-              code length
+      2 bits: value of 1 indicates a simple prefix code
+      2 bits: NSYM - 1, where NSYM = # of symbols coded
 
       NSYM symbols, each encoded using ALPHABET_BITS bits
 
       1 bit:  tree-select, present only for NSYM = 4
 
-   The value of ALPHABET_BITS depends on the alphabet of the Huffman
+   The value of ALPHABET_BITS depends on the alphabet of the prefix
    code: it is the smallest number of bits that can represent all
    symbols in the alphabet. E.g. for the alphabet of literal bytes,
    ALPHABET_BITS is 8. The value of each of the NSYM symbols above is
-   the value of the ALPHABETS_BITS width machine integer representing
-   the symbol modulo the alphabet size of the Huffman code.
+   the value of the ALPHABETS_BITS width integer value.  (If the integer
+   value is greater than or equal to the alphabet size, then the stream
+   should be rejected as invalid.)
+
+   Note that the NSYM symbols may not be presented in sorted order.
+   Prefix codes of the same bit length must be assigned to the symbols
+
+
+
+Alakuijala & Szabadka    Expires April 27, 2015                [Page 12]
+
+Internet-Draft                   Brotli                       April 2015
+
+
+   in sorted order.
 
    The (non-zero) code lengths of the symbols can be reconstructed as
    follows:
 
-      * if NSYM = 1, the code length for the one symbol is one at
-        this stage, but only to distinguish it from the other zero
-        code length symbols, when encoding this symbol in the
-        compressed data stream using this Huffman code later, no
+      * if NSYM = 1, the code length for the one symbol is zero --
+        when encoding this symbol in the
+        compressed data stream using this prefix code, no
         actual bits are emitted. Similarly, when decoding a symbol
-        using this Huffman code, no bits are read and the one symbol
+        using this prefix code, no bits are read and the one symbol
         is returned.
 
       * if NSYM = 2, both symbols have code length 1.
 
       * if NSYM = 3, the code lengths for the symbols are 1, 2, 2 in
         the order they appear in the representation of the simple
-        Huffman code.
+        prefix code.
 
       * if NSYM = 4, the code lengths (in order of symbols decoded)
         depend on the tree-select bit: 2, 2, 2, 2, (tree-select bit 0)
         or 1, 2, 3, 3 (tree-select bit 1).
 
-3.5. Complex Huffman codes
+3.5. Complex prefix codes
 
-   A complex Huffman code is a canonical Huffman code, defined by the
+   A complex prefix code is a canonical prefix code, defined by the
    sequence of code lengths, as discussed in Paragraph 3.2, above.  For
    even greater compactness, the code length sequences themselves are
-   compressed using a Huffman code. The alphabet for code lengths is as
+   compressed using a prefix code. The alphabet for code lengths is as
    follows:
 
       0 - 15: Represent code lengths of 0 - 15
-
-
-
-Alakuijala & Szabadka    Expires April 27, 2015                [Page 11]
-
-Internet-Draft                   Brotli                     October 2014
-
-
           16: Copy the previous non-zero code length 3 - 6 times
               The next 2 bits indicate repeat length
                     (0 = 3, ... , 3 = 6)
@@ -637,16 +724,34 @@ Internet-Draft                   Brotli                     October 2014
               (3 bits of length)
               A repeated code length code of 17 modifies the
               repeat count of the previous one as follows:
+
+
+
+Alakuijala & Szabadka    Expires April 27, 2015                [Page 13]
+
+Internet-Draft                   Brotli                       April 2015
+
+
                  repeat count = (8 * (repeat count - 2)) +
                                 (3 - 10 on the next 3 bits)
 
+   Note that a code of 16 that follows an immediately preceding 16
+   modifies the previous repeat count, which becomes the new repeat
+   count. The same is true for a 17 following a 17. A sequence of three
+   or more 16 codes in a row or three of more 17 codes in a row is
+   possible, modifying the count each time. Only the final repeat count
+   is used.  The modification only applies if the same code follows.  A
+   16 repeat does not modify an immediately preceding 17 count, nor vice
+   versa.
+
    A code length of 0 indicates that the corresponding symbol in the
    alphabet will not occur in the compressed data, and should not
-   participate in the Huffman code construction algorithm given earlier.
-   A complex Huffman code must have at least two non-zero code lengths.
+   participate in the prefix code construction algorithm given earlier.
+   A complex prefix code must have at least two non-zero code lengths.
 
-   The bit lengths of the Huffman code over the code length alphabet are
-   compressed with the following static Huffman code:
+   The bit lengths of the prefix code over the code length alphabet are
+   compressed with the following static prefix code (where the bits
+   shown are reversed in the actual compressed stream):
 
       Symbol   Code
       ------   ----
@@ -657,39 +762,62 @@ Internet-Draft                   Brotli                     October 2014
       4          10
       5        1111
 
-   We can now define the format of the complex Huffman code as follows:
+   We can now define the format of the complex prefix code as follows:
 
       2 bits: HSKIP, values of 0, 2 or 3 represent the respective
-              number of leading zeros. (Value of 1 indicates the
-              Simple Huffman code.)
+              number of skipped code lengths.  The skipped lengths
+              are taken to be zero.  (An HSKIP of 1 indicates a
+              Simple prefix code.)
 
       Code lengths for symbols in the code length alphabet given
          just above, in the order: 1, 2, 3, 4, 0, 5, 17, 6, 16, 7,
-         8, 9, 10, 11, 12, 13, 14, 15
+         8, 9, 10, 11, 12, 13, 14, 15.  If HSKIP is 2, then the
+         code lengths for symbols 1 and 2 are zero, and the first
+         code length is for symbol 3.  If HSKIP is 3, then the code
+         length for symbol 3 is also zero, and the first code length
+         is for symbol 4.
 
          The code lengths of code length symbols are between 0 and
+         5 and they are represented with 2 - 4 bits according to
+         the static prefix code above. A code length of 0 means
 
 
 
-Alakuijala & Szabadka    Expires April 27, 2015                [Page 12]
+Alakuijala & Szabadka    Expires April 27, 2015                [Page 14]
 
-Internet-Draft                   Brotli                     October 2014
+Internet-Draft                   Brotli                       April 2015
 
 
-         5 and they are represented with 2 - 5 bits according to
-         the static Huffman code above. A code length of 0 means
          the corresponding code length symbol is not used.
 
          If HSKIP is 2 or 3, a respective number of leading code
          lengths are implicit zeros and are not present in the
-         code lengths sequence above. If there are at least two
+         code lengths sequence above.
+
+         If there are at least two
          non-zero code lengths, any trailing zero code lengths are
          omitted, i.e. the last code length in the sequence must
          be non-zero. In this case the sum of (32 >> code length)
          over all the non-zero code lengths must equal to 32.
 
+         If the lengths have been read for the entire code length
+         alphabet and there was only one non-zero code length,
+         then the prefix code has one symbol whose code has zero
+         length.  In this case, that symbol results in no bits
+         being emitted by the compressor, and no bits consumed by
+         the decompressor.  That single symbol is immediately
+         returned when this code is decoded.  (If the ignored non-
+         zero length is not 1, then the stream should be rejected
+         as invalid.)  An example of where this occurs is if the
+         entire code to be represented has symbols of length 8.
+         E.g. a literal code that represents all literal values
+         with equal probability.  In this case the single symbol
+         is 16, which repeats the previous length.  The previous
+         length is taken to be 8 before any code length code
+         lengths are read.
+
       Sequence of code lengths symbols, encoded using the code
-         length Huffman code. Any trailing 0 or 17 must be
+         length prefix code. Any trailing 0 or 17 must be
          omitted, i.e. the last encoded code length symbol must be
          between 1 and 16. The sum of (32768 >> code length) over
          all the non-zero code lengths in the alphabet, including
@@ -705,75 +833,83 @@ Internet-Draft                   Brotli                     October 2014
    Each distance in the compressed data part of a meta-block is
    represented with a pair <distance code, extra bits>. The distance
    code and the extra bits are encoded back-to-back, the distance code
-   is encoded using a Huffman code over the distance code alphabet,
-   while the extra bits value is encoded as a fixed-width machine
-   integer. The number of extra bits can be 0 - 24, and it is dependent
-   on the distance code.
+   is encoded using a prefix code over the distance alphabet, while the
+   extra bits value is encoded as a fixed-width integer value. The
+   number of extra bits can be 0 - 24, and it is dependent on the
+
+
+
+Alakuijala & Szabadka    Expires April 27, 2015                [Page 15]
+
+Internet-Draft                   Brotli                       April 2015
+
+
+   distance code.
 
    To convert a distance code and associated extra bits to a backward
    distance, we need the sequence of past distances and two additional
-   parameters, the number of "postfix bits", denoted by NPOSTFIX, and
-   the number of direct distance codes, denoted by NDIRECT. Both of
-   these parameters are encoded in the meta-block header. We will also
-   use the following derived parameter:
+   parameters, the number of "postfix bits", denoted by NPOSTFIX (0..3),
+   and the number of direct distance codes, denoted by NDIRECT (0..120).
+   Both of these parameters are encoded in the meta-block header. We
+   will also use the following derived parameter:
 
       POSTFIX_MASK = ((1 << NPOSTFIX) - 1)
 
-   The first 16 distance codes are special short codes that reference
-   past distances as follows:
+   The first 16 distance symbols are special symbols that reference past
+   distances as follows:
 
       0: last distance
-      1: second last distance
-
-
-
-Alakuijala & Szabadka    Expires April 27, 2015                [Page 13]
-
-Internet-Draft                   Brotli                     October 2014
-
-
-      2: third last distance
-      3: fourth last distance
+      1: second-to-last distance
+      2: third-to-last distance
+      3: fourth-to-last distance
       4: last distance - 1
       5: last distance + 1
       6: last distance - 2
       7: last distance + 2
       8: last distance - 3
       9: last distance + 3
-     10: second last distance - 1
-     11: second last distance + 1
-     12: second last distance - 2
-     13: second last distance + 2
-     14: second last distance - 3
-     15: second last distance + 3
+     10: second-to-last distance - 1
+     11: second-to-last distance + 1
+     12: second-to-last distance - 2
+     13: second-to-last distance + 2
+     14: second-to-last distance - 3
+     15: second-to-last distance + 3
 
-   The ring-buffer of four last distances is initialized by the values
-   16, 15, 11 and 4 (i.e. the fourth last is set to 16, the third last
-   to 15, the second last to 11 and the last distance to 4) at the
-   beginning of the *stream* (as opposed to the beginning of the meta-
-   block) and it is not reset at meta-block boundaries. When a distance
-   code 0 appears, the distance it represents (i.e. the last distance in
-   the sequence of distances) is not pushed to the ring-buffer of last
-   distances, in other words, the expression "(second, third, fourth)
-   last distance" means the (second, third, fourth) last distance that
-   was not represented by a 0 distance code. Similarly, distances that
-   represent static dictionary words (see Section 8.) are not pushed to
-   the ringbuffer of last distances.
+   The ring buffer of four last distances is initialized by the values
+   16, 15, 11 and 4 (i.e. the fourth-to-last is set to 16, the third-to-
+   last to 15, the second-to-last to 11 and the last distance to 4) at
+   the beginning of the *stream* (as opposed to the beginning of the
+   meta- block) and it is not reset at meta-block boundaries. When a
+   distance symbol 0 appears, the distance it represents (i.e. the last
+   distance in the sequence of distances) is not pushed to the ring
+   buffer of last distances, in other words, the expression "(second,
+   third, fourth)-to-last distance" means the (second, third,
+   fourth)-to-last distance that was not represented by a 0 distance
+   symbol. Similarly, distances that represent static dictionary words
+   (see Section 8.) are not pushed to the ring buffer of last distances.
 
-   The next NDIRECT distance codes, from 16 to 15 + NDIRECT, represent
-   distances from 1 to NDIRECT. Neither the distance short codes, nor
-   the NDIRECT direct distance codes have any extra bits.
+   The next NDIRECT distance symbols, from 16 to 15 + NDIRECT, represent
+   distances from 1 to NDIRECT. Neither the distance special symbols,
+   nor the NDIRECT direct distance symbols are followed by any extra
+   bits.
 
-   Distance codes 16 + NDIRECT and greater all have extra bits, the
-   number of extra bits for a distance code "dcode" is given by the
-   following formula:
+
+
+Alakuijala & Szabadka    Expires April 27, 2015                [Page 16]
+
+Internet-Draft                   Brotli                       April 2015
+
+
+   Distance symbols 16 + NDIRECT and greater all have extra bits, where
+   the number of extra bits for a distance symbol "dcode" is given by
+   the following formula:
 
       ndistbits = 1 + ((dcode - NDIRECT - 16) >> (NPOSTFIX + 1))
 
    The maximum number of extra bits is 24, therefore the size of the
-   distance code alphabet is (16 + NDIRECT + (48 << NPOSTFIX)).
+   distance symbol alphabet is (16 + NDIRECT + (48 << NPOSTFIX)).
 
-   Given a distance code "dcode" (>= 16 + NDIRECT), and extra bits
+   Given a distance symbol "dcode" (>= 16 + NDIRECT), and extra bits
    "dextra", the backward distance is given by the following formula:
 
       hcode = (dcode - NDIRECT - 16) >> NPOSTFIX
@@ -781,17 +917,10 @@ Internet-Draft                   Brotli                     October 2014
       offset = ((2 + (hcode & 1)) << ndistbits) - 4;
       distance = ((offset + dextra) << NPOSTFIX) + lcode + NDIRECT + 1
 
-
-
-Alakuijala & Szabadka    Expires April 27, 2015                [Page 14]
-
-Internet-Draft                   Brotli                     October 2014
-
-
 5. Encoding of literal insertion lengths and copy lengths
 
    As described in Section 2, the literal insertion lengths and backward
-   copy lengths are encoded using a single Huffman code. This section
+   copy lengths are encoded using a single prefix code. This section
    provides the details to this encoding.
 
    Each <insertion length, copy length> pair in the compressed data part
@@ -801,22 +930,31 @@ Internet-Draft                   Brotli                     October 2014
 
    The insert-and-copy length code, the insert extra bits and the copy
    extra bits are encoded back-to-back, the insert-and-copy length code
-   is encoded using a Huffman code over the insert-and-copy length code
+   is encoded using a prefix code over the insert-and-copy length code
    alphabet, while the extra bits values are encoded as fixed-width
-   machine integers. The number of insert and copy extra bits can be 0 -
+   integer values. The number of insert and copy extra bits can be 0 -
    24, and they are dependent on the insert-and-copy length code.
 
    Some of the insert-and-copy length codes also express the fact that
-   the distance code of the distance in the same command is 0, i.e. the
-   distance component of the command is the same as that of the previous
-   command. In this case, the distance code and extra bits for the
-   distance are omitted from the compressed data stream.
+   the distance symbol of the distance in the same command is 0, i.e.
+   the distance component of the command is the same as that of the
+   previous command. In this case, the distance code and extra bits for
+   the distance are omitted from the compressed data stream.
 
    We describe the insert-and-copy length code alphabet in terms of the
    (not directly used) insert length code and copy length code
    alphabets. The symbols of the insert length code alphabet, along with
    the number of insert extra bits and the range of the insert lengths
    are as follows:
+
+
+
+
+
+Alakuijala & Szabadka    Expires April 27, 2015                [Page 17]
+
+Internet-Draft                   Brotli                       April 2015
+
 
            Extra               Extra               Extra
       Code Bits Lengths   Code Bits Lengths   Code Bits Lengths
@@ -833,17 +971,6 @@ Internet-Draft                   Brotli                     October 2014
    The symbols of the copy length code alphabet, along with the number
    of copy extra bits and the range of copy lengths are as follows:
 
-
-
-
-
-
-
-Alakuijala & Szabadka    Expires April 27, 2015                [Page 15]
-
-Internet-Draft                   Brotli                     October 2014
-
-
            Extra               Extra               Extra
       Code Bits Lengths   Code Bits Lengths   Code Bits Lengths
       ---- ---- ------    ---- ---- -------   ---- ---- -------
@@ -859,12 +986,38 @@ Internet-Draft                   Brotli                     October 2014
    To convert an insert-and-copy length code to an insert length code
    and a copy length code, the following table can be used:
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Alakuijala & Szabadka    Expires April 27, 2015                [Page 18]
+
+Internet-Draft                   Brotli                       April 2015
+
+
           Insert
           length        Copy length code
           code       0-7       8-15     16-23
                  +---------+---------+
                  |         |         |
-            0-7  |   0-63  |  64-127 | <--- distance code 0
+            0-7  |   0-63  |  64-127 | <--- distance symbol 0
                  |         |         |
                  +---------+---------+---------+
                  |         |         |         |
@@ -893,34 +1046,41 @@ Internet-Draft                   Brotli                     October 2014
    If the insert-and-copy length code is between 0 and 127, the distance
    code of the command is set to zero (the last distance reused).
 
-
-
-Alakuijala & Szabadka    Expires April 27, 2015                [Page 16]
-
-Internet-Draft                   Brotli                     October 2014
-
-
 6. Encoding of block switch commands
 
    As described in Section 2, a block-switch command is a pair <block
-   type, block length>. These are encoded in the compressed data part of
+   type, block count>. These are encoded in the compressed data part of
    the meta-block, right before the start of each new block of a
    particular block category.
 
    Each block type in the compressed data is represented with a block
-   type code, encoded using a Huffman code over the block type code
-   alphabet. A block type code 0 means that the block type is the same
-   as the type of the second last block from the same block category,
-   while a block type code 1 means that the block type equals the last
-   block type plus one. If the last block type is the maximal possible,
-   then a block type code 1 means block type 0. Block type codes 2 - 257
-   represent block types 0 - 255. The second last and last block types
-   are initialized with 0 and 1, respectively, at the beginning of each
-   meta-block.
+   type code, encoded using a prefix code over the block type code
+   alphabet. A block type symbol 0 means that the new block type is the
+   same as the type of the previous block from the same block category,
+   i.e.  the block type that preceded the current type, while a block
+   type symbol 1 means that the new block type equals the current block
+   type plus one. If the current block type is the maximal possible,
 
-   The first block type of each block category must be 0 and the block
-   type of the first block switch command is therefore not encoded in
-   the compressed data.
+
+
+Alakuijala & Szabadka    Expires April 27, 2015                [Page 19]
+
+Internet-Draft                   Brotli                       April 2015
+
+
+   then a block type symbol of 1 results in wrapping to a new block type
+   of 0.  Block type symbols 2 - 257 represent block types 0 - 255
+   respectively. The previous and current block types are initialized to
+   1 and 0, respectively, at the end of the meta-block header.
+
+   Since the first block type of each block category is 0, the block
+   type of the first block switch command is not encoded in the
+   compressed data.  Instead the block count for each category that has
+   more than one type is encoded in the meta-block header.
+
+   The block counts for all three categories should count down to
+   exactly zero at the end of the meta-block.  If any do not, then the
+   stream should be rejected as invalid.
 
    The number of different block types in each block category, denoted
    by NBLTYPESL, NBLTYPESI, and NBLTYPESD for literals, insert-and-copy
@@ -933,28 +1093,14 @@ Internet-Draft                   Brotli                     October 2014
    distance block type codes is NBLTYPES + 2, NBLTYPESI + 2 and
    NBLTYPESD + 2, respectively.
 
-   Each block length in the compressed data is represented with a pair
-   <block length code, extra bits>. The block length code and the extra
-   bits are encoded back-to-back, the block length code is encoded using
-   a Huffman code over the block length code alphabet, while the extra
-   bits value is encoded as a fixed-width machine integer. The number of
-   extra bits can be 0 - 24, and it is dependent on the block length
-   code. The symbols of the block length code alphabet, along with the
-   number of extra bits and the range of block lengths are as follows:
-
-
-
-
-
-
-
-
-
-
-Alakuijala & Szabadka    Expires April 27, 2015                [Page 17]
-
-Internet-Draft                   Brotli                     October 2014
-
+   Each block count in the compressed data is represented with a pair
+   <block count code, extra bits>. The block count code and the extra
+   bits are encoded back-to-back, the block count code is encoded using
+   a prefix code over the block count code alphabet, while the extra
+   bits value is encoded as a fixed-width integer value. The number of
+   extra bits can be 0 - 24, and it is dependent on the block count
+   code. The symbols of the block count code alphabet, along with the
+   number of extra bits and the range of block counts are as follows:
 
            Extra               Extra               Extra
       Code Bits Lengths   Code Bits Lengths   Code Bits Lengths
@@ -970,18 +1116,26 @@ Internet-Draft                   Brotli                     October 2014
        8    4   49-64     17    6   305-368
 
    The first block switch command of each block category is special in
+
+
+
+Alakuijala & Szabadka    Expires April 27, 2015                [Page 20]
+
+Internet-Draft                   Brotli                       April 2015
+
+
    the sense that it is encoded in the meta-block header, and as
    described earlier the block type code is omitted, since it is an
    implicit zero.
 
 7. Context modeling
 
-   As described in Section 2, the Huffman tree used to encode a literal
+   As described in Section 2, the prefix tree used to encode a literal
    byte or a distance code depends on the context ID and the block type.
    This section specifies how to compute the context ID for a particular
    literal and distance code, and how to encode the context map that
-   maps a <context ID, block type> pair to the index of a Huffman tree
-   in the array of literal and distance Huffman trees.
+   maps a <context ID, block type> pair to the index of a prefix code in
+   the array of literal and distance prefix codes.
 
 7.1. Context modes and context ID lookup for literals
 
@@ -989,7 +1143,7 @@ Internet-Draft                   Brotli                     October 2014
    bytes in the stream (p1, p2, where p1 is the most recent byte),
    regardless if these bytes are produced by backward references or by
    literal insertions. At the start of the stream p1 and p2 are
-   initizalized to zero.
+   initialized to zero.
 
    There are four methods, called context modes, to compute the Context
    ID:
@@ -1005,13 +1159,6 @@ Internet-Draft                   Brotli                     October 2014
    The Context ID for the UTF8 and Signed context modes is computed
    using the following lookup tables Lut0, Lut1, and Lut2.
 
-
-
-Alakuijala & Szabadka    Expires April 27, 2015                [Page 18]
-
-Internet-Draft                   Brotli                     October 2014
-
-
       Lut0 :=
          0,  0,  0,  0,  0,  0,  0,  0,  0,  4,  4,  0,  0,  4,  0,  0,
          0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
@@ -1025,6 +1172,14 @@ Internet-Draft                   Brotli                     October 2014
          0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1,
          0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1,
          0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1,
+
+
+
+Alakuijala & Szabadka    Expires April 27, 2015                [Page 21]
+
+Internet-Draft                   Brotli                       April 2015
+
+
          2, 3, 2, 3, 2, 3, 2, 3, 2, 3, 2, 3, 2, 3, 2, 3,
          2, 3, 2, 3, 2, 3, 2, 3, 2, 3, 2, 3, 2, 3, 2, 3,
          2, 3, 2, 3, 2, 3, 2, 3, 2, 3, 2, 3, 2, 3, 2, 3,
@@ -1060,30 +1215,31 @@ Internet-Draft                   Brotli                     October 2014
          4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4,
          4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4,
          4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4,
-
-
-
-Alakuijala & Szabadka    Expires April 27, 2015                [Page 19]
-
-Internet-Draft                   Brotli                     October 2014
-
-
          4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4,
          5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5,
          5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5,
          5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5,
          6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 7
 
-   The lengths and CRC32 checksums of these tables are as follows:
+   The lengths and zlib CRC-32 (ITU-T Recommendation V.42) check values
+   of each of these tables as a sequence of bytes are as follows:
 
-      Table    Length    CRC32
+      Table    Length    CRC-32
       -----    ------    -----
-      Lut0     256       0x09a6512a
-      Lut1     256       0x572d8c69
-      Lut2     256       0x8ae01e4b
+      Lut0     256       0x8e91efb7
+      Lut1     256       0xd01a32f4
 
-   Given p1 is the last decoded byte and p2 is the second last decoded
-   byte the context IDs can be computed as follows:
+
+
+Alakuijala & Szabadka    Expires April 27, 2015                [Page 22]
+
+Internet-Draft                   Brotli                       April 2015
+
+
+      Lut2     256       0x0dd7a0d6
+
+   Given p1 is the last uncompressed byte and p2 is the second-to-last
+   uncompressed byte the context IDs can be computed as follows:
 
       For LSB6  :  Context ID = p1 & 0x3f
       For MSB6  :  Context ID = p1 >> 2
@@ -1105,40 +1261,40 @@ Internet-Draft                   Brotli                     October 2014
 
 7.3. Encoding of the context map
 
-   There are two kinds of context maps, for literals and for distances.
+   There are two context maps, one for literals and one for distances.
    The size of the context map is 64 * NBLTYPESL for literals, and 4 *
    NBLTYPESD for distances. Each value in the context map is an integer
-   between 0 and 255, indicating the index of the Huffman tree to be
-   used when encoding the next literal or distance.
+   between 0 and 255, indicating the index of the prefix code to be used
+   when encoding the next literal or distance.
 
    The context map is encoded as a one-dimensional array, CMAPL[0..(64 *
    NBLTYPESL - 1)] and CMAPD[0..(4 * NBLTYPESD - 1)].
 
-   The index of the Huffman tree for encoding a literal or distance code
+   The index of the prefix code for encoding a literal or distance code
    with context ID "cid" and block type "bltype" is
 
+      index of literal prefix code = CMAPL[bltype * 64 + cid]
 
-
-Alakuijala & Szabadka    Expires April 27, 2015                [Page 20]
-
-Internet-Draft                   Brotli                     October 2014
-
-
-      index of literal Huffman tree = CMAPL[bltype * 64 + cid]
-
-      index of distance Huffman tree = CMAPD[bltype * 4 + cid]
+      index of distance prefix code = CMAPD[bltype * 4 + cid]
 
    The values of the context map are encoded with the combination of run
-   length encoding for zero values and Huffman coding. Let RLEMAX denote
+   length encoding for zero values and prefix coding. Let RLEMAX denote
    the number of run length codes and NTREES denote the maximum value in
    the context map plus one. NTREES must equal the number of different
    values in the context map, in other words, the different values in
    the context map must be the [0..NTREES-1] interval. The alphabet of
-   the Huffman code has the following RLEMAX + NTREES symbols:
+   the prefix code has the following RLEMAX + NTREES symbols:
+
+
+
+Alakuijala & Szabadka    Expires April 27, 2015                [Page 23]
+
+Internet-Draft                   Brotli                       April 2015
+
 
       0: value zero
-      1: repeat a zero 2-3 times, read 1 bit for repeat length
-      2: repeat a zero 4-7 times, read 2 bits for repeat length
+      1: repeat a zero 2 to 3 times, read 1 bit for repeat length
+      2: repeat a zero 4 to 7 times, read 2 bits for repeat length
       ...
       RLEMAX: repeat a zero (1 << RLEMAX) to (1 << (RLEMAX+1))-1
               times, read RLEMAX bits for repeat length
@@ -1152,16 +1308,17 @@ Internet-Draft                   Brotli                     October 2014
    literal and distance context maps):
 
       1-5 bits: RLEMAX, 0 is encoded with one 0 bit, and values
-                1 - 16 are encoded with bit pattern 1xxxx
+                1 - 16 are encoded with bit pattern xxxx1 (so 01001
+                is 5)
 
-      Huffman code with alphabet size NTREES + RLEMAX
+      Prefix code with alphabet size NTREES + RLEMAX
 
-      Context map size values encoded with the above Huffman code
+      Context map size values encoded with the above prefix code
          and run length coding for zero values
 
       1 bit:  IMTF bit, if set, we do an inverse move-to-front
               transform on the values in the context map to get
-              the Huffman code indexes
+              the prefix code indexes
 
    For the encoding of NTREES see Section 9.2. We define the inverse
    move-to-front transform used in this specification by the following C
@@ -1172,14 +1329,6 @@ Internet-Draft                   Brotli                     October 2014
         int i;
         for (i = 0; i < 256; ++i) {
           mtf[i] = (uint8_t)i;
-
-
-
-Alakuijala & Szabadka    Expires April 27, 2015                [Page 21]
-
-Internet-Draft                   Brotli                     October 2014
-
-
         }
         for (i = 0; i < v_len; ++i) {
           uint8_t index = v[i];
@@ -1192,15 +1341,22 @@ Internet-Draft                   Brotli                     October 2014
         }
       }
 
+
+
+Alakuijala & Szabadka    Expires April 27, 2015                [Page 24]
+
+Internet-Draft                   Brotli                       April 2015
+
+
 8. Static dictionary
 
    At any given point during decoding the compressed data, a reference
-   to a duplicated string in the output produced so far has a maximum
-   backward distance value, which is the minimum of the window size and
-   the number of output bytes produced. However, decoding a distance
-   from the input stream, as described in section 4, can produce
-   distances that are greater than this maximum allowed value. The
-   difference between these distances and the first invalid distance
+   to a duplicated string in the uncompressed data produced so far has a
+   maximum backward distance value, which is the minimum of the window
+   size and the number of uncompressed bytes produced. However, decoding
+   a distance from the compressed stream, as described in section 4, can
+   produce distances that are greater than this maximum allowed value.
+   The difference between these distances and the first invalid distance
    value is treated as reference to a word in the static dictionary
    given in Appendix A. The maximum valid copy length for a static
    dictionary reference is 24. The static dictionary has three parts:
@@ -1228,14 +1384,6 @@ Internet-Draft                   Brotli                     October 2014
    Each static dictionary word has 121 different forms, given by
    applying a word transformation to a base word in the DICT array. The
    list of word transformations is given in Appendix B. The static
-
-
-
-Alakuijala & Szabadka    Expires April 27, 2015                [Page 22]
-
-Internet-Draft                   Brotli                     October 2014
-
-
    dictionary word for a <length, distance> pair can be reconstructed as
    follows:
 
@@ -1244,10 +1392,17 @@ Internet-Draft                   Brotli                     October 2014
       base_word = DICT[offset(length, index)..offset(length, index+1)-1]
       transform_id = word_id >> NDBITS[length]
 
-   The string copied to the output stream is computed by applying the
-   transformation to the base dictionary word. If transform_id is
+   The string copied to the uncompressed stream is computed by applying
+   the transformation to the base dictionary word. If transform_id is
    greater than 120 or length is greater than 24, the compressed data
    set is invalid.
+
+
+
+Alakuijala & Szabadka    Expires April 27, 2015                [Page 25]
+
+Internet-Draft                   Brotli                       April 2015
+
 
    Each word transformation has the following form:
 
@@ -1277,21 +1432,6 @@ Internet-Draft                   Brotli                     October 2014
    characters and converted to upper-case by taking 1 - 3 bytes at a
    time, using the algorithm below:
 
-
-
-
-
-
-
-
-
-
-
-Alakuijala & Szabadka    Expires April 27, 2015                [Page 23]
-
-Internet-Draft                   Brotli                     October 2014
-
-
       i = 0
       while i < length(word):
          if word[i] < 192:
@@ -1312,6 +1452,14 @@ Internet-Draft                   Brotli                     October 2014
 
    Appendix B. contains the list of transformations by specifying the
    prefix, elementary transform and suffix components of each of them.
+
+
+
+Alakuijala & Szabadka    Expires April 27, 2015                [Page 26]
+
+Internet-Draft                   Brotli                       April 2015
+
+
    Note that the OmitFirst8 elementary transform is not used in the list
    of transformations. The strings in Appendix B. are in C string format
    with respect to escape (backslash) characters.
@@ -1328,7 +1476,7 @@ Internet-Draft                   Brotli                     October 2014
 
       1-4 bits: WBITS, a value in the range 16 - 24, value 16 is
                 encoded with one 0 bit, and values 17 - 24 are
-                encoded with bit pattern 1xxx
+                encoded with bit pattern xxx1 (so 0111 is 20)
 
    The size of the sliding window, which is the maximum value of any
    non-dictionary reference backward distance, is given by the following
@@ -1340,87 +1488,98 @@ Internet-Draft                   Brotli                     October 2014
 
    A compliant compressed data set has at least one meta-block. Each
    meta-block contains a header with information about the uncompressed
-
-
-
-Alakuijala & Szabadka    Expires April 27, 2015                [Page 24]
-
-Internet-Draft                   Brotli                     October 2014
-
-
    length of the meta-block, and a bit signaling if the meta-block is
    the last one. The format of the meta-block header is the following:
 
          1 bit:  ISLAST, set to 1 if this is the last meta-block
          1 bit:  ISEMPTY, set to 1 if the meta-block is empty, this
                  field is only present if ISLAST bit is set, since
-                 only the last meta-block can be empty
+                 only the last meta-block can be empty -- if it is
+                 1, then the meta-block and the brotli stream ends at
+                 that bit, with any remaining bits in the last byte
+                 of the compressed stream filled with zeros (if the
+                 fill bits are not zero, then the stream should be
+                 rejected as invalid)
          2 bits: MNIBBLES - 4, where MNIBBLES is # of nibbles to
                  represent the length
 
          MNIBBLES x 4 bits: MLEN - 1, where MLEN is the length
-            of the meta-block in the input data in bytes
+                 of the meta-block uncompressed data in bytes (if the
+                 number of nibbles is greater than 4, and the last
+                 nibble is all zeros, then the stream should be
+                 rejected as invalid)
 
-         1 bit:  ISUNCOMPRESSED, if set to 1, any bits of input up to
-                 the next byte boundary are ignored, and the rest of
-                 the meta-block contains MLEN bytes of literal data;
-                 this field is only present if ISLAST bit is not set
+
+
+Alakuijala & Szabadka    Expires April 27, 2015                [Page 27]
+
+Internet-Draft                   Brotli                       April 2015
+
+
+         1 bit:  ISUNCOMPRESSED, if set to 1, any bits of compressed
+                 data up to the next byte boundary are ignored, and
+                 the rest of the meta-block contains MLEN bytes of
+                 literal data; this field is only present if the
+                 ISLAST bit is not set (if the ignored bits are not
+                 all zeros, the stream should be rejected as invalid)
 
       1-11 bits: NBLTYPESL, # of literal block types, encoded with
-                 the following variable length code:
+                 the following variable length code (as it appears in
+                 the compressed data, where the bits are parsed from
+                 right to left, so 0110111 has the value 12):
 
                        Value   Bit Pattern
                        -----   -----------
-                         1      0
-                         2      1000
-                        3-4     1001x
-                        5-8     1010xx
-                        9-16    1011xxx
-                       17-32    1100xxxx
-                       33-64    1101xxxxx
-                       65-128   1110xxxxxx
-                      129-256   1111xxxxxxx
+                         1                0
+                         2             0001
+                        3-4           x0011
+                        5-8          xx0101
+                        9-16        xxx0111
+                       17-32       xxxx1001
+                       33-64      xxxxx1011
+                       65-128    xxxxxx1101
+                      129-256   xxxxxxx1111
 
-         Huffman code over the block type code alphabet for literal
+         Prefix code over the block type code alphabet for literal
             block types, appears only if NBLTYPESL >= 2
 
-         Huffman code over the block length code alphabet for literal
-            block lengths, appears only if NBLTYPESL >= 2
+         Prefix code over the block count code alphabet for literal
+            block counts, appears only if NBLTYPESL >= 2
 
-         Block length code + Extra bits for first literal block
-            length, appears only if NBLTYPESL >= 2
+         Block count code + Extra bits for first literal block
+            count, appears only if NBLTYPESL >= 2
 
       1-11 bits: NBLTYPESI, # of insert-and-copy block types, encoded
                  with the same variable length code as above
 
-         Huffman code over the block type code alphabet for insert-
+         Prefix code over the block type code alphabet for insert-
             and-copy block types, only if NBLTYPESI >= 2
 
+         Prefix code over the block count code alphabet for insert-
+            and-copy block counts, only if NBLTYPESI >= 2
 
-
-
-Alakuijala & Szabadka    Expires April 27, 2015                [Page 25]
-
-Internet-Draft                   Brotli                     October 2014
-
-
-         Huffman code over the block length code alphabet for insert-
-            and-copy block lengths, only if NBLTYPESI >= 2
-
-         Block length code + Extra bits for first insert-and-copy
-            block length, only if NBLTYPESI >= 2
+         Block count code + Extra bits for first insert-and-copy
+            block count, only if NBLTYPESI >= 2
 
       1-11 bits: NBLTYPESD, # of distance block types, encoded with
                  the same variable length code as above
 
-         Huffman code over the block type code alphabet for distance
+
+
+
+Alakuijala & Szabadka    Expires April 27, 2015                [Page 28]
+
+Internet-Draft                   Brotli                       April 2015
+
+
+         Prefix code over the block type code alphabet for distance
             block types, appears only if NBLTYPESD >= 2
 
-         Huffman code over the block length code alphabet for
-            distance block lengths, only if NBLTYPESD >= 2
+         Prefix code over the block count code alphabet for
+            distance block counts, only if NBLTYPESD >= 2
 
-         Block length code + Extra bits for first distance block
-            length, only if NBLTYPESD >= 2
+         Block count code + Extra bits for first distance block
+            count, only if NBLTYPESD >= 2
 
          2 bits: NPOSTFIX, parameter used in the distance coding
 
@@ -1430,77 +1589,77 @@ Internet-Draft                   Brotli                     October 2014
 
          NBLTYPESL x 2 bits: context mode for each literal block type
 
-      1-11 bits: NTREESL, # of literal Huffman trees, encoded with
+      1-11 bits: NTREESL, # of literal prefix trees, encoded with
                  the same variable length code as NBLTYPESL
 
          Literal context map, encoded as described in Paragraph 7.3,
             appears only if NTREESL >= 2, otherwise the context map
             has only zero values
 
-      1-11 bits: NTREESD, # of distance Huffman trees, encoded with
+      1-11 bits: NTREESD, # of distance prefix trees, encoded with
                  the same variable length code as NBLTYPESD
 
          Distance context map, encoded as described in Paragraph 7.3,
             appears only if NTREESD >= 2, otherwise the context map
             has only zero values
 
-         NTREESL Huffman codes for literals
+         NTREESL prefix codes for literals
 
-         NBLTYPESI Huffman codes for insert-and-copy lengths
+         NBLTYPESI prefix codes for insert-and-copy lengths
 
-         NTREESD Huffman codes for distances
+         NTREESD prefix codes for distances
 
 9.3. Format of the meta-block data
-
-
-
-
-Alakuijala & Szabadka    Expires April 27, 2015                [Page 26]
-
-Internet-Draft                   Brotli                     October 2014
-
 
    The compressed data part of a meta-block consists of a series of
    commands. Each command has the following format:
 
          Block type code for next insert-and-copy block type, appears
             only if NBLTYPESI >= 2 and the previous insert-and-copy
-            block has ended
+            block count is zero
 
-         Block length code + Extra bits for next insert-and-copy
-            block length, appears only if NBLTYPESI >= 2 and the
-            previous insert and-copy block has ended
+         Block count code + Extra bits for next insert-and-copy
+            block count, appears only if NBLTYPESI >= 2 and the
+
+
+
+Alakuijala & Szabadka    Expires April 27, 2015                [Page 29]
+
+Internet-Draft                   Brotli                       April 2015
+
+
+            previous insert-and-copy block count is zero
 
          Insert-and-copy length, encoded as in section 5, using the
-            insert-and-copy length Huffman code with the current
+            insert-and-copy length prefix code with the current
             insert-and-copy block type index
 
          Insert length number of literals, with the following format:
 
             Block type code for next literal block type, appears
                only if NBLTYPESL >= 2 and the previous literal
-               block has ended
+               block count is zero
 
-            Block length code + Extra bits for next literal block
-               length, appears only if NBLTYPESL >= 2 and the
-               previous literal block has ended
+            Block count code + Extra bits for next literal block
+               count, appears only if NBLTYPESL >= 2 and the
+               previous literal block count is zero
 
-            Next byte of the input data, encoded with the literal
-               Huffman code with the index determined by the
-               previuos two bytes of the input data, the current
-               literal block type and the context map, as
+            Next byte of the uncompressed data, encoded with the
+               literal prefix code with the index determined by the
+               previous two bytes of the uncompressed data, the
+               current literal block type, and the context map, as
                described in Paragraph 7.3.
 
          Block type code for next distance block type, appears only
-           if NBLTYPESD >= 2 and the previous distance block has
-           ended
+           if NBLTYPESD >= 2 and the previous distance block count
+           is zero
 
-         Block length code + Extra bits for next distance block
+         Block count code + Extra bits for next distance block
             length, appears only if NBLTYPESD >= 2 and the previous
-            distance block has ended
+            distance block count is zero
 
          Distance code, encoded as in section 4, using the distance
-            Huffman code with the current distance block type index,
+            prefix code with the current distance block type index,
             appears only if the distance code is not an implicit 0,
             as indicated by the insert-and-copy length code
 
@@ -1508,22 +1667,23 @@ Internet-Draft                   Brotli                     October 2014
    insert lengths and copy lengths over all the commands gives the
    uncompressed length, MLEN encoded in the meta-block header.
 
-
-
-
-Alakuijala & Szabadka    Expires April 27, 2015                [Page 27]
-
-Internet-Draft                   Brotli                     October 2014
-
-
 10. Decoding algorithm
 
-   The decoding algorithm that produces the output data is as follows:
+   The decoding algorithm that produces the uncompressed data is as
+   follows:
 
       read window size
       do
          read ISLAST bit
          if ISLAST
+
+
+
+Alakuijala & Szabadka    Expires April 27, 2015                [Page 30]
+
+Internet-Draft                   Brotli                       April 2015
+
+
             read ISEMPTY bit
             if ISEMPTY
                break from loop
@@ -1532,19 +1692,19 @@ Internet-Draft                   Brotli                     October 2014
             read ISUNCOMPRESSED bit
             if ISUNCOMPRESSED
                skip any bits up to the next byte boundary
-               copy MLEN bytes of input to the output stream
+               copy MLEN bytes of compressed data as literals
                continue to the next meta-block
          loop for each three block categories (i = L, I, D)
             read NBLTYPESi
             if NBLTYPESi >= 2
-               read Huffman code for block types, HTREE_BTYPE_i
-               read Huffman code for block lengths, HTREE_BLEN_i
-               read block length, BLEN_i
+               read prefix code for block types, HTREE_BTYPE_i
+               read prefix code for block counts, HTREE_BLEN_i
+               read block count, BLEN_i
                set block type, BTYPE_i to 0
-               initialize second last and last block types to 0 and 1
+               initialize second-to-last and last block types to 0 and 1
             else
                set block type, BTYPE_i to 0
-               set block length, BLEN_i to 268435456
+               set block count, BLEN_i to 268435456
          read NPOSTFIX and NDIRECT
          read array of literal context modes, CMODE[]
          read NTREESL
@@ -1557,79 +1717,86 @@ Internet-Draft                   Brotli                     October 2014
             read distance context map, CMAPD[]
          else
             fill CMAPD[] with zeros
-         read array of Huffman codes for literals, HTREEL[]
-         read array of Huffman codes for insert-and-copy, HTREEI[]
-         read array of Huffman codes for distances, HTREED[]
+         read array of prefix codes for literals, HTREEL[]
+         read array of prefix codes for insert-and-copy, HTREEI[]
+         read array of prefix codes for distances, HTREED[]
          do
             if BLEN_I is zero
                read block type using HTREE_BTYPE_I and set BTYPE_I
-               read block length using HTREE_BLEN_I and set BLEN_I
-
-
-
-Alakuijala & Szabadka    Expires April 27, 2015                [Page 28]
-
-Internet-Draft                   Brotli                     October 2014
-
-
+                  save previous block type
+               read block count using HTREE_BLEN_I and set BLEN_I
             decrement BLEN_I
             read insert and copy length, ILEN, CLEN with HTREEI[BTYPE_I]
             loop for ILEN
                if BLEN_L is zero
                   read block type using HTREE_BTYPE_L and set BTYPE_L
-                  read block length using HTREE_BLEN_L and set BLEN_L
+                     save previous block type
+                  read block count using HTREE_BLEN_L and set BLEN_L
+
+
+
+Alakuijala & Szabadka    Expires April 27, 2015                [Page 31]
+
+Internet-Draft                   Brotli                       April 2015
+
+
                decrement BLEN_L
                look up context mode CMODE[BTYPE_L]
-               compute context ID, CIDL from last two bytes of output
+               compute context ID, CIDL from last two uncompressed bytes
                read literal using HTREEL[CMAPL[64 * BTYPE_L + CIDL]]
-               copy literal to output stream
-            if number of output bytes produced in the loop is MLEN
-               break from loop
+               write literal to uncompressed stream
+            if number of uncompressed bytes produced in the loop for
+               this meta-block is MLEN, then break from loop (if the
+               discarded copy length is not 4, then reject the stream as
+               invalid)
             if distance code is implicit zero from insert-and-copy code
                set backward distance to the last distance
             else
                if BLEN_D is zero
                   read block type using HTREE_BTYPE_D and set BTYPE_D
-                  read block length using HTREE_BLEN_D and set BLEN_D
+                     save previous block type
+                  read block count using HTREE_BLEN_D and set BLEN_D
                decrement BLEN_D
                compute context ID, CIDD from CLEN
                read distance code with HTREED[CMAPD[4 * BTYPE_D + CIDD]]
                compute distance by distance short code substitution
-             move backwards distance bytes in the output stream, and
-               copy CLEN bytes from this position to the output stream,
-               or look up the static dictionary word and copy it to the
-               output stram
-         while number of output bytes produced in the loop < MLEN
+             move backwards distance bytes in the uncompressed data and
+               copy CLEN bytes from this position to the uncompressed
+               stream, or look up the static dictionary word, transform
+               the word as directed, and copy the result to the
+               uncompressed stream
+         while number of uncompressed bytes for this meta-block < MLEN
       while not ISLAST
 
    Note that a duplicated string reference may refer to a string in a
    previous meta-block, i.e. the backward distance may cross one or more
-   meta-block boundaries. However a backward copy distance cannot refer
-   past the beginning of the output stream and it can not be greater
-   than the window size; any such distance must be interpreted as a
-   reference to a static dictionary word. Also note that the referenced
-   string may overlap the current position, for example, if the last 2
-   bytes decoded have values X and Y, a string reference with <length =
-   5, distance = 2> adds X,Y,X,Y,X to the output stream.
+   meta-block boundaries. However a backward copy distance will not
+   refer past the beginning of the uncompressed stream or the window
+   size; any such distance is interpreted as a reference to a static
+   dictionary word. Also note that the referenced string may overlap the
+   current position, for example, if the last 2 bytes decoded have
+   values X and Y, a string reference with <length = 5, distance = 2>
+   adds X,Y,X,Y,X to the uncompressed stream.
 
 11. Security Considerations
 
    As with any compressed file formats, decompressor implementations
-   should handle all input byte sequences, not only those that conform
-   to this specification and non-conformant input sequences should be
-   discarded.  A possible attack against a system containing a
-   decompressor implementation (e.g. a web browser) is to exploit a
-   buffer overflow caused by an invalid input. Therefore decompressor
+   should handle all compressed data byte sequences, not only those that
+   conform to this specification, where non-conformant compressed data
+   sequences should be discarded.  A possible attack against a system
+   containing a decompressor implementation (e.g. a web browser) is to
+   exploit a buffer overflow caused by an invalid compressed data.
+   Therefore decompressor implementations should perform bound-checking
+   for each memory access that result from values decoded from the
 
 
 
-Alakuijala & Szabadka    Expires April 27, 2015                [Page 29]
+Alakuijala & Szabadka    Expires April 27, 2015                [Page 32]
 
-Internet-Draft                   Brotli                     October 2014
+Internet-Draft                   Brotli                       April 2015
 
 
-   implementations should perform bound-checking for each memory access
-   that result from values decoded from the input stream.
+   compressed stream.
 
 12. IANA Considerations
 
@@ -1656,14 +1823,16 @@ Internet-Draft                   Brotli                     October 2014
 
 14. Source code
 
-   Source code for a C language implementation of a "brotli" compliant
+   Source code for a C language implementation of a brotli compliant
    decompressor and a C++ language implementation of a compressor is
    available in the brotli open-source project:
    https://github.com/google/brotli
 
 Appendix A. Static dictionary data
 
-   The hexadecimal form of the DICT array is the following:
+   The hexadecimal form of the DICT array is the following, where the
+   length is 122,784 bytes and the zlib CRC-32 of the byte sequence is
+   0x5136cb04.
 
       74696d65646f776e6c6966656c6566746261636b636f64656461746173686f77
       6f6e6c7973697465636974796f70656e6a7573746c696b6566726565776f726b
@@ -1675,15 +1844,15 @@ Appendix A. Static dictionary data
       757365646d61646568616e6468657265776861746e616d654c696e6b626c6f67
       73697a656261736568656c646d616b656d61696e757365722729202b686f6c64
       656e6473776974684e65777372656164776572657369676e74616b6568617665
-      67616d657365656e63616c6c7061746877656c6c706c75736d656e7566696c6d
 
 
 
-Alakuijala & Szabadka    Expires April 27, 2015                [Page 30]
+Alakuijala & Szabadka    Expires April 27, 2015                [Page 33]
 
-Internet-Draft                   Brotli                     October 2014
+Internet-Draft                   Brotli                       April 2015
 
 
+      67616d657365656e63616c6c7061746877656c6c706c75736d656e7566696c6d
       706172746a6f696e746869736c697374676f6f646e6565647761797377657374
       6a6f62736d696e64616c736f6c6f676f72696368757365736c6173747465616d
       61726d79666f6f646b696e6777696c6c65617374776172646265737466697265
@@ -1731,15 +1900,15 @@ Internet-Draft                   Brotli                     October 2014
       2e0a0a413770783b70757368636861743070783b637265772a2f3c2f68617368
       37357078666c6174726172652026262074656c6c63616d706f6e746f6c616964
       6d697373736b697074656e7466696e656d616c6567657473706c6f743430302c
-      0d0a0d0a636f6f6c666565742e7068703c62723e657269636d6f737467756964
 
 
 
-Alakuijala & Szabadka    Expires April 27, 2015                [Page 31]
+Alakuijala & Szabadka    Expires April 27, 2015                [Page 34]
 
-Internet-Draft                   Brotli                     October 2014
+Internet-Draft                   Brotli                       April 2015
 
 
+      0d0a0d0a636f6f6c666565742e7068703c62723e657269636d6f737467756964
       62656c6c64657363686169726d61746861746f6d2f696d67262338326c75636b
       63656e743030303b74696e79676f6e6568746d6c73656c6c6472756746524545
       6e6f64656e69636b3f69643d6c6f73656e756c6c7661737477696e6452535320
@@ -1787,15 +1956,15 @@ Internet-Draft                   Brotli                     October 2014
       3230303732303036323030353230303432303033323030323230303132303030
       3139393931393938313939373139393631393935313939343139393331393932
       3139393131393930313938393139383831393837313938363139383531393834
-      3139383331393832313938313139383031393739313937383139373731393736
 
 
 
-Alakuijala & Szabadka    Expires April 27, 2015                [Page 32]
+Alakuijala & Szabadka    Expires April 27, 2015                [Page 35]
 
-Internet-Draft                   Brotli                     October 2014
+Internet-Draft                   Brotli                       April 2015
 
 
+      3139383331393832313938313139383031393739313937383139373731393736
       3139373531393734313937333139373231393731313937303139363931393638
       3139363731393636313936353139363431393633313936323139363131393630
       3139353931393538313935373139353631393535313935343139353331393532
@@ -1843,15 +2012,15 @@ Internet-Draft                   Brotli                     October 2014
       6f757274796f7572206269727468706f70757074797065736170706c79496d61
       67656265696e6775707065726e6f746573657665727973686f77736d65616e73
       65787472616d61746368747261636b6b6e6f776e6561726c79626567616e7375
-      70657270617065726e6f7274686c6561726e676976656e6e616d6564656e6465
 
 
 
-Alakuijala & Szabadka    Expires April 27, 2015                [Page 33]
+Alakuijala & Szabadka    Expires April 27, 2015                [Page 36]
 
-Internet-Draft                   Brotli                     October 2014
+Internet-Draft                   Brotli                       April 2015
 
 
+      70657270617065726e6f7274686c6561726e676976656e6e616d6564656e6465
       645465726d73706172747347726f75706272616e647573696e67776f6d616e66
       616c73657265616479617564696f74616b65737768696c652e636f6d2f6c6976
       656463617365736461696c796368696c6467726561746a7564676574686f7365
@@ -1899,15 +2068,15 @@ Internet-Draft                   Brotli                     October 2014
       212d2d504f5354226f6365616e3c62722f3e666c6f6f72737065616b64657074
       682073697a6562616e6b7363617463686368617274323070783b616c69676e64
       65616c73776f756c64353070783b75726c3d227061726b736d6f7573654d6f73
-      74202e2e2e3c2f616d6f6e67627261696e626f6479206e6f6e653b6261736564
 
 
 
-Alakuijala & Szabadka    Expires April 27, 2015                [Page 34]
+Alakuijala & Szabadka    Expires April 27, 2015                [Page 37]
 
-Internet-Draft                   Brotli                     October 2014
+Internet-Draft                   Brotli                       April 2015
 
 
+      74202e2e2e3c2f616d6f6e67627261696e626f6479206e6f6e653b6261736564
       636172727964726166747265666572706167655f686f6d652e6d657465726465
       6c6179647265616d70726f76656a6f696e743c2f74723e64727567733c212d2d
       20617072696c696465616c616c6c656e6578616374666f727468636f6465736c
@@ -1955,15 +2124,15 @@ Internet-Draft                   Brotli                     October 2014
       2220766567617364616e736b6565737469736871697073756f6d69736f627265
       6465736465656e747265746f646f73707565646561c3b16f73657374c3a17469
       656e6568617374616f74726f737061727465646f6e64656e7565766f68616365
-      72666f726d616d69736d6f6d656a6f726d756e646f617175c3ad64c3ad617373
 
 
 
-Alakuijala & Szabadka    Expires April 27, 2015                [Page 35]
+Alakuijala & Szabadka    Expires April 27, 2015                [Page 38]
 
-Internet-Draft                   Brotli                     October 2014
+Internet-Draft                   Brotli                       April 2015
 
 
+      72666f726d616d69736d6f6d656a6f726d756e646f617175c3ad64c3ad617373
       c3b36c6f61797564616665636861746f64617374616e746f6d656e6f73646174
       6f736f74726173736974696f6d7563686f61686f72616c756761726d61796f72
       6573746f73686f72617374656e6572616e746573666f746f7365737461737061
@@ -2011,15 +2180,15 @@ Internet-Draft                   Brotli                     October 2014
       636f7264666f6c6c6f777469746c653e6569746865726c656e67746866616d69
       6c79667269656e646c61796f7574617574686f72637265617465726576696577
       73756d6d6572736572766572706c61796564706c61796572657870616e64706f
-      6c696379666f726d6174646f75626c65706f696e747373657269657370657273
 
 
 
-Alakuijala & Szabadka    Expires April 27, 2015                [Page 36]
+Alakuijala & Szabadka    Expires April 27, 2015                [Page 39]
 
-Internet-Draft                   Brotli                     October 2014
+Internet-Draft                   Brotli                       April 2015
 
 
+      6c696379666f726d6174646f75626c65706f696e747373657269657370657273
       6f6e6c6976696e6764657369676e6d6f6e746873666f72636573756e69717565
       77656967687470656f706c65656e657267796e61747572657365617263686669
       67757265686176696e67637573746f6d6f66667365746c657474657277696e64
@@ -2067,15 +2236,15 @@ Internet-Draft                   Brotli                     October 2014
       6465726e616476696365696e3c2f613e3a20546865206469616c6f67686f7573
       6573424547494e204d657869636f73746172747363656e747265686569676874
       616464696e6749736c616e64617373657473456d706972655363686f6f6c6566
-      666f72746469726563746e6561726c796d616e75616c53656c6563742e0a0a4f
 
 
 
-Alakuijala & Szabadka    Expires April 27, 2015                [Page 37]
+Alakuijala & Szabadka    Expires April 27, 2015                [Page 40]
 
-Internet-Draft                   Brotli                     October 2014
+Internet-Draft                   Brotli                       April 2015
 
 
+      666f72746469726563746e6561726c796d616e75616c53656c6563742e0a0a4f
       6e656a6f696e65646d656e75223e5068696c697061776172647368616e646c65
       696d706f72744f6666696365726567617264736b696c6c736e6174696f6e5370
       6f7274736465677265657765656b6c792028652e672e626568696e64646f6374
@@ -2123,15 +2292,15 @@ Internet-Draft                   Brotli                     October 2014
       6c69656673776564656e437573746f6d656173696c7920796f75722053747269
       6e670a0a5768696c7461796c6f72636c6561723a7265736f72746672656e6368
       74686f7567682229202b20223c626f64793e627579696e676272616e64734d65
-      6d6265726e616d65223e6f7070696e67736563746f723570783b223e76737061
 
 
 
-Alakuijala & Szabadka    Expires April 27, 2015                [Page 38]
+Alakuijala & Szabadka    Expires April 27, 2015                [Page 41]
 
-Internet-Draft                   Brotli                     October 2014
+Internet-Draft                   Brotli                       April 2015
 
 
+      6d6265726e616d65223e6f7070696e67736563746f723570783b223e76737061
       6365706f737465726d616a6f7220636f666665656d617274696e6d6174757265
       68617070656e3c2f6e61763e6b616e7361736c696e6b223e496d616765733d66
       616c73657768696c65206873706163653026616d703b200a0a496e2020706f77
@@ -2179,15 +2348,15 @@ Internet-Draft                   Brotli                     October 2014
       a6e7949fe7b3bbe58897e7bd91e58f8be5b896e5ad90e5af86e7a081e9a291e9
       8193e68ea7e588b6e59cb0e58cbae59fbae69cace585a8e59bbde7bd91e4b88a
       e9878de8a681e7acace4ba8ce5969ce6aca2e8bf9be585a5e58f8be68385e8bf
-      99e4ba9be88083e8af95e58f91e78eb0e59fb9e8aeade4bba5e4b88ae694bfe5
 
 
 
-Alakuijala & Szabadka    Expires April 27, 2015                [Page 39]
+Alakuijala & Szabadka    Expires April 27, 2015                [Page 42]
 
-Internet-Draft                   Brotli                     October 2014
+Internet-Draft                   Brotli                       April 2015
 
 
+      99e4ba9be88083e8af95e58f91e78eb0e59fb9e8aeade4bba5e4b88ae694bfe5
       ba9ce68890e4b8bae78eafe5a283e9a699e6b8afe5908ce697b6e5a8b1e4b990
       e58f91e98081e4b880e5ae9ae5bc80e58f91e4bd9ce59381e6a087e58786e6ac
       a2e8bf8ee8a7a3e586b3e59cb0e696b9e4b880e4b88be4bba5e58f8ae8b4a3e4
@@ -2235,15 +2404,15 @@ Internet-Draft                   Brotli                     October 2014
       bae69687e68891e59bbde5918ae8af89e78988e4b8bbe4bfaee694b9e58f82e4
       b88ee68993e58db0e5bfabe4b990e69cbae6a2b0e8a782e782b9e5ad98e59ca8
       e7b2bee7a59ee88eb7e5be97e588a9e794a8e7bba7e7bbade4bda0e4bbace8bf
-      99e4b988e6a8a1e5bc8fe8afade8a880e883bde5a49fe99b85e8998ee6938de4
 
 
 
-Alakuijala & Szabadka    Expires April 27, 2015                [Page 40]
+Alakuijala & Szabadka    Expires April 27, 2015                [Page 43]
 
-Internet-Draft                   Brotli                     October 2014
+Internet-Draft                   Brotli                       April 2015
 
 
+      99e4b988e6a8a1e5bc8fe8afade8a880e883bde5a49fe99b85e8998ee6938de4
       bd9ce9a38ee6a0bce4b880e8b5b7e7a791e5ada6e4bd93e882b2e79fade4bfa1
       e69da1e4bbb6e6b2bbe79697e8bf90e58aa8e4baa7e4b89ae4bc9ae8aeaee5af
       bce888aae58588e7949fe88194e79b9fe58fafe698afe5958fe9a18ce7bb93e6
@@ -2291,15 +2460,15 @@ Internet-Draft                   Brotli                     October 2014
       afe4bb98e68ea8e587bae7ab99e995bfe69dade5b79ee689a7e8a18ce588b6e9
       80a0e4b98be4b880e68ea8e5b9bfe78eb0e59cbae68f8fe8bfb0e58f98e58c96
       e4bca0e7bb9fe6ad8ce6898be4bf9de999a9e8afbee7a88be58cbbe79697e7bb
-      8fe8bf87e8bf87e58ebbe4b98be5898de694b6e585a5e5b9b4e5baa6e69d82e5
 
 
 
-Alakuijala & Szabadka    Expires April 27, 2015                [Page 41]
+Alakuijala & Szabadka    Expires April 27, 2015                [Page 44]
 
-Internet-Draft                   Brotli                     October 2014
+Internet-Draft                   Brotli                       April 2015
 
 
+      8fe8bf87e8bf87e58ebbe4b98be5898de694b6e585a5e5b9b4e5baa6e69d82e5
       bf97e7be8ee4b8bde69c80e9ab98e799bbe99986e69caae69da5e58aa0e5b7a5
       e5858de8b4a3e69599e7a88be78988e59d97e8baabe4bd93e9878de5ba86e587
       bae594aee68890e69cace5bda2e5bc8fe59c9fe8b186e587bae583b9e4b89ce6
@@ -2347,15 +2516,15 @@ Internet-Draft                   Brotli                     October 2014
       96e58588e5ae8ce59684e9a9b1e58aa8e4b88be99da2e4b88de5868de8af9ae4
       bfa1e6848fe4b989e998b3e58589e88bb1e59bbde6bc82e4baaee5869be4ba8b
       e78ea9e5aeb6e7bea4e4bc97e5869ce6b091e58db3e58fafe5908de7a8b1e5ae
-      b6e585b7e58aa8e794bbe683b3e588b0e6b3a8e6988ee5b08fe5ada6e680a7e8
 
 
 
-Alakuijala & Szabadka    Expires April 27, 2015                [Page 42]
+Alakuijala & Szabadka    Expires April 27, 2015                [Page 45]
 
-Internet-Draft                   Brotli                     October 2014
+Internet-Draft                   Brotli                       April 2015
 
 
+      b6e585b7e58aa8e794bbe683b3e588b0e6b3a8e6988ee5b08fe5ada6e680a7e8
       83bde88083e7a094e7a1ace4bbb6e8a782e79c8be6b885e6a59ae6909ee7ac91
       e9a696e9a081e9bb84e98791e98082e794a8e6b19fe88b8fe79c9fe5ae9ee4b8
       bbe7aea1e998b6e6aeb5e8a8bbe5868ae7bfbbe8af91e69d83e588a9e5819ae5
@@ -2403,15 +2572,15 @@ Internet-Draft                   Brotli                     October 2014
       d0b0d181d0b2d0b0d0bcd0b5d0bcd183d0a2d0b0d0bad0b4d0b2d0b0d0bdd0b0
       d0bcd18dd182d0b8d18dd182d183d092d0b0d0bcd182d0b5d185d0bfd180d0be
       d182d183d182d0bdd0b0d0b4d0b4d0bdd18fd092d0bed182d182d180d0b8d0bd
-      d0b5d0b9d092d0b0d181d0bdd0b8d0bcd181d0b0d0bcd182d0bed182d180d183
 
 
 
-Alakuijala & Szabadka    Expires April 27, 2015                [Page 43]
+Alakuijala & Szabadka    Expires April 27, 2015                [Page 46]
 
-Internet-Draft                   Brotli                     October 2014
+Internet-Draft                   Brotli                       April 2015
 
 
+      d0b5d0b9d092d0b0d181d0bdd0b8d0bcd181d0b0d0bcd182d0bed182d180d183
       d0b1d09ed0bdd0b8d0bcd0b8d180d0bdd0b5d0b5d09ed09ed09ed0bbd0b8d186
       d18dd182d0b0d09ed0bdd0b0d0bdd0b5d0bcd0b4d0bed0bcd0bcd0bed0b9d0b4
       d0b2d0b5d0bed0bdd0bed181d183d0b4e0a495e0a587e0a4b9e0a588e0a495e0
@@ -2459,15 +2628,15 @@ Internet-Draft                   Brotli                     October 2014
       72657370656374646973706c6179726571756573747265736572766577656273
       697465686973746f7279667269656e64736f7074696f6e73776f726b696e6776
       657273696f6e6d696c6c696f6e6368616e6e656c77696e646f772e6164647265
-      73737669736974656477656174686572636f727265637470726f647563746564
 
 
 
-Alakuijala & Szabadka    Expires April 27, 2015                [Page 44]
+Alakuijala & Szabadka    Expires April 27, 2015                [Page 47]
 
-Internet-Draft                   Brotli                     October 2014
+Internet-Draft                   Brotli                       April 2015
 
 
+      73737669736974656477656174686572636f727265637470726f647563746564
       6972656374666f7277617264796f752063616e72656d6f7665647375626a6563
       74636f6e74726f6c6172636869766563757272656e7472656164696e676c6962
       726172796c696d697465646d616e616765726675727468657273756d6d617279
@@ -2515,15 +2684,15 @@ Internet-Draft                   Brotli                     October 2014
       6572616c706173736167652c2671756f743b616e696d6174656665656c696e67
       6172726976656470617373696e676e61747572616c726f7567686c792e0a0a54
       686520627574206e6f7464656e736974794272697461696e4368696e6573656c
-      61636b206f66747269627574654972656c616e642220646174612d666163746f
 
 
 
-Alakuijala & Szabadka    Expires April 27, 2015                [Page 45]
+Alakuijala & Szabadka    Expires April 27, 2015                [Page 48]
 
-Internet-Draft                   Brotli                     October 2014
+Internet-Draft                   Brotli                       April 2015
 
 
+      61636b206f66747269627574654972656c616e642220646174612d666163746f
       727372656365697665746861742069734c69627261727968757362616e64696e
       206661637461666661697273436861726c65737261646963616c62726f756768
       7466696e64696e676c616e64696e673a6c616e673d2272657475726e206c6561
@@ -2571,15 +2740,15 @@ Internet-Draft                   Brotli                     October 2014
       65736572696f757366726565646f6d5365766572616c2d627574746f6e467572
       746865726f7574206f6620213d206e756c6c747261696e656444656e6d61726b
       766f69642830292f616c6c2e6a7370726576656e745265717565737453746570
-      68656e0a0a5768656e206f6273657276653c2f68323e0d0a4d6f6465726e2070
 
 
 
-Alakuijala & Szabadka    Expires April 27, 2015                [Page 46]
+Alakuijala & Szabadka    Expires April 27, 2015                [Page 49]
 
-Internet-Draft                   Brotli                     October 2014
+Internet-Draft                   Brotli                       April 2015
 
 
+      68656e0a0a5768656e206f6273657276653c2f68323e0d0a4d6f6465726e2070
       726f766964652220616c743d22626f72646572732e0a0a466f72200a0a4d616e
       792061727469737473706f7765726564706572666f726d66696374696f6e7479
       7065206f666d65646963616c7469636b6574736f70706f736564436f756e6369
@@ -2627,15 +2796,15 @@ Internet-Draft                   Brotli                     October 2014
       6563757465636f6e746573746c696e6b20746f44656661756c743c6272202f3e
       0a3a20747275652c63686172746572746f757269736d636c617373696370726f
       636565646578706c61696e3c2f68313e0d0a6f6e6c696e652e3f786d6c207665
-      68656c70696e676469616d6f6e64757365207468656169726c696e65656e6420
 
 
 
-Alakuijala & Szabadka    Expires April 27, 2015                [Page 47]
+Alakuijala & Szabadka    Expires April 27, 2015                [Page 50]
 
-Internet-Draft                   Brotli                     October 2014
+Internet-Draft                   Brotli                       April 2015
 
 
+      68656c70696e676469616d6f6e64757365207468656169726c696e65656e6420
       2d2d3e292e617474722872656164657273686f7374696e672366666666666672
       65616c697a6556696e63656e747369676e616c73207372633d222f50726f6475
       6374646573706974656469766572736574656c6c696e675075626c6963206865
@@ -2683,15 +2852,15 @@ Internet-Draft                   Brotli                     October 2014
       6164616972706f7274746f776e206f660a0a536f6d652027636c69636b276368
       61726765736b6579776f726469742077696c6c63697479206f66287468697329
       3b416e6472657720756e6971756520636865636b65646f72206d6f7265333030
-      70783b2072657475726e3b7273696f6e3d22706c7567696e7377697468696e20
 
 
 
-Alakuijala & Szabadka    Expires April 27, 2015                [Page 48]
+Alakuijala & Szabadka    Expires April 27, 2015                [Page 51]
 
-Internet-Draft                   Brotli                     October 2014
+Internet-Draft                   Brotli                       April 2015
 
 
+      70783b2072657475726e3b7273696f6e3d22706c7567696e7377697468696e20
       68657273656c6653746174696f6e4665646572616c76656e747572657075626c
       69736873656e7420746f74656e73696f6e61637472657373636f6d6520746f66
       696e6765727344756b65206f6670656f706c652c6578706c6f69747768617420
@@ -2739,15 +2908,15 @@ Internet-Draft                   Brotli                     October 2014
       76656e74272c626f746820696e6e6f7420616c6c0a0a3c212d2d20706c616369
       6e676861726420746f2063656e746572736f7274206f66636c69656e74737374
       72656574734265726e6172646173736572747374656e6420746f66616e746173
-      79646f776e20696e686172626f757246726565646f6d6a6577656c72792f6162
 
 
 
-Alakuijala & Szabadka    Expires April 27, 2015                [Page 49]
+Alakuijala & Szabadka    Expires April 27, 2015                [Page 52]
 
-Internet-Draft                   Brotli                     October 2014
+Internet-Draft                   Brotli                       April 2015
 
 
+      79646f776e20696e686172626f757246726565646f6d6a6577656c72792f6162
       6f75742e2e7365617263686c6567656e64736973206d6164656d6f6465726e20
       6f6e6c79206f6e6f6e6c7920746f696d61676522206c696e656172207061696e
       746572616e64206e6f74726172656c79206163726f6e796d64656c6976657273
@@ -2795,15 +2964,15 @@ Internet-Draft                   Brotli                     October 2014
       6f727364656c6179656443616e6f6e69636861642074686570757368696e6763
       6c6173733d22627574206172657061727469616c426162796c6f6e626f74746f
       6d2063617272696572436f6d6d616e646974732075736541732077697468636f
-      75727365736120746869726464656e6f746573616c736f20696e486f7573746f
 
 
 
-Alakuijala & Szabadka    Expires April 27, 2015                [Page 50]
+Alakuijala & Szabadka    Expires April 27, 2015                [Page 53]
 
-Internet-Draft                   Brotli                     October 2014
+Internet-Draft                   Brotli                       April 2015
 
 
+      75727365736120746869726464656e6f746573616c736f20696e486f7573746f
       6e323070783b223e61636375736564646f75626c6520676f616c206f6646616d
       6f757320292e62696e642870726965737473204f6e6c696e65696e204a756c79
       7374202b202267636f6e73756c74646563696d616c68656c7066756c72657669
@@ -2851,15 +3020,15 @@ Internet-Draft                   Brotli                     October 2014
       616374696e67207269676874223e746f20776f726b7265647563657368617320
       6861646572656374656473686f7728293b616374696f6e3d626f6f6b206f6661
       6e20617265613d3d20226874743c6865616465720a3c68746d6c3e636f6e666f
-      726d666163696e6720636f6f6b69652e72656c79206f6e686f73746564202e63
 
 
 
-Alakuijala & Szabadka    Expires April 27, 2015                [Page 51]
+Alakuijala & Szabadka    Expires April 27, 2015                [Page 54]
 
-Internet-Draft                   Brotli                     October 2014
+Internet-Draft                   Brotli                       April 2015
 
 
+      726d666163696e6720636f6f6b69652e72656c79206f6e686f73746564202e63
       7573746f6d68652077656e7462757420666f727370726561642046616d696c79
       2061206d65616e736f757420746865666f72756d732e666f6f74616765223e4d
       6f62696c436c656d656e7473222069643d2261732068696768696e74656e7365
@@ -2907,15 +3076,15 @@ Internet-Draft                   Brotli                     October 2014
       6f6475636865207573656461727420616e6468696d20616e6475736564206279
       73636f72696e67617420686f6d65746f206861766572656c617465736962696c
       69747966616374696f6e42756666616c6f6c696e6b223e3c7768617420686566
-      72656520746f43697479206f66636f6d6520696e736563746f7273636f756e74
 
 
 
-Alakuijala & Szabadka    Expires April 27, 2015                [Page 52]
+Alakuijala & Szabadka    Expires April 27, 2015                [Page 55]
 
-Internet-Draft                   Brotli                     October 2014
+Internet-Draft                   Brotli                       April 2015
 
 
+      72656520746f43697479206f66636f6d6520696e736563746f7273636f756e74
       65646f6e65206461796e6572766f7573737175617265207d3b696628676f696e
       2077686174696d672220616c6973206f6e6c797365617263682f747565736461
       796c6f6f73656c79536f6c6f6d6f6e73657875616c202d203c612068726d6564
@@ -2963,15 +3132,15 @@ Internet-Draft                   Brotli                     October 2014
       6f7065726d69746567756172646172616c67756e617370726563696f73616c67
       7569656e73656e7469646f7669736974617374c3ad74756c6f636f6e6f636572
       736567756e646f636f6e73656a6f6672616e6369616d696e75746f7373656775
-      6e646174656e656d6f7365666563746f736dc3a16c61676173657369c3b36e72
 
 
 
-Alakuijala & Szabadka    Expires April 27, 2015                [Page 53]
+Alakuijala & Szabadka    Expires April 27, 2015                [Page 56]
 
-Internet-Draft                   Brotli                     October 2014
+Internet-Draft                   Brotli                       April 2015
 
 
+      6e646174656e656d6f7365666563746f736dc3a16c61676173657369c3b36e72
       6576697374616772616e616461636f6d70726172696e677265736f67617263c3
       ad6161636369c3b36e65637561646f72717569656e6573696e636c75736f6465
       626572c3a16d617465726961686f6d627265736d756573747261706f6472c3ad
@@ -3019,15 +3188,15 @@ Internet-Draft                   Brotli                     October 2014
       3a202671756f743b657874656e64656470726576696f7573536f667477617265
       637573746f6d65726465636973696f6e737472656e67746864657461696c6564
       736c696768746c79706c616e6e696e67746578746172656163757272656e6379
-      65766572796f6e6573747261696768747472616e73666572706f736974697665
 
 
 
-Alakuijala & Szabadka    Expires April 27, 2015                [Page 54]
+Alakuijala & Szabadka    Expires April 27, 2015                [Page 57]
 
-Internet-Draft                   Brotli                     October 2014
+Internet-Draft                   Brotli                       April 2015
 
 
+      65766572796f6e6573747261696768747472616e73666572706f736974697665
       70726f647563656468657269746167657368697070696e676162736f6c757465
       726563656976656472656c6576616e74627574746f6e222076696f6c656e6365
       616e79776865726562656e65666974736c61756e63686564726563656e746c79
@@ -3075,15 +3244,15 @@ Internet-Draft                   Brotli                     October 2014
       617070656172656442726974697368206964656e7469667946616365626f6f6b
       6e756d65726f757376656869636c6573636f6e6365726e73416d65726963616e
       68616e646c696e676469762069643d2257696c6c69616d2070726f7669646572
-      5f636f6e74656e74616363757261637973656374696f6e20616e646572736f6e
 
 
 
-Alakuijala & Szabadka    Expires April 27, 2015                [Page 55]
+Alakuijala & Szabadka    Expires April 27, 2015                [Page 58]
 
-Internet-Draft                   Brotli                     October 2014
+Internet-Draft                   Brotli                       April 2015
 
 
+      5f636f6e74656e74616363757261637973656374696f6e20616e646572736f6e
       666c657869626c6543617465676f72796c617772656e63653c7363726970743e
       6c61796f75743d22617070726f766564206d6178696d756d686561646572223e
       3c2f7461626c653e536572766963657368616d696c746f6e63757272656e7420
@@ -3131,15 +3300,15 @@ Internet-Draft                   Brotli                     October 2014
       204f6e6c696e6520636f6c6f7261646f4f7074696f6e732263616d7062656c6c
       3c212d2d20656e643c2f7370616e3e3c3c6272202f3e0d0a5f706f707570737c
       736369656e6365732c2671756f743b207175616c6974792057696e646f777320
-      61737369676e65646865696768743a203c6220636c6173736c652671756f743b
 
 
 
-Alakuijala & Szabadka    Expires April 27, 2015                [Page 56]
+Alakuijala & Szabadka    Expires April 27, 2015                [Page 59]
 
-Internet-Draft                   Brotli                     October 2014
+Internet-Draft                   Brotli                       April 2015
 
 
+      61737369676e65646865696768743a203c6220636c6173736c652671756f743b
       2076616c75653d2220436f6d70616e796578616d706c65733c696672616d6520
       62656c696576657370726573656e74736d61727368616c6c70617274206f6620
       70726f7065726c79292e0a0a546865207461786f6e6f6d796d756368206f6620
@@ -3187,15 +3356,15 @@ Internet-Draft                   Brotli                     October 2014
       6f626a657469766f616c6963616e74656275736361646f7263616e7469646164
       656e747261646173616363696f6e65736172636869766f737375706572696f72
       6d61796f72c3ad61616c656d616e696166756e6369c3b36ec3ba6c74696d6f73
-      68616369656e646f617175656c6c6f736564696369c3b36e6665726e616e646f
 
 
 
-Alakuijala & Szabadka    Expires April 27, 2015                [Page 57]
+Alakuijala & Szabadka    Expires April 27, 2015                [Page 60]
 
-Internet-Draft                   Brotli                     October 2014
+Internet-Draft                   Brotli                       April 2015
 
 
+      68616369656e646f617175656c6c6f736564696369c3b36e6665726e616e646f
       616d6269656e746566616365626f6f6b6e75657374726173636c69656e746573
       70726f6365736f7362617374616e746570726573656e74617265706f72746172
       636f6e677265736f7075626c69636172636f6d657263696f636f6e747261746f
@@ -3243,15 +3412,15 @@ Internet-Draft                   Brotli                     October 2014
       d8b9d984d98ad987d8acd8afd98ad8afd8a7d984d8a2d986d8a7d984d8b1d8af
       d8aad8add983d985d8b5d981d8add8a9d983d8a7d986d8aad8a7d984d984d98a
       d98ad983d988d986d8b4d8a8d983d8a9d981d98ad987d8a7d8a8d986d8a7d8aa
-      d8add988d8a7d8a1d8a3d983d8abd8b1d8aed984d8a7d984d8a7d984d8add8a8
 
 
 
-Alakuijala & Szabadka    Expires April 27, 2015                [Page 58]
+Alakuijala & Szabadka    Expires April 27, 2015                [Page 61]
 
-Internet-Draft                   Brotli                     October 2014
+Internet-Draft                   Brotli                       April 2015
 
 
+      d8add988d8a7d8a1d8a3d983d8abd8b1d8aed984d8a7d984d8a7d984d8add8a8
       d8afd984d98ad984d8afd8b1d988d8b3d8a7d8b6d8bad8b7d8aad983d988d986
       d987d986d8a7d983d8b3d8a7d8add8a9d986d8a7d8afd98ad8a7d984d8b7d8a8
       d8b9d984d98ad983d8b4d983d8b1d8a7d98ad985d983d986d985d986d987d8a7
@@ -3299,15 +3468,15 @@ Internet-Draft                   Brotli                     October 2014
       6f6e63757272656e746c79636c6173734e616d6563726974696369736d747261
       646974696f6e656c73657768657265416c6578616e6465726170706f696e7465
       646d6174657269616c7362726f6164636173746d656e74696f6e656461666669
-      6c696174653c2f6f7074696f6e3e74726561746d656e74646966666572656e74
 
 
 
-Alakuijala & Szabadka    Expires April 27, 2015                [Page 59]
+Alakuijala & Szabadka    Expires April 27, 2015                [Page 62]
 
-Internet-Draft                   Brotli                     October 2014
+Internet-Draft                   Brotli                       April 2015
 
 
+      6c696174653c2f6f7074696f6e3e74726561746d656e74646966666572656e74
       2f64656661756c742e507265736964656e746f6e636c69636b3d2262696f6772
       617068796f74686572776973657065726d616e656e744672616ec3a761697348
       6f6c6c79776f6f64657870616e73696f6e7374616e64617264733c2f7374796c
@@ -3355,15 +3524,15 @@ Internet-Draft                   Brotli                     October 2014
       6d656e7473657863656c6c656e74636f6c7370616e3d22746563686e6963616c
       6e6561722074686520416476616e63656420736f75726365206f666578707265
       73736564486f6e67204b6f6e672046616365626f6f6b6d756c7469706c65206d
-      656368616e69736d656c65766174696f6e6f6666656e736976653c2f666f726d
 
 
 
-Alakuijala & Szabadka    Expires April 27, 2015                [Page 60]
+Alakuijala & Szabadka    Expires April 27, 2015                [Page 63]
 
-Internet-Draft                   Brotli                     October 2014
+Internet-Draft                   Brotli                       April 2015
 
 
+      656368616e69736d656c65766174696f6e6f6666656e736976653c2f666f726d
       3e0a0973706f6e736f726564646f63756d656e742e6f72202671756f743b7468
       6572652061726574686f73652077686f6d6f76656d656e747370726f63657373
       6573646966666963756c747375626d69747465647265636f6d6d656e64636f6e
@@ -3411,15 +3580,15 @@ Internet-Draft                   Brotli                     October 2014
       656469636174656473696e6761706f7265646567726565206f66666174686572
       206f66636f6e666c696374733c2f613e3c2f703e0a63616d652066726f6d7765
       726520757365646e6f74652074686174726563656976696e6745786563757469
-      76656576656e206d6f726561636365737320746f636f6d6d616e646572506f6c
 
 
 
-Alakuijala & Szabadka    Expires April 27, 2015                [Page 61]
+Alakuijala & Szabadka    Expires April 27, 2015                [Page 64]
 
-Internet-Draft                   Brotli                     October 2014
+Internet-Draft                   Brotli                       April 2015
 
 
+      76656576656e206d6f726561636365737320746f636f6d6d616e646572506f6c
       69746963616c6d7573696369616e7364656c6963696f7573707269736f6e6572
       73616476656e74206f665554462d3822202f3e3c215b43444154415b223e436f
       6e74616374536f75746865726e206267636f6c6f723d22736572696573206f66
@@ -3467,15 +3636,15 @@ Internet-Draft                   Brotli                     October 2014
       223e706c61636564206f6e636f6e737472756374656c6563746f72616c73796d
       626f6c206f66696e636c7564696e6772657475726e20746f6172636869746563
       7443687269737469616e70726576696f7573206c6976696e6720696e65617369
-      657220746f70726f666573736f720a266c743b212d2d20656666656374206f66
 
 
 
-Alakuijala & Szabadka    Expires April 27, 2015                [Page 62]
+Alakuijala & Szabadka    Expires April 27, 2015                [Page 65]
 
-Internet-Draft                   Brotli                     October 2014
+Internet-Draft                   Brotli                       April 2015
 
 
+      657220746f70726f666573736f720a266c743b212d2d20656666656374206f66
       616e616c79746963737761732074616b656e776865726520746865746f6f6b20
       6f76657262656c69656620696e416672696b61616e7361732066617220617370
       726576656e746564776f726b207769746861207370656369616c3c6669656c64
@@ -3523,15 +3692,15 @@ Internet-Draft                   Brotli                     October 2014
       64696e6720776974686f757420617769746820736f6d6577686f20776f756c64
       6120666f726d206f66612070617274206f666265666f72652069746b6e6f776e
       206173202053657276696365736c6f636174696f6e20616e64206f6674656e6d
-      6561737572696e67616e6420697420697370617065726261636b76616c756573
 
 
 
-Alakuijala & Szabadka    Expires April 27, 2015                [Page 63]
+Alakuijala & Szabadka    Expires April 27, 2015                [Page 66]
 
-Internet-Draft                   Brotli                     October 2014
+Internet-Draft                   Brotli                       April 2015
 
 
+      6561737572696e67616e6420697420697370617065726261636b76616c756573
       206f660d0a3c7469746c653e3d2077696e646f772e64657465726d696e656572
       2671756f743b20706c61796564206279616e64206561726c793c2f63656e7465
       723e66726f6d2074686973746865207468726565706f77657220616e646f6620
@@ -3579,15 +3748,15 @@ Internet-Draft                   Brotli                     October 2014
       a4aae0a4a4e0a4bee0a4abe0a4bfe0a4b0e0a494e0a4b8e0a4a4e0a4a4e0a4b0
       e0a4b9e0a4b2e0a58be0a497e0a4b9e0a581e0a486e0a4ace0a4bee0a4b0e0a4
       a6e0a587e0a4b6e0a4b9e0a581e0a488e0a496e0a587e0a4b2e0a4afe0a4a6e0
-      a4bfe0a495e0a4bee0a4aee0a4b5e0a587e0a4ace0a4a4e0a580e0a4a8e0a4ac
 
 
 
-Alakuijala & Szabadka    Expires April 27, 2015                [Page 64]
+Alakuijala & Szabadka    Expires April 27, 2015                [Page 67]
 
-Internet-Draft                   Brotli                     October 2014
+Internet-Draft                   Brotli                       April 2015
 
 
+      a4bfe0a495e0a4bee0a4aee0a4b5e0a587e0a4ace0a4a4e0a580e0a4a8e0a4ac
       e0a580e0a49ae0a4aee0a58ce0a4a4e0a4b8e0a4bee0a4b2e0a4b2e0a587e0a4
       96e0a49ce0a589e0a4ace0a4aee0a4a6e0a4a6e0a4a4e0a4a5e0a4bee0a4a8e0
       a4b9e0a580e0a4b6e0a4b9e0a4b0e0a485e0a4b2e0a497e0a495e0a4ade0a580
@@ -3635,15 +3804,15 @@ Internet-Draft                   Brotli                     October 2014
       74696f6e436f6e666572656e636573756273657175656e7477656c6c2d6b6e6f
       776e766172696174696f6e7372657075746174696f6e7068656e6f6d656e6f6e
       6469736369706c696e656c6f676f2e706e67222028646f63756d656e742c626f
-      756e64617269657365787072657373696f6e736574746c656d656e744261636b
 
 
 
-Alakuijala & Szabadka    Expires April 27, 2015                [Page 65]
+Alakuijala & Szabadka    Expires April 27, 2015                [Page 68]
 
-Internet-Draft                   Brotli                     October 2014
+Internet-Draft                   Brotli                       April 2015
 
 
+      756e64617269657365787072657373696f6e736574746c656d656e744261636b
       67726f756e646f7574206f6620746865656e7465727072697365282268747470
       733a2220756e657363617065282270617373776f7264222064656d6f63726174
       69633c6120687265663d222f77726170706572223e0a6d656d62657273686970
@@ -3691,15 +3860,15 @@ Internet-Draft                   Brotli                     October 2014
       6c63756c6174656473696d706c69666965646c65676974696d61746573756273
       7472696e6728302220636c6173733d22636f6d706c6574656c79696c6c757374
       7261746566697665207965617273696e737472756d656e745075626c69736869
-      6e67312220636c6173733d2270737963686f6c6f6779636f6e666964656e6365
 
 
 
-Alakuijala & Szabadka    Expires April 27, 2015                [Page 66]
+Alakuijala & Szabadka    Expires April 27, 2015                [Page 69]
 
-Internet-Draft                   Brotli                     October 2014
+Internet-Draft                   Brotli                       April 2015
 
 
+      6e67312220636c6173733d2270737963686f6c6f6779636f6e666964656e6365
       6e756d626572206f6620616273656e6365206f66666f6375736564206f6e6a6f
       696e6564207468657374727563747572657370726576696f75736c793e3c2f69
       6672616d653e6f6e636520616761696e62757420726174686572696d6d696772
@@ -3747,15 +3916,15 @@ Internet-Draft                   Brotli                     October 2014
       6e733c62617365206872656672657065617465646c7977696c6c696e6720746f
       636f6d70617261626c6564657369676e617465646e6f6d696e6174696f6e6675
       6e6374696f6e616c696e7369646520746865726576656c6174696f6e656e6420
-      6f66207468657320666f722074686520617574686f72697a6564726566757365
 
 
 
-Alakuijala & Szabadka    Expires April 27, 2015                [Page 67]
+Alakuijala & Szabadka    Expires April 27, 2015                [Page 70]
 
-Internet-Draft                   Brotli                     October 2014
+Internet-Draft                   Brotli                       April 2015
 
 
+      6f66207468657320666f722074686520617574686f72697a6564726566757365
       6420746f74616b6520706c6163656175746f6e6f6d6f7573636f6d70726f6d69
       7365706f6c69746963616c2072657374617572616e7474776f206f6620746865
       466562727561727920327175616c697479206f667377666f626a6563742e756e
@@ -3803,15 +3972,15 @@ Internet-Draft                   Brotli                     October 2014
       65207468652073686f756c64206265206e6574776f726b696e676163636f756e
       74696e67757365206f66207468656c6f776572207468616e73686f7773207468
       61743c2f7370616e3e0a0909636f6d706c61696e7473636f6e74696e756f7573
-      7175616e746974696573617374726f6e6f6d6572686520646964206e6f746475
 
 
 
-Alakuijala & Szabadka    Expires April 27, 2015                [Page 68]
+Alakuijala & Szabadka    Expires April 27, 2015                [Page 71]
 
-Internet-Draft                   Brotli                     October 2014
+Internet-Draft                   Brotli                       April 2015
 
 
+      7175616e746974696573617374726f6e6f6d6572686520646964206e6f746475
       6520746f206974736170706c69656420746f616e20617665726167656566666f
       72747320746f74686520667574757265617474656d707420746f546865726566
       6f72652c6361706162696c69747952657075626c6963616e77617320666f726d
@@ -3859,15 +4028,15 @@ Internet-Draft                   Brotli                     October 2014
       77696474683a20313030736f6d65206f746865724b696e67646f6d206f667468
       6520656e7469726566616d6f757320666f72746f20636f6e6e6563746f626a65
       637469766573746865204672656e636870656f706c6520616e64666561747572
-      6564223e6973207361696420746f7374727563747572616c7265666572656e64
 
 
 
-Alakuijala & Szabadka    Expires April 27, 2015                [Page 69]
+Alakuijala & Szabadka    Expires April 27, 2015                [Page 72]
 
-Internet-Draft                   Brotli                     October 2014
+Internet-Draft                   Brotli                       April 2015
 
 
+      6564223e6973207361696420746f7374727563747572616c7265666572656e64
       756d6d6f7374206f6674656e612073657061726174652d3e0a3c646976206964
       204f6666696369616c20776f726c64776964652e617269612d6c6162656c7468
       6520706c616e6574616e642069742077617364222076616c75653d226c6f6f6b
@@ -3915,15 +4084,15 @@ Internet-Draft                   Brotli                     October 2014
       6e7465737065726d616e656e7465746f74616c6d656e7465d0bcd0bed0b6d0bd
       d0bed0b1d183d0b4d0b5d182d0bcd0bed0b6d0b5d182d0b2d180d0b5d0bcd18f
       d182d0b0d0bad0b6d0b5d187d182d0bed0b1d18bd0b1d0bed0bbd0b5d0b5d0be
-      d187d0b5d0bdd18cd18dd182d0bed0b3d0bed0bad0bed0b3d0b4d0b0d0bfd0be
 
 
 
-Alakuijala & Szabadka    Expires April 27, 2015                [Page 70]
+Alakuijala & Szabadka    Expires April 27, 2015                [Page 73]
 
-Internet-Draft                   Brotli                     October 2014
+Internet-Draft                   Brotli                       April 2015
 
 
+      d187d0b5d0bdd18cd18dd182d0bed0b3d0bed0bad0bed0b3d0b4d0b0d0bfd0be
       d181d0bbd0b5d0b2d181d0b5d0b3d0bed181d0b0d0b9d182d0b5d187d0b5d180
       d0b5d0b7d0bcd0bed0b3d183d182d181d0b0d0b9d182d0b0d0b6d0b8d0b7d0bd
       d0b8d0bcd0b5d0b6d0b4d183d0b1d183d0b4d183d182d09fd0bed0b8d181d0ba
@@ -3971,15 +4140,15 @@ Internet-Draft                   Brotli                     October 2014
       d984d8b0d98ad986d8b9d8b1d8a8d98ad8a9d8a8d988d8a7d8a8d8a9d8a3d984
       d8b9d8a7d8a8d8a7d984d8b3d981d8b1d985d8b4d8a7d983d984d8aad8b9d8a7
       d984d989d8a7d984d8a3d988d984d8a7d984d8b3d986d8a9d8acd8a7d985d8b9
-      d8a9d8a7d984d8b5d8add981d8a7d984d8afd98ad986d983d984d985d8a7d8aa
 
 
 
-Alakuijala & Szabadka    Expires April 27, 2015                [Page 71]
+Alakuijala & Szabadka    Expires April 27, 2015                [Page 74]
 
-Internet-Draft                   Brotli                     October 2014
+Internet-Draft                   Brotli                       April 2015
 
 
+      d8a9d8a7d984d8b5d8add981d8a7d984d8afd98ad986d983d984d985d8a7d8aa
       d8a7d984d8aed8a7d8b5d8a7d984d985d984d981d8a3d8b9d8b6d8a7d8a1d983
       d8aad8a7d8a8d8a9d8a7d984d8aed98ad8b1d8b1d8b3d8a7d8a6d984d8a7d984
       d982d984d8a8d8a7d984d8a3d8afd8a8d985d982d8a7d8b7d8b9d985d8b1d8a7
@@ -4027,15 +4196,15 @@ Internet-Draft                   Brotli                     October 2014
       7474703a2f2f4465736372697074696f6e72656c61746976656c79202e737562
       737472696e672865616368206f66207468656578706572696d656e7473696e66
       6c75656e7469616c696e746567726174696f6e6d616e792070656f706c656475
-      6520746f2074686520636f6d62696e6174696f6e646f206e6f7420686176654d
 
 
 
-Alakuijala & Szabadka    Expires April 27, 2015                [Page 72]
+Alakuijala & Szabadka    Expires April 27, 2015                [Page 75]
 
-Internet-Draft                   Brotli                     October 2014
+Internet-Draft                   Brotli                       April 2015
 
 
+      6520746f2074686520636f6d62696e6174696f6e646f206e6f7420686176654d
       6964646c6520456173743c6e6f7363726970743e3c636f707972696768742220
       7065726861707320746865696e737469747574696f6e696e20446563656d6265
       72617272616e67656d656e746d6f73742066616d6f7573706572736f6e616c69
@@ -4083,15 +4252,15 @@ Internet-Draft                   Brotli                     October 2014
       7461746564207468617463657274696669636174653c2f613e3c2f6469763e0a
       2073656c65637465643d2268696768207363686f6f6c726573706f6e73652074
       6f636f6d666f727461626c6561646f7074696f6e206f66746872656520796561
-      727374686520636f756e747279696e204665627275617279736f207468617420
 
 
 
-Alakuijala & Szabadka    Expires April 27, 2015                [Page 73]
+Alakuijala & Szabadka    Expires April 27, 2015                [Page 76]
 
-Internet-Draft                   Brotli                     October 2014
+Internet-Draft                   Brotli                       April 2015
 
 
+      727374686520636f756e747279696e204665627275617279736f207468617420
       74686570656f706c652077686f2070726f76696465642062793c706172616d20
       6e616d656166666563746564206279696e207465726d73206f666170706f696e
       746d656e7449534f2d383835392d312277617320626f726e20696e686973746f
@@ -4139,15 +4308,15 @@ Internet-Draft                   Brotli                     October 2014
       686520696e646976696475616c20636f6d706f736564206f66737570706f7365
       6420746f636c61696d7320746861746174747269627574696f6e666f6e742d73
       697a653a31656c656d656e7473206f66486973746f726963616c206869732062
-      726f746865726174207468652074696d65616e6e6976657273617279676f7665
 
 
 
-Alakuijala & Szabadka    Expires April 27, 2015                [Page 74]
+Alakuijala & Szabadka    Expires April 27, 2015                [Page 77]
 
-Internet-Draft                   Brotli                     October 2014
+Internet-Draft                   Brotli                       April 2015
 
 
+      726f746865726174207468652074696d65616e6e6976657273617279676f7665
       726e656420627972656c6174656420746f20756c74696d6174656c7920696e6e
       6f766174696f6e736974206973207374696c6c63616e206f6e6c792062656465
       66696e6974696f6e73746f474d54537472696e6741206e756d626572206f6669
@@ -4195,15 +4364,15 @@ Internet-Draft                   Brotli                     October 2014
       7320706c6163657375626469766973696f6e7465727269746f7269616c6f7065
       726174696f6e616c7065726d616e656e746c79776173206c617267656c796f75
       74627265616b206f66696e207468652070617374666f6c6c6f77696e67206120
-      786d6c6e733a6f673d223e3c6120636c6173733d22636c6173733d2274657874
 
 
 
-Alakuijala & Szabadka    Expires April 27, 2015                [Page 75]
+Alakuijala & Szabadka    Expires April 27, 2015                [Page 78]
 
-Internet-Draft                   Brotli                     October 2014
+Internet-Draft                   Brotli                       April 2015
 
 
+      786d6c6e733a6f673d223e3c6120636c6173733d22636c6173733d2274657874
       436f6e76657273696f6e206d617920626520757365646d616e75666163747572
       656166746572206265696e67636c656172666978223e0a7175657374696f6e20
       6f6677617320656c6563746564746f206265636f6d6520616265636175736520
@@ -4251,15 +4420,15 @@ Internet-Draft                   Brotli                     October 2014
       6f70657261746564206279636f6d696e672066726f6d746865207072696d6172
       796164646974696f6e206f66666f72207365766572616c7472616e7366657272
       65646120706572696f64206f666172652061626c6520746f686f77657665722c
-      20697473686f756c6420686176656d756368206c61726765720a093c2f736372
 
 
 
-Alakuijala & Szabadka    Expires April 27, 2015                [Page 76]
+Alakuijala & Szabadka    Expires April 27, 2015                [Page 79]
 
-Internet-Draft                   Brotli                     October 2014
+Internet-Draft                   Brotli                       April 2015
 
 
+      20697473686f756c6420686176656d756368206c61726765720a093c2f736372
       6970743e61646f707465642074686570726f7065727479206f66646972656374
       65642062796566666563746976656c797761732062726f756768746368696c64
       72656e206f6650726f6772616d6d696e676c6f6e676572207468616e6d616e75
@@ -4307,15 +4476,15 @@ Internet-Draft                   Brotli                     October 2014
       7468657274657874206f6620746865666f756e64656420746865652077697468
       20746865206973207573656420666f726368616e67656420746865757375616c
       6c7920746865706c61636520776865726577686572656173207468653e203c61
-      20687265663d22223e3c6120687265663d227468656d73656c7665732c616c74
 
 
 
-Alakuijala & Szabadka    Expires April 27, 2015                [Page 77]
+Alakuijala & Szabadka    Expires April 27, 2015                [Page 80]
 
-Internet-Draft                   Brotli                     October 2014
+Internet-Draft                   Brotli                       April 2015
 
 
+      20687265663d22223e3c6120687265663d227468656d73656c7665732c616c74
       686f756768206865746861742063616e206265747261646974696f6e616c726f
       6c65206f66207468656173206120726573756c7472656d6f76654368696c6464
       657369676e656420627977657374206f6620746865536f6d652070656f706c65
@@ -4363,15 +4532,15 @@ Internet-Draft                   Brotli                     October 2014
       646974696f6e732c7468617420697420776173656e7469746c656420746f7468
       656d73656c7665732e7175616e74697479206f6672616e73706172656e637974
       68652073616d65206173746f206a6f696e20746865636f756e74727920616e64
-      746869732069732074686554686973206c656420746f612073746174656d656e
 
 
 
-Alakuijala & Szabadka    Expires April 27, 2015                [Page 78]
+Alakuijala & Szabadka    Expires April 27, 2015                [Page 81]
 
-Internet-Draft                   Brotli                     October 2014
+Internet-Draft                   Brotli                       April 2015
 
 
+      746869732069732074686554686973206c656420746f612073746174656d656e
       74636f6e747261737420746f6c617374496e6465784f667468726f7567682068
       697369732064657369676e6564746865207465726d20697369732070726f7669
       64656470726f74656374207468656e673c2f613e3c2f6c693e54686520637572
@@ -4419,15 +4588,15 @@ Internet-Draft                   Brotli                     October 2014
       6f726963616c6c79293b3c2f7363726970743e0a70616464696e672d746f703a
       6578706572696d656e74616c676574417474726962757465696e737472756374
       696f6e73746563686e6f6c6f6769657370617274206f6620746865203d66756e
-      6374696f6e28297b737562736372697074696f6e6c2e647464223e0d0a3c6874
 
 
 
-Alakuijala & Szabadka    Expires April 27, 2015                [Page 79]
+Alakuijala & Szabadka    Expires April 27, 2015                [Page 82]
 
-Internet-Draft                   Brotli                     October 2014
+Internet-Draft                   Brotli                       April 2015
 
 
+      6374696f6e28297b737562736372697074696f6e6c2e647464223e0d0a3c6874
       67656f67726170686963616c436f6e737469747574696f6e272c2066756e6374
       696f6e28737570706f727465642062796167726963756c747572616c636f6e73
       7472756374696f6e7075626c69636174696f6e73666f6e742d73697a653a2031
@@ -4475,15 +4644,15 @@ Internet-Draft                   Brotli                     October 2014
       74616e7469616c20266e6273703b3c2f6469763e616476616e74616765206f66
       646973636f76657279206f6666756e64616d656e74616c206d6574726f706f6c
       6974616e746865206f70706f736974652220786d6c3a6c616e673d2264656c69
-      6265726174656c79616c69676e3d63656e74657265766f6c7574696f6e206f66
 
 
 
-Alakuijala & Szabadka    Expires April 27, 2015                [Page 80]
+Alakuijala & Szabadka    Expires April 27, 2015                [Page 83]
 
-Internet-Draft                   Brotli                     October 2014
+Internet-Draft                   Brotli                       April 2015
 
 
+      6265726174656c79616c69676e3d63656e74657265766f6c7574696f6e206f66
       707265736572766174696f6e696d70726f76656d656e7473626567696e6e696e
       6720696e4a65737573204368726973745075626c69636174696f6e7364697361
       677265656d656e74746578742d616c69676e3a722c2066756e6374696f6e2829
@@ -4531,15 +4700,15 @@ Internet-Draft                   Brotli                     October 2014
       7374696d61746564746865204e6174696f6e616c3c6469762069643d22706167
       726573756c74696e6720696e636f6d6d697373696f6e6564616e616c6f676f75
       7320746f6172652072657175697265642f756c3e0a3c2f6469763e0a77617320
-      6261736564206f6e616e6420626563616d652061266e6273703b266e6273703b
 
 
 
-Alakuijala & Szabadka    Expires April 27, 2015                [Page 81]
+Alakuijala & Szabadka    Expires April 27, 2015                [Page 84]
 
-Internet-Draft                   Brotli                     October 2014
+Internet-Draft                   Brotli                       April 2015
 
 
+      6261736564206f6e616e6420626563616d652061266e6273703b266e6273703b
       74222076616c75653d2222207761732063617074757265646e6f206d6f726520
       7468616e726573706563746976656c79636f6e74696e756520746f203e0d0a3c
       686561643e0d0a3c7765726520637265617465646d6f72652067656e6572616c
@@ -4587,15 +4756,15 @@ Internet-Draft                   Brotli                     October 2014
       7175657374696f6e696e74656e64656420666f7272656a656374696f6e206f66
       696d706c6965732074686174696e76656e74656420746865746865207374616e
       646172647761732070726f6261626c796c696e6b206265747765656e70726f66
-      6573736f72206f66696e746572616374696f6e736368616e67696e6720746865
 
 
 
-Alakuijala & Szabadka    Expires April 27, 2015                [Page 82]
+Alakuijala & Szabadka    Expires April 27, 2015                [Page 85]
 
-Internet-Draft                   Brotli                     October 2014
+Internet-Draft                   Brotli                       April 2015
 
 
+      6573736f72206f66696e746572616374696f6e736368616e67696e6720746865
       496e6469616e204f6365616e20636c6173733d226c617374776f726b696e6720
       7769746827687474703a2f2f7777772e7965617273206265666f726554686973
       207761732074686572656372656174696f6e616c656e746572696e6720746865
@@ -4643,15 +4812,15 @@ Internet-Draft                   Brotli                     October 2014
       6f7279206f76657228293b3c2f7363726970743e636f6e74696e756f75736c79
       726571756972656420666f7265766f6c7574696f6e617279616e206566666563
       746976656e6f727468206f66207468652c207768696368207761732066726f6e
-      74206f66207468656f72206f7468657277697365736f6d6520666f726d206f66
 
 
 
-Alakuijala & Szabadka    Expires April 27, 2015                [Page 83]
+Alakuijala & Szabadka    Expires April 27, 2015                [Page 86]
 
-Internet-Draft                   Brotli                     October 2014
+Internet-Draft                   Brotli                       April 2015
 
 
+      74206f66207468656f72206f7468657277697365736f6d6520666f726d206f66
       686164206e6f74206265656e67656e657261746564206279696e666f726d6174
       696f6e2e7065726d697474656420746f696e636c756465732074686564657665
       6c6f706d656e742c656e746572656420696e746f7468652070726576696f7573
@@ -4699,15 +4868,15 @@ Internet-Draft                   Brotli                     October 2014
       d183d187d0b0d0b5d181d0b5d0b9d187d0b0d181d0b2d181d0b5d0b3d0b4d0b0
       d0a0d0bed181d181d0b8d18fd09cd0bed181d0bad0b2d0b5d0b4d180d183d0b3
       d0b8d0b5d0b3d0bed180d0bed0b4d0b0d0b2d0bed0bfd180d0bed181d0b4d0b0
-      d0bdd0bdd18bd185d0b4d0bed0bbd0b6d0bdd18bd0b8d0bcd0b5d0bdd0bdd0be
 
 
 
-Alakuijala & Szabadka    Expires April 27, 2015                [Page 84]
+Alakuijala & Szabadka    Expires April 27, 2015                [Page 87]
 
-Internet-Draft                   Brotli                     October 2014
+Internet-Draft                   Brotli                       April 2015
 
 
+      d0bdd0bdd18bd185d0b4d0bed0bbd0b6d0bdd18bd0b8d0bcd0b5d0bdd0bdd0be
       d09cd0bed181d0bad0b2d18bd180d183d0b1d0bbd0b5d0b9d09cd0bed181d0ba
       d0b2d0b0d181d182d180d0b0d0bdd18bd0bdd0b8d187d0b5d0b3d0bed180d0b0
       d0b1d0bed182d0b5d0b4d0bed0bbd0b6d0b5d0bdd183d181d0bbd183d0b3d0b8
@@ -4755,15 +4924,15 @@ Internet-Draft                   Brotli                     October 2014
       a4b8e0a495e0a587e0a498e0a482e0a49fe0a587e0a4aee0a587e0a4b0e0a580
       e0a4b8e0a495e0a4a4e0a4bee0a4aee0a587e0a4b0e0a4bee0a4b2e0a587e0a4
       95e0a4b0e0a485e0a4a7e0a4bfe0a495e0a485e0a4aae0a4a8e0a4bee0a4b8e0
-      a4aee0a4bee0a49ce0a4aee0a581e0a49de0a587e0a495e0a4bee0a4b0e0a4a3
 
 
 
-Alakuijala & Szabadka    Expires April 27, 2015                [Page 85]
+Alakuijala & Szabadka    Expires April 27, 2015                [Page 88]
 
-Internet-Draft                   Brotli                     October 2014
+Internet-Draft                   Brotli                       April 2015
 
 
+      a4aee0a4bee0a49ce0a4aee0a581e0a49de0a587e0a495e0a4bee0a4b0e0a4a3
       e0a4b9e0a58be0a4a4e0a4bee0a495e0a4a1e0a4bce0a580e0a4afe0a4b9e0a4
       bee0a482e0a4b9e0a58be0a49fe0a4b2e0a4b6e0a4ace0a58de0a4a6e0a4b2e0
       a4bfe0a4afe0a4bee0a49ce0a580e0a4b5e0a4a8e0a49ce0a4bee0a4a4e0a4be
@@ -4811,15 +4980,15 @@ Internet-Draft                   Brotli                     October 2014
       d8a7d8b1d983d8a9d8a8d988d8a7d8b3d8b7d8a9d8a7d984d8b5d981d8add8a9
       d985d988d8a7d8b6d98ad8b9d8a7d984d8aed8a7d8b5d8a9d8a7d984d985d8b2
       d98ad8afd8a7d984d8b9d8a7d985d8a9d8a7d984d983d8a7d8aad8a8d8a7d984
-      d8b1d8afd988d8afd8a8d8b1d986d8a7d985d8acd8a7d984d8afd988d984d8a9
 
 
 
-Alakuijala & Szabadka    Expires April 27, 2015                [Page 86]
+Alakuijala & Szabadka    Expires April 27, 2015                [Page 89]
 
-Internet-Draft                   Brotli                     October 2014
+Internet-Draft                   Brotli                       April 2015
 
 
+      d8b1d8afd988d8afd8a8d8b1d986d8a7d985d8acd8a7d984d8afd988d984d8a9
       d8a7d984d8b9d8a7d984d985d8a7d984d985d988d982d8b9d8a7d984d8b9d8b1
       d8a8d98ad8a7d984d8b3d8b1d98ad8b9d8a7d984d8acd988d8a7d984d8a7d984
       d8b0d987d8a7d8a8d8a7d984d8add98ad8a7d8a9d8a7d984d8add982d988d982
@@ -4867,15 +5036,15 @@ Internet-Draft                   Brotli                     October 2014
       6174696f6e73756273657175656e746c7920627574746f6e20747970653d2274
       6865206e756d626572206f66746865206f726967696e616c20636f6d70726568
       656e7369766572656665727320746f207468653c2f756c3e0a3c2f6469763e0a
-      7068696c6f736f70686963616c6c6f636174696f6e2e68726566776173207075
 
 
 
-Alakuijala & Szabadka    Expires April 27, 2015                [Page 87]
+Alakuijala & Szabadka    Expires April 27, 2015                [Page 90]
 
-Internet-Draft                   Brotli                     October 2014
+Internet-Draft                   Brotli                       April 2015
 
 
+      7068696c6f736f70686963616c6c6f636174696f6e2e68726566776173207075
       626c697368656453616e204672616e636973636f2866756e6374696f6e28297b
       0a3c6469762069643d226d61696e736f70686973746963617465646d61746865
       6d61746963616c202f686561643e0d0a3c626f64797375676765737473207468
@@ -4923,15 +5092,15 @@ Internet-Draft                   Brotli                     October 2014
       7263686174747269627574656420746f636f75727365206f66207468656d6174
       68656d6174696369616e62792074686520656e64206f6661742074686520656e
       64206f662220626f726465723d22302220746563686e6f6c6f676963616c2e72
-      656d6f7665436c617373286272616e6368206f662074686565766964656e6365
 
 
 
-Alakuijala & Szabadka    Expires April 27, 2015                [Page 88]
+Alakuijala & Szabadka    Expires April 27, 2015                [Page 91]
 
-Internet-Draft                   Brotli                     October 2014
+Internet-Draft                   Brotli                       April 2015
 
 
+      656d6f7665436c617373286272616e6368206f662074686565766964656e6365
       2074686174215b656e6469665d2d2d3e0d0a496e73746974757465206f662069
       6e746f20612073696e676c65726573706563746976656c792e616e6420746865
       7265666f726570726f70657274696573206f666973206c6f636174656420696e
@@ -4979,15 +5148,15 @@ Internet-Draft                   Brotli                     October 2014
       6e206f6e6d6f7573656f75743d224e65772054657374616d656e74636f6c6c65
       6374696f6e206f663c2f7370616e3e3c2f613e3c2f696e2074686520556e6974
       656466696c6d206469726563746f722d7374726963742e647464223e68617320
-      6265656e207573656472657475726e20746f20746865616c74686f7567682074
 
 
 
-Alakuijala & Szabadka    Expires April 27, 2015                [Page 89]
+Alakuijala & Szabadka    Expires April 27, 2015                [Page 92]
 
-Internet-Draft                   Brotli                     October 2014
+Internet-Draft                   Brotli                       April 2015
 
 
+      6265656e207573656472657475726e20746f20746865616c74686f7567682074
       6869736368616e676520696e207468657365766572616c206f74686572627574
       20746865726520617265756e707265636564656e74656469732073696d696c61
       7220746f657370656369616c6c7920696e7765696768743a20626f6c643b6973
@@ -5035,15 +5204,15 @@ Internet-Draft                   Brotli                     October 2014
       617320696e697469616c6c79646973706c61793a626c6f636b697320616e2065
       78616d706c65746865207072696e636970616c636f6e7369737473206f662061
       7265636f676e697a65642061732f626f64793e3c2f68746d6c3e612073756273
-      74616e7469616c7265636f6e737472756374656468656164206f662073746174
 
 
 
-Alakuijala & Szabadka    Expires April 27, 2015                [Page 90]
+Alakuijala & Szabadka    Expires April 27, 2015                [Page 93]
 
-Internet-Draft                   Brotli                     October 2014
+Internet-Draft                   Brotli                       April 2015
 
 
+      74616e7469616c7265636f6e737472756374656468656164206f662073746174
       65726573697374616e636520746f756e64657267726164756174655468657265
       206172652074776f6772617669746174696f6e616c6172652064657363726962
       6564696e74656e74696f6e616c6c7973657276656420617320746865636c6173
@@ -5091,15 +5260,15 @@ Internet-Draft                   Brotli                     October 2014
       3d687474702533412532462532463c666f726d206d6574686f643d226d657468
       6f643d22706f737422202f66617669636f6e2e69636f22207d293b0a3c2f7363
       726970743e0a2e7365744174747269627574652841646d696e69737472617469
-      6f6e3d206e657720417272617928293b3c215b656e6469665d2d2d3e0d0a6469
 
 
 
-Alakuijala & Szabadka    Expires April 27, 2015                [Page 91]
+Alakuijala & Szabadka    Expires April 27, 2015                [Page 94]
 
-Internet-Draft                   Brotli                     October 2014
+Internet-Draft                   Brotli                       April 2015
 
 
+      6f6e3d206e657720417272617928293b3c215b656e6469665d2d2d3e0d0a6469
       73706c61793a626c6f636b3b556e666f7274756e6174656c792c223e266e6273
       703b3c2f6469763e2f66617669636f6e2e69636f223e3d277374796c65736865
       657427206964656e74696669636174696f6e2c20666f72206578616d706c652c
@@ -5147,15 +5316,15 @@ Internet-Draft                   Brotli                     October 2014
       20746f20636172626f6e2064696f786964650a0a3c64697620636c6173733d22
       636c6173733d227365617263682d2f626f64793e0a3c2f68746d6c3e6f70706f
       7274756e69747920746f636f6d6d756e69636174696f6e733c2f686561643e0d
-      0a3c626f6479207374796c653d2277696474683a5469e1babf6e67205669e1bb
 
 
 
-Alakuijala & Szabadka    Expires April 27, 2015                [Page 92]
+Alakuijala & Szabadka    Expires April 27, 2015                [Page 95]
 
-Internet-Draft                   Brotli                     October 2014
+Internet-Draft                   Brotli                       April 2015
 
 
+      0a3c626f6479207374796c653d2277696474683a5469e1babf6e67205669e1bb
       87746368616e67657320696e20746865626f726465722d636f6c6f723a233022
       20626f726465723d223022203c2f7370616e3e3c2f6469763e3c776173206469
       73636f76657265642220747970653d22746578742220293b0a3c2f7363726970
@@ -5203,15 +5372,15 @@ Internet-Draft                   Brotli                     October 2014
       207468726f7567686d6f726520696d706f7274616e74666f6e742d73697a653a
       313170786578706c616e6174696f6e206f6674686520636f6e63657074206f66
       7772697474656e20696e20746865093c7370616e20636c6173733d226973206f
-      6e65206f662074686520726573656d626c616e636520746f6f6e207468652067
 
 
 
-Alakuijala & Szabadka    Expires April 27, 2015                [Page 93]
+Alakuijala & Szabadka    Expires April 27, 2015                [Page 96]
 
-Internet-Draft                   Brotli                     October 2014
+Internet-Draft                   Brotli                       April 2015
 
 
+      6e65206f662074686520726573656d626c616e636520746f6f6e207468652067
       726f756e6473776869636820636f6e7461696e73696e636c7564696e67207468
       6520646566696e6564206279207468657075626c69636174696f6e206f666d65
       616e732074686174207468656f757473696465206f6620746865737570706f72
@@ -5259,15 +5428,15 @@ Internet-Draft                   Brotli                     October 2014
       7374656164206f6620746865696e74726f647563656420746865746865207072
       6f63657373206f66696e6372656173696e6720746865646966666572656e6365
       7320696e657374696d617465642074686174657370656369616c6c7920746865
-      2f6469763e3c6469762069643d22776173206576656e7475616c6c797468726f
 
 
 
-Alakuijala & Szabadka    Expires April 27, 2015                [Page 94]
+Alakuijala & Szabadka    Expires April 27, 2015                [Page 97]
 
-Internet-Draft                   Brotli                     October 2014
+Internet-Draft                   Brotli                       April 2015
 
 
+      2f6469763e3c6469762069643d22776173206576656e7475616c6c797468726f
       7567686f75742068697374686520646966666572656e6365736f6d657468696e
       6720746861747370616e3e3c2f7370616e3e3c2f7369676e69666963616e746c
       79203e3c2f7363726970743e0d0a0d0a656e7669726f6e6d656e74616c20746f
@@ -5315,15 +5484,15 @@ Internet-Draft                   Brotli                     October 2014
       d18ed181d180d0b5d0b4d181d182d0b2d0bed0b1d180d0b0d0b7d0bed0bcd181
       d182d0bed180d0bed0bdd18bd183d187d0b0d181d182d0b8d0b5d182d0b5d187
       d0b5d0bdd0b8d0b5d093d0bbd0b0d0b2d0bdd0b0d18fd0b8d181d182d0bed180
-      d0b8d0b8d181d0b8d181d182d0b5d0bcd0b0d180d0b5d188d0b5d0bdd0b8d18f
 
 
 
-Alakuijala & Szabadka    Expires April 27, 2015                [Page 95]
+Alakuijala & Szabadka    Expires April 27, 2015                [Page 98]
 
-Internet-Draft                   Brotli                     October 2014
+Internet-Draft                   Brotli                       April 2015
 
 
+      d0b8d0b8d181d0b8d181d182d0b5d0bcd0b0d180d0b5d188d0b5d0bdd0b8d18f
       d0a1d0bad0b0d187d0b0d182d18cd0bfd0bed18dd182d0bed0bcd183d181d0bb
       d0b5d0b4d183d0b5d182d181d0bad0b0d0b7d0b0d182d18cd182d0bed0b2d0b0
       d180d0bed0b2d0bad0bed0bdd0b5d187d0bdd0bed180d0b5d188d0b5d0bdd0b8
@@ -5371,15 +5540,15 @@ Internet-Draft                   Brotli                     October 2014
       3e0a3c64697620636c6173733d223c2f7370616e3e3c2f7370616e3e3c496e20
       6f7468657220776f7264732c646973706c61793a20626c6f636b3b636f6e7472
       6f6c206f662074686520696e74726f64756374696f6e206f662f3e0a3c6d6574
-      61206e616d653d2261732077656c6c2061732074686520696e20726563656e74
 
 
 
-Alakuijala & Szabadka    Expires April 27, 2015                [Page 96]
+Alakuijala & Szabadka    Expires April 27, 2015                [Page 99]
 
-Internet-Draft                   Brotli                     October 2014
+Internet-Draft                   Brotli                       April 2015
 
 
+      61206e616d653d2261732077656c6c2061732074686520696e20726563656e74
       2079656172730d0a093c64697620636c6173733d223c2f6469763e0a093c2f64
       69763e0a696e7370697265642062792074686574686520656e64206f66207468
       6520636f6d70617469626c652077697468626563616d65206b6e6f776e206173
@@ -5427,15 +5596,15 @@ Internet-Draft                   Brotli                     October 2014
       3d22706f7374222077617320666f6c6c6f77656420627926616d703b6d646173
       683b20746865746865206170706c69636174696f6e6a73223e3c2f7363726970
       743e0d0a756c3e3c2f6469763e3c2f6469763e61667465722074686520646561
-      746877697468207265737065637420746f7374796c653d2270616464696e673a
 
 
 
-Alakuijala & Szabadka    Expires April 27, 2015                [Page 97]
+Alakuijala & Szabadka    Expires April 27, 2015               [Page 100]
 
-Internet-Draft                   Brotli                     October 2014
+Internet-Draft                   Brotli                       April 2015
 
 
+      746877697468207265737065637420746f7374796c653d2270616464696e673a
       697320706172746963756c61726c79646973706c61793a696e6c696e653b2074
       7970653d227375626d697422206973206469766964656420696e746fe4b8ade6
       96872028e7ae80e4bd9329726573706f6e736162696c6964616461646d696e69
@@ -5483,15 +5652,15 @@ Internet-Draft                   Brotli                     October 2014
       a587e0a4a4e0a588e0a4afe0a4bee0a4b0e0a49ce0a4bfe0a4b8e0a495e0a587
       7273732b786d6c22207469746c653d222d747970652220636f6e74656e743d22
       7469746c652220636f6e74656e743d226174207468652073616d652074696d65
-      2e6a73223e3c2f7363726970743e0a3c22206d6574686f643d22706f73742220
 
 
 
-Alakuijala & Szabadka    Expires April 27, 2015                [Page 98]
+Alakuijala & Szabadka    Expires April 27, 2015               [Page 101]
 
-Internet-Draft                   Brotli                     October 2014
+Internet-Draft                   Brotli                       April 2015
 
 
+      2e6a73223e3c2f7363726970743e0a3c22206d6574686f643d22706f73742220
       3c2f7370616e3e3c2f613e3c2f6c693e766572746963616c2d616c69676e3a74
       2f6a71756572792e6d696e2e6a73223e2e636c69636b2866756e6374696f6e28
       207374796c653d2270616464696e672d7d2928293b0a3c2f7363726970743e0a
@@ -5539,15 +5708,15 @@ Internet-Draft                   Brotli                     October 2014
       d18fd0b2d0bbd18fd0b5d182d181d18fd094d0bed0b1d0b0d0b2d0b8d182d18c
       d187d0b5d0bbd0bed0b2d0b5d0bad0b0d180d0b0d0b7d0b2d0b8d182d0b8d18f
       d098d0bdd182d0b5d180d0bdd0b5d182d09ed182d0b2d0b5d182d0b8d182d18c
-      d0bdd0b0d0bfd180d0b8d0bcd0b5d180d0b8d0bdd182d0b5d180d0bdd0b5d182
 
 
 
-Alakuijala & Szabadka    Expires April 27, 2015                [Page 99]
+Alakuijala & Szabadka    Expires April 27, 2015               [Page 102]
 
-Internet-Draft                   Brotli                     October 2014
+Internet-Draft                   Brotli                       April 2015
 
 
+      d0bdd0b0d0bfd180d0b8d0bcd0b5d180d0b8d0bdd182d0b5d180d0bdd0b5d182
       d0bad0bed182d0bed180d0bed0b3d0bed181d182d180d0b0d0bdd0b8d186d18b
       d0bad0b0d187d0b5d181d182d0b2d0b5d183d181d0bbd0bed0b2d0b8d18fd185
       d0bfd180d0bed0b1d0bbd0b5d0bcd18bd0bfd0bed0bbd183d187d0b8d182d18c
@@ -5595,15 +5764,15 @@ Internet-Draft                   Brotli                     October 2014
       656e744c697374656e657264697374696e63742066726f6d20746865636f6d6d
       6f6e6c79206b6e6f776e20617350686f6e6574696320416c7068616265746465
       636c61726564207468617420746865636f6e74726f6c6c656420627920746865
-      42656e6a616d696e204672616e6b6c696e726f6c652d706c6179696e67206761
 
 
 
-Alakuijala & Szabadka    Expires April 27, 2015               [Page 100]
+Alakuijala & Szabadka    Expires April 27, 2015               [Page 103]
 
-Internet-Draft                   Brotli                     October 2014
+Internet-Draft                   Brotli                       April 2015
 
 
+      42656e6a616d696e204672616e6b6c696e726f6c652d706c6179696e67206761
       6d6574686520556e6976657273697479206f66696e205765737465726e204575
       726f7065706572736f6e616c20636f6d707574657250726f6a65637420477574
       656e626572677265676172646c657373206f6620746865686173206265656e20
@@ -5651,15 +5820,15 @@ Internet-Draft                   Brotli                     October 2014
       6e3a63656e746572666f6e742d7765696768743a20626f6c643b204163636f72
       64696e6720746f2074686520646966666572656e6365206265747765656e2220
       6672616d65626f726465723d2230222022207374796c653d22706f736974696f
-      6e3a6c696e6b20687265663d22687474703a2f2f68746d6c342f6c6f6f73652e
 
 
 
-Alakuijala & Szabadka    Expires April 27, 2015               [Page 101]
+Alakuijala & Szabadka    Expires April 27, 2015               [Page 104]
 
-Internet-Draft                   Brotli                     October 2014
+Internet-Draft                   Brotli                       April 2015
 
 
+      6e3a6c696e6b20687265663d22687474703a2f2f68746d6c342f6c6f6f73652e
       647464223e0a647572696e67207468697320706572696f643c2f74643e3c2f74
       723e3c2f7461626c653e636c6f73656c792072656c6174656420746f666f7220
       7468652066697273742074696d653b666f6e742d7765696768743a626f6c643b
@@ -5707,15 +5876,15 @@ Internet-Draft                   Brotli                     October 2014
       6865636f6c6c61626f726174696f6e2077697468776964656c79207265676172
       64656420617368697320636f6e74656d706f726172696573666f756e64696e67
       206d656d626572206f66446f6d696e6963616e2052657075626c696367656e65
-      72616c6c7920616363657074656474686520706f73736962696c697479206f66
 
 
 
-Alakuijala & Szabadka    Expires April 27, 2015               [Page 102]
+Alakuijala & Szabadka    Expires April 27, 2015               [Page 105]
 
-Internet-Draft                   Brotli                     October 2014
+Internet-Draft                   Brotli                       April 2015
 
 
+      72616c6c7920616363657074656474686520706f73736962696c697479206f66
       61726520616c736f20617661696c61626c65756e64657220636f6e7374727563
       74696f6e726573746f726174696f6e206f66207468657468652067656e657261
       6c207075626c6963697320616c6d6f737420656e746972656c79706173736573
@@ -5763,15 +5932,15 @@ Internet-Draft                   Brotli                     October 2014
       a4aee0a4bee0a49ae0a4bee0a4b0e0a49ce0a482e0a495e0a58de0a4b6e0a4a8
       e0a4a6e0a581e0a4a8e0a4bfe0a4afe0a4bee0a4aae0a58de0a4b0e0a4afe0a5
       8be0a497e0a485e0a4a8e0a581e0a4b8e0a4bee0a4b0e0a491e0a4a8e0a4b2e0
-      a4bee0a487e0a4a8e0a4aae0a4bee0a4b0e0a58de0a49fe0a580e0a4b6e0a4b0
 
 
 
-Alakuijala & Szabadka    Expires April 27, 2015               [Page 103]
+Alakuijala & Szabadka    Expires April 27, 2015               [Page 106]
 
-Internet-Draft                   Brotli                     October 2014
+Internet-Draft                   Brotli                       April 2015
 
 
+      a4bee0a487e0a4a8e0a4aae0a4bee0a4b0e0a58de0a49fe0a580e0a4b6e0a4b0
       e0a58de0a4a4e0a58be0a482e0a4b2e0a58be0a495e0a4b8e0a4ade0a4bee0a4
       abe0a4bce0a58de0a4b2e0a588e0a4b6e0a4b6e0a4b0e0a58de0a4a4e0a587e0
       a482e0a4aae0a58de0a4b0e0a4a6e0a587e0a4b6e0a4aae0a58de0a4b2e0a587
@@ -5819,15 +5988,15 @@ Internet-Draft                   Brotli                     October 2014
       76617363726970743a3c64697620636c6173733d22636f6e74656e74646f6375
       6d656e742e777269746528273c7363706f736974696f6e3a206162736f6c7574
       653b736372697074207372633d22687474703a2f2f207374796c653d226d6172
-      67696e2d746f703a2e6d696e2e6a73223e3c2f7363726970743e0a3c2f646976
 
 
 
-Alakuijala & Szabadka    Expires April 27, 2015               [Page 104]
+Alakuijala & Szabadka    Expires April 27, 2015               [Page 107]
 
-Internet-Draft                   Brotli                     October 2014
+Internet-Draft                   Brotli                       April 2015
 
 
+      67696e2d746f703a2e6d696e2e6a73223e3c2f7363726970743e0a3c2f646976
       3e0a3c64697620636c6173733d2277332e6f72672f313939392f7868746d6c22
       200a0d0a3c2f626f64793e0d0a3c2f68746d6c3e64697374696e6374696f6e20
       6265747765656e2f22207461726765743d225f626c616e6b223e3c6c696e6b20
@@ -5875,15 +6044,15 @@ Internet-Draft                   Brotli                     October 2014
       6c2077656273697465206f66686561647175617274657273206f662074686563
       656e74657265642061726f756e6420746865696d706c69636174696f6e73206f
       662074686568617665206265656e20646576656c6f7065644665646572616c20
-      52657075626c6963206f66626563616d6520696e6372656173696e676c79636f
 
 
 
-Alakuijala & Szabadka    Expires April 27, 2015               [Page 105]
+Alakuijala & Szabadka    Expires April 27, 2015               [Page 108]
 
-Internet-Draft                   Brotli                     October 2014
+Internet-Draft                   Brotli                       April 2015
 
 
+      52657075626c6963206f66626563616d6520696e6372656173696e676c79636f
       6e74696e756174696f6e206f66207468654e6f74652c20686f77657665722c20
       7468617473696d696c617220746f2074686174206f66206361706162696c6974
       696573206f66207468656163636f7264616e6365207769746820746865706172
@@ -5931,15 +6100,15 @@ Internet-Draft                   Brotli                     October 2014
       3c73637269707420736f6d6574696d65732063616c6c656420746865646f6573
       206e6f74206e65636573736172696c79466f72206d6f726520696e666f726d61
       74696f6e61742074686520626567696e6e696e67206f66203c21444f43545950
-      452068746d6c3e3c68746d6c706172746963756c61726c7920696e2074686520
 
 
 
-Alakuijala & Szabadka    Expires April 27, 2015               [Page 106]
+Alakuijala & Szabadka    Expires April 27, 2015               [Page 109]
 
-Internet-Draft                   Brotli                     October 2014
+Internet-Draft                   Brotli                       April 2015
 
 
+      452068746d6c3e3c68746d6c706172746963756c61726c7920696e2074686520
       747970653d2268696464656e22206e616d653d226a6176617363726970743a76
       6f69642830293b226566666563746976656e657373206f662074686520617574
       6f636f6d706c6574653d226f6666222067656e6572616c6c7920636f6e736964
@@ -5987,15 +6156,15 @@ Internet-Draft                   Brotli                     October 2014
       d8aad8b1d8a7d983d8a7d8aad8a7d984d8a7d982d8aad8b1d8a7d8add8a7d8aa
       68746d6c3b20636861727365743d5554462d38222073657454696d656f757428
       66756e6374696f6e2829646973706c61793a696e6c696e652d626c6f636b3b3c
-      696e70757420747970653d227375626d6974222074797065203d202774657874
 
 
 
-Alakuijala & Szabadka    Expires April 27, 2015               [Page 107]
+Alakuijala & Szabadka    Expires April 27, 2015               [Page 110]
 
-Internet-Draft                   Brotli                     October 2014
+Internet-Draft                   Brotli                       April 2015
 
 
+      696e70757420747970653d227375626d6974222074797065203d202774657874
       2f6a617661736372693c696d67207372633d22687474703a2f2f7777772e2220
       22687474703a2f2f7777772e77332e6f72672f73686f72746375742069636f6e
       2220687265663d2222206175746f636f6d706c6574653d226f666622203c2f61
@@ -6043,15 +6212,15 @@ Internet-Draft                   Brotli                     October 2014
       747970653d22746578742f637373223e747970653d22746578742f6373732220
       687265663d2277332e6f72672f313939392f7868746d6c2220786d6c74797065
       3d22746578742f6a61766173637269707422206d6574686f643d226765742220
-      616374696f6e3d226c696e6b2072656c3d227374796c6573686565742220203d
 
 
 
-Alakuijala & Szabadka    Expires April 27, 2015               [Page 108]
+Alakuijala & Szabadka    Expires April 27, 2015               [Page 111]
 
-Internet-Draft                   Brotli                     October 2014
+Internet-Draft                   Brotli                       April 2015
 
 
+      616374696f6e3d226c696e6b2072656c3d227374796c6573686565742220203d
       20646f63756d656e742e676574456c656d656e74747970653d22696d6167652f
       782d69636f6e22202f3e63656c6c70616464696e673d2230222063656c6c7370
       2e6373732220747970653d22746578742f63737322203c2f613e3c2f6c693e3c
@@ -6099,15 +6268,15 @@ Internet-Draft                   Brotli                     October 2014
       78742f6a6176617363726928646f63756d656e74292e72656164792866756e63
       746973637269707420747970653d22746578742f6a61766173696d6167652220
       636f6e74656e743d22687474703a2f2f55412d436f6d70617469626c65222063
-      6f6e74656e743d746d6c3b20636861727365743d7574662d3822202f3e0a6c69
 
 
 
-Alakuijala & Szabadka    Expires April 27, 2015               [Page 109]
+Alakuijala & Szabadka    Expires April 27, 2015               [Page 112]
 
-Internet-Draft                   Brotli                     October 2014
+Internet-Draft                   Brotli                       April 2015
 
 
+      6f6e74656e743d746d6c3b20636861727365743d7574662d3822202f3e0a6c69
       6e6b2072656c3d2273686f72746375742069636f6e3c6c696e6b2072656c3d22
       7374796c65736865657422203c2f7363726970743e0a3c736372697074207479
       70653d3d20646f63756d656e742e637265617465456c656d656e3c6120746172
@@ -6148,22 +6317,36 @@ Internet-Draft                   Brotli                     October 2014
 
       NDBITS :=  0,  0,  0,  0, 10, 10, 11, 11, 10, 10,
                 10, 10, 10,  9,  9,  8,  7,  7,  8,  7,
-                 7,  6,  6,  5,  5,
+                 7,  6,  6,  5,  5
 
 Appendix B. List of word transformations
+
+The string literals are in C format, with respect to the use of
+backslash escape characters.
+
+
+
+
+Alakuijala & Szabadka    Expires April 27, 2015               [Page 113]
+
+Internet-Draft                   Brotli                       April 2015
+
+
+In order to generate a length and check value, the transforms can be
+converted to a series of bytes, where each transform is the prefix
+sequence of bytes plus a terminating zero byte, a single byte value
+identifying the transform, and the suffix sequence of bytes plus a
+terminating zero. The value for the transforms are 0 for Identity, 1 for
+UppercaseFirst, 2 for UppercaseAll, 3 to 11 for OmitFirst1 to
+OmitFirst9, and 12 to 20 for OmitLast1 to OmitLast9. The byte sequences
+that represent the 121 transforms are then concatenated to a single
+sequence of bytes. The length of that sequence is 657 bytes, and the
+zlib CRC is 0x00f1fd60.
 
        ID       Prefix     Transform            Suffix
        --       ------     ---------            ------
         0           ""     Identity                 ""
         1           ""     Identity                " "
-
-
-
-Alakuijala & Szabadka    Expires April 27, 2015               [Page 110]
-
-Internet-Draft                   Brotli                     October 2014
-
-
         2          " "     Identity                " "
         3           ""     OmitFirst1               ""
         4           ""     UppercaseFirst          " "
@@ -6197,6 +6380,14 @@ Internet-Draft                   Brotli                     October 2014
        32          "."     Identity                 ""
        33          " "     Identity               ", "
        34           ""     OmitFirst4               ""
+
+
+
+Alakuijala & Szabadka    Expires April 27, 2015               [Page 114]
+
+Internet-Draft                   Brotli                       April 2015
+
+
        35           ""     Identity           " with "
        36           ""     Identity                "'"
        37           ""     Identity           " from "
@@ -6212,14 +6403,6 @@ Internet-Draft                   Brotli                     October 2014
        47           ""     Identity             " is "
        48           ""     OmitLast7                ""
        49           ""     OmitLast1            "ing "
-
-
-
-Alakuijala & Szabadka    Expires April 27, 2015               [Page 111]
-
-Internet-Draft                   Brotli                     October 2014
-
-
        50           ""     Identity             "\n\t"
        51           ""     Identity                ":"
        52          " "     Identity               ". "
@@ -6253,6 +6436,14 @@ Internet-Draft                   Brotli                     October 2014
        80           ""     Identity            " not "
        81          " "     Identity              "=\""
        82           ""     Identity              "er "
+
+
+
+Alakuijala & Szabadka    Expires April 27, 2015               [Page 115]
+
+Internet-Draft                   Brotli                       April 2015
+
+
        83          " "     UppercaseAll            " "
        84           ""     Identity              "al "
        85          " "     UppercaseAll             ""
@@ -6268,14 +6459,6 @@ Internet-Draft                   Brotli                     October 2014
        95           ""     Identity             "est "
        96          " "     UppercaseFirst          "."
        97           ""     UppercaseAll          "\">"
-
-
-
-Alakuijala & Szabadka    Expires April 27, 2015               [Page 112]
-
-Internet-Draft                   Brotli                     October 2014
-
-
        98          " "     Identity               "='"
        99           ""     UppercaseFirst          ","
       100           ""     Identity             "ize "
@@ -6309,6 +6492,14 @@ Authors' Addresses
    Email: jyrki@google.com
 
 
+
+
+
+Alakuijala & Szabadka    Expires April 27, 2015               [Page 116]
+
+Internet-Draft                   Brotli                       April 2015
+
+
    Zoltan Szabadka
    Google, Inc
 
@@ -6327,5 +6518,38 @@ Authors' Addresses
 
 
 
-Alakuijala & Szabadka    Expires April 27, 2015               [Page 113]
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Alakuijala & Szabadka    Expires April 27, 2015               [Page 117]
 
