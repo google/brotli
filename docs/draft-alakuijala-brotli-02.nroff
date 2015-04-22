@@ -372,13 +372,12 @@ called the context map, is encoded in a compact form in the meta-
 block header.
 
 For example, the prefix code to use to decode L2 depends on the
-block type (1), the literal context ID for block type 1 defined
-in the meta-block header,
-and the two uncompressed bytes that were decoded from L0 and L1.
+block type (1), and the literal context ID determined by the two uncompressed
+bytes that were decoded from L0 and L1.
 Similarly, the prefix code to use to decode D0 depends on the block
-type (0), the distance context ID for block type 0, and the copy
-length decoded from IaC0. The prefix code to use to decode IaC3
-depends only on the block type (1).
+type (0), and the distance context ID determined by the copy length decoded
+from IaC0. The prefix code to use to decode IaC3 depends only on the block
+type (1).
 
 In addition to the parts listed above (prefix code for insert-
 and-copy lengths, literals, distances, block types and block counts
@@ -735,9 +734,8 @@ follows:
       length. In this case, that symbol results in no bits
       being emitted by the compressor, and no bits consumed by
       the decompressor. That single symbol is immediately
-      returned when this code is decoded. (If the ignored non-
-      zero length is not 1, then the stream should be rejected
-      as invalid.)  An example of where this occurs is if the
+      returned when this code is decoded.
+      An example of where this occurs is if the
       entire code to be represented has symbols of length 8.
       E.g. a literal code that represents all literal values
       with equal probability. In this case the single symbol
@@ -969,9 +967,9 @@ type of the first block switch command is not encoded in
 the compressed data. Instead the block count for each category
 that has more than one type is encoded in the meta-block header.
 
-The block counts for all three categories should count down to exactly
-zero at the end of the meta-block. If any do not, then the stream
-should be rejected as invalid.
+Since the end of the meta-block is detected by the number of uncompressed
+bytes produced, the block counts for any of the three categories need not
+count down to exactly zero at the end of the meta-block.
 
 The number of different block types in each block category, denoted
 by NBLTYPESL, NBLTYPESI, and NBLTYPESD for literals, insert-and-copy
@@ -1598,9 +1596,8 @@ The decoding algorithm that produces the uncompressed data is as follows:
             read literal using HTREEL[CMAPL[64 * BTYPE_L + CIDL]]
             write literal to uncompressed stream
          if number of uncompressed bytes produced in the loop for
-            this meta-block is MLEN, then break from loop (if the
-            discarded copy length is not 4, then reject the stream as
-            invalid)
+            this meta-block is MLEN, then break from loop (in this
+            case the copy length is ignored and can have any value)
          if distance code is implicit zero from insert-and-copy code
             set backward distance to the last distance
          else
