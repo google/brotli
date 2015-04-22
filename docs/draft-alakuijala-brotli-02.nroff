@@ -227,7 +227,7 @@ relative LSB position).
 
 A compressed data set consists of a header and a series of meta-
 blocks. Each meta-block decompresses to a sequence of 1
-to 268,435,456 (256 MiB) uncompressed bytes. The final uncompressed data is
+to 16,777,216 (16 MiB) uncompressed bytes. The final uncompressed data is
 the concatenation of the uncompressed sequences from each meta-block.
 
 The header contains the size of the sliding window that was used during compression.
@@ -396,8 +396,10 @@ uncompressed bytes and the indication that the meta-block is uncompressed.
 An uncompressed meta-block cannot be the last meta-block.
 
 A meta-block may also be empty, which generates no uncompressed data at all.
-An empty block can only be the last block, which can be used to mark the end of a
-stream whose last productive meta-block was an uncompressed block.
+An empty meta-block may contain metadata information as bytes starting on byte
+boundaries, which are not part of either the sliding window or the uncompressed
+data. Thus, these metadata bytes can not be used to create matching strings in
+subsequent meta-blocks and are not used as context bytes for literals.
 
 .ti 0
 3. Compressed representation of prefix codes
@@ -1109,7 +1111,7 @@ of these tables as a sequence of bytes are as follows:
 
 .nf
    Table    Length    CRC-32
-   -----    ------    -----
+   -----    ------    ------
    Lut0     256       0x8e91efb7
    Lut1     256       0xd01a32f4
    Lut2     256       0x0dd7a0d6
@@ -1376,18 +1378,40 @@ the following:
 
 .nf
       1 bit:  ISLAST, set to 1 if this is the last meta-block
-      1 bit:  ISEMPTY, set to 1 if the meta-block is empty, this
-              field is only present if ISLAST bit is set, since
-              only the last meta-block can be empty -- if it is
-              1, then the meta-block and the brotli stream ends at
-              that bit, with any remaining bits in the last byte
+      1 bit:  ISLASTEMPTY, set to 1 if the last meta-block is empty,
+              this field is only present if ISLAST bit is set -- if
+              it is 1, then the meta-block and the brotli stream ends
+              at that bit, with any remaining bits in the last byte
               of the compressed stream filled with zeros (if the
               fill bits are not zero, then the stream should be
               rejected as invalid)
-      2 bits: MNIBBLES - 4, where MNIBBLES is # of nibbles to
-              represent the length
+      2 bits: MNIBBLES, # of nibbles to represent the uncompressed
+              length, encoded as follows: if set to 3, MNIBBLES is 0,
+              otherwise MNIBBLES is the value of this field plus 4.
+              If MNIBBLES is 0, the meta-block is empty, i.e. it does
+              not generate any uncompressed data. In this case, the
+              rest of the meta-block has the following format:
 
-      MNIBBLES x 4 bits: MLEN - 1, where MLEN is the length
+                 1 bit:  reserved, must be zero
+
+                 2 bits: MSKIPBYTES, # of bytes to represent metadata
+                         length
+
+                 MSKIPBYTES x 8 bits: MSKIPLEN - 1, where MSKIPLEN is
+                         the number of metadata bytes; this field is
+                         only present if MSKIPBYTES is positive,
+                         otherwise MSKIPLEN is 0 (if MSKIPBYTES is
+                         greater than 1, and the last byte is all
+                         zeros, then the stream should be rejected
+                         as invalid)
+
+                 0 - 7 bits: fill bits until the next byte boundary,
+                             must be all zeros
+
+                 MSKIPLEN bytes of metadata, not part of the
+                         uncompressed data or the sliding window
+
+     MNIBBLES x 4 bits: MLEN - 1, where MLEN is the length
               of the meta-block uncompressed data in bytes (if the
               number of nibbles is greater than 4, and the last
               nibble is all zeros, then the stream should be
@@ -1405,8 +1429,8 @@ the following:
               the compressed data, where the bits are parsed from
               right to left, so 0110111 has the value 12):
 
-                    Value   Bit Pattern
-                    -----   -----------
+                    Value    Bit Pattern
+                    -----    -----------
                       1                0
                       2             0001
                      3-4           x0011
@@ -1542,10 +1566,18 @@ The decoding algorithm that produces the uncompressed data is as follows:
    do
       read ISLAST bit
       if ISLAST
-         read ISEMPTY bit
-         if ISEMPTY
+         read ISLASTEMPTY bit
+         if ISLASTEMPTY
             break from loop
-      read MLEN
+      read MNIBBLES
+      if MNIBBLES is zero
+         verify reserved bit is zero
+         read MSKIPLEN
+         skip any bits up to the next byte boundary
+         skip MSKIPLEN bytes
+         continue to the next meta-block
+      else
+         read MLEN
       if not ISLAST
          read ISUNCOMPRESSED bit
          if ISUNCOMPRESSED
