@@ -32,7 +32,9 @@ typedef enum {
   /* Successfully completely done */
   BROTLI_RESULT_SUCCESS = 1,
   /* Partially done, but must be called again with more input */
-  BROTLI_RESULT_PARTIAL = 2
+  BROTLI_RESULT_NEEDS_MORE_INPUT = 2,
+  /* Partially done, but must be called again with more output */
+  BROTLI_RESULT_NEEDS_MORE_OUTPUT = 3
 } BrotliResult;
 
 /* Sets *decoded_size to the decompressed size of the given encoded stream. */

@@ -51,8 +51,9 @@ BrotliInput BrotliInitMemInput(const uint8_t* buffer, size_t length,
 
 int BrotliMemOutputFunction(void* data, const uint8_t* buf, size_t count) {
   BrotliMemOutput* output = (BrotliMemOutput*)data;
-  if (output->pos + count > output->length) {
-    return -1;
+  size_t limit = output->length - output->pos;
+  if (count > limit) {
+    count = limit;
   }
   memcpy(output->buffer + output->pos, buf, count);
   output->pos += count;
