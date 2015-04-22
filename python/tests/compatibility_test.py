@@ -2,6 +2,7 @@
 from __future__ import print_function
 import sys
 import os
+import sysconfig
 from subprocess import check_call
 import filecmp
 
@@ -12,6 +13,18 @@ def diff_q(first_file, second_file):
         print("Files %s and %s differ" % (first_file, second_file))
         return 1
     return 0
+
+
+# prepend ../../build/lib folder to PYTHONPATH
+LIB_DIRNAME = "lib.{platform}-{version[0]}.{version[1]}".format(
+    platform=sysconfig.get_platform(),
+    version=sys.version_info)
+BUILD_PATH = os.path.abspath(os.path.join("..", "..", "build", LIB_DIRNAME))
+TEST_ENV = os.environ.copy()
+if 'PYTHONPATH' not in TEST_ENV:
+    TEST_ENV['PYTHONPATH'] = BUILD_PATH
+else:
+    TEST_ENV['PYTHONPATH'] = BUILD_PATH + os.pathsep + TEST_ENV['PYTHONPATH']
 
 
 PYTHON = sys.executable or "python"
@@ -43,11 +56,13 @@ for filename in INPUTS.splitlines():
     print('Testing decompression of file "%s"' % os.path.basename(filename))
     uncompressed = os.path.splitext(filename)[0] + ".uncompressed"
     expected = os.path.splitext(filename)[0]
-    check_call([PYTHON, BRO, "-f", "-d", "-i", filename, "-o", uncompressed])
+    check_call([PYTHON, BRO, "-f", "-d", "-i", filename, "-o", uncompressed],
+               env=TEST_ENV)
     if diff_q(uncompressed, expected) != 0:
         sys.exit(1)
     # Test the streaming version
     with open(filename, "rb") as infile, open(uncompressed, "wb") as outfile:
-        check_call([PYTHON, BRO, '-d'], stdin=infile, stdout=outfile)
+        check_call([PYTHON, BRO, '-d'], stdin=infile, stdout=outfile,
+                   env=TEST_ENV)
     if diff_q(uncompressed, expected) != 0:
         sys.exit(1)
