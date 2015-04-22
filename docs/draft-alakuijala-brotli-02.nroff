@@ -149,7 +149,7 @@ produce data sets that conform to all the specifications presented
 here.
 
 .ti 0
-1.5.  Definitions of terms and conventions used
+1.5. Definitions of terms and conventions used
 
 Byte: 8 bits stored or transmitted as a unit (same as an octet).
 For this specification, a byte is exactly 8 bits, even on machines
@@ -159,11 +159,11 @@ See below for the numbering of bits within a byte.
 String: a sequence of arbitrary bytes.
 
 Bytes stored within a computer do not have a "bit order", since
-they are always treated as a unit.  However, a byte considered as
+they are always treated as a unit. However, a byte considered as
 an integer between 0 and 255 does have a most- and least-
 significant bit, and since we write numbers with the most-
 significant digit on the left, we also write bytes with the most-
-significant bit on the left.  In the diagrams below, we number the
+significant bit on the left. In the diagrams below, we number the
 bits of a byte so that bit 0 is the least-significant bit, i.e.,
 the bits are numbered:
 
@@ -173,7 +173,7 @@ the bits are numbered:
    +--------+
 .fi
 
-Within a computer, a number may occupy multiple bytes.  All
+Within a computer, a number may occupy multiple bytes. All
 multi-byte numbers in the format described here are stored with
 the least-significant byte first (at the lower memory address).
 For example, the decimal number 520 is stored as:
@@ -195,9 +195,9 @@ For example, the decimal number 520 is stored as:
 This document does not address the issue of the order in which
 bits of a byte are transmitted on a bit-sequential medium,
 since the final data format described here is byte- rather than
-bit-oriented.  However, we describe the compressed block format
+bit-oriented. However, we describe the compressed block format
 below as a sequence of data elements of various bit
-lengths, not a sequence of bytes.  We must therefore specify
+lengths, not a sequence of bytes. We must therefore specify
 how to pack these data elements into bytes to form the final
 compressed byte sequence:
 
@@ -227,18 +227,18 @@ relative LSB position).
 
 A compressed data set consists of a header and a series of meta-
 blocks. Each meta-block decompresses to a sequence of 1
-to 268,435,456 (256 MiB) uncompressed bytes.  The final uncompressed data is
+to 268,435,456 (256 MiB) uncompressed bytes. The final uncompressed data is
 the concatenation of the uncompressed sequences from each meta-block.
 
 The header contains the size of the sliding window that was used during compression.
 The decompressor must retain at least that amount of uncompressed data prior to the
 current position in the stream, in order to be able to decompress
-what follows.  The sliding window size is a power of two, minus 16, where
-the power is in the range of 16 to 24.  The possible sliding window
+what follows. The sliding window size is a power of two, minus 16, where
+the power is in the range of 16 to 24. The possible sliding window
 sizes range from 64 KiB - 16 B to 16 MiB - 16 B.
 
 Each meta-block is compressed using a combination of the LZ77
-algorithm (Lempel-Ziv 1977, [LZ77]) and Huffman coding.  The
+algorithm (Lempel-Ziv 1977, [LZ77]) and Huffman coding. The
 result of Huffman coding is referred to here as a prefix code.
 The prefix codes for each meta-block are independent of
 those for previous or subsequent meta-blocks; the LZ77 algorithm may
@@ -253,8 +253,8 @@ compressed data part. The compressed data consists of a series of
 commands. Each command consists of two parts: a sequence of literal
 bytes (of strings that have not been detected as duplicated within
 the sliding window), and a pointer to a duplicated string,
-represented as a pair <length, backward distance>.  There can be
-zero literal bytes in the command.  The minimum length of the string to be
+represented as a pair <length, backward distance>. There can be
+zero literal bytes in the command. The minimum length of the string to be
 duplicated is two, but the last command in the meta-block is permitted to have
 only literals and no pointer to a string to duplicate.
 
@@ -265,9 +265,9 @@ copy lengths (that is, a single code word represents two lengths,
 one of the literal sequence and one of the backward copy), a separate
 set of prefix codes are for literals, and a third set of prefix codes are for
 distances. The prefix code descriptions for each meta-block appear in a compact
-form just before the compressed data in the meta-block header.  The insert and
+form just before the compressed data in the meta-block header. The insert and
 copy length and distance prefix codes may be followed by extra bits that are
-added to the base values determined by the codes.  The number of extra bits is
+added to the base values determined by the codes. The number of extra bits is
 determined by the code.
 
 One meta-block command then appears as a sequence of prefix codes:
@@ -276,17 +276,17 @@ One meta-block command then appears as a sequence of prefix codes:
 
 where the insert and copy defines the number of literals that immediately
 follow and the copy length, and the distance defines how far back to go
-for the copy, used in combination with the copy length.  The resulting
+for the copy, used in combination with the copy length. The resulting
 uncompressed data is the sequence of bytes:
 
    literal, literal, ..., literal, copy, copy, ..., copy
 
 where the number of literal bytes and copy bytes are determined by the
-insert and copy length code.  (The number of bytes copied for a static
+insert and copy length code. (The number of bytes copied for a static
 dictionary entry can vary from the copy length.)
 
 The last command in the meta-block may end with the last literal if the
-total uncompressed length of the meta-block has been satisfied.  In
+total uncompressed length of the meta-block has been satisfied. In
 that case there is no distance in the last command, and the copy length is
 ignored.
 
@@ -294,9 +294,9 @@ There can be more than one prefix code for each category, where the
 prefix code to use for the next element of that category is determined
 by the context of the compressed stream that precedes that element.
 Part of that context is three current block types, one for each
-category.  A block type is in the range of 0..255.  For each category
+category. A block type is in the range of 0..255. For each category
 there is a count of how many elements of that category remain to be
-decoded using the current block type.  Once that count is expended,
+decoded using the current block type. Once that count is expended,
 a new block type and block count is read from the stream immediately
 preceding the next element of that category, which will use the new
 block type.
@@ -316,7 +316,7 @@ The meta-block here has four commands, contained in parentheses for clarity,
 where each of the three categories of
 symbols within these commands can be interpreted using different block types.
 Here we separate out each category as its own sequence to show an example of block
-types assigned to those elements.  Each square-bracketed group is a block that
+types assigned to those elements. Each square-bracketed group is a block that
 uses the same block type:
 
    [IaC0, IaC1][IaC2, IaC3]  <-- insert-and-copy: block types 0 and 1
@@ -343,8 +343,8 @@ meta-block is then:
 
 where *BlockSwitch(t, n) switches to block type t for a count of n elements.
 Note that in this example DBlockSwitch(1, 3) immediately precedes the
-next required distance D1.  It does not follow the last distance of
-the previous block, D0.  Whenever an element of a category is needed,
+next required distance D1. It does not follow the last distance of
+the previous block, D0. Whenever an element of a category is needed,
 and the block count for that category has reached zero, then a new
 block type and count is read from the stream just before reading that next
 element.
@@ -377,7 +377,7 @@ in the meta-block header,
 and the two uncompressed bytes that were decoded from L0 and L1.
 Similarly, the prefix code to use to decode D0 depends on the block
 type (0), the distance context ID for block type 0, and the copy
-length decoded from IaC0.  The prefix code to use to decode IaC3
+length decoded from IaC0. The prefix code to use to decode IaC3
 depends only on the block type (1).
 
 In addition to the parts listed above (prefix code for insert-
@@ -391,7 +391,7 @@ A compressed meta-block may be marked in the header as the last meta-block,
 which terminates the compressed stream.
 
 A meta-block may instead simply store the uncompressed data directly as
-bytes on byte boundaries with no coding or matching strings.  In this
+bytes on byte boundaries with no coding or matching strings. In this
 case the meta-block header information only contains the number of
 uncompressed bytes and the indication that the meta-block is uncompressed.
 An uncompressed meta-block cannot be the last meta-block.
@@ -417,7 +417,7 @@ edges descending from each non-leaf node are labeled 0 and 1 and
 in which the leaf nodes correspond one-for-one with (are labeled
 with) the symbols of the alphabet; then the code for a symbol is
 the sequence of 0's and 1's on the edges leading from the root to 
-the leaf labeled with that symbol.  For example:
+the leaf labeled with that symbol. For example:
 
 .nf
 .KS
@@ -492,7 +492,7 @@ from most- to least-significant bit. The code lengths are
 initially in tree[I].Len; the codes are produced in tree[I].Code.
 
 .nf
-   1)  Count the number of codes for each code length.  Let
+   1)  Count the number of codes for each code length. Let
        bl_count[N] be the number of codes of length N, N >= 1.
 
    2)  Find the numerical value of the smallest code for each
@@ -527,7 +527,7 @@ initially in tree[I].Len; the codes are produced in tree[I].Code.
 Example:
 
 Consider the alphabet ABCDEFGH, with bit lengths (3, 3, 3, 3, 3,
-2, 4, 4).  After step 1, we have:
+2, 4, 4). After step 1, we have:
 
 .nf
 .KS
@@ -605,7 +605,7 @@ The value of ALPHABET_BITS depends on the alphabet of the prefix
 code: it is the smallest number of bits that can represent all
 symbols in the alphabet. E.g. for the alphabet of literal bytes,
 ALPHABET_BITS is 8. The value of each of the NSYM symbols above is
-the value of the ALPHABETS_BITS width integer value.  (If the integer
+the value of the ALPHABETS_BITS width integer value. (If the integer
 value is greater than or equal to the alphabet size, then the stream
 should be rejected as invalid.)
 
@@ -670,8 +670,8 @@ Note that a code of 16 that follows an immediately preceding 16 modifies the
 previous repeat count, which becomes the new repeat count. The same is true for
 a 17 following a 17. A sequence of three or more 16 codes in a row or three of
 more 17 codes in a row is possible, modifying the count each time. Only the
-final repeat count is used.  The modification only applies if the same code
-follows.  A 16 repeat does not modify an immediately preceding 17 count, nor
+final repeat count is used. The modification only applies if the same code
+follows. A 16 repeat does not modify an immediately preceding 17 count, nor
 vice versa.
 
 A code length of 0 indicates that the corresponding symbol in the
@@ -702,15 +702,15 @@ follows:
 
 .nf
    2 bits: HSKIP, values of 0, 2 or 3 represent the respective
-           number of skipped code lengths.  The skipped lengths
-           are taken to be zero.  (An HSKIP of 1 indicates a
+           number of skipped code lengths. The skipped lengths
+           are taken to be zero. (An HSKIP of 1 indicates a
            Simple prefix code.)
 
    Code lengths for symbols in the code length alphabet given
       just above, in the order: 1, 2, 3, 4, 0, 5, 17, 6, 16, 7,
-      8, 9, 10, 11, 12, 13, 14, 15.  If HSKIP is 2, then the
+      8, 9, 10, 11, 12, 13, 14, 15. If HSKIP is 2, then the
       code lengths for symbols 1 and 2 are zero, and the first
-      code length is for symbol 3.  If HSKIP is 3, then the code
+      code length is for symbol 3. If HSKIP is 3, then the code
       length for symbol 3 is also zero, and the first code length
       is for symbol 4.
 
@@ -732,16 +732,16 @@ follows:
       If the lengths have been read for the entire code length
       alphabet and there was only one non-zero code length,
       then the prefix code has one symbol whose code has zero
-      length.  In this case, that symbol results in no bits
+      length. In this case, that symbol results in no bits
       being emitted by the compressor, and no bits consumed by
-      the decompressor.  That single symbol is immediately
-      returned when this code is decoded.  (If the ignored non-
+      the decompressor. That single symbol is immediately
+      returned when this code is decoded. (If the ignored non-
       zero length is not 1, then the stream should be rejected
       as invalid.)  An example of where this occurs is if the
       entire code to be represented has symbols of length 8.
       E.g. a literal code that represents all literal values
-      with equal probability.  In this case the single symbol
-      is 16, which repeats the previous length.  The previous
+      with equal probability. In this case the single symbol
+      is 16, which repeats the previous length. The previous
       length is taken to be 8 before any code length code
       lengths are read.
 
@@ -966,11 +966,11 @@ meta-block header.
 
 Since the first block type of each block category is 0, the block
 type of the first block switch command is not encoded in
-the compressed data.  Instead the block count for each category
+the compressed data. Instead the block count for each category
 that has more than one type is encoded in the meta-block header.
 
 The block counts for all three categories should count down to exactly
-zero at the end of the meta-block.  If any do not, then the stream
+zero at the end of the meta-block. If any do not, then the stream
 should be rejected as invalid.
 
 The number of different block types in each block category, denoted
