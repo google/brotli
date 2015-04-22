@@ -39,6 +39,7 @@ typedef enum {
   BROTLI_STATE_BLOCK_DISTANCE = 15,
   BROTLI_STATE_BLOCK_POST = 16,
   BROTLI_STATE_UNCOMPRESSED = 17,
+  BROTLI_STATE_METADATA = 18,
   BROTLI_STATE_METABLOCK_DONE = 20,
   BROTLI_STATE_HUFFMAN_CODE_0 = 30,
   BROTLI_STATE_HUFFMAN_CODE_1 = 31,
@@ -91,6 +92,7 @@ typedef struct {
   int trivial_literal_context;
 
   int meta_block_remaining_len;
+  int is_metadata;
   int is_uncompressed;
   int block_length[3];
   int block_type[3];

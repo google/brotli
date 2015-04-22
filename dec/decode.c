@@ -86,26 +86,40 @@ static BROTLI_INLINE int DecodeVarLenUint8(BrotliBitReader* br) {
   return 0;
 }
 
-static void DecodeMetaBlockLength(BrotliBitReader* br,
-                                  int* meta_block_length,
-                                  int* input_end,
-                                  int* is_uncompressed) {
+static int DecodeMetaBlockLength(BrotliBitReader* br,
+                                 int* meta_block_length,
+                                 int* input_end,
+                                 int* is_metadata,
+                                 int* is_uncompressed) {
   int size_nibbles;
   int i;
   *input_end = (int)BrotliReadBits(br, 1);
   *meta_block_length = 0;
   *is_uncompressed = 0;
+  *is_metadata = 0;
   if (*input_end && BrotliReadBits(br, 1)) {
-    return;
+    return 1;
   }
   size_nibbles = (int)BrotliReadBits(br, 2) + 4;
+  if (size_nibbles == 7) {
+    *is_metadata = 1;
+    /* Verify reserved bit. */
+    if (BrotliReadBits(br, 1) != 0) {
+      return 0;
+    }
+    size_nibbles = 2 * (int)BrotliReadBits(br, 2);
+    if (size_nibbles == 0) {
+      return 1;
+    }
+  }
   for (i = 0; i < size_nibbles; ++i) {
     *meta_block_length |= (int)BrotliReadBits(br, 4) << (i * 4);
   }
   ++(*meta_block_length);
-  if (!*input_end) {
+  if (!*input_end && !*is_metadata) {
     *is_uncompressed = (int)BrotliReadBits(br, 1);
   }
+  return 1;
 }
 
 /* Decodes the next Huffman code from bit-stream. */
@@ -375,13 +389,6 @@ static int TranslateShortCodes(int code, int* ringbuffer, int index) {
   return val;
 }
 
-static void MoveToFront(uint8_t* v, uint8_t index) {
-  uint8_t value = v[index];
-  uint8_t i = index;
-  for (; i; --i) v[i] = v[i - 1];
-  v[0] = value;
-}
-
 static void InverseMoveToFrontTransform(uint8_t* v, int v_len) {
   uint8_t mtf[256];
   int i;
@@ -390,8 +397,12 @@ static void InverseMoveToFrontTransform(uint8_t* v, int v_len) {
   }
   for (i = 0; i < v_len; ++i) {
     uint8_t index = v[i];
-    v[i] = mtf[index];
-    if (index) MoveToFront(mtf, index);
+    uint8_t value = mtf[index];
+    v[i] = value;
+    for (; index; --index) {
+      mtf[index] = mtf[index - 1];
+    }
+    mtf[0] = value;
   }
 }
 
@@ -971,9 +982,20 @@ BrotliResult BrotliDecompressStreaming(BrotliInput input, BrotliOutput output,
           break;
         }
         BROTLI_LOG_UINT(pos);
-        DecodeMetaBlockLength(br, &s->meta_block_remaining_len,
-                              &s->input_end, &s->is_uncompressed);
+        if (!DecodeMetaBlockLength(br,
+                                   &s->meta_block_remaining_len,
+                                   &s->input_end,
+                                   &s->is_metadata,
+                                   &s->is_uncompressed)) {
+          result = BROTLI_RESULT_ERROR;
+          break;
+        }
         BROTLI_LOG_UINT(s->meta_block_remaining_len);
+        if (s->is_metadata) {
+          BrotliSetBitPos(br, (s->br.bit_pos_ + 7) & (uint32_t)(~7UL));
+          s->state = BROTLI_STATE_METADATA;
+          break;
+        }
         if (s->meta_block_remaining_len == 0) {
           s->state = BROTLI_STATE_METABLOCK_DONE;
           break;
@@ -998,6 +1020,17 @@ BrotliResult BrotliDecompressStreaming(BrotliInput input, BrotliOutput output,
           s->prev_byte1 = s->ringbuffer[(pos - 1) & s->ringbuffer_mask];
         }
         if (result != BROTLI_RESULT_SUCCESS) break;
+        s->state = BROTLI_STATE_METABLOCK_DONE;
+        break;
+      case BROTLI_STATE_METADATA:
+        for (; s->meta_block_remaining_len > 0; --s->meta_block_remaining_len) {
+          if (!BrotliReadMoreInput(&s->br)) {
+            result = BROTLI_RESULT_PARTIAL;
+            break;
+          }
+          /* Read one byte and ignore it. */
+          BrotliReadBits(&s->br, 8);
+        }
         s->state = BROTLI_STATE_METABLOCK_DONE;
         break;
       case BROTLI_STATE_HUFFMAN_CODE_0:
