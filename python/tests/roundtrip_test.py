@@ -2,33 +2,10 @@
 from __future__ import print_function
 import sys
 import os
-import sysconfig
 from subprocess import check_call, Popen, PIPE
-import filecmp
 
+from test_utils import PYTHON, BRO, TEST_ENV, diff_q
 
-def diff_q(first_file, second_file):
-    """Simulate call to POSIX diff with -q argument"""
-    if not filecmp.cmp(first_file, second_file, shallow=False):
-        print("Files %s and %s differ" % (first_file, second_file))
-        return 1
-    return 0
-
-
-# prepend ../../build/lib folder to PYTHONPATH
-LIB_DIRNAME = "lib.{platform}-{version[0]}.{version[1]}".format(
-    platform=sysconfig.get_platform(),
-    version=sys.version_info)
-BUILD_PATH = os.path.abspath(os.path.join("..", "..", "build", LIB_DIRNAME))
-TEST_ENV = os.environ.copy()
-if 'PYTHONPATH' not in TEST_ENV:
-    TEST_ENV['PYTHONPATH'] = BUILD_PATH
-else:
-    TEST_ENV['PYTHONPATH'] = BUILD_PATH + os.pathsep + TEST_ENV['PYTHONPATH']
-
-
-PYTHON = sys.executable or "python"
-BRO = os.path.abspath("../bro.py")
 
 INPUTS = """\
 testdata/alice29.txt
