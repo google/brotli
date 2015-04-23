@@ -24,6 +24,7 @@
 
 #include "../dec/decode.h"
 #include "../enc/encode.h"
+#include "../enc/streams.h"
 
 
 static void ParseArgv(int argc, char **argv,
@@ -133,31 +134,14 @@ int main(int argc, char** argv) {
       exit(1);
     }
   } else {
-    const int max_block_size = 1 << 21;
-    const size_t max_output_size = 1 << 22;
-    uint8_t* input_buffer = new uint8_t[max_block_size];
-    uint8_t* output_buffer = new uint8_t[max_output_size];
-    bool input_end = false;
-    int block_size;
     brotli::BrotliParams params;
-    brotli::BrotliCompressor compressor(params);
-    compressor.WriteStreamHeader();
-    while (!input_end) {
-      block_size = fread(input_buffer, 1, max_block_size, fin);
-      if (block_size == 0) {
-        input_end = true;
-      }
-      size_t output_size = max_output_size;
-      compressor.WriteMetaBlock(block_size, input_buffer, input_end,
-                                &output_size, output_buffer);
-      if (fwrite(output_buffer, output_size, 1, fout) != 1) {
-        perror("fwrite");
-        unlink(output_path);
-        exit(1);
-      }
+    brotli::BrotliFileIn in(fin, 1 << 16);
+    brotli::BrotliFileOut out(fout);
+    if (!BrotliCompress(params, &in, &out)) {
+      fprintf(stderr, "compression failed\n");
+      unlink(output_path);
+      exit(1);
     }
-    delete[] input_buffer;
-    delete[] output_buffer;
   }
   if (fclose(fin) != 0) {
     perror("fclose");
