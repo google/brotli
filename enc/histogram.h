@@ -87,7 +87,8 @@ static const int kLiteralContextBits = 6;
 static const int kDistanceContextBits = 2;
 
 void BuildHistograms(
-    const std::vector<Command>& cmds,
+    const Command* cmds,
+    const size_t num_commands,
     const BlockSplit& literal_split,
     const BlockSplit& insert_and_copy_split,
     const BlockSplit& dist_split,
@@ -100,7 +101,8 @@ void BuildHistograms(
     std::vector<HistogramDistance>* copy_dist_histograms);
 
 void BuildLiteralHistogramsForBlockType(
-    const std::vector<Command>& cmds,
+    const Command* cmds,
+    const size_t num_commands,
     const BlockSplit& literal_split,
     const uint8_t* ringbuffer,
     size_t pos,

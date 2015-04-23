@@ -209,10 +209,11 @@ bool WriteMetaBlockParallel(const BrotliParams& params,
                               num_direct_distance_codes,
                               distance_postfix_bits);
     BuildMetaBlock(&input[0], input_pos, mask,
-                   commands,
+                   commands.data(), commands.size(),
                    num_direct_distance_codes,
                    distance_postfix_bits,
                    literal_context_mode,
+                   true,
                    &mb);
   }
 

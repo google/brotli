@@ -47,10 +47,12 @@ struct MetaBlockSplit {
 void BuildMetaBlock(const uint8_t* ringbuffer,
                     const size_t pos,
                     const size_t mask,
-                    const std::vector<Command>& cmds,
+                    const Command* cmds,
+                    size_t num_commands,
                     int num_direct_distance_codes,
                     int distance_postfix_bits,
                     int literal_context_mode,
+                    bool enable_context_modleing,
                     MetaBlockSplit* mb);
 
 void BuildMetaBlockGreedy(const uint8_t* ringbuffer,

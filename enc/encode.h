@@ -38,8 +38,10 @@ struct BrotliParams {
         quality(11),
         lgwin(22),
         lgblock(0),
+        enable_dictionary(true),
         enable_transforms(false),
-        greedy_block_split(false) {}
+        greedy_block_split(false),
+        enable_context_modeling(true) {}
 
   enum Mode {
     MODE_TEXT = 0,
@@ -56,8 +58,11 @@ struct BrotliParams {
   // If set to 0, the value will be set based on the quality.
   int lgblock;
 
+  // These settings will be respected only if quality > 9.
+  bool enable_dictionary;
   bool enable_transforms;
   bool greedy_block_split;
+  bool enable_context_modeling;
 };
 
 class BrotliCompressor {
@@ -100,7 +105,8 @@ class BrotliCompressor {
   int hash_type_;
   size_t input_pos_;
   std::unique_ptr<RingBuffer> ringbuffer_;
-  std::vector<float> literal_cost_;
+  std::unique_ptr<float[]> literal_cost_;
+  size_t literal_cost_mask_;
   int dist_cache_[4];
   uint8_t last_byte_;
   uint8_t last_byte_bits_;

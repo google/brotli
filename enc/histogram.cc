@@ -27,7 +27,8 @@
 namespace brotli {
 
 void BuildHistograms(
-    const std::vector<Command>& cmds,
+    const Command* cmds,
+    const size_t num_commands,
     const BlockSplit& literal_split,
     const BlockSplit& insert_and_copy_split,
     const BlockSplit& dist_split,
@@ -41,7 +42,7 @@ void BuildHistograms(
   BlockSplitIterator literal_it(literal_split);
   BlockSplitIterator insert_and_copy_it(insert_and_copy_split);
   BlockSplitIterator dist_it(dist_split);
-  for (int i = 0; i < cmds.size(); ++i) {
+  for (int i = 0; i < num_commands; ++i) {
     const Command &cmd = cmds[i];
     insert_and_copy_it.Next();
     (*insert_and_copy_histograms)[insert_and_copy_it.type_].Add(
@@ -66,7 +67,8 @@ void BuildHistograms(
 }
 
 void BuildLiteralHistogramsForBlockType(
-    const std::vector<Command>& cmds,
+    const Command* cmds,
+    const size_t num_commands,
     const BlockSplit& literal_split,
     const uint8_t* ringbuffer,
     size_t pos,
@@ -75,7 +77,7 @@ void BuildLiteralHistogramsForBlockType(
     int context_mode,
     std::vector<HistogramLiteral>* histograms) {
   BlockSplitIterator literal_it(literal_split);
-  for (int i = 0; i < cmds.size(); ++i) {
+  for (int i = 0; i < num_commands; ++i) {
     const Command &cmd = cmds[i];
     for (int j = 0; j < cmd.insert_len_; ++j) {
       literal_it.Next();

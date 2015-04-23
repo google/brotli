@@ -65,7 +65,9 @@ void CreateBackwardReferences(size_t num_bytes,
     for (int k = position; k < position + num_bytes; ++k) {
       average_cost += literal_cost[k & literal_cost_mask];
     }
-    average_cost /= num_bytes;
+    if (num_bytes > 0) {
+      average_cost /= num_bytes;
+    }
   }
 
   // M1 match is for considering for two repeated copies, if moving
