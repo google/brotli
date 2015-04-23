@@ -139,7 +139,7 @@ static const uint8_t kUTF8ContextLookup[512] = {
 };
 
 // Context lookup table for small signed integers.
-static const int kSigned3BitContextLookup[] = {
+static const uint8_t kSigned3BitContextLookup[] = {
   0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
   2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
   2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,

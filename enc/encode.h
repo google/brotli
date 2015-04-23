@@ -21,9 +21,11 @@
 #include <stdint.h>
 #include <string>
 #include <vector>
+#include "./command.h"
 #include "./hash.h"
 #include "./ringbuffer.h"
 #include "./static_dict.h"
+#include "./streams.h"
 
 namespace brotli {
 
@@ -90,6 +92,24 @@ class BrotliCompressor {
   // an error and true otherwise.
   bool FinishStream(size_t* encoded_size, uint8_t* encoded_buffer);
 
+  // Copies the given input data to the internal ring buffer of the compressor.
+  // No processing of the data occurs at this time and this function can be
+  // called multiple times before calling WriteBrotliData() to process the
+  // accumulated input. At most input_block_size() bytes of input data can be
+  // copied to the ring buffer, otherwise the next WriteBrotliData() will fail.
+  void CopyInputToRingBuffer(const size_t input_size,
+                             const uint8_t* input_buffer);
+
+  // Processes the accumulated input data and sets *out_size to the length of
+  // the new output meta-block, or to zero if no new output meta-block was
+  // created (in this case the processed input data is buffered internally).
+  // If *out_size is positive, *output points to the start of the output data.
+  // Returns false if the size of the input data is larger than
+  // input_block_size() or if there was an error during writing the output.
+  // If is_last or force_flush is true, an output meta-block is always created.
+  bool WriteBrotliData(const bool is_last, const bool force_flush,
+                       size_t* out_size, uint8_t** output);
+
   // No-op, but we keep it here for API backward-compatibility.
   void WriteStreamHeader() {}
 
@@ -99,6 +119,11 @@ class BrotliCompressor {
 
   uint8_t* GetBrotliStorage(size_t size);
 
+  bool WriteMetaBlockInternal(const bool is_last,
+                              const bool utf8_mode,
+                              size_t* out_size,
+                              uint8_t** output);
+
   BrotliParams params_;
   int max_backward_distance_;
   std::unique_ptr<Hashers> hashers_;
@@ -107,6 +132,12 @@ class BrotliCompressor {
   std::unique_ptr<RingBuffer> ringbuffer_;
   std::unique_ptr<float[]> literal_cost_;
   size_t literal_cost_mask_;
+  size_t cmd_buffer_size_;
+  std::unique_ptr<Command[]> commands_;
+  int num_commands_;
+  int last_insert_len_;
+  size_t last_flush_pos_;
+  size_t last_processed_pos_;
   int dist_cache_[4];
   uint8_t last_byte_;
   uint8_t last_byte_bits_;
@@ -123,6 +154,10 @@ int BrotliCompressBuffer(BrotliParams params,
                          const uint8_t* input_buffer,
                          size_t* encoded_size,
                          uint8_t* encoded_buffer);
+
+// Same as above, but uses the specified input and output classes instead
+// of reading from and writing to pre-allocated memory buffers.
+int BrotliCompress(BrotliParams params, BrotliIn* in, BrotliOut* out);
 
 }  // namespace brotli
 
