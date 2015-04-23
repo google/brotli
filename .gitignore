@@ -2,4 +2,6 @@
 *.txt.uncompressed
 *.bro
 *.unbro
-/tools/bro
+tools/bro
+build/
+dist/
