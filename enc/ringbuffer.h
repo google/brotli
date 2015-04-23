@@ -53,7 +53,7 @@ class RingBuffer {
     // The length of the writes is limited so that we do not need to worry
     // about a write
     WriteTail(bytes, n);
-    if (PREDICT_TRUE(masked_pos + n <= (1 << window_bits_))) {
+    if (PREDICT_TRUE(masked_pos + n <= (1U << window_bits_))) {
       // A single write fits.
       memcpy(&buffer_[masked_pos], bytes, n);
     } else {
