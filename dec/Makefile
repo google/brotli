@@ -2,7 +2,7 @@
 
 include ../shared.mk
 
-CPPFLAGS += -Wall
+CFLAGS += -Wall
 
 OBJS = bit_reader.o decode.o huffman.o safe_malloc.o state.o streams.o
 

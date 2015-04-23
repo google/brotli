@@ -11,9 +11,9 @@ test: deps
 	./roundtrip_test.sh
 
 deps :
-	make -C $(BROTLI)/tools
+	$(MAKE) -C $(BROTLI)/tools
 
 clean :
 	rm -f testdata/*.{bro,unbro,uncompressed}
 	rm -f $(BROTLI)/{enc,dec,tools}/*.{un,}bro
-	make -C $(BROTLI)/tools clean
+	$(MAKE) -C $(BROTLI)/tools clean

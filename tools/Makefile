@@ -13,13 +13,13 @@ EXE_OBJS=$(patsubst %, %.o, $(EXECUTABLES))
 all : $(EXECUTABLES)
 
 $(EXECUTABLES) : $(EXE_OBJS) deps
-	$(CPP) $(LFLAGS) $(ENCOBJ) $(DECOBJ) $@.o -o $@
+	$(CXX) $(LFLAGS) $(ENCOBJ) $(DECOBJ) $@.o -o $@
 
 deps :
-	make -C $(BROTLI)/dec
-	make -C $(BROTLI)/enc
+	$(MAKE) -C $(BROTLI)/dec
+	$(MAKE) -C $(BROTLI)/enc
 
 clean :
 	rm -f $(OBJS) $(EXE_OBJS) $(EXECUTABLES)
-	make -C $(BROTLI)/dec clean
-	make -C $(BROTLI)/enc clean
+	$(MAKE) -C $(BROTLI)/dec clean
+	$(MAKE) -C $(BROTLI)/enc clean
