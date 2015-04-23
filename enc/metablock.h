@@ -47,10 +47,10 @@ struct MetaBlockSplit {
 void BuildMetaBlock(const uint8_t* ringbuffer,
                     const size_t pos,
                     const size_t mask,
+                    uint8_t prev_byte,
+                    uint8_t prev_byte2,
                     const Command* cmds,
                     size_t num_commands,
-                    int num_direct_distance_codes,
-                    int distance_postfix_bits,
                     int literal_context_mode,
                     bool enable_context_modleing,
                     MetaBlockSplit* mb);
@@ -60,8 +60,11 @@ void BuildMetaBlockGreedy(const uint8_t* ringbuffer,
                           size_t mask,
                           const Command *commands,
                           size_t n_commands,
-                          int quality,
                           MetaBlockSplit* mb);
+
+void OptimizeHistograms(int num_direct_distance_codes,
+                        int distance_postfix_bits,
+                        MetaBlockSplit* mb);
 
 }  // namespace brotli
 

@@ -538,7 +538,7 @@ class HashLongestMatch {
     }
     if (kUseDictionary && static_dict_ != NULL) {
       // We decide based on first 4 bytes how many bytes to test for.
-      int prefix = BROTLI_UNALIGNED_LOAD32(&data[cur_ix_masked]);
+      uint32_t prefix = BROTLI_UNALIGNED_LOAD32(&data[cur_ix_masked]);
       int maxlen = static_dict_->GetLength(prefix);
       for (int len = std::min<size_t>(maxlen, max_length);
            len > best_len && len >= 4; --len) {
@@ -595,7 +595,7 @@ struct Hashers {
   typedef HashLongestMatch<14, 5, 4, 4, false, false> H4;
   typedef HashLongestMatch<15, 6, 4, 10, false, false> H5;
   typedef HashLongestMatch<15, 7, 4, 10, false, false> H6;
-  typedef HashLongestMatch<15, 8, 4, 16, true, false> H7;
+  typedef HashLongestMatch<15, 8, 4, 16, false, false> H7;
   typedef HashLongestMatch<15, 8, 4, 16, true, true> H8;
   typedef HashLongestMatch<15, 8, 2, 16, true, false> H9;
 

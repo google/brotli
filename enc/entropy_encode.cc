@@ -42,16 +42,8 @@ struct HuffmanTree {
 
 HuffmanTree::HuffmanTree() {}
 
-// Sort the root nodes, least popular first, break ties by value.
-bool SortHuffmanTree(const HuffmanTree &v0, const HuffmanTree &v1) {
-  if (v0.total_count_ == v1.total_count_) {
-    return v0.index_right_or_value_ > v1.index_right_or_value_;
-  }
-  return v0.total_count_ < v1.total_count_;
-}
-
 // Sort the root nodes, least popular first.
-bool SortHuffmanTreeFast(const HuffmanTree &v0, const HuffmanTree &v1) {
+bool SortHuffmanTree(const HuffmanTree &v0, const HuffmanTree &v1) {
   return v0.total_count_ < v1.total_count_;
 }
 
@@ -88,7 +80,6 @@ void SetDepth(const HuffmanTree &p,
 void CreateHuffmanTree(const int *data,
                        const int length,
                        const int tree_limit,
-                       const int quality,
                        uint8_t *depth) {
   // For block sizes below 64 kB, we never need to do a second iteration
   // of this loop. Probably all of our block sizes will be smaller than
@@ -98,7 +89,7 @@ void CreateHuffmanTree(const int *data,
     std::vector<HuffmanTree> tree;
     tree.reserve(2 * length + 1);
 
-    for (int i = 0; i < length; ++i) {
+    for (int i = length - 1; i >= 0; --i) {
       if (data[i]) {
         const int count = std::max(data[i], count_limit);
         tree.push_back(HuffmanTree(count, -1, i));
@@ -111,11 +102,8 @@ void CreateHuffmanTree(const int *data,
       break;
     }
 
-    if (quality > 1) {
-      std::sort(tree.begin(), tree.end(), SortHuffmanTree);
-    } else {
-      std::sort(tree.begin(), tree.end(), SortHuffmanTreeFast);
-    }
+    std::stable_sort(tree.begin(), tree.end(), SortHuffmanTree);
+
     // The nodes are:
     // [0, n): the sorted leaf nodes that we start with.
     // [n]: we add a sentinel here.
@@ -242,12 +230,21 @@ void WriteHuffmanTreeRepetitionsZeros(
 }
 
 int OptimizeHuffmanCountsForRle(int length, int* counts) {
+  int nonzero_count = 0;
   int stride;
   int limit;
   int sum;
   uint8_t* good_for_rle;
   // Let's make the Huffman code more compatible with rle encoding.
   int i;
+  for (i = 0; i < length; i++) {
+    if (counts[i]) {
+      ++nonzero_count;
+    }
+  }
+  if (nonzero_count < 16) {
+    return 1;
+  }
   for (; length >= 0; --length) {
     if (length == 0) {
       return 1;  // All zeros.

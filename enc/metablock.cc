@@ -26,10 +26,10 @@ namespace brotli {
 void BuildMetaBlock(const uint8_t* ringbuffer,
                     const size_t pos,
                     const size_t mask,
+                    uint8_t prev_byte,
+                    uint8_t prev_byte2,
                     const Command* cmds,
                     size_t num_commands,
-                    int num_direct_distance_codes,
-                    int distance_postfix_bits,
                     int literal_context_mode,
                     bool enable_context_modeling,
                     MetaBlockSplit* mb) {
@@ -56,6 +56,8 @@ void BuildMetaBlock(const uint8_t* ringbuffer,
                   ringbuffer,
                   pos,
                   mask,
+                  prev_byte,
+                  prev_byte2,
                   literal_context_modes,
                   &literal_histograms,
                   &mb->command_histograms,
@@ -107,13 +109,11 @@ class BlockSplitter {
                 int min_block_size,
                 double split_threshold,
                 int num_symbols,
-                int quality,
                 BlockSplit* split,
                 std::vector<HistogramType>* histograms)
       : alphabet_size_(alphabet_size),
         min_block_size_(min_block_size),
         split_threshold_(split_threshold),
-        quality_(quality),
         num_blocks_(0),
         split_(split),
         histograms_(histograms),
@@ -238,8 +238,6 @@ class BlockSplitter {
   // where A is the current histogram and B is the histogram of the last or the
   // second last block type.
   const double split_threshold_;
-  // Quality setting used for speed vs. compression ratio decisions.
-  const int quality_;
 
   int num_blocks_;
   BlockSplit* split_;  // not owned
@@ -265,7 +263,6 @@ void BuildMetaBlockGreedy(const uint8_t* ringbuffer,
                           size_t mask,
                           const Command *commands,
                           size_t n_commands,
-                          int quality,
                           MetaBlockSplit* mb) {
   int num_literals = 0;
   for (int i = 0; i < n_commands; ++i) {
@@ -273,13 +270,13 @@ void BuildMetaBlockGreedy(const uint8_t* ringbuffer,
   }
 
   BlockSplitter<HistogramLiteral> lit_blocks(
-      256, 512, 400.0, num_literals, quality,
+      256, 512, 400.0, num_literals,
       &mb->literal_split, &mb->literal_histograms);
   BlockSplitter<HistogramCommand> cmd_blocks(
-      kNumCommandPrefixes, 1024, 500.0, n_commands, quality,
+      kNumCommandPrefixes, 1024, 500.0, n_commands,
       &mb->command_split, &mb->command_histograms);
   BlockSplitter<HistogramDistance> dist_blocks(
-      64, 512, 100.0, n_commands, quality,
+      64, 512, 100.0, n_commands,
       &mb->distance_split, &mb->distance_histograms);
 
   for (int i = 0; i < n_commands; ++i) {
@@ -298,6 +295,25 @@ void BuildMetaBlockGreedy(const uint8_t* ringbuffer,
   lit_blocks.FinishBlock(/* is_final = */ true);
   cmd_blocks.FinishBlock(/* is_final = */ true);
   dist_blocks.FinishBlock(/* is_final = */ true);
+}
+
+void OptimizeHistograms(int num_direct_distance_codes,
+                        int distance_postfix_bits,
+                        MetaBlockSplit* mb) {
+  for (int i = 0; i < mb->literal_histograms.size(); ++i) {
+    OptimizeHuffmanCountsForRle(256, &mb->literal_histograms[i].data_[0]);
+  }
+  for (int i = 0; i < mb->command_histograms.size(); ++i) {
+    OptimizeHuffmanCountsForRle(kNumCommandPrefixes,
+                                &mb->command_histograms[i].data_[0]);
+  }
+  int num_distance_codes =
+      kNumDistanceShortCodes + num_direct_distance_codes +
+      (48 << distance_postfix_bits);
+  for (int i = 0; i < mb->distance_histograms.size(); ++i) {
+    OptimizeHuffmanCountsForRle(num_distance_codes,
+                                &mb->distance_histograms[i].data_[0]);
+  }
 }
 
 }  // namespace brotli

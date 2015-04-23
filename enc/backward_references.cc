@@ -346,7 +346,7 @@ void CreateBackwardReferences(size_t num_bytes,
           commands, num_commands);
       break;
     case 7:
-      CreateBackwardReferences<Hashers::H7, true, false>(
+      CreateBackwardReferences<Hashers::H7, false, false>(
           num_bytes, position, ringbuffer, ringbuffer_mask,
           literal_cost, literal_cost_mask, max_backward_limit, base_min_score,
           quality, hashers->hash_h7.get(), dist_cache, last_insert_len,

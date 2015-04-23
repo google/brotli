@@ -37,7 +37,6 @@ namespace brotli {
 void CreateHuffmanTree(const int *data,
                        const int length,
                        const int tree_limit,
-                       const int quality,
                        uint8_t *depth);
 
 // Change the population counts in a way that the consequent

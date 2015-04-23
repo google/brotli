@@ -52,16 +52,16 @@ class StaticDictionary {
       return;
     }
     map_[str] = ix;
-    int v = 0;
+    uint32_t v = 0;
     for (int i = 0; i < 4 && i < str.size(); ++i) {
-      v += str[i] << (8 * i);
+      v += static_cast<uint32_t>(str[i]) << (8 * i);
     }
     if (prefix_map_[v] < str.size()) {
       prefix_map_[v] = str.size();
     }
   }
-  int GetLength(int v) const {
-    std::unordered_map<int, int>::const_iterator it = prefix_map_.find(v);
+  int GetLength(uint32_t v) const {
+    std::unordered_map<uint32_t, int>::const_iterator it = prefix_map_.find(v);
     if (it == prefix_map_.end()) {
       return 0;
     }
@@ -79,7 +79,7 @@ class StaticDictionary {
   }
  private:
   std::unordered_map<std::string, int> map_;
-  std::unordered_map<int, int> prefix_map_;
+  std::unordered_map<uint32_t, int> prefix_map_;
 };
 
 }  // namespace brotli

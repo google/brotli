@@ -116,7 +116,7 @@ static inline int HuffmanBitCost(const uint8_t* depth, int length) {
 
   // create huffman tree of huffman tree
   uint8_t cost[kCodeLengthCodes] = { 0 };
-  CreateHuffmanTree(histogram, kCodeLengthCodes, 7, 9, cost);
+  CreateHuffmanTree(histogram, kCodeLengthCodes, 7, cost);
   // account for rle extra bits
   cost[16] += 2;
   cost[17] += 3;
@@ -148,7 +148,7 @@ double PopulationCost(const Histogram<kSize>& histogram) {
     return 20 + histogram.total_count_;
   }
   uint8_t depth[kSize] = { 0 };
-  CreateHuffmanTree(&histogram.data_[0], kSize, 15, 9, depth);
+  CreateHuffmanTree(&histogram.data_[0], kSize, 15, depth);
   int bits = 0;
   for (int i = 0; i < kSize; ++i) {
     bits += histogram.data_[i] * depth[i];

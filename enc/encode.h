@@ -67,6 +67,7 @@ struct BrotliParams {
   bool enable_context_modeling;
 };
 
+// An instance can not be reused for multiple brotli streams.
 class BrotliCompressor {
  public:
   explicit BrotliCompressor(BrotliParams params);
@@ -153,6 +154,8 @@ class BrotliCompressor {
   int dist_cache_[4];
   uint8_t last_byte_;
   uint8_t last_byte_bits_;
+  uint8_t prev_byte_;
+  uint8_t prev_byte2_;
   int storage_size_;
   std::unique_ptr<uint8_t[]> storage_;
   static StaticDictionary *static_dictionary_;
