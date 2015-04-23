@@ -27,12 +27,13 @@
 #include <memory>
 #include <string>
 
-#include "./transform.h"
+#include "./dictionary_hash.h"
 #include "./fast_log.h"
 #include "./find_match_length.h"
 #include "./port.h"
 #include "./prefix.h"
 #include "./static_dict.h"
+#include "./transform.h"
 
 namespace brotli {
 
@@ -120,6 +121,8 @@ class HashLongestMatchQuickly {
     std::fill(&buckets_[0],
               &buckets_[sizeof(buckets_) / sizeof(buckets_[0])],
               0);
+    num_dict_lookups_ = 0;
+    num_dict_matches_ = 0;
   }
   // Look at 4 bytes at data.
   // Compute a hash from these, and store the value somewhere within
@@ -247,6 +250,36 @@ class HashLongestMatchQuickly {
           }
         }
       }
+      if (!match_found && num_dict_matches_ >= (num_dict_lookups_ >> 7)) {
+        ++num_dict_lookups_;
+        const uint32_t key = Hash<14, 4>(&ring_buffer[cur_ix_masked]) << 1;
+        const uint16_t v = kStaticDictionaryHash[key];
+        if (v > 0) {
+          const int len = v & 31;
+          const int dist = v >> 5;
+          const int offset = kBrotliDictionaryOffsetsByLength[len] + len * dist;
+          if (len <= max_length) {
+            const int matchlen =
+                FindMatchLengthWithLimit(&ring_buffer[cur_ix_masked],
+                                         &kBrotliDictionary[offset], len);
+            if (matchlen == len) {
+              const size_t backward = max_backward + dist + 1;
+              const double score = BackwardReferenceScore(average_cost,
+                                                          len, backward);
+              if (best_score < score) {
+                ++num_dict_matches_;
+                best_score = score;
+                best_len = len;
+                *best_len_out = best_len;
+                *best_len_code_out = best_len;
+                *best_distance_out = backward;
+                *best_score_out = best_score;
+                return true;
+              }
+            }
+          }
+        }
+      }
       return match_found;
     }
   }
@@ -254,6 +287,8 @@ class HashLongestMatchQuickly {
  private:
   static const uint32_t kBucketSize = 1 << kBucketBits;
   uint32_t buckets_[kBucketSize + kBucketSweep];
+  size_t num_dict_lookups_;
+  size_t num_dict_matches_;
 };
 
 // A (forgetful) hash table to the data seen by the compressor, to
@@ -275,6 +310,8 @@ class HashLongestMatch {
   }
   void Reset() {
     std::fill(&num_[0], &num_[sizeof(num_) / sizeof(num_[0])], 0);
+    num_dict_lookups_ = 0;
+    num_dict_matches_ = 0;
   }
   void SetStaticDictionary(const StaticDictionary *dict) {
     static_dict_ = dict;
@@ -463,6 +500,42 @@ class HashLongestMatch {
         }
       }
     }
+    if (!match_found && num_dict_matches_ >= (num_dict_lookups_ >> 7)) {
+      uint32_t key = Hash<14, 4>(&data[cur_ix_masked]) << 1;
+      for (int k = 0; k < 2; ++k, ++key) {
+        ++num_dict_lookups_;
+        const uint16_t v = kStaticDictionaryHash[key];
+        if (v > 0) {
+          const int len = v & 31;
+          const int dist = v >> 5;
+          const int offset = kBrotliDictionaryOffsetsByLength[len] + len * dist;
+          if (len <= max_length) {
+            const int matchlen =
+                FindMatchLengthWithLimit(&data[cur_ix_masked],
+                                         &kBrotliDictionary[offset], len);
+            if (matchlen == len) {
+              const size_t backward = max_backward + dist + 1;
+              double score = BackwardReferenceScore(average_cost,
+                                                    len, backward);
+              if (kUseCostModel) {
+                score += start_cost_diff4;
+              }
+              if (best_score < score) {
+                ++num_dict_matches_;
+                best_score = score;
+                best_len = len;
+                *best_len_out = best_len;
+                *best_len_code_out = best_len;
+                *best_distance_out = backward;
+                *best_score_out = best_score;
+                match_found = true;
+                break;
+              }
+            }
+          }
+        }
+      }
+    }
     if (kUseDictionary && static_dict_ != NULL) {
       // We decide based on first 4 bytes how many bytes to test for.
       int prefix = BROTLI_UNALIGNED_LOAD32(&data[cur_ix_masked]);
@@ -508,6 +581,9 @@ class HashLongestMatch {
 
   // Buckets containing kBlockSize of backward references.
   int buckets_[kBucketSize][kBlockSize];
+
+  size_t num_dict_lookups_;
+  size_t num_dict_matches_;
 
   const StaticDictionary *static_dict_;
 };
