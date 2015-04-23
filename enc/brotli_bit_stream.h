@@ -130,6 +130,9 @@ bool StoreUncompressedMetaBlock(bool final_block,
                                 int* storage_ix,
                                 uint8_t* storage);
 
+// Stores an empty metadata meta-block and syncs to a byte boundary.
+void StoreSyncMetaBlock(int* storage_ix, uint8_t* storage);
+
 }  // namespace brotli
 
 #endif  // BROTLI_ENC_BROTLI_BIT_STREAM_H_

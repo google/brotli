@@ -36,7 +36,7 @@ namespace brotli {
 bool EncodeMlen(size_t length, int* bits, int* numbits, int* nibblesbits) {
   length--;  // MLEN - 1 is encoded
   int lg = length == 0 ? 1 : Log2Floor(length) + 1;
-  if (lg > 28) return false;
+  if (lg > 24) return false;
   int mnibbles = (lg < 16 ? 16 : (lg + 3)) / 4;
   *nibblesbits = mnibbles - 4;
   *numbits = mnibbles * 4;
@@ -826,6 +826,17 @@ bool StoreUncompressedMetaBlock(bool final_block,
     JumpToByteBoundary(storage_ix, storage);
   }
   return true;
+}
+
+void StoreSyncMetaBlock(int * __restrict storage_ix,
+                        uint8_t * __restrict storage) {
+  // Empty metadata meta-block bit pattern:
+  //   1 bit:  is_last (0)
+  //   2 bits: num nibbles (3)
+  //   1 bit:  reserved (0)
+  //   2 bits: metadata length bytes (0)
+  WriteBits(6, 6, storage_ix, storage);
+  JumpToByteBoundary(storage_ix, storage);
 }
 
 }  // namespace brotli

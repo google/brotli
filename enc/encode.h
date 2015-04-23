@@ -85,6 +85,18 @@ class BrotliCompressor {
                       size_t* encoded_size,
                       uint8_t* encoded_buffer);
 
+  // Writes a metadata meta-block containing the given input to encoded_buffer.
+  // *encoded_size should be set to the size of the encoded_buffer.
+  // Sets *encoded_size to the number of bytes that was written.
+  // Note that the given input data will not be part of the sliding window and
+  // thus no backward references can be made to this data from subsequent
+  // metablocks.
+  bool WriteMetadata(const size_t input_size,
+                     const uint8_t* input_buffer,
+                     const bool is_last,
+                     size_t* encoded_size,
+                     uint8_t* encoded_buffer);
+
   // Writes a zero-length meta-block with end-of-input bit set to the
   // internal output buffer and copies the output buffer to encoded_buffer
   // (*encoded_size should be set to the size of encoded_buffer) and sets

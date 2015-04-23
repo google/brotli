@@ -467,6 +467,39 @@ bool BrotliCompressor::WriteMetaBlock(const size_t input_size,
   return true;
 }
 
+bool BrotliCompressor::WriteMetadata(const size_t input_size,
+                                     const uint8_t* input_buffer,
+                                     const bool is_last,
+                                     size_t* encoded_size,
+                                     uint8_t* encoded_buffer) {
+  if (input_size > (1 << 24) || input_size + 6 > *encoded_size) {
+    return false;
+  }
+  int storage_ix = last_byte_bits_;
+  encoded_buffer[0] = last_byte_;
+  WriteBits(1, 0, &storage_ix, encoded_buffer);
+  WriteBits(2, 3, &storage_ix, encoded_buffer);
+  WriteBits(1, 0, &storage_ix, encoded_buffer);
+  if (input_size == 0) {
+    WriteBits(2, 0, &storage_ix, encoded_buffer);
+    *encoded_size = (storage_ix + 7) >> 3;
+  } else {
+    size_t nbits = Log2Floor(input_size - 1) + 1;
+    size_t nbytes = (nbits + 7) / 8;
+    WriteBits(2, nbytes, &storage_ix, encoded_buffer);
+    WriteBits(8 * nbytes, input_size - 1, &storage_ix, encoded_buffer);
+    size_t hdr_size = (storage_ix + 7) >> 3;
+    memcpy(&encoded_buffer[hdr_size], input_buffer, input_size);
+    *encoded_size = hdr_size + input_size;
+  }
+  if (is_last) {
+    encoded_buffer[(*encoded_size)++] = 3;
+  }
+  last_byte_ = 0;
+  last_byte_bits_ = 0;
+  return true;
+}
+
 bool BrotliCompressor::FinishStream(
     size_t* encoded_size, uint8_t* encoded_buffer) {
   return WriteMetaBlock(0, NULL, true, encoded_size, encoded_buffer);
