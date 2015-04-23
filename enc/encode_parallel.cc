@@ -144,6 +144,9 @@ bool WriteMetaBlockParallel(const BrotliParams& params,
   // mask + 1 as the size of the ringbuffer.
   const size_t mask = std::numeric_limits<size_t>::max() >> 1;
 
+  uint8_t prev_byte = input_pos > 0 ? input[(input_pos - 1) & mask] : 0;
+  uint8_t prev_byte2 = input_pos > 1 ? input[(input_pos - 2) & mask] : 0;
+
   // Decide about UTF8 mode.
   static const double kMinUTF8Ratio = 0.75;
   bool utf8_mode = IsMostlyUTF8(&input[input_pos], input_size, kMinUTF8Ratio);
@@ -200,18 +203,17 @@ bool WriteMetaBlockParallel(const BrotliParams& params,
       params.mode == BrotliParams::MODE_FONT ? 12 : 0;
   int distance_postfix_bits = params.mode == BrotliParams::MODE_FONT ? 1 : 0;
   int literal_context_mode = utf8_mode ? CONTEXT_UTF8 : CONTEXT_SIGNED;
+  RecomputeDistancePrefixes(&commands,
+                            num_direct_distance_codes,
+                            distance_postfix_bits);
   if (params.greedy_block_split) {
     BuildMetaBlockGreedy(&input[0], input_pos, mask,
-                         commands.data(), commands.size(), params.quality,
+                         commands.data(), commands.size(),
                          &mb);
   } else {
-    RecomputeDistancePrefixes(&commands,
-                              num_direct_distance_codes,
-                              distance_postfix_bits);
     BuildMetaBlock(&input[0], input_pos, mask,
+                   prev_byte, prev_byte2,
                    commands.data(), commands.size(),
-                   num_direct_distance_codes,
-                   distance_postfix_bits,
                    literal_context_mode,
                    true,
                    &mb);
@@ -236,7 +238,8 @@ bool WriteMetaBlockParallel(const BrotliParams& params,
 
   // Store the meta-block to the temporary output.
   if (!StoreMetaBlock(&input[0], input_pos, input_size, mask,
-                      is_last, params.quality,
+                      prev_byte, prev_byte2,
+                      is_last,
                       num_direct_distance_codes,
                       distance_postfix_bits,
                       literal_context_mode,

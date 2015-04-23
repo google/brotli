@@ -95,21 +95,12 @@ void BuildHistograms(
     const uint8_t* ringbuffer,
     size_t pos,
     size_t mask,
+    uint8_t prev_byte,
+    uint8_t prev_byte2,
     const std::vector<int>& context_modes,
     std::vector<HistogramLiteral>* literal_histograms,
     std::vector<HistogramCommand>* insert_and_copy_histograms,
     std::vector<HistogramDistance>* copy_dist_histograms);
-
-void BuildLiteralHistogramsForBlockType(
-    const Command* cmds,
-    const size_t num_commands,
-    const BlockSplit& literal_split,
-    const uint8_t* ringbuffer,
-    size_t pos,
-    size_t mask,
-    int block_type,
-    int context_mode,
-    std::vector<HistogramLiteral>* histograms);
 
 }  // namespace brotli
 

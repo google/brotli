@@ -33,12 +33,15 @@ void BuildHistograms(
     const BlockSplit& insert_and_copy_split,
     const BlockSplit& dist_split,
     const uint8_t* ringbuffer,
-    size_t pos,
+    size_t start_pos,
     size_t mask,
+    uint8_t prev_byte,
+    uint8_t prev_byte2,
     const std::vector<int>& context_modes,
     std::vector<HistogramLiteral>* literal_histograms,
     std::vector<HistogramCommand>* insert_and_copy_histograms,
     std::vector<HistogramDistance>* copy_dist_histograms) {
+  size_t pos = start_pos;
   BlockSplitIterator literal_it(literal_split);
   BlockSplitIterator insert_and_copy_it(insert_and_copy_split);
   BlockSplitIterator dist_it(dist_split);
@@ -49,47 +52,24 @@ void BuildHistograms(
         cmd.cmd_prefix_);
     for (int j = 0; j < cmd.insert_len_; ++j) {
       literal_it.Next();
-      uint8_t prev_byte = pos > 0 ? ringbuffer[(pos - 1) & mask] : 0;
-      uint8_t prev_byte2 = pos > 1 ? ringbuffer[(pos - 2) & mask] : 0;
       int context = (literal_it.type_ << kLiteralContextBits) +
           Context(prev_byte, prev_byte2, context_modes[literal_it.type_]);
       (*literal_histograms)[context].Add(ringbuffer[pos & mask]);
+      prev_byte2 = prev_byte;
+      prev_byte = ringbuffer[pos & mask];
       ++pos;
     }
     pos += cmd.copy_len_;
-    if (cmd.copy_len_ > 0 && cmd.cmd_prefix_ >= 128) {
-      dist_it.Next();
-      int context = (dist_it.type_ << kDistanceContextBits) +
-          cmd.DistanceContext();
-      (*copy_dist_histograms)[context].Add(cmd.dist_prefix_);
-    }
-  }
-}
-
-void BuildLiteralHistogramsForBlockType(
-    const Command* cmds,
-    const size_t num_commands,
-    const BlockSplit& literal_split,
-    const uint8_t* ringbuffer,
-    size_t pos,
-    size_t mask,
-    int block_type,
-    int context_mode,
-    std::vector<HistogramLiteral>* histograms) {
-  BlockSplitIterator literal_it(literal_split);
-  for (int i = 0; i < num_commands; ++i) {
-    const Command &cmd = cmds[i];
-    for (int j = 0; j < cmd.insert_len_; ++j) {
-      literal_it.Next();
-      if (literal_it.type_ == block_type) {
-        uint8_t prev_byte = pos > 0 ? ringbuffer[(pos - 1) & mask] : 0;
-        uint8_t prev_byte2 = pos > 1 ? ringbuffer[(pos - 2) & mask] : 0;
-        int context = Context(prev_byte, prev_byte2, context_mode);
-        (*histograms)[context].Add(ringbuffer[pos & mask]);
+    if (cmd.copy_len_ > 0) {
+      prev_byte2 = ringbuffer[(pos - 2) & mask];
+      prev_byte = ringbuffer[(pos - 1) & mask];
+      if (cmd.cmd_prefix_ >= 128) {
+        dist_it.Next();
+        int context = (dist_it.type_ << kDistanceContextBits) +
+            cmd.DistanceContext();
+        (*copy_dist_histograms)[context].Add(cmd.dist_prefix_);
       }
-      ++pos;
     }
-    pos += cmd.copy_len_;
   }
 }
 

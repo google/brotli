@@ -137,6 +137,8 @@ BrotliCompressor::BrotliCompressor(BrotliParams params)
       last_insert_len_(0),
       last_flush_pos_(0),
       last_processed_pos_(0),
+      prev_byte_(0),
+      prev_byte2_(0),
       storage_size_(0) {
   // Sanitize params.
   params_.quality = std::max(0, params_.quality);
@@ -324,7 +326,7 @@ bool BrotliCompressor::WriteBrotliData(const bool is_last,
 
   if (!is_last && !force_flush &&
       num_commands_ + (input_block_size() >> 1) < cmd_buffer_size_ &&
-      input_pos_ + input_block_size() + 2 <= last_flush_pos_ + mask + 1) {
+      input_pos_ + input_block_size() <= last_flush_pos_ + mask + 1) {
     // Everything will happen later.
     last_processed_pos_ = input_pos_;
     *out_size = 0;
@@ -395,29 +397,33 @@ bool BrotliCompressor::WriteMetaBlockInternal(const bool is_last,
     if (params_.quality > 9 && params_.mode == BrotliParams::MODE_FONT) {
       num_direct_distance_codes = 12;
       distance_postfix_bits = 1;
+      RecomputeDistancePrefixes(commands_.get(),
+                                num_commands_,
+                                num_direct_distance_codes,
+                                distance_postfix_bits);
     }
     int literal_context_mode = utf8_mode ? CONTEXT_UTF8 : CONTEXT_SIGNED;
     MetaBlockSplit mb;
     if (params_.greedy_block_split) {
       BuildMetaBlockGreedy(data, last_flush_pos_, mask,
                            commands_.get(), num_commands_,
-                           params_.quality,
                            &mb);
     } else {
-      RecomputeDistancePrefixes(commands_.get(),
-                                num_commands_,
-                                num_direct_distance_codes,
-                                distance_postfix_bits);
       BuildMetaBlock(data, last_flush_pos_, mask,
+                     prev_byte_, prev_byte2_,
                      commands_.get(), num_commands_,
-                     num_direct_distance_codes,
-                     distance_postfix_bits,
                      literal_context_mode,
                      params_.enable_context_modeling,
                      &mb);
     }
+    if (params_.quality >= 3) {
+      OptimizeHistograms(num_direct_distance_codes,
+                         distance_postfix_bits,
+                         &mb);
+    }
     if (!StoreMetaBlock(data, last_flush_pos_, bytes, mask,
-                        is_last, params_.quality,
+                        prev_byte_, prev_byte2_,
+                        is_last,
                         num_direct_distance_codes,
                         distance_postfix_bits,
                         literal_context_mode,
@@ -442,6 +448,8 @@ bool BrotliCompressor::WriteMetaBlockInternal(const bool is_last,
   last_byte_bits_ = storage_ix & 7;
   last_flush_pos_ = input_pos_;
   last_processed_pos_ = input_pos_;
+  prev_byte_ = data[(last_flush_pos_ - 1) & mask];
+  prev_byte2_ = data[(last_flush_pos_ - 2) & mask];
   num_commands_ = 0;
   *output = &storage[0];
   *out_size = storage_ix >> 3;
