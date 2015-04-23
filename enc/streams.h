@@ -103,7 +103,7 @@ class BrotliStringOut : public BrotliOut {
 class BrotliFileIn : public BrotliIn {
  public:
   BrotliFileIn(FILE* f, size_t max_read_size);
-  ~BrotliFileIn() override;
+  ~BrotliFileIn();
 
   const void* Read(size_t n, size_t* bytes_read) override;
 
