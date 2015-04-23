@@ -129,10 +129,10 @@ bool WriteMetaBlockParallel(const BrotliParams& params,
                             const bool is_last,
                             size_t* encoded_size,
                             uint8_t* encoded_buffer) {
-  if (block_size == 0 || (!is_last && block_size == 1)) {
+  if (block_size == 0) {
     return false;
   }
-  const size_t input_size = is_last ? block_size : block_size - 1;
+  const size_t input_size = block_size;
 
   // Copy prefix + next input block into a continuous area.
   size_t input_pos = prefix_size;
@@ -246,13 +246,10 @@ bool WriteMetaBlockParallel(const BrotliParams& params,
     return false;
   }
 
-  // If this is not the last meta-block, store a one-byte uncompressed
+  // If this is not the last meta-block, store an empty metadata
   // meta-block so that the meta-block will end at a byte boundary.
-  if (!is_last &&
-      !StoreUncompressedMetaBlock(is_last, &input_buffer[input_size],
-                                  0, mask, 1,
-                                  &storage_ix, &storage[0])) {
-    return false;
+  if (!is_last) {
+    StoreSyncMetaBlock(&storage_ix, &storage[0]);
   }
 
   // If the compressed data is too large, fall back to an uncompressed
