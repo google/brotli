@@ -244,6 +244,22 @@ void HistogramReindex(std::vector<HistogramType>* out,
   }
 }
 
+template<typename HistogramType>
+void ClusterHistogramsTrivial(const std::vector<HistogramType>& in,
+                              int num_contexts, int num_blocks,
+                              int max_histograms,
+                              std::vector<HistogramType>* out,
+                              std::vector<int>* histogram_symbols) {
+  out->resize(num_blocks);
+  for (int i = 0; i < num_blocks; ++i) {
+    (*out)[i].Clear();
+    for (int j = 0; j < num_contexts; ++j) {
+      (*out)[i].AddHistogram(in[i * num_contexts + j]);
+      histogram_symbols->push_back(i);
+    }
+  }
+}
+
 // Clusters similar histograms in 'in' together, the selected histograms are
 // placed in 'out', and for each index in 'in', *histogram_symbols will
 // indicate which of the 'out' histograms is the best approximation.
