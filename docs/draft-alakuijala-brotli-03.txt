@@ -39,7 +39,7 @@ Status of this Memo
 
 Copyright Notice
 
-   Copyright (c) 2014, 2015 IETF Trust and the persons identified as the
+   Copyright (c) 2015 IETF Trust and the persons identified as the
    document authors.  All rights reserved.
 
    This document is subject to BCP 78 and the IETF Trust's Legal
