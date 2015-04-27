@@ -9,7 +9,7 @@
 .ds LH Internet-Draft
 .ds RH April 2015
 .ds CH Brotli
-.ds CF Expires April 27, 2015
+.ds CF Expires October 27, 2015
 .hy 0
 .nh
 .ad l
@@ -18,13 +18,13 @@
 .tl 'Network Working Group''J. Alakuijala'
 .tl 'Internet-Draft''Z. Szabadka'
 .tl 'Intended Status: Informational''Google, Inc'
-.tl 'Expires: April 27, 2015''April 2015'
+.tl 'Expires: October 27, 2015''April 2015'
 .fi
 
 
 .ce 2
 Brotli Compressed Data Format 
-draft-alakuijala-brotli-02-edit
+draft-alakuijala-brotli-03
 .fi
 .in 3
 
@@ -52,7 +52,7 @@ and may be updated, replaced, or obsoleted by other documents at any
 time.  It is inappropriate to use Internet-Drafts as reference
 material or to cite them other than as "work in progress."
 
-This Internet-Draft will expire on April 27, 2015.
+This Internet-Draft will expire on October 27, 2015.
 
 .ti 0
 Copyright Notice
