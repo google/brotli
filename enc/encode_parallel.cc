@@ -175,6 +175,7 @@ bool WriteMetaBlockParallel(const BrotliParams& params,
   // Compute backward references.
   int last_insert_len = 0;
   int num_commands = 0;
+  int num_literals = 0;
   double base_min_score = 8.115;
   int max_backward_distance = (1 << params.lgwin) - 16;
   int dist_cache[4] = { -4, -4, -4, -4 };
@@ -191,10 +192,12 @@ bool WriteMetaBlockParallel(const BrotliParams& params,
       dist_cache,
       &last_insert_len,
       &commands[0],
-      &num_commands);
+      &num_commands,
+      &num_literals);
   commands.resize(num_commands);
   if (last_insert_len > 0) {
     commands.push_back(Command(last_insert_len));
+    num_literals += last_insert_len;
   }
 
   // Build the meta-block.
