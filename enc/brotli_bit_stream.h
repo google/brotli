@@ -120,6 +120,18 @@ bool StoreMetaBlock(const uint8_t* input,
                     int *storage_ix,
                     uint8_t *storage);
 
+// Stores the meta-block without doing any block splitting, just collects
+// one histogram per block category and uses that for entropy coding.
+bool StoreMetaBlockTrivial(const uint8_t* input,
+                           size_t start_pos,
+                           size_t length,
+                           size_t mask,
+                           bool is_last,
+                           const brotli::Command *commands,
+                           size_t n_commands,
+                           int *storage_ix,
+                           uint8_t *storage);
+
 // This is for storing uncompressed blocks (simple raw storage of
 // bytes-as-bytes).
 bool StoreUncompressedMetaBlock(bool final_block,

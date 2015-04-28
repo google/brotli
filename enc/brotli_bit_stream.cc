@@ -778,6 +778,91 @@ bool StoreMetaBlock(const uint8_t* input,
   return true;
 }
 
+bool StoreMetaBlockTrivial(const uint8_t* input,
+                           size_t start_pos,
+                           size_t length,
+                           size_t mask,
+                           bool is_last,
+                           const brotli::Command *commands,
+                           size_t n_commands,
+                           int *storage_ix,
+                           uint8_t *storage) {
+  if (!StoreCompressedMetaBlockHeader(is_last, length, storage_ix, storage)) {
+    return false;
+  }
+
+  if (length == 0) {
+    // Only the last meta-block can be empty, so jump to next byte.
+    JumpToByteBoundary(storage_ix, storage);
+    return true;
+  }
+
+  HistogramLiteral lit_histo;
+  HistogramCommand cmd_histo;
+  HistogramDistance dist_histo;
+
+  size_t pos = start_pos;
+  for (int i = 0; i < n_commands; ++i) {
+    const Command cmd = commands[i];
+    cmd_histo.Add(cmd.cmd_prefix_);
+    for (int j = 0; j < cmd.insert_len_; ++j) {
+      lit_histo.Add(input[pos & mask]);
+      ++pos;
+    }
+    pos += cmd.copy_len_;
+    if (cmd.copy_len_ > 0 && cmd.cmd_prefix_ >= 128) {
+      dist_histo.Add(cmd.dist_prefix_);
+    }
+  }
+
+  WriteBits(13, 0, storage_ix, storage);
+
+  std::vector<uint8_t> lit_depth(256);
+  std::vector<uint16_t> lit_bits(256);
+  std::vector<uint8_t> cmd_depth(kNumCommandPrefixes);
+  std::vector<uint16_t> cmd_bits(kNumCommandPrefixes);
+  std::vector<uint8_t> dist_depth(64);
+  std::vector<uint16_t> dist_bits(64);
+
+  BuildAndStoreHuffmanTree(&lit_histo.data_[0], 256,
+                           &lit_depth[0], &lit_bits[0],
+                           storage_ix, storage);
+  BuildAndStoreHuffmanTree(&cmd_histo.data_[0], kNumCommandPrefixes,
+                           &cmd_depth[0], &cmd_bits[0],
+                           storage_ix, storage);
+  BuildAndStoreHuffmanTree(&dist_histo.data_[0], 64,
+                           &dist_depth[0], &dist_bits[0],
+                           storage_ix, storage);
+
+  pos = start_pos;
+  for (int i = 0; i < n_commands; ++i) {
+    const Command cmd = commands[i];
+    const int cmd_code = cmd.cmd_prefix_;
+    const int lennumextra = cmd.cmd_extra_ >> 48;
+    const uint64_t lenextra = cmd.cmd_extra_ & 0xffffffffffffULL;
+    WriteBits(cmd_depth[cmd_code], cmd_bits[cmd_code], storage_ix, storage);
+    WriteBits(lennumextra, lenextra, storage_ix, storage);
+    for (int j = 0; j < cmd.insert_len_; j++) {
+      const uint8_t literal = input[pos & mask];
+      WriteBits(lit_depth[literal], lit_bits[literal], storage_ix, storage);
+      ++pos;
+    }
+    pos += cmd.copy_len_;
+    if (cmd.copy_len_ > 0 && cmd.cmd_prefix_ >= 128) {
+      const int dist_code = cmd.dist_prefix_;
+      const int distnumextra = cmd.dist_extra_ >> 24;
+      const int distextra = cmd.dist_extra_ & 0xffffff;
+      WriteBits(dist_depth[dist_code], dist_bits[dist_code],
+                storage_ix, storage);
+      WriteBits(distnumextra, distextra, storage_ix, storage);
+    }
+  }
+  if (is_last) {
+    JumpToByteBoundary(storage_ix, storage);
+  }
+  return true;
+}
+
 // This is for storing uncompressed blocks (simple raw storage of
 // bytes-as-bytes).
 bool StoreUncompressedMetaBlock(bool final_block,

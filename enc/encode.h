@@ -148,6 +148,7 @@ class BrotliCompressor {
   size_t cmd_buffer_size_;
   std::unique_ptr<Command[]> commands_;
   int num_commands_;
+  int num_literals_;
   int last_insert_len_;
   size_t last_flush_pos_;
   size_t last_processed_pos_;

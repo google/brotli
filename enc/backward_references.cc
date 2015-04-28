@@ -37,7 +37,8 @@ void CreateBackwardReferences(size_t num_bytes,
                               int* dist_cache,
                               int* last_insert_len,
                               Command* commands,
-                              int* num_commands) {
+                              int* num_commands,
+                              int* num_literals) {
   if (num_bytes >= 3 && position >= 3) {
     // Prepare the hashes for three last bytes of the last write.
     // These could not be calculated before, since they require knowledge
@@ -204,6 +205,7 @@ void CreateBackwardReferences(size_t num_bytes,
       }
       Command cmd(insert_length, best_len, best_len_code, distance_code);
       *commands++ = cmd;
+      *num_literals += insert_length;
       insert_length = 0;
       if (kUseDictionary) {
         ++i;
@@ -301,70 +303,71 @@ void CreateBackwardReferences(size_t num_bytes,
                               int* dist_cache,
                               int* last_insert_len,
                               Command* commands,
-                              int* num_commands) {
+                              int* num_commands,
+                              int* num_literals) {
   switch (hash_type) {
     case 1:
       CreateBackwardReferences<Hashers::H1, false, false>(
           num_bytes, position, ringbuffer, ringbuffer_mask,
           literal_cost, literal_cost_mask, max_backward_limit, base_min_score,
           quality, hashers->hash_h1.get(), dist_cache, last_insert_len,
-          commands, num_commands);
+          commands, num_commands, num_literals);
       break;
     case 2:
       CreateBackwardReferences<Hashers::H2, false, false>(
           num_bytes, position, ringbuffer, ringbuffer_mask,
           literal_cost, literal_cost_mask, max_backward_limit, base_min_score,
           quality, hashers->hash_h2.get(), dist_cache, last_insert_len,
-          commands, num_commands);
+          commands, num_commands, num_literals);
       break;
     case 3:
       CreateBackwardReferences<Hashers::H3, false, false>(
           num_bytes, position, ringbuffer, ringbuffer_mask,
           literal_cost, literal_cost_mask, max_backward_limit, base_min_score,
           quality, hashers->hash_h3.get(), dist_cache, last_insert_len,
-          commands, num_commands);
+          commands, num_commands, num_literals);
       break;
     case 4:
       CreateBackwardReferences<Hashers::H4, false, false>(
           num_bytes, position, ringbuffer, ringbuffer_mask,
           literal_cost, literal_cost_mask, max_backward_limit, base_min_score,
           quality, hashers->hash_h4.get(), dist_cache, last_insert_len,
-          commands, num_commands);
+          commands, num_commands, num_literals);
       break;
     case 5:
       CreateBackwardReferences<Hashers::H5, false, false>(
           num_bytes, position, ringbuffer, ringbuffer_mask,
           literal_cost, literal_cost_mask, max_backward_limit, base_min_score,
           quality, hashers->hash_h5.get(), dist_cache, last_insert_len,
-          commands, num_commands);
+          commands, num_commands, num_literals);
       break;
     case 6:
       CreateBackwardReferences<Hashers::H6, false, false>(
           num_bytes, position, ringbuffer, ringbuffer_mask,
           literal_cost, literal_cost_mask, max_backward_limit, base_min_score,
           quality, hashers->hash_h6.get(), dist_cache, last_insert_len,
-          commands, num_commands);
+          commands, num_commands, num_literals);
       break;
     case 7:
       CreateBackwardReferences<Hashers::H7, false, false>(
           num_bytes, position, ringbuffer, ringbuffer_mask,
           literal_cost, literal_cost_mask, max_backward_limit, base_min_score,
           quality, hashers->hash_h7.get(), dist_cache, last_insert_len,
-          commands, num_commands);
+          commands, num_commands, num_literals);
       break;
     case 8:
       CreateBackwardReferences<Hashers::H8, true, true>(
           num_bytes, position, ringbuffer, ringbuffer_mask,
           literal_cost, literal_cost_mask, max_backward_limit, base_min_score,
           quality, hashers->hash_h8.get(), dist_cache, last_insert_len,
-          commands, num_commands);
+          commands, num_commands, num_literals);
       break;
     case 9:
       CreateBackwardReferences<Hashers::H9, true, false>(
           num_bytes, position, ringbuffer, ringbuffer_mask,
           literal_cost, literal_cost_mask, max_backward_limit, base_min_score,
           quality, hashers->hash_h9.get(), dist_cache, last_insert_len,
-          commands, num_commands);
+          commands, num_commands, num_literals);
       break;
     default:
       break;
