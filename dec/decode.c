@@ -1605,7 +1605,7 @@ BrotliResult BrotliDecompressStreaming(BrotliInput input, BrotliOutput output,
               output, s->ringbuffer + s->partially_written,
               (size_t)((pos & s->ringbuffer_mask) - s->partially_written));
           if (num_written < 0) {
-            result = BROTLI_RESULT_ERROR;
+            return BROTLI_RESULT_ERROR;
           }
           s->partially_written += num_written;
           if (s->partially_written < (pos & s->ringbuffer_mask)) {
