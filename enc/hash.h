@@ -107,7 +107,7 @@ inline double BackwardReferenceScoreUsingLastDistance(double average_cost,
 //
 // This is a hash map of fixed size (kBucketSize). Starting from the
 // given index, kBucketSweep buckets are used to store values of a key.
-template <int kBucketBits, int kBucketSweep>
+template <int kBucketBits, int kBucketSweep, bool kUseDictionary>
 class HashLongestMatchQuickly {
  public:
   HashLongestMatchQuickly() {
@@ -216,8 +216,6 @@ class HashLongestMatchQuickly {
         *best_distance_out = backward;
         *best_score_out = BackwardReferenceScore(average_cost, len, backward);
         return true;
-      } else {
-        return false;
       }
     } else {
       uint32_t *bucket = buckets_ + key;
@@ -250,38 +248,39 @@ class HashLongestMatchQuickly {
           }
         }
       }
-      if (!match_found && num_dict_matches_ >= (num_dict_lookups_ >> 7)) {
-        ++num_dict_lookups_;
-        const uint32_t key = Hash<14, 4>(&ring_buffer[cur_ix_masked]) << 1;
-        const uint16_t v = kStaticDictionaryHash[key];
-        if (v > 0) {
-          const int len = v & 31;
-          const int dist = v >> 5;
-          const int offset = kBrotliDictionaryOffsetsByLength[len] + len * dist;
-          if (len <= max_length) {
-            const int matchlen =
-                FindMatchLengthWithLimit(&ring_buffer[cur_ix_masked],
-                                         &kBrotliDictionary[offset], len);
-            if (matchlen == len) {
-              const size_t backward = max_backward + dist + 1;
-              const double score = BackwardReferenceScore(average_cost,
-                                                          len, backward);
-              if (best_score < score) {
-                ++num_dict_matches_;
-                best_score = score;
-                best_len = len;
-                *best_len_out = best_len;
-                *best_len_code_out = best_len;
-                *best_distance_out = backward;
-                *best_score_out = best_score;
-                return true;
-              }
+    }
+    if (kUseDictionary && !match_found &&
+        num_dict_matches_ >= (num_dict_lookups_ >> 7)) {
+      ++num_dict_lookups_;
+      const uint32_t key = Hash<14, 4>(&ring_buffer[cur_ix_masked]) << 1;
+      const uint16_t v = kStaticDictionaryHash[key];
+      if (v > 0) {
+        const int len = v & 31;
+        const int dist = v >> 5;
+        const int offset = kBrotliDictionaryOffsetsByLength[len] + len * dist;
+        if (len <= max_length) {
+          const int matchlen =
+              FindMatchLengthWithLimit(&ring_buffer[cur_ix_masked],
+                                       &kBrotliDictionary[offset], len);
+          if (matchlen == len) {
+            const size_t backward = max_backward + dist + 1;
+            const double score = BackwardReferenceScore(average_cost,
+                                                        len, backward);
+            if (best_score < score) {
+              ++num_dict_matches_;
+              best_score = score;
+              best_len = len;
+              *best_len_out = best_len;
+              *best_len_code_out = best_len;
+              *best_distance_out = backward;
+              *best_score_out = best_score;
+              return true;
             }
           }
         }
       }
-      return match_found;
     }
+    return match_found;
   }
 
  private:
@@ -363,19 +362,19 @@ class HashLongestMatch {
     double start_cost_diff4 = 0.0;
     double start_cost_diff3 = 0.0;
     double start_cost_diff2 = 0.0;
-    if (kUseCostModel) {
-      start_cost_diff4 = literal_cost == NULL ? 0 :
+    if (kUseCostModel && literal_cost != NULL) {
+      start_cost_diff4 =
           literal_cost[cur_ix & literal_cost_mask] +
           literal_cost[(cur_ix + 1) & literal_cost_mask] +
           literal_cost[(cur_ix + 2) & literal_cost_mask] +
           literal_cost[(cur_ix + 3) & literal_cost_mask] -
           4 * average_cost;
-      start_cost_diff3 = literal_cost == NULL ? 0 :
+      start_cost_diff3 =
           literal_cost[cur_ix & literal_cost_mask] +
           literal_cost[(cur_ix + 1) & literal_cost_mask] +
           literal_cost[(cur_ix + 2) & literal_cost_mask] -
           3 * average_cost + 0.3;
-      start_cost_diff2 = literal_cost == NULL ? 0 :
+      start_cost_diff2 =
           literal_cost[cur_ix & literal_cost_mask] +
           literal_cost[(cur_ix + 1) & literal_cost_mask] -
           2 * average_cost + 1.2;
@@ -457,6 +456,7 @@ class HashLongestMatch {
           *best_len_code_out = best_len;
           *best_distance_out = backward;
           match_found = true;
+          break;  // The score can never get better since backward increases.
         }
       }
     }
@@ -589,15 +589,20 @@ class HashLongestMatch {
 };
 
 struct Hashers {
-  typedef HashLongestMatchQuickly<16, 1> H1;
-  typedef HashLongestMatchQuickly<17, 4> H2;
-  typedef HashLongestMatch<14, 4, 4, 4, false, false> H3;
-  typedef HashLongestMatch<14, 5, 4, 4, false, false> H4;
-  typedef HashLongestMatch<15, 6, 4, 10, false, false> H5;
-  typedef HashLongestMatch<15, 7, 4, 10, false, false> H6;
-  typedef HashLongestMatch<15, 8, 4, 16, false, false> H7;
-  typedef HashLongestMatch<15, 8, 4, 16, true, true> H8;
-  typedef HashLongestMatch<15, 8, 2, 16, true, false> H9;
+  // For kBucketSweep == 1, enabling the dictionary lookup makes compression
+  // a little faster (0.5% - 1%) and it compresses 0.15% better on small text
+  // and html inputs.
+  typedef HashLongestMatchQuickly<16, 1, true> H1;
+  typedef HashLongestMatchQuickly<16, 2, false> H2;
+  typedef HashLongestMatchQuickly<16, 4, false> H3;
+  typedef HashLongestMatchQuickly<17, 4, true> H4;
+  typedef HashLongestMatch<14, 4, 4, 4, false, false> H5;
+  typedef HashLongestMatch<14, 5, 4, 4, false, false> H6;
+  typedef HashLongestMatch<15, 6, 4, 10, false, false> H7;
+  typedef HashLongestMatch<15, 7, 4, 10, false, false> H8;
+  typedef HashLongestMatch<15, 8, 4, 16, false, false> H9;
+  typedef HashLongestMatch<15, 8, 4, 16, true, true> H11Text;
+  typedef HashLongestMatch<15, 8, 2, 16, true, false> H11Font;
 
   void Init(int type) {
     switch (type) {
@@ -610,12 +615,14 @@ struct Hashers {
       case 7: hash_h7.reset(new H7); break;
       case 8: hash_h8.reset(new H8); break;
       case 9: hash_h9.reset(new H9); break;
+      case 10: hash_h11_text.reset(new H11Text); break;
+      case 11: hash_h11_font.reset(new H11Font); break;
       default: break;
     }
   }
 
   void SetStaticDictionary(const StaticDictionary *dict) {
-    if (hash_h8.get() != NULL) hash_h8->SetStaticDictionary(dict);
+    if (hash_h11_text.get() != NULL) hash_h11_text->SetStaticDictionary(dict);
   }
 
   std::unique_ptr<H1> hash_h1;
@@ -627,6 +634,8 @@ struct Hashers {
   std::unique_ptr<H7> hash_h7;
   std::unique_ptr<H8> hash_h8;
   std::unique_ptr<H9> hash_h9;
+  std::unique_ptr<H11Text> hash_h11_text;
+  std::unique_ptr<H11Font> hash_h11_font;
 };
 
 }  // namespace brotli

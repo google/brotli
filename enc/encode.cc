@@ -38,6 +38,9 @@
 namespace brotli {
 
 static const double kMinUTF8Ratio = 0.75;
+static const int kMinQualityForBlockSplit = 4;
+static const int kMinQualityForContextModeling = 5;
+static const int kMinQualityForOptimizeHistograms = 4;
 
 int ParseAsUTF8(int* symbol, const uint8_t* input, int size) {
   // ASCII
@@ -149,7 +152,7 @@ BrotliCompressor::BrotliCompressor(BrotliParams params)
     params_.lgwin = kMaxWindowBits;
   }
   if (params_.lgblock == 0) {
-    params_.lgblock = params_.quality == 1 ? 14 : 16;
+    params_.lgblock = params_.quality < kMinQualityForBlockSplit ? 14 : 16;
     if (params_.quality >= 9 && params_.lgwin > params_.lgblock) {
       params_.lgblock = std::min(21, params_.lgwin);
     }
@@ -199,19 +202,10 @@ BrotliCompressor::BrotliCompressor(BrotliParams params)
   dist_cache_[3] = 16;
 
   // Initialize hashers.
-  switch (params_.quality) {
-    case 0:
-    case 1: hash_type_ = 1; break;
-    case 2:
-    case 3: hash_type_ = 2; break;
-    case 4: hash_type_ = 3; break;
-    case 5:
-    case 6: hash_type_ = 4; break;
-    case 7: hash_type_ = 5; break;
-    case 8: hash_type_ = 6; break;
-    case 9: hash_type_ = 7; break;
-    default:  // quality > 9
-      hash_type_ = (params_.mode == BrotliParams::MODE_TEXT) ? 8 : 9;
+  if (params_.quality <= 9) {
+    hash_type_ = params_.quality;
+  } else {
+    hash_type_ = (params_.mode == BrotliParams::MODE_TEXT) ? 10 : 11;
   }
   hashers_->Init(hash_type_);
   if (params_.mode == BrotliParams::MODE_TEXT &&
@@ -330,7 +324,7 @@ bool BrotliCompressor::WriteBrotliData(const bool is_last,
   // literals and commands.
   static const int kMaxNumDelayedSymbols = 0x2fff;
   if (!is_last && !force_flush &&
-      (params_.quality > 1 ||
+      (params_.quality >= kMinQualityForBlockSplit ||
        (num_literals_ + num_commands_ < kMaxNumDelayedSymbols)) &&
       num_commands_ + (input_block_size() >> 1) < cmd_buffer_size_ &&
       input_pos_ + input_block_size() <= last_flush_pos_ + mask + 1) {
@@ -359,7 +353,7 @@ void DecideOverLiteralContextModeling(const uint8_t* input,
                                       int* literal_context_mode,
                                       int* num_literal_contexts,
                                       const int** literal_context_map) {
-  if (quality <= 3 || length < 64) {
+  if (quality < kMinQualityForContextModeling || length < 64) {
     return;
   }
   // Simple heuristics to guess if the data is UTF8 or not. The goal is to
@@ -453,7 +447,7 @@ bool BrotliCompressor::WriteMetaBlockInternal(const bool is_last,
                                 num_direct_distance_codes,
                                 distance_postfix_bits);
     }
-    if (params_.quality == 1) {
+    if (params_.quality < kMinQualityForBlockSplit) {
       if (!StoreMetaBlockTrivial(data, last_flush_pos_, bytes, mask, is_last,
                                  commands_.get(), num_commands_,
                                  &storage_ix,
@@ -492,7 +486,7 @@ bool BrotliCompressor::WriteMetaBlockInternal(const bool is_last,
                        params_.enable_context_modeling,
                        &mb);
       }
-      if (params_.quality >= 3) {
+      if (params_.quality >= kMinQualityForOptimizeHistograms) {
         OptimizeHistograms(num_direct_distance_codes,
                            distance_postfix_bits,
                            &mb);

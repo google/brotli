@@ -118,7 +118,7 @@ void CreateBackwardReferences(size_t num_bytes,
         int delayed_backward_references_in_row = 0;
         for (;;) {
           --max_length;
-          int best_len_2 = quality < 4 ? std::min(best_len - 1, max_length) : 0;
+          int best_len_2 = quality < 5 ? std::min(best_len - 1, max_length) : 0;
           int best_len_code_2 = 0;
           int best_dist_2 = 0;
           double best_score_2 = min_score;
@@ -182,7 +182,7 @@ void CreateBackwardReferences(size_t num_bytes,
           distance_code = 3;
         } else if (best_dist == dist_cache[3]) {
           distance_code = 4;
-        } else if (quality > 1 && best_dist >= 6) {
+        } else if (quality > 3 && best_dist >= 6) {
           for (int k = 4; k < kNumDistanceShortCodes; ++k) {
             int idx = kDistanceCacheIndex[k];
             int candidate = dist_cache[idx] + kDistanceCacheOffset[k];
@@ -356,17 +356,31 @@ void CreateBackwardReferences(size_t num_bytes,
           commands, num_commands, num_literals);
       break;
     case 8:
-      CreateBackwardReferences<Hashers::H8, true, true>(
+      CreateBackwardReferences<Hashers::H8, false, false>(
           num_bytes, position, ringbuffer, ringbuffer_mask,
           literal_cost, literal_cost_mask, max_backward_limit, base_min_score,
           quality, hashers->hash_h8.get(), dist_cache, last_insert_len,
           commands, num_commands, num_literals);
       break;
     case 9:
-      CreateBackwardReferences<Hashers::H9, true, false>(
+      CreateBackwardReferences<Hashers::H9, false, false>(
           num_bytes, position, ringbuffer, ringbuffer_mask,
           literal_cost, literal_cost_mask, max_backward_limit, base_min_score,
           quality, hashers->hash_h9.get(), dist_cache, last_insert_len,
+          commands, num_commands, num_literals);
+      break;
+    case 10:
+      CreateBackwardReferences<Hashers::H11Text, true, true>(
+          num_bytes, position, ringbuffer, ringbuffer_mask,
+          literal_cost, literal_cost_mask, max_backward_limit, base_min_score,
+          quality, hashers->hash_h11_text.get(), dist_cache, last_insert_len,
+          commands, num_commands, num_literals);
+      break;
+    case 11:
+      CreateBackwardReferences<Hashers::H11Font, true, false>(
+          num_bytes, position, ringbuffer, ringbuffer_mask,
+          literal_cost, literal_cost_mask, max_backward_limit, base_min_score,
+          quality, hashers->hash_h11_font.get(), dist_cache, last_insert_len,
           commands, num_commands, num_literals);
       break;
     default:
