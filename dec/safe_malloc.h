@@ -18,8 +18,6 @@
 #ifndef BROTLI_DEC_SAFE_MALLOC_H_
 #define BROTLI_DEC_SAFE_MALLOC_H_
 
-#include <assert.h>
-
 #include "./types.h"
 
 #if defined(__cplusplus) || defined(c_plusplus)
