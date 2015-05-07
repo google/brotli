@@ -1356,9 +1356,31 @@ previous sections.
 The stream header has only the following one field:
 
 .nf
-   1-4 bits: WBITS, a value in the range 16 - 24, value 16 is
-             encoded with one 0 bit, and values 17 - 24 are
-             encoded with bit pattern xxx1 (so 0111 is 20)
+   1-7 bits: WBITS, a value in the range 10 - 24, encoded with
+             the following variable length code (as it appears in
+             the compressed data, where the bits are parsed from
+             right to left):
+
+                   Value    Bit Pattern
+                   -----    -----------
+                      10        0100001
+                      11        0110001
+                      12        1000001
+                      13        1010001
+                      14        1100001
+                      15        1110001
+                      16              0
+                      17        0000001
+                      18           0011
+                      19           0101
+                      20           0111
+                      21           1001
+                      22           1011
+                      23           1101
+                      24           1111
+
+             Note that bit pattern 0010001 is invalid and must not
+             be used.
 .fi
 
 The size of the sliding window, which is the maximum value of any

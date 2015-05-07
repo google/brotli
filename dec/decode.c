@@ -67,11 +67,19 @@ static const int kDistanceShortCodeValueOffset[NUM_DISTANCE_SHORT_CODES] = {
 };
 
 static BROTLI_INLINE int DecodeWindowBits(BrotliBitReader* br) {
-  if (BrotliReadBits(br, 1)) {
-    return 17 + (int)BrotliReadBits(br, 3);
-  } else {
+  int n;
+  if (BrotliReadBits(br, 1) == 0) {
     return 16;
   }
+  n = (int)BrotliReadBits(br, 3);
+  if (n > 0) {
+    return 17 + n;
+  }
+  n = (int)BrotliReadBits(br, 3);
+  if (n > 0) {
+    return 8 + n;
+  }
+  return 17;
 }
 
 /* Decodes a number in the range [0..255], by reading 1 - 11 bits. */
@@ -845,7 +853,13 @@ BrotliResult BrotliDecompressedSize(size_t encoded_size,
     val |= (uint64_t)encoded_buffer[i] << (8 * i);
   }
   /* Skip the window bits. */
-  bit_pos += (val & 1) ? 4 : 1;
+  ++bit_pos;
+  if (val & 1) {
+    bit_pos += 3;
+    if (((val >> 1) & 7) == 0) {
+      bit_pos += 3;
+    }
+  }
   /* Decode the ISLAST bit. */
   is_last = (val >> bit_pos) & 1;
   ++bit_pos;
@@ -859,6 +873,10 @@ BrotliResult BrotliDecompressedSize(size_t encoded_size,
   }
   /* Decode the length of the first meta-block. */
   size_nibbles = (int)((val >> bit_pos) & 3) + 4;
+  if (size_nibbles == 7) {
+    /* First meta-block contains metadata, this case is not supported here. */
+    return BROTLI_RESULT_ERROR;
+  }
   bit_pos += 2;
   for (i = 0; i < size_nibbles; ++i) {
     meta_block_len |= (int)((val >> bit_pos) & 0xf) << (4 * i);
@@ -997,6 +1015,11 @@ BrotliResult BrotliDecompressStreaming(BrotliInput input, BrotliOutput output,
         }
         /* Decode window size. */
         s->window_bits = DecodeWindowBits(br);
+        if (s->window_bits == 9) {
+          /* Value 9 is reserved for future use. */
+          result = BROTLI_RESULT_ERROR;
+          break;
+        }
         s->max_backward_distance = (1 << s->window_bits) - 16;
 
         s->block_type_trees = (HuffmanCode*)malloc(

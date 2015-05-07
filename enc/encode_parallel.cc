@@ -231,6 +231,9 @@ bool WriteMetaBlockParallel(const BrotliParams& params,
     if (params.lgwin == 16) {
       first_byte = 0;
       first_byte_bits = 1;
+    } else if (params.lgwin == 17) {
+      first_byte = 1;
+      first_byte_bits = 7;
     } else {
       first_byte = ((params.lgwin - 17) << 1) | 1;
       first_byte_bits = 4;
