@@ -30,6 +30,11 @@ extern "C" {
 #if (defined(__x86_64__) || defined(_M_X64))
 /* This should be set to 1 only on little-endian machines. */
 #define BROTLI_USE_64_BITS 1
+#elif (defined(__arm__))
+/* TODO: __arm__ is much too broad. The following flags should
+   only be set on ARM architectures with little-endian byte order */
+#define ARMv7
+#define BROTLI_USE_64_BITS 1
 #else
 #define BROTLI_USE_64_BITS 0
 #endif
@@ -41,10 +46,16 @@ extern "C" {
 #define UNALIGNED_COPY64(dst, src) memcpy(dst, src, 8)
 #define UNALIGNED_MOVE64(dst, src) memmove(dst, src, 8)
 
+#ifdef ARMv7
+/* Arm instructions can shift and negate registers before an AND operation. */
+static BROTLI_INLINE uint32_t BitMask(int n) { return ~((0xffffffff) << n); }
+#else
 static const uint32_t kBitMask[BROTLI_MAX_NUM_BIT_READ] = {
   0, 1, 3, 7, 15, 31, 63, 127, 255, 511, 1023, 2047, 4095, 8191, 16383, 32767,
   65535, 131071, 262143, 524287, 1048575, 2097151, 4194303, 8388607, 16777215
 };
+static BROTLI_INLINE uint32_t BitMask(int n) { return kBitMask[n]; }
+#endif
 
 typedef struct {
 #if (BROTLI_USE_64_BITS)
@@ -91,7 +102,7 @@ static BROTLI_INLINE void BrotliSetBitPos(BrotliBitReader* const br,
                                           uint32_t val) {
 #ifdef BROTLI_DECODE_DEBUG
   uint32_t n_bits = val - br->bit_pos_;
-  const uint32_t bval = (uint32_t)(br->val_ >> br->bit_pos_) & kBitMask[n_bits];
+  const uint32_t bval = (uint32_t)(br->val_ >> br->bit_pos_) & BitMask(n_bits);
   printf("[BrotliReadBits]  %010d %2d  val: %6x\n",
          (br->pos_ << 3) + br->bit_pos_ - 64, n_bits, bval);
 #endif
@@ -148,7 +159,7 @@ static BROTLI_INLINE int BrotliReadMoreInput(BrotliBitReader* const br) {
       }
       br->eos_ = 1;
       /* Store 32 bytes of zero after the stream end. */
-#if (BROTLI_USE_64_BITS)
+#if (BROTLI_USE_64_BITS) && !defined(ARMv7)
       *(uint64_t*)(dst + bytes_read) = 0;
       *(uint64_t*)(dst + bytes_read + 8) = 0;
       *(uint64_t*)(dst + bytes_read + 16) = 0;
@@ -159,7 +170,7 @@ static BROTLI_INLINE int BrotliReadMoreInput(BrotliBitReader* const br) {
     }
     if (dst == br->buf_) {
       /* Copy the head of the ringbuffer to the slack region. */
-#if (BROTLI_USE_64_BITS)
+#if (BROTLI_USE_64_BITS) && !defined(ARMv7)
       UNALIGNED_COPY64(br->buf_ + BROTLI_IBUF_SIZE - 32, br->buf_);
       UNALIGNED_COPY64(br->buf_ + BROTLI_IBUF_SIZE - 24, br->buf_ + 8);
       UNALIGNED_COPY64(br->buf_ + BROTLI_IBUF_SIZE - 16, br->buf_ + 16);
@@ -203,8 +214,15 @@ static BROTLI_INLINE uint32_t BrotliReadBits(
     BrotliBitReader* const br, int n_bits) {
   uint32_t val;
 #if (BROTLI_USE_64_BITS)
+#if defined(ARMv7)
+  if ((64 - br->bit_pos_) < ((uint32_t) n_bits)) {
+    BrotliFillBitWindow(br);
+  }
+  val = (uint32_t)(br->val_ >> br->bit_pos_) & BitMask(n_bits);
+#else
   BrotliFillBitWindow(br);
-  val = (uint32_t)(br->val_ >> br->bit_pos_) & kBitMask[n_bits];
+  val = (uint32_t)(br->val_ >> br->bit_pos_) & BitMask(n_bits);
+#endif  /* defined (ARMv7) */
 #else
   /*
    * The if statement gives 2-4% speed boost on Canterbury data set with
@@ -213,8 +231,8 @@ static BROTLI_INLINE uint32_t BrotliReadBits(
   if ((32 - br->bit_pos_) < ((uint32_t) n_bits)) {
     BrotliFillBitWindow(br);
   }
-  val = (br->val_ >> br->bit_pos_) & kBitMask[n_bits];
-#endif
+  val = (br->val_ >> br->bit_pos_) & Bitmask(n_bits);
+#endif  /* BROTLI_USE_64_BITS */
 #ifdef BROTLI_DECODE_DEBUG
   printf("[BrotliReadBits]  %010d %2d  val: %6x\n",
          (br->pos_ << 3) + br->bit_pos_ - 64, n_bits, val);
