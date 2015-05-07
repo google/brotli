@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 from __future__ import print_function
+import glob
+import string
 import sys
 import os
 from subprocess import check_call
@@ -7,32 +9,12 @@ from subprocess import check_call
 from test_utils import PYTHON, BRO, TEST_ENV, diff_q
 
 
-INPUTS = """\
-testdata/empty.compressed
-testdata/x.compressed
-testdata/64x.compressed
-testdata/10x10y.compressed
-testdata/xyzzy.compressed
-testdata/quickfox.compressed
-testdata/ukkonooa.compressed
-testdata/monkey.compressed
-testdata/backward65536.compressed
-testdata/zeros.compressed
-testdata/quickfox_repeated.compressed
-testdata/compressed_file.compressed
-testdata/compressed_repeated.compressed
-testdata/alice29.txt.compressed
-testdata/asyoulik.txt.compressed
-testdata/lcet10.txt.compressed
-testdata/plrabn12.txt.compressed
-"""
-
 os.chdir(os.path.abspath("../../tests"))
-for filename in INPUTS.splitlines():
+for filename in glob.glob("testdata/*.compressed*"):
     filename = os.path.abspath(filename)
     print('Testing decompression of file "%s"' % os.path.basename(filename))
-    uncompressed = os.path.splitext(filename)[0] + ".uncompressed"
-    expected = os.path.splitext(filename)[0]
+    expected = string.split(filename, ".compressed")[0]
+    uncompressed = expected + ".uncompressed"
     check_call([PYTHON, BRO, "-f", "-d", "-i", filename, "-o", uncompressed],
                env=TEST_ENV)
     if diff_q(uncompressed, expected) != 0:
@@ -43,3 +25,4 @@ for filename in INPUTS.splitlines():
                    env=TEST_ENV)
     if diff_q(uncompressed, expected) != 0:
         sys.exit(1)
+    os.unlink(uncompressed)
