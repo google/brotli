@@ -1,4 +1,5 @@
 *.o
+*.pyc
 *.txt.uncompressed
 *.bro
 *.unbro

@@ -19,6 +19,7 @@
 #define BROTLI_DEC_BIT_READER_H_
 
 #include <string.h>
+#include "./port.h"
 #include "./streams.h"
 #include "./types.h"
 
@@ -46,11 +47,6 @@ static const uint32_t kBitMask[BROTLI_MAX_NUM_BIT_READ] = {
 };
 
 typedef struct {
-  /* Input byte buffer, consist of a ringbuffer and a "slack" region where */
-  /* bytes from the start of the ringbuffer are copied. */
-  uint8_t buf_[BROTLI_IBUF_SIZE];
-  uint8_t*    buf_ptr_;      /* next input will write here */
-  BrotliInput input_;        /* input callback */
 #if (BROTLI_USE_64_BITS)
   uint64_t    val_;          /* pre-fetched bits */
 #else
@@ -60,12 +56,18 @@ typedef struct {
   uint32_t    bit_pos_;      /* current bit-reading position in val_ */
   uint32_t    bit_end_pos_;  /* bit-reading end position from LSB of val_ */
   int         eos_;          /* input stream is finished */
+  uint8_t*    buf_ptr_;      /* next input will write here */
+  BrotliInput input_;        /* input callback */
 
   /* Set to 0 to support partial data streaming. Set to 1 to expect full data or
      for the last chunk of partial data. */
   int         finish_;
   /* indicates how much bytes already read when reading partial data */
   int         tmp_bytes_read_;
+
+  /* Input byte buffer, consist of a ringbuffer and a "slack" region where */
+  /* bytes from the start of the ringbuffer are copied. */
+  uint8_t buf_[BROTLI_IBUF_SIZE];
 } BrotliBitReader;
 
 /* Initializes the bitreader fields. After this, BrotliWarmupBitReader must
@@ -126,9 +128,9 @@ static BROTLI_INLINE void ShiftBytes32(BrotliBitReader* const br) {
    every 32 bytes of input is read.
 */
 static BROTLI_INLINE int BrotliReadMoreInput(BrotliBitReader* const br) {
-  if (br->bit_end_pos_ > 256) {
+  if (PREDICT_TRUE(br->bit_end_pos_ > 256)) {
     return 1;
-  } else if (br->eos_) {
+  } else if (PREDICT_FALSE(br->eos_)) {
     return br->bit_pos_ <= br->bit_end_pos_;
   } else {
     uint8_t* dst = br->buf_ptr_;

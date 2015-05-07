@@ -20,6 +20,7 @@
 #include "./context.h"
 #include "./decode.h"
 #include "./dictionary.h"
+#include "./port.h"
 #include "./transform.h"
 #include "./huffman.h"
 #include "./prefix.h"
@@ -149,9 +150,9 @@ static BROTLI_INLINE int ReadSymbol(const HuffmanCode* table,
   int nbits;
   BrotliFillBitWindow(br);
   table += (int)(br->val_ >> br->bit_pos_) & HUFFMAN_TABLE_MASK;
-  nbits = table->bits - HUFFMAN_TABLE_BITS;
-  if (nbits > 0) {
+  if (PREDICT_FALSE(table->bits > HUFFMAN_TABLE_BITS)) {
     br->bit_pos_ += HUFFMAN_TABLE_BITS;
+    nbits = table->bits - HUFFMAN_TABLE_BITS;
     table += table->value;
     table += (int)(br->val_ >> br->bit_pos_) & ((1 << nbits) - 1);
   }
@@ -938,6 +939,7 @@ BrotliResult BrotliDecompressStreaming(BrotliInput input, BrotliOutput output,
        - flushing the input s->ringbuffer when decoding uncompressed blocks */
   static const int kRingBufferWriteAheadSlack = 128 + BROTLI_READ_SIZE;
 
+  s->br.input_ = input;
   s->br.finish_ = finish;
 
   /* State machine */
@@ -979,17 +981,6 @@ BrotliResult BrotliDecompressStreaming(BrotliInput input, BrotliOutput output,
         s->window_bits = DecodeWindowBits(br);
         s->max_backward_distance = (1 << s->window_bits) - 16;
 
-        s->ringbuffer_size = 1 << s->window_bits;
-        s->ringbuffer_mask = s->ringbuffer_size - 1;
-        s->ringbuffer = (uint8_t*)malloc((size_t)(s->ringbuffer_size +
-                                               kRingBufferWriteAheadSlack +
-                                               kMaxDictionaryWordLength));
-        if (!s->ringbuffer) {
-          result = BROTLI_RESULT_ERROR;
-          break;
-        }
-        s->ringbuffer_end = s->ringbuffer + s->ringbuffer_size;
-
         s->block_type_trees = (HuffmanCode*)malloc(
             3 * BROTLI_HUFFMAN_MAX_TABLE_SIZE * sizeof(HuffmanCode));
         s->block_len_trees = (HuffmanCode*)malloc(
@@ -1002,10 +993,6 @@ BrotliResult BrotliDecompressStreaming(BrotliInput input, BrotliOutput output,
         s->state = BROTLI_STATE_METABLOCK_BEGIN;
         /* No break, continue to next state */
       case BROTLI_STATE_METABLOCK_BEGIN:
-        if (!BrotliReadMoreInput(br)) {
-          result = BROTLI_RESULT_NEEDS_MORE_INPUT;
-          break;
-        }
         if (s->input_end) {
           s->partially_written = 0;
           s->state = BROTLI_STATE_DONE;
@@ -1058,6 +1045,34 @@ BrotliResult BrotliDecompressStreaming(BrotliInput input, BrotliOutput output,
           break;
         }
         BROTLI_LOG_UINT(s->meta_block_remaining_len);
+        /* If it is the first metablock, allocate the ringbuffer */
+        if (s->ringbuffer == NULL) {
+          size_t known_size = 0;
+          s->ringbuffer_size = 1 << s->window_bits;
+
+          /* If we know the data size is small, do not allocate more ringbuffer
+             size than needed to reduce memory usage. Since this happens after
+             the first BrotliReadMoreInput call, we can read the bitreader
+             buffer at position 0. */
+          if (BrotliDecompressedSize(BROTLI_READ_SIZE, br->buf_, &known_size)
+              == BROTLI_RESULT_SUCCESS) {
+            while (s->ringbuffer_size >= known_size * 2
+                && s->ringbuffer_size > 0) {
+              s->ringbuffer_size /= 2;
+            }
+          }
+
+          s->ringbuffer_mask = s->ringbuffer_size - 1;
+          s->ringbuffer = (uint8_t*)malloc((size_t)(s->ringbuffer_size +
+                                                 kRingBufferWriteAheadSlack +
+                                                 kMaxDictionaryWordLength));
+          if (!s->ringbuffer) {
+            result = BROTLI_RESULT_ERROR;
+            break;
+          }
+          s->ringbuffer_end = s->ringbuffer + s->ringbuffer_size;
+        }
+
         if (s->is_metadata) {
           if (!JumpToByteBoundary(&s->br)) {
             result = BROTLI_RESULT_ERROR;
@@ -1348,7 +1363,7 @@ BrotliResult BrotliDecompressStreaming(BrotliInput input, BrotliOutput output,
           result = BROTLI_RESULT_NEEDS_MORE_INPUT;
           break;
         }
-        assert(s->distance_code < 0);
+        BROTLI_DCHECK(s->distance_code < 0);
 
         if (s->block_length[2] == 0) {
           DecodeBlockType(s->num_block_types[2],

@@ -16,6 +16,7 @@
 /* Size-checked memory allocation. */
 
 #include <stdlib.h>
+#include "./port.h"
 #include "./safe_malloc.h"
 
 #if defined(__cplusplus) || defined(c_plusplus)
@@ -33,7 +34,7 @@ static int CheckSizeArgumentsOverflow(uint64_t nmemb, size_t size) {
 
 void* BrotliSafeMalloc(uint64_t nmemb, size_t size) {
   if (!CheckSizeArgumentsOverflow(nmemb, size)) return NULL;
-  assert(nmemb * size > 0);
+  BROTLI_DCHECK(nmemb * size > 0);
   return malloc((size_t)(nmemb * size));
 }
 

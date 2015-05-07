@@ -15,10 +15,10 @@
 
 /* Bit reading helpers */
 
-#include <assert.h>
 #include <stdlib.h>
 
 #include "./bit_reader.h"
+#include "./port.h"
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
@@ -26,7 +26,7 @@ extern "C" {
 
 void BrotliInitBitReader(BrotliBitReader* const br,
                          BrotliInput input, int finish) {
-  assert(br != NULL);
+  BROTLI_DCHECK(br != NULL);
 
   br->finish_ = finish;
   br->tmp_bytes_read_ = 0;
