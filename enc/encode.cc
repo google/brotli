@@ -351,6 +351,53 @@ bool BrotliCompressor::WriteBrotliData(const bool is_last,
   return WriteMetaBlockInternal(is_last, utf8_mode, out_size, output);
 }
 
+void DecideOverLiteralContextModeling(const uint8_t* input,
+                                      size_t start_pos,
+                                      size_t length,
+                                      size_t mask,
+                                      int quality,
+                                      int* literal_context_mode,
+                                      int* num_literal_contexts,
+                                      const int** literal_context_map) {
+  if (quality <= 3 || length < 64) {
+    return;
+  }
+  // Simple heuristics to guess if the data is UTF8 or not. The goal is to
+  // recognize non-UTF8 data quickly by searching for the following obvious
+  // violations: a continuation byte following an ASCII byte or an ASCII or
+  // lead byte following a lead byte. If we find such violation we decide that
+  // the data is not UTF8. To make the analysis of UTF8 data faster we only
+  // examine 64 byte long strides at every 4kB intervals, if there are no
+  // violations found, we assume the whole data is UTF8.
+  const size_t end_pos = start_pos + length;
+  for (; start_pos + 64 < end_pos; start_pos += 4096) {
+    const size_t stride_end_pos = start_pos + 64;
+    uint8_t prev = input[start_pos & mask];
+    for (size_t pos = start_pos + 1; pos < stride_end_pos; ++pos) {
+      const uint8_t literal = input[pos & mask];
+      if ((prev < 128 && (literal & 0xc0) == 0x80) ||
+          (prev >= 192 && (literal & 0xc0) != 0x80)) {
+        return;
+      }
+      prev = literal;
+    }
+  }
+  *literal_context_mode = CONTEXT_UTF8;
+  // If the data is UTF8, this static context map distinguishes between ASCII
+  // or lead bytes and continuation bytes: the UTF8 context value based on the
+  // last two bytes is 2 or 3 if and only if the next byte is a continuation
+  // byte (see table in context.h).
+  static const int kStaticContextMap[64] = {
+    0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+  };
+  static const int kNumLiteralContexts = 2;
+  *num_literal_contexts = kNumLiteralContexts;
+  *literal_context_map = kStaticContextMap;
+}
+
 bool BrotliCompressor::WriteMetaBlockInternal(const bool is_last,
                                               const bool utf8_mode,
                                               size_t* out_size,
@@ -406,8 +453,6 @@ bool BrotliCompressor::WriteMetaBlockInternal(const bool is_last,
                                 num_direct_distance_codes,
                                 distance_postfix_bits);
     }
-    int literal_context_mode = utf8_mode ? CONTEXT_UTF8 : CONTEXT_SIGNED;
-    MetaBlockSplit mb;
     if (params_.quality == 1) {
       if (!StoreMetaBlockTrivial(data, last_flush_pos_, bytes, mask, is_last,
                                  commands_.get(), num_commands_,
@@ -416,10 +461,29 @@ bool BrotliCompressor::WriteMetaBlockInternal(const bool is_last,
         return false;
       }
     } else {
+      MetaBlockSplit mb;
+      int literal_context_mode = utf8_mode ? CONTEXT_UTF8 : CONTEXT_SIGNED;
       if (params_.greedy_block_split) {
-        BuildMetaBlockGreedy(data, last_flush_pos_, mask,
-                             commands_.get(), num_commands_,
-                             &mb);
+        int num_literal_contexts = 1;
+        const int* literal_context_map = NULL;
+        DecideOverLiteralContextModeling(data, last_flush_pos_, bytes, mask,
+                                         params_.quality,
+                                         &literal_context_mode,
+                                         &num_literal_contexts,
+                                         &literal_context_map);
+        if (literal_context_map == NULL) {
+          BuildMetaBlockGreedy(data, last_flush_pos_, mask,
+                               commands_.get(), num_commands_,
+                               &mb);
+        } else {
+          BuildMetaBlockGreedyWithContexts(data, last_flush_pos_, mask,
+                                           prev_byte_, prev_byte2_,
+                                           literal_context_mode,
+                                           num_literal_contexts,
+                                           literal_context_map,
+                                           commands_.get(), num_commands_,
+                                           &mb);
+        }
       } else {
         BuildMetaBlock(data, last_flush_pos_, mask,
                        prev_byte_, prev_byte2_,
