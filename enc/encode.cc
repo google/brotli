@@ -190,6 +190,9 @@ BrotliCompressor::BrotliCompressor(BrotliParams params)
   if (params_.lgwin == 16) {
     last_byte_ = 0;
     last_byte_bits_ = 1;
+  } else if (params_.lgwin == 17) {
+    last_byte_ = 1;
+    last_byte_bits_ = 7;
   } else {
     last_byte_ = ((params_.lgwin - 17) << 1) | 1;
     last_byte_bits_ = 4;
