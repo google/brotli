@@ -231,7 +231,7 @@ static BROTLI_INLINE uint32_t BrotliReadBits(
   if ((32 - br->bit_pos_) < ((uint32_t) n_bits)) {
     BrotliFillBitWindow(br);
   }
-  val = (br->val_ >> br->bit_pos_) & Bitmask(n_bits);
+  val = (br->val_ >> br->bit_pos_) & BitMask(n_bits);
 #endif  /* BROTLI_USE_64_BITS */
 #ifdef BROTLI_DECODE_DEBUG
   printf("[BrotliReadBits]  %010d %2d  val: %6x\n",
