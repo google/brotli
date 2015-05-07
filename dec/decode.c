@@ -149,6 +149,21 @@ static BROTLI_INLINE int ReadSymbol(const HuffmanCode* table,
                                     BrotliBitReader* br) {
   int nbits;
   BrotliFillBitWindow(br);
+#ifdef ARMv7
+  /* Prefetching helps, since this needs to shift a 64 bit
+     val by a variable length. The other changes are minor. */
+  uint32_t val = BrotliPrefetchBits(br);
+  table += val & HUFFMAN_TABLE_MASK;
+  nbits = table->bits;
+  if (PREDICT_FALSE(nbits > HUFFMAN_TABLE_BITS)) {
+    nbits -= HUFFMAN_TABLE_BITS;
+    br->bit_pos_ += HUFFMAN_TABLE_BITS;
+    table += table->value;
+    table += (int)(val >> HUFFMAN_TABLE_BITS) & ((1 << nbits) - 1);
+    nbits = table->bits;
+  }
+  br->bit_pos_ += nbits;
+#else
   table += (int)(br->val_ >> br->bit_pos_) & HUFFMAN_TABLE_MASK;
   if (PREDICT_FALSE(table->bits > HUFFMAN_TABLE_BITS)) {
     br->bit_pos_ += HUFFMAN_TABLE_BITS;
@@ -157,6 +172,7 @@ static BROTLI_INLINE int ReadSymbol(const HuffmanCode* table,
     table += (int)(br->val_ >> br->bit_pos_) & ((1 << nbits) - 1);
   }
   br->bit_pos_ += table->bits;
+#endif
   return table->value;
 }
 
@@ -624,6 +640,8 @@ static BROTLI_INLINE void DecodeBlockTypeWithContext(BrotliState* s,
 */
 static BROTLI_INLINE void IncrementalCopyFastPath(
     uint8_t* dst, const uint8_t* src, int len) {
+/* TODO: On an ARM UNALIGNED_MOVE64 is compiled into a memcpy.
+         But I don't have a better solution. */
   if (src < dst) {
     while (dst - src < 8) {
       UNALIGNED_MOVE64(dst, src);
@@ -1488,12 +1506,27 @@ BrotliResult BrotliDecompressStreaming(BrotliInput input, BrotliOutput output,
           s->copy_src =
               &s->ringbuffer[(pos - s->distance) & s->ringbuffer_mask];
 
+
 #if (defined(__x86_64__) || defined(_M_X64))
           if (s->copy_src + s->copy_length <= s->ringbuffer_end &&
               s->copy_dst + s->copy_length < s->ringbuffer_end) {
             if (s->copy_length <= 16 && s->distance >= 8) {
               UNALIGNED_COPY64(s->copy_dst, s->copy_src);
               UNALIGNED_COPY64(s->copy_dst + 8, s->copy_src + 8);
+            } else {
+              IncrementalCopyFastPath(s->copy_dst, s->copy_src, s->copy_length);
+            }
+            pos += s->copy_length;
+            s->meta_block_remaining_len -= s->copy_length;
+            s->copy_length = 0;
+          }
+#elif defined(ARMv7)
+          /* This version is maybe 5% faster than the version above. 
+             UNALIGNED_COPY64 does not inline and generates memcpy calls.  */
+          if (s->copy_src + s->copy_length <= s->ringbuffer_end &&
+              s->copy_dst + s->copy_length < s->ringbuffer_end) {
+            if (s->copy_length <= s->distance) {
+              memcpy(s->copy_dst, s->copy_src, s->copy_length);
             } else {
               IncrementalCopyFastPath(s->copy_dst, s->copy_src, s->copy_length);
             }
