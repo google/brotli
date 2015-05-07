@@ -24,7 +24,6 @@ namespace brotli {
 
 static inline void GetDistCode(int distance_code,
                                uint16_t* code, uint32_t* extra) {
-  distance_code -= 1;
   if (distance_code < 16) {
     *code = distance_code;
     *extra = 0;
@@ -106,6 +105,7 @@ static inline void GetLengthCode(int insertlen, int copylen, int distancecode,
 struct Command {
   Command() {}
 
+  // distance_code is e.g. 0 for same-as-last short code, or 16 for offset 1.
   Command(int insertlen, int copylen, int copylen_code, int distance_code)
       : insert_len_(insertlen), copy_len_(copylen) {
     GetDistCode(distance_code, &dist_prefix_, &dist_extra_);
@@ -120,12 +120,12 @@ struct Command {
 
   int DistanceCode() const {
     if (dist_prefix_ < 16) {
-      return dist_prefix_ + 1;
+      return dist_prefix_;
     }
     int nbits = dist_extra_ >> 24;
     int extra = dist_extra_ & 0xffffff;
     int prefix = dist_prefix_ - 12 - 2 * nbits;
-    return (prefix << nbits) + extra + 13;
+    return (prefix << nbits) + extra + 12;
   }
 
   int DistanceContext() const {

@@ -172,16 +172,17 @@ void CreateBackwardReferences(size_t num_bytes,
       apply_random_heuristics =
           i + 2 * best_len + random_heuristics_window_size;
       max_distance = std::min(i + i_diff, max_backward_limit);
-      int distance_code = best_dist + 16;
+      // The first 16 codes are special shortcodes, and the minimum offset is 1.
+      int distance_code = best_dist + 15;
       if (best_dist <= max_distance) {
         if (best_dist == dist_cache[0]) {
-          distance_code = 1;
+          distance_code = 0;
         } else if (best_dist == dist_cache[1]) {
-          distance_code = 2;
+          distance_code = 1;
         } else if (best_dist == dist_cache[2]) {
-          distance_code = 3;
+          distance_code = 2;
         } else if (best_dist == dist_cache[3]) {
-          distance_code = 4;
+          distance_code = 3;
         } else if (quality > 3 && best_dist >= 6) {
           for (int k = 4; k < kNumDistanceShortCodes; ++k) {
             int idx = kDistanceCacheIndex[k];
@@ -191,12 +192,12 @@ void CreateBackwardReferences(size_t num_bytes,
                                              11, 11, 11, 11,
                                              12, 12, 12, 12 };
             if (best_dist == candidate && best_dist >= kLimits[k]) {
-              distance_code = k + 1;
+              distance_code = k;
               break;
             }
           }
         }
-        if (distance_code > 1) {
+        if (distance_code > 0) {
           dist_cache[3] = dist_cache[2];
           dist_cache[2] = dist_cache[1];
           dist_cache[1] = dist_cache[0];

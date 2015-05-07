@@ -62,7 +62,6 @@ inline void PrefixEncodeCopyDistance(int distance_code,
                                      int postfix_bits,
                                      uint16_t* code,
                                      uint32_t* extra_bits) {
-  distance_code -= 1;
   if (distance_code < kNumDistanceShortCodes + num_direct_codes) {
     *code = distance_code;
     *extra_bits = 0;
