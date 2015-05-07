@@ -30,9 +30,10 @@ extern "C" {
 #if (defined(__x86_64__) || defined(_M_X64))
 /* This should be set to 1 only on little-endian machines. */
 #define BROTLI_USE_64_BITS 1
-#elif (defined(__arm__))
-/* TODO: __arm__ is much too broad. The following flags should
-   only be set on ARM architectures with little-endian byte order */
+#elif (defined(__arm__) && defined(__BYTE_ORDER__) \
+    && (__BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__))
+/* Enable some optimizations for ARM architectures with little endian byte
+   order. So far the optimizations have been tested on a Cortex-A7. */
 #define ARMv7
 #define BROTLI_USE_64_BITS 1
 #else
