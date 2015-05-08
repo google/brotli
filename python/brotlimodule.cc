@@ -40,6 +40,9 @@ PyDoc_STRVAR(compress__doc__,
 "    dictionary. Defaults to True. Respected only if quality > 9.\n"
 "  enable_transforms (bool, optional): Controls whether to enable encoder\n"
 "    transforms. Defaults to False. Respected only if quality > 9.\n"
+"  greedy_block_split (bool, optional): Controls whether to enable a faster\n"
+"    but less dense compression mode. Defaults to False. Respected only if\n"
+"    quality > 9.\n"
 "\n"
 "Returns:\n"
 "  The compressed string of bytes.\n"
@@ -49,20 +52,23 @@ PyDoc_STRVAR(compress__doc__,
 
 static PyObject* brotli_compress(PyObject *self, PyObject *args, PyObject *keywds) {
   PyObject *ret = NULL;
-  PyObject* dictionary = NULL;
-  PyObject* transform = NULL;
+  PyObject* enable_dictionary = NULL;
+  PyObject* enable_transforms = NULL;
+  PyObject* greedy_block_split = NULL;
   uint8_t *input, *output;
   size_t length, output_length;
   BrotliParams::Mode mode = (BrotliParams::Mode) -1;
   int ok;
 
-  static char *kwlist[] = {"data", "mode", "enable_dictionary", "enable_transforms", NULL};
+  static char *kwlist[] = {"data", "mode", "enable_dictionary", "enable_transforms",
+                           "greedy_block_split", NULL};
 
-  ok = PyArg_ParseTupleAndKeywords(args, keywds, "s#|O&O!O!:compress", kwlist,
+  ok = PyArg_ParseTupleAndKeywords(args, keywds, "s#|O&O!O!O!:compress", kwlist,
                         &input, &length,
                         &mode_convertor, &mode,
-                        &PyBool_Type, &dictionary,
-                        &PyBool_Type, &transform);
+                        &PyBool_Type, &enable_dictionary,
+                        &PyBool_Type, &enable_transforms,
+                        &PyBool_Type, &greedy_block_split);
 
   if (!ok)
     return NULL;
@@ -73,10 +79,12 @@ static PyObject* brotli_compress(PyObject *self, PyObject *args, PyObject *keywd
   BrotliParams params;
   if (mode != -1)
     params.mode = mode;
-  if (dictionary)
-    params.enable_dictionary = PyObject_IsTrue(dictionary);
-  if (transform)
-    params.enable_transforms = PyObject_IsTrue(transform);
+  if (enable_dictionary)
+    params.enable_dictionary = PyObject_IsTrue(enable_dictionary);
+  if (enable_transforms)
+    params.enable_transforms = PyObject_IsTrue(enable_transforms);
+  if (greedy_block_split)
+    params.greedy_block_split = PyObject_IsTrue(greedy_block_split);
 
   ok = BrotliCompressBuffer(params, length, input,
                             &output_length, output);
