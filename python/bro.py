@@ -2,17 +2,14 @@
 """bro %s -- compression/decompression utility using the Brotli algorithm."""
 
 from __future__ import print_function
-import getopt
+import argparse
 import sys
 import os
 import brotli
 import platform
 
-__usage__ = """\
-Usage: bro [--force] [--decompress] [--input filename] [--output filename]
-    [--mode 'text'|'font'] [--transform]"""
 
-__version__ = '0.1'
+__version__ = '1.0'
 
 
 BROTLI_MODES = {
@@ -49,27 +46,44 @@ def get_binary_stdio(stream):
             return orig_stdio.buffer
 
 
-def main(args):
+def main():
 
-    options = parse_options(args)
+    parser = argparse.ArgumentParser(
+        prog='bro', description="Compression utility using the Brotli algorithm.",
+        usage='%(prog)s [-h] [-i FILE] [-o FILE] [-d] [-f] [-m MODE] [-t]')
+    parser.add_argument('--version', action='version', version='%(prog)s 1.0')
+    parser.add_argument('-i', '--input', metavar='FILE', type=str, dest='infile',
+                        help='input file', default=None)
+    parser.add_argument('-o', '--output', metavar='FILE', type=str, dest='outfile',
+                        help='output file', default=None)
+    parser.add_argument('-d', '--decompress', action='store_true',
+                        help='decompress input file', default=False)
+    parser.add_argument('-f', '--force', action='store_true',
+                        help='overwrite existing output file', default=False)
+    parser.add_argument('-m', '--mode', metavar="MODE", type=int,
+                        choices=[0, 1], default=0,
+                        help='the compression mode can be 0 (text) or 1 (font). '
+                        'Defaults to text mode.')
+    parser.add_argument('-t', '--transform', action='store_true',
+                        help='enable encoder transforms.', default=False)
+
+    options = parser.parse_args()
 
     if options.infile:
         if not os.path.isfile(options.infile):
-            print('file "%s" not found' % options.infile, file=sys.stderr)
-            sys.exit(1)
+            parser.error('file "%s" not found' % options.infile)
         with open(options.infile, "rb") as infile:
             data = infile.read()
     else:
         if sys.stdin.isatty():
             # interactive console, just quit
-            usage()
+            parser.error('no input')
         infile = get_binary_stdio('stdin')
         data = infile.read()
 
     if options.outfile:
         if os.path.isfile(options.outfile) and not options.force:
-            print('output file exists')
-            sys.exit(1)
+            parser.error('output file exists')
         outfile = open(options.outfile, "wb")
     else:
         outfile = get_binary_stdio('stdout')
@@ -78,62 +92,13 @@ def main(args):
         if options.decompress:
             data = brotli.decompress(data)
         else:
-            data = brotli.compress(data, options.mode, options.transform)
+            data = brotli.compress(data, mode=options.mode, enable_transforms=options.transform)
     except brotli.error as e:
-        print('[ERROR] %s: %s' % (e, options.infile or 'sys.stdin'),
-              file=sys.stderr)
-        sys.exit(1)
+        parser.exit(status=1, message='bro: error: %s: %s' % (e, options.infile or 'sys.stdin'))
 
     outfile.write(data)
     outfile.close()
 
 
-def parse_options(args):
-    try:
-        raw_options, dummy = getopt.gnu_getopt(
-            args, "?hdi:o:fm:t",
-            ["help", "decompress", "input=", "output=", "force", "mode=",
-             "transform"])
-    except getopt.GetoptError as e:
-        print(e, file=sys.stderr)
-        usage()
-    options = Options(raw_options)
-    return options
-
-
-def usage():
-    print(__usage__, file=sys.stderr)
-    sys.exit(1)
-
-
-class Options(object):
-
-    def __init__(self, raw_options):
-        self.decompress = self.force = self.transform = False
-        self.infile = self.outfile = None
-        self.mode = BROTLI_MODES['text']
-        for option, value in raw_options:
-            if option in ("-h", "--help"):
-                print(__doc__ % (__version__))
-                print("\n%s" % __usage__)
-                sys.exit(0)
-            elif option in ('-d', '--decompress'):
-                self.decompress = True
-            elif option in ('-i', '--input'):
-                self.infile = value
-            elif option in ('-o', '--output'):
-                self.outfile = value
-            elif option in ('-f', '--force'):
-                self.force = True
-            elif option in ('-m', '--mode'):
-                value = value.lower()
-                if value not in ('text', 'font'):
-                    print('mode "%s" not recognized' % value, file=sys.stderr)
-                    usage()
-                self.mode = BROTLI_MODES[value]
-            elif option in ('-t', '--transform'):
-                self.transform = True
-
-
 if __name__ == '__main__':
-    main(sys.argv[1:])
+    main()
