@@ -103,8 +103,6 @@ def main():
     parser.set_defaults(**DEFAULT_PARAMS)
 
     options = parser.parse_args()
-    from pprint import pprint
-    pprint(options.__dict__)
 
     if options.infile:
         if not os.path.isfile(options.infile):
