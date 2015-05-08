@@ -29,6 +29,51 @@ static int mode_convertor(PyObject *o, BrotliParams::Mode *mode) {
   return 1;
 }
 
+static int quality_convertor(PyObject *o, int *quality) {
+  if (!PyInt_Check(o)) {
+    PyErr_SetString(BrotliError, "Invalid quality");
+    return 0;
+  }
+
+  *quality = PyInt_AsLong(o);
+  if (*quality < 0 || *quality > 11) {
+    PyErr_SetString(BrotliError, "Invalid quality. Range is 0 to 11.");
+    return 0;
+  }
+
+  return 1;
+}
+
+static int lgwin_convertor(PyObject *o, int *lgwin) {
+  if (!PyInt_Check(o)) {
+    PyErr_SetString(BrotliError, "Invalid lgwin");
+    return 0;
+  }
+
+  *lgwin = PyInt_AsLong(o);
+  if (*lgwin < 16 || *lgwin > 24) {
+    PyErr_SetString(BrotliError, "Invalid lgwin. Range is 16 to 24.");
+    return 0;
+  }
+
+  return 1;
+}
+
+static int lgblock_convertor(PyObject *o, int *lgblock) {
+  if (!PyInt_Check(o)) {
+    PyErr_SetString(BrotliError, "Invalid lgblock");
+    return 0;
+  }
+
+  *lgblock = PyInt_AsLong(o);
+  if ((*lgblock != 0 && *lgblock < 16) || *lgblock > 24) {
+    PyErr_SetString(BrotliError, "Invalid lgblock. Can be 0 or in range 16 to 24.");
+    return 0;
+  }
+
+  return 1;
+}
+
 PyDoc_STRVAR(compress__doc__,
 "compress(data, mode=MODE_TEXT, quality=11, lgwin=22, lgblock=0,\n"
 "         enable_dictionary=True, enable_transforms=False\n"
@@ -59,7 +104,7 @@ PyDoc_STRVAR(compress__doc__,
 "  The compressed string of bytes.\n"
 "\n"
 "Raises:\n"
-"  brotli.error: If mode is invalid, or compressor fails.\n");
+"  brotli.error: If arguments are invalid, or compressor fails.\n");
 
 static PyObject* brotli_compress(PyObject *self, PyObject *args, PyObject *keywds) {
   PyObject *ret = NULL;
@@ -70,14 +115,21 @@ static PyObject* brotli_compress(PyObject *self, PyObject *args, PyObject *keywd
   uint8_t *input, *output;
   size_t length, output_length;
   BrotliParams::Mode mode = (BrotliParams::Mode) -1;
+  int quality = -1;
+  int lgwin = -1;
+  int lgblock = -1;
   int ok;
 
-  static char *kwlist[] = {"data", "mode", "enable_dictionary", "enable_transforms",
+  static char *kwlist[] = {"data", "mode", "quality", "lgwin", "lgblock",
+                           "enable_dictionary", "enable_transforms",
                            "greedy_block_split", "enable_context_modeling", NULL};
 
-  ok = PyArg_ParseTupleAndKeywords(args, keywds, "s#|O&O!O!O!O!:compress", kwlist,
+  ok = PyArg_ParseTupleAndKeywords(args, keywds, "s#|O&O&O&O&O!O!O!O!:compress", kwlist,
                         &input, &length,
                         &mode_convertor, &mode,
+                        &quality_convertor, &quality,
+                        &lgwin_convertor, &lgwin,
+                        &lgblock_convertor, &lgblock,
                         &PyBool_Type, &enable_dictionary,
                         &PyBool_Type, &enable_transforms,
                         &PyBool_Type, &greedy_block_split,
@@ -92,6 +144,12 @@ static PyObject* brotli_compress(PyObject *self, PyObject *args, PyObject *keywd
   BrotliParams params;
   if (mode != -1)
     params.mode = mode;
+  if (quality != -1)
+    params.quality = quality;
+  if (lgwin != -1)
+    params.lgwin = lgwin;
+  if (lgblock != -1)
+    params.lgblock = lgblock;
   if (enable_dictionary)
     params.enable_dictionary = PyObject_IsTrue(enable_dictionary);
   if (enable_transforms)
