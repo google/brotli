@@ -66,20 +66,22 @@ static PyObject* brotli_compress(PyObject *self, PyObject *args, PyObject *keywd
   PyObject* enable_dictionary = NULL;
   PyObject* enable_transforms = NULL;
   PyObject* greedy_block_split = NULL;
+  PyObject* enable_context_modeling = NULL;
   uint8_t *input, *output;
   size_t length, output_length;
   BrotliParams::Mode mode = (BrotliParams::Mode) -1;
   int ok;
 
   static char *kwlist[] = {"data", "mode", "enable_dictionary", "enable_transforms",
-                           "greedy_block_split", NULL};
+                           "greedy_block_split", "enable_context_modeling", NULL};
 
-  ok = PyArg_ParseTupleAndKeywords(args, keywds, "s#|O&O!O!O!:compress", kwlist,
+  ok = PyArg_ParseTupleAndKeywords(args, keywds, "s#|O&O!O!O!O!:compress", kwlist,
                         &input, &length,
                         &mode_convertor, &mode,
                         &PyBool_Type, &enable_dictionary,
                         &PyBool_Type, &enable_transforms,
-                        &PyBool_Type, &greedy_block_split);
+                        &PyBool_Type, &greedy_block_split,
+                        &PyBool_Type, &enable_context_modeling);
 
   if (!ok)
     return NULL;
@@ -96,6 +98,8 @@ static PyObject* brotli_compress(PyObject *self, PyObject *args, PyObject *keywd
     params.enable_transforms = PyObject_IsTrue(enable_transforms);
   if (greedy_block_split)
     params.greedy_block_split = PyObject_IsTrue(greedy_block_split);
+  if (enable_context_modeling)
+    params.enable_context_modeling = PyObject_IsTrue(enable_context_modeling);
 
   ok = BrotliCompressBuffer(params, length, input,
                             &output_length, output);
