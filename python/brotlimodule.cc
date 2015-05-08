@@ -36,8 +36,10 @@ PyDoc_STRVAR(compress__doc__,
 "  data (bytes): The input data.\n"
 "  mode (int, optional): The compression mode can be MODE_TEXT (default) or\n"
 "    MODE_FONT.\n"
+"  enable_dictionary (bool, optional): Controls whether to enable encoder\n"
+"    dictionary. Defaults to True. Respected only if quality > 9.\n"
 "  enable_transforms (bool, optional): Controls whether to enable encoder\n"
-"    transforms. Defaults to False.\n"
+"    transforms. Defaults to False. Respected only if quality > 9.\n"
 "\n"
 "Returns:\n"
 "  The compressed string of bytes.\n"
@@ -47,17 +49,19 @@ PyDoc_STRVAR(compress__doc__,
 
 static PyObject* brotli_compress(PyObject *self, PyObject *args, PyObject *keywds) {
   PyObject *ret = NULL;
+  PyObject* dictionary = NULL;
   PyObject* transform = NULL;
   uint8_t *input, *output;
   size_t length, output_length;
   BrotliParams::Mode mode = (BrotliParams::Mode) -1;
   int ok;
 
-  static char *kwlist[] = {"data", "mode", "enable_transforms", NULL};
+  static char *kwlist[] = {"data", "mode", "enable_dictionary", "enable_transforms", NULL};
 
-  ok = PyArg_ParseTupleAndKeywords(args, keywds, "s#|O&O!:compress", kwlist,
+  ok = PyArg_ParseTupleAndKeywords(args, keywds, "s#|O&O!O!:compress", kwlist,
                         &input, &length,
                         &mode_convertor, &mode,
+                        &PyBool_Type, &dictionary,
                         &PyBool_Type, &transform);
 
   if (!ok)
@@ -69,6 +73,8 @@ static PyObject* brotli_compress(PyObject *self, PyObject *args, PyObject *keywd
   BrotliParams params;
   if (mode != -1)
     params.mode = mode;
+  if (dictionary)
+    params.enable_dictionary = PyObject_IsTrue(dictionary);
   if (transform)
     params.enable_transforms = PyObject_IsTrue(transform);
 
