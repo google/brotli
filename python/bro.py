@@ -12,9 +12,16 @@ import platform
 __version__ = '1.0'
 
 
-BROTLI_MODES = {
-    'text': brotli.MODE_TEXT,
-    'font': brotli.MODE_FONT
+# default values of encoder parameters
+DEFAULT_PARAMS = {
+    'mode': brotli.MODE_TEXT,
+    'quality': 11,
+    'lgwin': 22,
+    'lgblock': 0,
+    'enable_dictionary': True,
+    'enable_transforms': False,
+    'greedy_block_split': False,
+    'enable_context_modeling': True
 }
 
 
@@ -49,25 +56,55 @@ def get_binary_stdio(stream):
 def main():
 
     parser = argparse.ArgumentParser(
-        prog='bro', description="Compression utility using the Brotli algorithm.",
-        usage='%(prog)s [-h] [-i FILE] [-o FILE] [-d] [-f] [-m MODE] [-t]')
+        prog='bro.py',
+        description="Compression/decompression utility using the Brotli algorithm.")
     parser.add_argument('--version', action='version', version='%(prog)s 1.0')
     parser.add_argument('-i', '--input', metavar='FILE', type=str, dest='infile',
-                        help='input file', default=None)
+                        help='Input file', default=None)
     parser.add_argument('-o', '--output', metavar='FILE', type=str, dest='outfile',
-                        help='output file', default=None)
-    parser.add_argument('-d', '--decompress', action='store_true',
-                        help='decompress input file', default=False)
+                        help='Output file', default=None)
     parser.add_argument('-f', '--force', action='store_true',
-                        help='overwrite existing output file', default=False)
-    parser.add_argument('-m', '--mode', metavar="MODE", type=int,
-                        choices=[0, 1], default=0,
-                        help='the compression mode can be 0 (text) or 1 (font). '
+                        help='Overwrite existing output file', default=False)
+    parser.add_argument('-d', '--decompress', action='store_true',
+                        help='Decompress input file', default=False)
+    params = parser.add_argument_group('optional encoder parameters')
+    params.add_argument('-m', '--mode', metavar="MODE", type=int, choices=[0, 1],
+                        help='The compression mode can be 0 (text) or 1 (font). '
                         'Defaults to text mode.')
-    parser.add_argument('-t', '--transform', action='store_true',
-                        help='enable encoder transforms.', default=False)
+    params.add_argument('-q', '--quality', metavar="QUALITY", type=int,
+                        choices=list(range(0, 12)),
+                        help='Controls the compression-speed vs compression-density '
+                        'tradeoff. The higher the quality, the slower the '
+                        'compression. Range is 0 to 11. Defaults to 11.')
+    params.add_argument('--lgwin', metavar="LGWIN", type=int,
+                        choices=list(range(16, 25)),
+                        help='Base 2 logarithm of the sliding window size. Range is '
+                        '16 to 24. Defaults to 22.')
+    params.add_argument('--lgblock', metavar="LGBLOCK", type=int,
+                        choices=[0] + list(range(16, 25)),
+                        help='Base 2 logarithm of the maximum input block size. '
+                        'Range is 16 to 24. If set to 0, the value will be set based '
+                        'on the quality. Defaults to 0.')
+    above9 = parser.add_argument_group(
+                        'encoder parameters respected only if quality > 9.')
+    above9.add_argument('--no-dictionary', action='store_false',
+                        dest='enable_dictionary',
+                        help='Disable encoder dictionary.')
+    above9.add_argument('--transform', action='store_true',
+                        dest='enable_transforms',
+                        help='Enable encoder transforms.')
+    above9.add_argument('--greedy-block-split', action='store_true',
+                        dest='greedy_block_split',
+                        help='Enable a faster but less dense compression mode.')
+    above9.add_argument('--no-context-modeling', action='store_false',
+                        dest='enable_context_modeling',
+                        help='Disable context modeling.')
+    # set default values using global DEFAULT_PARAMS dictionary
+    parser.set_defaults(**DEFAULT_PARAMS)
 
     options = parser.parse_args()
+    from pprint import pprint
+    pprint(options.__dict__)
 
     if options.infile:
         if not os.path.isfile(options.infile):
@@ -92,9 +129,15 @@ def main():
         if options.decompress:
             data = brotli.decompress(data)
         else:
-            data = brotli.compress(data, mode=options.mode, enable_transforms=options.transform)
+            data = brotli.compress(
+                data, mode=options.mode, quality=options.quality,
+                lgwin=options.lgwin, lgblock=options.lgblock,
+                enable_dictionary=options.enable_dictionary,
+                enable_transforms=options.enable_transforms,
+                greedy_block_split=options.greedy_block_split,
+                enable_context_modeling=options.enable_context_modeling)
     except brotli.error as e:
-        parser.exit(status=1, message='bro: error: %s: %s' % (e, options.infile or 'sys.stdin'))
+        parser.exit(1,'bro: error: %s: %s' % (e, options.infile or 'sys.stdin'))
 
     outfile.write(data)
     outfile.close()
