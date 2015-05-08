@@ -75,12 +75,15 @@ static int lgblock_convertor(PyObject *o, int *lgblock) {
 }
 
 PyDoc_STRVAR(compress__doc__,
-"compress(data, mode=MODE_TEXT, quality=11, lgwin=22, lgblock=0,\n"
-"         enable_dictionary=True, enable_transforms=False\n"
-"         greedy_block_split=False, enable_context_modeling=True)\n"
+"Compress a byte string.\n"
+"\n"
+"Signature:\n"
+"  compress(string, mode=MODE_TEXT, quality=11, lgwin=22, lgblock=0,\n"
+"           enable_dictionary=True, enable_transforms=False\n"
+"           greedy_block_split=False, enable_context_modeling=True)\n"
 "\n"
 "Args:\n"
-"  data (bytes): The input data.\n"
+"  string (bytes): The input data.\n"
 "  mode (int, optional): The compression mode can be MODE_TEXT (default) or\n"
 "    MODE_FONT.\n"
 "  quality (int, optional): Controls the compression-speed vs compression-\n"
@@ -101,7 +104,7 @@ PyDoc_STRVAR(compress__doc__,
 "    modeling. Defaults to True. Respected only if quality > 9.\n"
 "\n"
 "Returns:\n"
-"  The compressed string of bytes.\n"
+"  The compressed byte string.\n"
 "\n"
 "Raises:\n"
 "  brotli.error: If arguments are invalid, or compressor fails.\n");
@@ -120,7 +123,7 @@ static PyObject* brotli_compress(PyObject *self, PyObject *args, PyObject *keywd
   int lgblock = -1;
   int ok;
 
-  static char *kwlist[] = {"data", "mode", "quality", "lgwin", "lgblock",
+  static char *kwlist[] = {"string", "mode", "quality", "lgwin", "lgblock",
                            "enable_dictionary", "enable_transforms",
                            "greedy_block_split", "enable_context_modeling", NULL};
 
@@ -179,7 +182,19 @@ int output_callback(void* data, const uint8_t* buf, size_t count) {
 }
 
 PyDoc_STRVAR(decompress__doc__,
-"decompress(string) -- Return decompressed string.");
+"Decompress a compressed byte string.\n"
+"\n"
+"Signature:\n"
+"  decompress(string)\n"
+"\n"
+"Args:\n"
+"  string (bytes): The compressed input data.\n"
+"\n"
+"Returns:\n"
+"  The decompressed byte string.\n"
+"\n"
+"Raises:\n"
+"  brotli.error: If decompressor fails.\n");
 
 static PyObject* brotli_decompress(PyObject *self, PyObject *args) {
   PyObject *ret = NULL;
@@ -217,10 +232,7 @@ static PyMethodDef brotli_methods[] = {
 
 PyDoc_STRVAR(brotli__doc__,
 "The functions in this module allow compression and decompression using the\n"
-"Brotli library.\n"
-"\n"
-"compress(string[, mode, transform]) -- Compress string.\n"
-"decompress(string) -- Decompresses a compressed string.\n");
+"Brotli library.\n\n");
 
 #if PY_MAJOR_VERSION >= 3
 #define INIT_BROTLI   PyInit_brotli
