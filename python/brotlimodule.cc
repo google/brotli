@@ -30,13 +30,22 @@ static int mode_convertor(PyObject *o, BrotliParams::Mode *mode) {
 }
 
 PyDoc_STRVAR(compress__doc__,
-"compress(string[, mode[, transform]]) -- Returned compressed string.\n"
+"compress(data[, mode=MODE_TEXT, enable_transforms=False])\n"
 "\n"
-"Optional arg mode is the compression mode, either MODE_TEXT (default) or\n"
-"MODE_FONT. Optional boolean arg transform controls whether to enable\n"
-"encoder transforms or not, defaults to False.");
+"Args:\n"
+"  data (bytes): The input data.\n"
+"  mode (int, optional): The compression mode can be MODE_TEXT (default) or\n"
+"    MODE_FONT.\n"
+"  enable_transforms (bool, optional): Controls whether to enable encoder\n"
+"    transforms. Defaults to False.\n"
+"\n"
+"Returns:\n"
+"  The compressed string of bytes.\n"
+"\n"
+"Raises:\n"
+"  brotli.error: If mode is invalid, or compressor fails.\n");
 
-static PyObject* brotli_compress(PyObject *self, PyObject *args) {
+static PyObject* brotli_compress(PyObject *self, PyObject *args, PyObject *keywds) {
   PyObject *ret = NULL;
   PyObject* transform = NULL;
   uint8_t *input, *output;
@@ -44,7 +53,9 @@ static PyObject* brotli_compress(PyObject *self, PyObject *args) {
   BrotliParams::Mode mode = (BrotliParams::Mode) -1;
   int ok;
 
-  ok = PyArg_ParseTuple(args, "s#|O&O!:compress",
+  static char *kwlist[] = {"data", "mode", "enable_transforms", NULL};
+
+  ok = PyArg_ParseTupleAndKeywords(args, keywds, "s#|O&O!:compress", kwlist,
                         &input, &length,
                         &mode_convertor, &mode,
                         &PyBool_Type, &transform);
@@ -112,7 +123,7 @@ static PyObject* brotli_decompress(PyObject *self, PyObject *args) {
 }
 
 static PyMethodDef brotli_methods[] = {
-  {"compress",   brotli_compress,   METH_VARARGS, compress__doc__},
+  {"compress",   (PyCFunction)brotli_compress, METH_VARARGS | METH_KEYWORDS, compress__doc__},
   {"decompress", brotli_decompress, METH_VARARGS, decompress__doc__},
   {NULL, NULL, 0, NULL}
 };
