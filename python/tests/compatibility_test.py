@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 from __future__ import print_function
 import glob
-import string
 import sys
 import os
 from subprocess import check_call
@@ -13,7 +12,7 @@ os.chdir(os.path.abspath("../../tests"))
 for filename in glob.glob("testdata/*.compressed*"):
     filename = os.path.abspath(filename)
     print('Testing decompression of file "%s"' % os.path.basename(filename))
-    expected = string.split(filename, ".compressed")[0]
+    expected = filename.split(".compressed")[0]
     uncompressed = expected + ".uncompressed"
     check_call([PYTHON, BRO, "-f", "-d", "-i", filename, "-o", uncompressed],
                env=TEST_ENV)
