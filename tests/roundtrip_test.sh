@@ -17,13 +17,15 @@ $BRO
 """
 
 for file in $INPUTS; do
-  echo "Roundtrip testing $file"
-  compressed=${file}.bro
-  uncompressed=${file}.unbro
-  $BRO -f -i $file -o $compressed
-  $BRO -f -d -i $compressed -o $uncompressed
-  diff -q $file $uncompressed
-  # Test the streaming version
-  cat $file | $BRO | $BRO -d >$uncompressed
-  diff -q $file $uncompressed
+  for quality in 1 6 9 11; do
+    echo "Roundtrip testing $file at quality $quality"
+    compressed=${file}.bro
+    uncompressed=${file}.unbro
+    $BRO -f -q $quality -i $file -o $compressed
+    $BRO -f -d -i $compressed -o $uncompressed
+    diff -q $file $uncompressed
+    # Test the streaming version
+    cat $file | $BRO -q $quality | $BRO -d >$uncompressed
+    diff -q $file $uncompressed
+  done
 done
