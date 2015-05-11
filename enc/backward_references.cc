@@ -371,17 +371,10 @@ void CreateBackwardReferences(size_t num_bytes,
           commands, num_commands, num_literals);
       break;
     case 10:
-      CreateBackwardReferences<Hashers::H11Text, true, true>(
+      CreateBackwardReferences<Hashers::H10, true, true>(
           num_bytes, position, ringbuffer, ringbuffer_mask,
           literal_cost, literal_cost_mask, max_backward_limit, base_min_score,
-          quality, hashers->hash_h11_text.get(), dist_cache, last_insert_len,
-          commands, num_commands, num_literals);
-      break;
-    case 11:
-      CreateBackwardReferences<Hashers::H11Font, true, false>(
-          num_bytes, position, ringbuffer, ringbuffer_mask,
-          literal_cost, literal_cost_mask, max_backward_limit, base_min_score,
-          quality, hashers->hash_h11_font.get(), dist_cache, last_insert_len,
+          quality, hashers->hash_h10.get(), dist_cache, last_insert_len,
           commands, num_commands, num_literals);
       break;
     default:

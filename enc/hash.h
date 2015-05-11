@@ -52,21 +52,12 @@ static const int kDistanceCacheOffset[] = {
 // * The number has been tuned heuristically against compression benchmarks.
 static const uint32_t kHashMul32 = 0x1e35a7bd;
 
-template<int kShiftBits, int kMinLength>
+template<int kShiftBits>
 inline uint32_t Hash(const uint8_t *data) {
-  if (kMinLength <= 3) {
-    // If kMinLength is 2 or 3, we hash the first 3 bytes of data.
-    uint32_t h = (BROTLI_UNALIGNED_LOAD32(data) & 0xffffff) * kHashMul32;
-    // The higher bits contain more mixture from the multiplication,
-    // so we take our results from there.
-    return h >> (32 - kShiftBits);
-  } else {
-    // If kMinLength is at least 4, we hash the first 4 bytes of data.
-    uint32_t h = BROTLI_UNALIGNED_LOAD32(data) * kHashMul32;
-    // The higher bits contain more mixture from the multiplication,
-    // so we take our results from there.
-    return h >> (32 - kShiftBits);
-  }
+  uint32_t h = BROTLI_UNALIGNED_LOAD32(data) * kHashMul32;
+  // The higher bits contain more mixture from the multiplication,
+  // so we take our results from there.
+  return h >> (32 - kShiftBits);
 }
 
 // Usually, we always choose the longest backward reference. This function
@@ -128,7 +119,7 @@ class HashLongestMatchQuickly {
   // Compute a hash from these, and store the value somewhere within
   // [ix .. ix+3].
   inline void Store(const uint8_t *data, const int ix) {
-    const uint32_t key = Hash<kBucketBits, 4>(data);
+    const uint32_t key = Hash<kBucketBits>(data);
     // Wiggle the value with the bucket sweep range.
     const uint32_t off = (static_cast<uint32_t>(ix) >> 3) % kBucketSweep;
     buckets_[key + off] = ix;
@@ -195,7 +186,7 @@ class HashLongestMatchQuickly {
         }
       }
     }
-    const uint32_t key = Hash<kBucketBits, 4>(&ring_buffer[cur_ix_masked]);
+    const uint32_t key = Hash<kBucketBits>(&ring_buffer[cur_ix_masked]);
     if (kBucketSweep == 1) {
       // Only one to look for, don't bother to prepare for a loop.
       prev_ix = buckets_[key];
@@ -252,7 +243,7 @@ class HashLongestMatchQuickly {
     if (kUseDictionary && !match_found &&
         num_dict_matches_ >= (num_dict_lookups_ >> 7)) {
       ++num_dict_lookups_;
-      const uint32_t key = Hash<14, 4>(&ring_buffer[cur_ix_masked]) << 1;
+      const uint32_t key = Hash<14>(&ring_buffer[cur_ix_masked]) << 1;
       const uint16_t v = kStaticDictionaryHash[key];
       if (v > 0) {
         const int len = v & 31;
@@ -322,7 +313,7 @@ class HashLongestMatch {
   // Look at 3 bytes at data.
   // Compute a hash from these, and store the value of ix at that position.
   inline void Store(const uint8_t *data, const int ix) {
-    const uint32_t key = Hash<kBucketBits, kMinLength>(data);
+    const uint32_t key = Hash<kBucketBits>(data);
     const int minor_ix = num_[key] & kBlockMask;
     buckets_[key][minor_ix] = ix;
     ++num_[key];
@@ -405,8 +396,7 @@ class HashLongestMatch {
       const size_t len =
           FindMatchLengthWithLimit(&data[prev_ix], &data[cur_ix_masked],
                                    max_length);
-      if (len >= std::max(kMinLength, 3) ||
-          (kMinLength == 2 && len == 2 && i < 2)) {
+      if (len >= 3 || (len == 2 && i < 2)) {
         // Comparing for >= 2 does not change the semantics, but just saves for
         // a few unnecessary binary logarithms in backward reference score,
         // since we are not interested in such short matches.
@@ -430,10 +420,10 @@ class HashLongestMatch {
         }
       }
     }
-    if (kMinLength == 2) {
+    if (kMinLength <= 3) {
+      const double lit_cost3 = 3 * average_cost + start_cost_diff3;
       int stop = int(cur_ix) - 64;
       if (stop < 0) { stop = 0; }
-      start_cost_diff2 -= 1.0;
       for (int i = cur_ix - 1; i > stop; --i) {
         size_t prev_ix = i;
         const size_t backward = cur_ix - prev_ix;
@@ -442,13 +432,12 @@ class HashLongestMatch {
         }
         prev_ix &= ring_buffer_mask;
         if (data[cur_ix_masked] != data[prev_ix] ||
-            data[cur_ix_masked + 1] != data[prev_ix + 1]) {
+            data[cur_ix_masked + 1] != data[prev_ix + 1] ||
+            data[cur_ix_masked + 2] != data[prev_ix + 2]) {
           continue;
         }
-        int len = 2;
-        const double score =
-            average_cost * 2 - 2.3 * Log2Floor(backward) + start_cost_diff2;
-
+        const int len = 3;
+        const double score = lit_cost3 - 1.2 * Log2Floor(backward);
         if (best_score < score) {
           best_score = score;
           best_len = len;
@@ -460,7 +449,7 @@ class HashLongestMatch {
         }
       }
     }
-    const uint32_t key = Hash<kBucketBits, kMinLength>(&data[cur_ix_masked]);
+    const uint32_t key = Hash<kBucketBits>(&data[cur_ix_masked]);
     const int * __restrict const bucket = &buckets_[key][0];
     const int down = (num_[key] > kBlockSize) ? (num_[key] - kBlockSize) : 0;
     for (int i = num_[key] - 1; i >= down; --i) {
@@ -501,7 +490,7 @@ class HashLongestMatch {
       }
     }
     if (!match_found && num_dict_matches_ >= (num_dict_lookups_ >> 7)) {
-      uint32_t key = Hash<14, 4>(&data[cur_ix_masked]) << 1;
+      uint32_t key = Hash<14>(&data[cur_ix_masked]) << 1;
       for (int k = 0; k < 2; ++k, ++key) {
         ++num_dict_lookups_;
         const uint16_t v = kStaticDictionaryHash[key];
@@ -601,8 +590,7 @@ struct Hashers {
   typedef HashLongestMatch<15, 6, 4, 10, false, false> H7;
   typedef HashLongestMatch<15, 7, 4, 10, false, false> H8;
   typedef HashLongestMatch<15, 8, 4, 16, false, false> H9;
-  typedef HashLongestMatch<15, 8, 4, 16, true, true> H11Text;
-  typedef HashLongestMatch<15, 8, 2, 16, true, false> H11Font;
+  typedef HashLongestMatch<15, 8, 3, 16, true, true> H10;
 
   void Init(int type) {
     switch (type) {
@@ -615,14 +603,13 @@ struct Hashers {
       case 7: hash_h7.reset(new H7); break;
       case 8: hash_h8.reset(new H8); break;
       case 9: hash_h9.reset(new H9); break;
-      case 10: hash_h11_text.reset(new H11Text); break;
-      case 11: hash_h11_font.reset(new H11Font); break;
+      case 10: hash_h10.reset(new H10); break;
       default: break;
     }
   }
 
   void SetStaticDictionary(const StaticDictionary *dict) {
-    if (hash_h11_text.get() != NULL) hash_h11_text->SetStaticDictionary(dict);
+    if (hash_h10.get() != NULL) hash_h10->SetStaticDictionary(dict);
   }
 
   std::unique_ptr<H1> hash_h1;
@@ -634,8 +621,7 @@ struct Hashers {
   std::unique_ptr<H7> hash_h7;
   std::unique_ptr<H8> hash_h8;
   std::unique_ptr<H9> hash_h9;
-  std::unique_ptr<H11Text> hash_h11_text;
-  std::unique_ptr<H11Font> hash_h11_font;
+  std::unique_ptr<H10> hash_h10;
 };
 
 }  // namespace brotli
