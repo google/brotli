@@ -208,7 +208,7 @@ BrotliCompressor::BrotliCompressor(BrotliParams params)
   if (params_.quality <= 9) {
     hash_type_ = params_.quality;
   } else {
-    hash_type_ = (params_.mode == BrotliParams::MODE_TEXT) ? 10 : 11;
+    hash_type_ = 10;
   }
   hashers_->Init(hash_type_);
   if ((params_.mode == BrotliParams::MODE_GENERIC ||
