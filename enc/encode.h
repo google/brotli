@@ -36,7 +36,7 @@ static const int kMaxInputBlockBits = 24;
 
 struct BrotliParams {
   BrotliParams()
-      : mode(MODE_TEXT),
+      : mode(MODE_GENERIC),
         quality(11),
         lgwin(22),
         lgblock(0),
@@ -46,8 +46,13 @@ struct BrotliParams {
         enable_context_modeling(true) {}
 
   enum Mode {
-    MODE_TEXT = 0,
-    MODE_FONT = 1,
+    // Default compression mode. The compressor does not know anything in
+    // advance about the properties of the input.
+    MODE_GENERIC = 0,
+    // Compression mode for UTF-8 format text input.
+    MODE_TEXT = 1,
+    // Compression mode used in WOFF 2.0.
+    MODE_FONT = 2,
   };
   Mode mode;
 
