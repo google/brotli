@@ -27,10 +27,23 @@
 #include "../enc/streams.h"
 
 
+static bool ParseQuality(const char* s, int* quality) {
+  if (s[0] >= '0' && s[0] <= '9') {
+    *quality = s[0] - '0';
+    if (s[1] >= '0' && s[1] <= '9') {
+      *quality = *quality * 10 + s[1] - '0';
+      return s[2] == 0;
+    }
+    return s[1] == 0;
+  }
+  return false;
+}
+
 static void ParseArgv(int argc, char **argv,
                       char **input_path,
                       char **output_path,
                       int *force,
+                      int *quality,
                       int *decompress) {
   *force = 0;
   *input_path = 0;
@@ -73,6 +86,13 @@ static void ParseArgv(int argc, char **argv,
         *output_path = argv[k + 1];
         ++k;
         continue;
+      } else if (!strcmp("--quality", argv[k]) ||
+                 !strcmp("-q", argv[k])) {
+        if (!ParseQuality(argv[k + 1], quality)) {
+          goto error;
+        }
+        ++k;
+        continue;
       }
     }
     goto error;
@@ -80,7 +100,7 @@ static void ParseArgv(int argc, char **argv,
   return;
 error:
   fprintf(stderr,
-          "Usage: %s [--force] [--decompress]"
+          "Usage: %s [--force] [--quality n] [--decompress]"
           " [--input filename] [--output filename]\n",
           argv[0]);
   exit(1);
@@ -122,8 +142,10 @@ int main(int argc, char** argv) {
   char *input_path = 0;
   char *output_path = 0;
   int force = 0;
+  int quality = 11;
   int decompress = 0;
-  ParseArgv(argc, argv, &input_path, &output_path, &force, &decompress);
+  ParseArgv(argc, argv, &input_path, &output_path, &force,
+            &quality, &decompress);
   FILE* fin = OpenInputFile(input_path);
   FILE* fout = OpenOutputFile(output_path, force);
   if (decompress) {
@@ -135,6 +157,7 @@ int main(int argc, char** argv) {
     }
   } else {
     brotli::BrotliParams params;
+    params.quality = quality;
     brotli::BrotliFileIn in(fin, 1 << 16);
     brotli::BrotliFileOut out(fout);
     if (!BrotliCompress(params, &in, &out)) {
