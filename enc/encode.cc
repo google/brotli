@@ -145,7 +145,7 @@ BrotliCompressor::BrotliCompressor(BrotliParams params)
       prev_byte2_(0),
       storage_size_(0) {
   // Sanitize params.
-  params_.quality = std::max(0, params_.quality);
+  params_.quality = std::max(1, params_.quality);
   if (params_.lgwin < kMinWindowBits) {
     params_.lgwin = kMinWindowBits;
   } else if (params_.lgwin > kMaxWindowBits) {
