@@ -20,7 +20,8 @@ static int mode_convertor(PyObject *o, BrotliParams::Mode *mode) {
   }
 
   *mode = (BrotliParams::Mode) PyInt_AsLong(o);
-  if (*mode != BrotliParams::Mode::MODE_TEXT &&
+  if (*mode != BrotliParams::Mode::MODE_GENERIC &&
+      *mode != BrotliParams::Mode::MODE_TEXT &&
       *mode != BrotliParams::Mode::MODE_FONT) {
     PyErr_SetString(BrotliError, "Invalid mode");
     return 0;
@@ -78,14 +79,14 @@ PyDoc_STRVAR(compress__doc__,
 "Compress a byte string.\n"
 "\n"
 "Signature:\n"
-"  compress(string, mode=MODE_TEXT, quality=11, lgwin=22, lgblock=0,\n"
+"  compress(string, mode=MODE_GENERIC, quality=11, lgwin=22, lgblock=0,\n"
 "           enable_dictionary=True, enable_transforms=False\n"
 "           greedy_block_split=False, enable_context_modeling=True)\n"
 "\n"
 "Args:\n"
 "  string (bytes): The input data.\n"
-"  mode (int, optional): The compression mode can be MODE_TEXT (default) or\n"
-"    MODE_FONT.\n"
+"  mode (int, optional): The compression mode can be MODE_GENERIC (default),\n"
+"    MODE_TEXT (for UTF-8 format text input) or MODE_FONT (for WOFF 2.0). \n"
 "  quality (int, optional): Controls the compression-speed vs compression-\n"
 "    density tradeoff. The higher the quality, the slower the compression.\n"
 "    Range is 0 to 11. Defaults to 11.\n"
@@ -265,6 +266,7 @@ PyMODINIT_FUNC INIT_BROTLI(void) {
     PyModule_AddObject(m, "error", BrotliError);
   }
 
+  PyModule_AddIntConstant(m, "MODE_GENERIC", (int) BrotliParams::Mode::MODE_GENERIC);
   PyModule_AddIntConstant(m, "MODE_TEXT", (int) BrotliParams::Mode::MODE_TEXT);
   PyModule_AddIntConstant(m, "MODE_FONT", (int) BrotliParams::Mode::MODE_FONT);
 
