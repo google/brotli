@@ -20,20 +20,24 @@ testdata/plrabn12.txt
 
 os.chdir(os.path.abspath("../../tests"))
 for filename in INPUTS.splitlines():
-    filename = os.path.abspath(filename)
-    print('Roundtrip testing of file "%s"' % os.path.basename(filename))
-    compressed = os.path.splitext(filename)[0] + ".bro"
-    uncompressed = os.path.splitext(filename)[0] + ".unbro"
-    check_call([PYTHON, BRO, "-f", "-i", filename, "-o", compressed],
-               env=TEST_ENV)
-    check_call([PYTHON, BRO, "-f", "-d", "-i", compressed, "-o", uncompressed],
-               env=TEST_ENV)
-    if diff_q(filename, uncompressed) != 0:
-        sys.exit(1)
-    # Test the streaming version
-    with open(filename, "rb") as infile, open(uncompressed, "wb") as outfile:
-        p = Popen([PYTHON, BRO], stdin=infile, stdout=PIPE, env=TEST_ENV)
-        check_call([PYTHON, BRO, "-d"], stdin=p.stdout, stdout=outfile,
-                   env=TEST_ENV)
-    if diff_q(filename, uncompressed) != 0:
-        sys.exit(1)
+    for quality in (1, 6, 9, 11):
+        filename = os.path.abspath(filename)
+        print('Roundtrip testing file "%s" at quality %d' %
+              (os.path.basename(filename), quality))
+        compressed = os.path.splitext(filename)[0] + ".bro"
+        uncompressed = os.path.splitext(filename)[0] + ".unbro"
+        check_call([PYTHON, BRO, "-f", "-q", str(quality), "-i", filename,
+                    "-o", compressed], env=TEST_ENV)
+        check_call([PYTHON, BRO, "-f", "-d", "-i", compressed, "-o",
+                    uncompressed], env=TEST_ENV)
+        if diff_q(filename, uncompressed) != 0:
+            sys.exit(1)
+        # Test the streaming version
+        with open(filename, "rb") as infile, \
+                open(uncompressed, "wb") as outfile:
+            p = Popen([PYTHON, BRO, "-q", str(quality)], stdin=infile,
+                      stdout=PIPE, env=TEST_ENV)
+            check_call([PYTHON, BRO, "-d"], stdin=p.stdout, stdout=outfile,
+                       env=TEST_ENV)
+        if diff_q(filename, uncompressed) != 0:
+            sys.exit(1)
