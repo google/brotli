@@ -211,7 +211,8 @@ BrotliCompressor::BrotliCompressor(BrotliParams params)
     hash_type_ = (params_.mode == BrotliParams::MODE_TEXT) ? 10 : 11;
   }
   hashers_->Init(hash_type_);
-  if (params_.mode == BrotliParams::MODE_TEXT &&
+  if ((params_.mode == BrotliParams::MODE_GENERIC ||
+       params_.mode == BrotliParams::MODE_TEXT) &&
       params_.enable_dictionary) {
     StoreDictionaryWordHashes(params_.enable_transforms);
   }
