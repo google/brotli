@@ -612,6 +612,31 @@ struct Hashers {
     if (hash_h10.get() != NULL) hash_h10->SetStaticDictionary(dict);
   }
 
+  template<typename Hasher>
+  void WarmupHash(const size_t size, const uint8_t* dict, Hasher* hasher) {
+    for (size_t i = 0; i < size; i++) {
+      hasher->Store(dict, i);
+    }
+  }
+
+  // Custom LZ77 window.
+  void PrependCustomDictionary(
+      int type, const size_t size, const uint8_t* dict) {
+    switch (type) {
+      case 1: WarmupHash(size, dict, hash_h1.get()); break;
+      case 2: WarmupHash(size, dict, hash_h2.get()); break;
+      case 3: WarmupHash(size, dict, hash_h3.get()); break;
+      case 4: WarmupHash(size, dict, hash_h4.get()); break;
+      case 5: WarmupHash(size, dict, hash_h5.get()); break;
+      case 6: WarmupHash(size, dict, hash_h6.get()); break;
+      case 7: WarmupHash(size, dict, hash_h7.get()); break;
+      case 8: WarmupHash(size, dict, hash_h8.get()); break;
+      case 9: WarmupHash(size, dict, hash_h9.get()); break;
+      case 10: WarmupHash(size, dict, hash_h10.get()); break;
+      default: break;
+    }
+  }
+
   std::unique_ptr<H1> hash_h1;
   std::unique_ptr<H2> hash_h2;
   std::unique_ptr<H3> hash_h3;

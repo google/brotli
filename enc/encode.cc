@@ -282,6 +282,17 @@ void BrotliCompressor::CopyInputToRingBuffer(const size_t input_size,
   }
 }
 
+void BrotliCompressor::BrotliSetCustomDictionary(
+    const size_t size, const uint8_t* dict) {
+  CopyInputToRingBuffer(size, dict);
+  last_flush_pos_ = size;
+  last_processed_pos_ = size;
+  if (size > 0) prev_byte_ = dict[size - 1];
+  if (size > 1) prev_byte2_ = dict[size - 2];
+
+  hashers_->PrependCustomDictionary(hash_type_, size, dict);
+}
+
 bool BrotliCompressor::WriteBrotliData(const bool is_last,
                                        const bool force_flush,
                                        size_t* out_size,
@@ -641,11 +652,18 @@ bool BrotliInIsFinished(BrotliIn* r) {
 }
 
 int BrotliCompress(BrotliParams params, BrotliIn* in, BrotliOut* out) {
+  return BrotliCompressWithCustomDictionary(0, nullptr, params, in, out);
+}
+
+int BrotliCompressWithCustomDictionary(size_t dictsize, const uint8_t* dict,
+                                       BrotliParams params,
+                                       BrotliIn* in, BrotliOut* out) {
   size_t in_bytes = 0;
   size_t out_bytes = 0;
   uint8_t* output;
   bool final_block = false;
   BrotliCompressor compressor(params);
+  if (dictsize != 0) compressor.BrotliSetCustomDictionary(dictsize, dict);
   while (!final_block) {
     in_bytes = CopyOneBlockToRingBuffer(in, &compressor);
     final_block = in_bytes == 0 || BrotliInIsFinished(in);

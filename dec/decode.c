@@ -1101,9 +1101,14 @@ BrotliResult BrotliDecompressStreaming(BrotliInput input, BrotliOutput output,
           if (BrotliDecompressedSize(BROTLI_READ_SIZE, br->buf_, &known_size)
               == BROTLI_RESULT_SUCCESS) {
             while (s->ringbuffer_size >= known_size * 2
-                && s->ringbuffer_size > 0) {
+                && s->ringbuffer_size > 1) {
               s->ringbuffer_size /= 2;
             }
+          }
+
+          /* But make it fit the custom dictionary if there is one. */
+          while (s->ringbuffer_size < s->custom_dict_size) {
+            s->ringbuffer_size *= 2;
           }
 
           s->ringbuffer_mask = s->ringbuffer_size - 1;
@@ -1115,6 +1120,17 @@ BrotliResult BrotliDecompressStreaming(BrotliInput input, BrotliOutput output,
             break;
           }
           s->ringbuffer_end = s->ringbuffer + s->ringbuffer_size;
+
+          if (s->custom_dict) {
+            memcpy(&s->ringbuffer[(-s->custom_dict_size) & s->ringbuffer_mask],
+                                  s->custom_dict, (size_t)s->custom_dict_size);
+            if (s->custom_dict_size > 0) {
+              s->prev_byte1 = s->custom_dict[s->custom_dict_size - 1];
+            }
+            if (s->custom_dict_size > 1) {
+              s->prev_byte2 = s->custom_dict[s->custom_dict_size - 2];
+            }
+          }
         }
 
         if (s->is_metadata) {
@@ -1455,9 +1471,9 @@ BrotliResult BrotliDecompressStreaming(BrotliInput input, BrotliOutput output,
         }
         BROTLI_LOG_UINT(s->distance);
 
-        if (pos < s->max_backward_distance &&
+        if (pos + s->custom_dict_size < s->max_backward_distance &&
             s->max_distance != s->max_backward_distance) {
-          s->max_distance = pos;
+          s->max_distance = pos + s->custom_dict_size;
         } else {
           s->max_distance = s->max_backward_distance;
         }
@@ -1700,6 +1716,12 @@ BrotliResult BrotliDecompressStreaming(BrotliInput input, BrotliOutput output,
   s->pos = pos;
   s->loop_counter = i;
   return result;
+}
+
+void BrotliSetCustomDictionary(
+    size_t size, const uint8_t* dict, BrotliState* s) {
+  s->custom_dict = dict;
+  s->custom_dict_size = (int) size;
 }
 
 #if defined(__cplusplus) || defined(c_plusplus)

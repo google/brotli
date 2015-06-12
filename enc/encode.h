@@ -128,6 +128,13 @@ class BrotliCompressor {
   bool WriteBrotliData(const bool is_last, const bool force_flush,
                        size_t* out_size, uint8_t** output);
 
+  // Fills the new state with a dictionary for LZ77, warming up the ringbuffer,
+  // e.g. for custom static dictionaries for data formats.
+  // Not to be confused with the built-in transformable dictionary of Brotli.
+  // To decode, use BrotliSetCustomDictionary of the decoder with the same
+  // dictionary.
+  void BrotliSetCustomDictionary(size_t size, const uint8_t* dict);
+
   // No-op, but we keep it here for API backward-compatibility.
   void WriteStreamHeader() {}
 
@@ -179,6 +186,12 @@ int BrotliCompressBuffer(BrotliParams params,
 // Same as above, but uses the specified input and output classes instead
 // of reading from and writing to pre-allocated memory buffers.
 int BrotliCompress(BrotliParams params, BrotliIn* in, BrotliOut* out);
+
+// Before compressing the data, sets a custom LZ77 dictionary with
+// BrotliCompressor::BrotliSetCustomDictionary.
+int BrotliCompressWithCustomDictionary(size_t dictsize, const uint8_t* dict,
+                                       BrotliParams params,
+                                       BrotliIn* in, BrotliOut* out);
 
 }  // namespace brotli
 
