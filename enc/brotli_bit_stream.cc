@@ -393,37 +393,6 @@ void RunLengthCodeZeros(const std::vector<int>& v_in,
   }
 }
 
-// Returns a maximum zero-run-length-prefix value such that run-length coding
-// zeros in v with this maximum prefix value and then encoding the resulting
-// histogram and entropy-coding v produces the least amount of bits.
-int BestMaxZeroRunLengthPrefix(const std::vector<int>& v) {
-  int min_cost = std::numeric_limits<int>::max();
-  int best_max_prefix = 0;
-  for (int max_prefix = 0; max_prefix <= 16; ++max_prefix) {
-    std::vector<int> rle_symbols;
-    std::vector<int> extra_bits;
-    int max_run_length_prefix = max_prefix;
-    RunLengthCodeZeros(v, &max_run_length_prefix, &rle_symbols, &extra_bits);
-    if (max_run_length_prefix < max_prefix) break;
-    HistogramContextMap histogram;
-    for (int i = 0; i < rle_symbols.size(); ++i) {
-      histogram.Add(rle_symbols[i]);
-    }
-    int bit_cost = PopulationCost(histogram);
-    if (max_prefix > 0) {
-      bit_cost += 4;
-    }
-    for (int i = 1; i <= max_prefix; ++i) {
-      bit_cost += histogram.data_[i] * i;  // extra bits
-    }
-    if (bit_cost < min_cost) {
-      min_cost = bit_cost;
-      best_max_prefix = max_prefix;
-    }
-  }
-  return best_max_prefix;
-}
-
 void EncodeContextMap(const std::vector<int>& context_map,
                       int num_clusters,
                       int* storage_ix, uint8_t* storage) {
@@ -436,7 +405,7 @@ void EncodeContextMap(const std::vector<int>& context_map,
   std::vector<int> transformed_symbols = MoveToFrontTransform(context_map);
   std::vector<int> rle_symbols;
   std::vector<int> extra_bits;
-  int max_run_length_prefix = BestMaxZeroRunLengthPrefix(transformed_symbols);
+  int max_run_length_prefix = 6;
   RunLengthCodeZeros(transformed_symbols, &max_run_length_prefix,
                      &rle_symbols, &extra_bits);
   HistogramContextMap symbol_histogram;
