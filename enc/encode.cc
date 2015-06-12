@@ -160,10 +160,6 @@ BrotliCompressor::BrotliCompressor(BrotliParams params)
     params_.lgblock = std::min(kMaxInputBlockBits,
                                std::max(kMinInputBlockBits, params_.lgblock));
   }
-  if (params_.quality <= 9) {
-    params_.greedy_block_split = true;
-    params_.enable_context_modeling = false;
-  }
 
   // Set maximum distance, see section 9.1. of the spec.
   max_backward_distance_ = (1 << params_.lgwin) - 16;
@@ -288,7 +284,7 @@ bool BrotliCompressor::WriteBrotliData(const bool is_last,
   }
 
   bool utf8_mode =
-      params_.enable_context_modeling &&
+      params_.quality >= 9 &&
       IsMostlyUTF8(&data[last_processed_pos_ & mask], bytes, kMinUTF8Ratio);
 
   if (literal_cost_.get()) {
@@ -302,12 +298,10 @@ bool BrotliCompressor::WriteBrotliData(const bool is_last,
                                   data, literal_cost_.get());
     }
   }
-  double base_min_score = params_.enable_context_modeling ? 8.115 : 4.0;
   CreateBackwardReferences(bytes, last_processed_pos_, data, mask,
                            literal_cost_.get(),
                            literal_cost_mask_,
                            max_backward_distance_,
-                           base_min_score,
                            params_.quality,
                            hashers_.get(),
                            hash_type_,
@@ -451,7 +445,7 @@ bool BrotliCompressor::WriteMetaBlockInternal(const bool is_last,
     } else {
       MetaBlockSplit mb;
       int literal_context_mode = utf8_mode ? CONTEXT_UTF8 : CONTEXT_SIGNED;
-      if (params_.greedy_block_split) {
+      if (params_.quality <= 9) {
         int num_literal_contexts = 1;
         const int* literal_context_map = NULL;
         DecideOverLiteralContextModeling(data, last_flush_pos_, bytes, mask,
@@ -477,7 +471,6 @@ bool BrotliCompressor::WriteMetaBlockInternal(const bool is_last,
                        prev_byte_, prev_byte2_,
                        commands_.get(), num_commands_,
                        literal_context_mode,
-                       params_.enable_context_modeling,
                        &mb);
       }
       if (params_.quality >= kMinQualityForOptimizeHistograms) {

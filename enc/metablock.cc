@@ -32,7 +32,6 @@ void BuildMetaBlock(const uint8_t* ringbuffer,
                     const Command* cmds,
                     size_t num_commands,
                     int literal_context_mode,
-                    bool enable_context_modeling,
                     MetaBlockSplit* mb) {
   SplitBlock(cmds, num_commands,
              &ringbuffer[pos & mask],
@@ -68,38 +67,20 @@ void BuildMetaBlock(const uint8_t* ringbuffer,
   static const int kMaxNumberOfHistograms = 256;
 
   mb->literal_histograms = literal_histograms;
-  if (enable_context_modeling) {
-    ClusterHistograms(literal_histograms,
-                      1 << kLiteralContextBits,
-                      mb->literal_split.num_types,
-                      kMaxNumberOfHistograms,
-                      &mb->literal_histograms,
-                      &mb->literal_context_map);
-  } else {
-    ClusterHistogramsTrivial(literal_histograms,
-                             1 << kLiteralContextBits,
-                             mb->literal_split.num_types,
-                             kMaxNumberOfHistograms,
-                             &mb->literal_histograms,
-                             &mb->literal_context_map);
-  }
+  ClusterHistograms(literal_histograms,
+                    1 << kLiteralContextBits,
+                    mb->literal_split.num_types,
+                    kMaxNumberOfHistograms,
+                    &mb->literal_histograms,
+                    &mb->literal_context_map);
 
   mb->distance_histograms = distance_histograms;
-  if (enable_context_modeling) {
-    ClusterHistograms(distance_histograms,
-                      1 << kDistanceContextBits,
-                      mb->distance_split.num_types,
-                      kMaxNumberOfHistograms,
-                      &mb->distance_histograms,
-                      &mb->distance_context_map);
-  } else {
-    ClusterHistogramsTrivial(distance_histograms,
-                             1 << kDistanceContextBits,
-                             mb->distance_split.num_types,
-                             kMaxNumberOfHistograms,
-                             &mb->distance_histograms,
-                             &mb->distance_context_map);
-  }
+  ClusterHistograms(distance_histograms,
+                    1 << kDistanceContextBits,
+                    mb->distance_split.num_types,
+                    kMaxNumberOfHistograms,
+                    &mb->distance_histograms,
+                    &mb->distance_context_map);
 }
 
 // Greedy block splitter for one block category (literal, command or distance).
