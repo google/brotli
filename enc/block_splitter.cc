@@ -150,8 +150,8 @@ void RefineEntropyCodes(const DataType* data, size_t length,
   }
 }
 
-inline static float BitCost(int total, int count) {
-  return count == 0 ? FastLog2(total) + 2 : FastLog2(total) - FastLog2(count);
+inline static float BitCost(int count) {
+  return count == 0 ? -2 : FastLog2(count);
 }
 
 template<typename DataType, int kSize>
@@ -168,10 +168,12 @@ void FindBlocks(const DataType* data, const size_t length,
   int vecsize = vec.size();
   double* insert_cost = new double[kSize * vecsize];
   memset(insert_cost, 0, sizeof(insert_cost[0]) * kSize * vecsize);
-  for (int i = 0; i < kSize; ++i) {
+  for (int j = 0; j < vecsize; ++j) {
+    insert_cost[j] = FastLog2(vec[j].total_count_);
+  }
+  for (int i = kSize - 1; i >= 0; --i) {
     for (int j = 0; j < vecsize; ++j) {
-      insert_cost[i * vecsize + j] =
-          BitCost(vec[j].total_count_, vec[j].data_[i]);
+      insert_cost[i * vecsize + j] = insert_cost[j] - BitCost(vec[j].data_[i]);
     }
   }
   double *cost = new double[vecsize];

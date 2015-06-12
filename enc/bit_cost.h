@@ -49,94 +49,13 @@ static inline double BitsEntropy(const int *population, int size) {
   return retval;
 }
 
-static const int kHuffmanExtraBits[kCodeLengthCodes] = {
-  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 3,
-};
-
-static inline int HuffmanTreeBitCost(const int* counts, const uint8_t* depth) {
-  int nbits = 0;
-  for (int i = 0; i < kCodeLengthCodes; ++i) {
-    nbits += counts[i] * (depth[i] + kHuffmanExtraBits[i]);
-  }
-  return nbits;
-}
-
-static inline int HuffmanTreeBitCost(
-    const Histogram<kCodeLengthCodes>& histogram,
-    const EntropyCode<kCodeLengthCodes>& entropy) {
-  return HuffmanTreeBitCost(&histogram.data_[0], &entropy.depth_[0]);
-}
-
-static inline int HuffmanBitCost(const uint8_t* depth, int length) {
-  int max_depth = 1;
-  int histogram[kCodeLengthCodes] = { 0 };
-  int tail_start = 0;
-  int prev_value = 8;
-  // compute histogram of compacted huffman tree
-  for (int i = 0; i < length;) {
-    const int value = depth[i];
-    if (value > max_depth) {
-      max_depth = value;
-    }
-    int reps = 1;
-    for (int k = i + 1; k < length && depth[k] == value; ++k) {
-      ++reps;
-    }
-    i += reps;
-    if (i == length && value == 0)
-      break;
-    if (value == 0) {
-      if (reps < 3) {
-        histogram[0] += reps;
-      } else {
-        reps -= 2;
-        while (reps > 0) {
-          ++histogram[17];
-          reps >>= 3;
-        }
-      }
-    } else {
-      tail_start = i;
-      if (value != prev_value) {
-        ++histogram[value];
-        --reps;
-      }
-      prev_value = value;
-      if (reps < 3) {
-        histogram[value] += reps;
-      } else {
-        reps -= 2;
-        while (reps > 0) {
-          ++histogram[16];
-          reps >>= 2;
-        }
-      }
-    }
-  }
-
-  // create huffman tree of huffman tree
-  uint8_t cost[kCodeLengthCodes] = { 0 };
-  CreateHuffmanTree(histogram, kCodeLengthCodes, 7, cost);
-  // account for rle extra bits
-  cost[16] += 2;
-  cost[17] += 3;
-
-  int tree_size = 0;
-  int bits = 18 + 2 * max_depth;  // huffman tree of huffman tree cost
-  for (int i = 0; i < kCodeLengthCodes; ++i) {
-    bits += histogram[i] * cost[i];  // huffman tree bit cost
-    tree_size += histogram[i];
-  }
-  return bits;
-}
-
 template<int kSize>
 double PopulationCost(const Histogram<kSize>& histogram) {
   if (histogram.total_count_ == 0) {
     return 12;
   }
   int count = 0;
-  for (int i = 0; i < kSize && count < 5; ++i) {
+  for (int i = 0; i < kSize; ++i) {
     if (histogram.data_[i] > 0) {
       ++count;
     }
@@ -147,19 +66,66 @@ double PopulationCost(const Histogram<kSize>& histogram) {
   if (count == 2) {
     return 20 + histogram.total_count_;
   }
+  double bits = 0;
   uint8_t depth[kSize] = { 0 };
-  CreateHuffmanTree(&histogram.data_[0], kSize, 15, depth);
-  int bits = 0;
-  for (int i = 0; i < kSize; ++i) {
-    bits += histogram.data_[i] * depth[i];
+  if (count <= 4) {
+    // For very low symbol count we build the Huffman tree.
+    CreateHuffmanTree(&histogram.data_[0], kSize, 15, depth);
+    for (int i = 0; i < kSize; ++i) {
+      bits += histogram.data_[i] * depth[i];
+    }
+    return count == 3 ? bits + 28 : bits + 37;
   }
-  if (count == 3) {
-    bits += 28;
-  } else if (count == 4) {
-    bits += 37;
-  } else {
-    bits += HuffmanBitCost(depth, kSize);
+
+  // In this loop we compute the entropy of the histogram and simultaneously
+  // build a simplified histogram of the code length codes where we use the
+  // zero repeat code 17, but we don't use the non-zero repeat code 16.
+  int max_depth = 1;
+  int depth_histo[kCodeLengthCodes] = { 0 };
+  const double log2total = FastLog2(histogram.total_count_);
+  for (int i = 0; i < kSize;) {
+    if (histogram.data_[i] > 0) {
+      // Compute -log2(P(symbol)) = -log2(count(symbol)/total_count) =
+      //                          =  log2(total_count) - log2(count(symbol))
+      double log2p = log2total - FastLog2(histogram.data_[i]);
+      // Approximate the bit depth by round(-log2(P(symbol)))
+      int depth = static_cast<int>(log2p + 0.5);
+      bits += histogram.data_[i] * log2p;
+      if (depth > max_depth) {
+        max_depth = depth;
+      }
+      ++depth_histo[depth];
+      ++i;
+    } else {
+      // Compute the run length of zeros and add the appropiate number of 0 and
+      // 17 code length codes to the code length code histogram.
+      int reps = 1;
+      for (int k = i + 1; k < kSize && histogram.data_[k] == 0; ++k) {
+        ++reps;
+      }
+      i += reps;
+      if (i == kSize) {
+        // Don't add any cost for the last zero run, since these are encoded
+        // only implicitly.
+        break;
+      }
+      if (reps < 3) {
+        depth_histo[0] += reps;
+      } else {
+        reps -= 2;
+        while (reps > 0) {
+          ++depth_histo[17];
+          // Add the 3 extra bits for the 17 code length code.
+          bits += 3;
+          reps >>= 3;
+        }
+      }
+    }
   }
+  // Add the estimated encoding cost of the code length code histogram.
+  bits += 18 + 2 * max_depth;
+  // Add the entropy of the code length code histogram.
+  bits += BitsEntropy(depth_histo, kCodeLengthCodes);
   return bits;
 }
 
