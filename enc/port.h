@@ -17,6 +17,8 @@
 #ifndef BROTLI_ENC_PORT_H_
 #define BROTLI_ENC_PORT_H_
 
+#include <string.h>
+
 #if defined OS_LINUX || defined OS_CYGWIN
 #include <endian.h>
 #elif defined OS_FREEBSD

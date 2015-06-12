@@ -59,13 +59,6 @@ struct Histogram {
       data_[i] += v.data_[i];
     }
   }
-  double EntropyBitCost() const {
-    double retval = total_count_ * FastLog2(total_count_);
-    for (int i = 0; i < kDataSize; ++i) {
-      retval -= data_[i] * FastLog2(data_[i]);
-    }
-    return retval;
-  }
 
   int data_[kDataSize];
   int total_count_;

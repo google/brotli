@@ -165,6 +165,7 @@ class BrotliCompressor {
   size_t last_flush_pos_;
   size_t last_processed_pos_;
   int dist_cache_[4];
+  int saved_dist_cache_[4];
   uint8_t last_byte_;
   uint8_t last_byte_bits_;
   uint8_t prev_byte_;

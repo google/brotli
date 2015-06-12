@@ -203,13 +203,12 @@ BrotliCompressor::BrotliCompressor(BrotliParams params)
   dist_cache_[1] = 11;
   dist_cache_[2] = 15;
   dist_cache_[3] = 16;
+  // Save the state of the distance cache in case we need to restore it for
+  // emitting an uncompressed block.
+  memcpy(saved_dist_cache_, dist_cache_, sizeof(dist_cache_));
 
   // Initialize hashers.
-  if (params_.quality <= 9) {
-    hash_type_ = params_.quality;
-  } else {
-    hash_type_ = 10;
-  }
+  hash_type_ = std::min(10, params_.quality);
   hashers_->Init(hash_type_);
   if ((params_.mode == BrotliParams::MODE_GENERIC ||
        params_.mode == BrotliParams::MODE_TEXT) &&
@@ -338,11 +337,12 @@ bool BrotliCompressor::WriteBrotliData(const bool is_last,
   // For quality 1 there is no block splitting, so we buffer at most this much
   // literals and commands.
   static const int kMaxNumDelayedSymbols = 0x2fff;
+  int max_length = std::min<int>(mask + 1, 1 << kMaxInputBlockBits);
   if (!is_last && !force_flush &&
       (params_.quality >= kMinQualityForBlockSplit ||
        (num_literals_ + num_commands_ < kMaxNumDelayedSymbols)) &&
       num_commands_ + (input_block_size() >> 1) < cmd_buffer_size_ &&
-      input_pos_ + input_block_size() <= last_flush_pos_ + mask + 1) {
+      input_pos_ + input_block_size() <= last_flush_pos_ + max_length) {
     // Everything will happen later.
     last_processed_pos_ = input_pos_;
     *out_size = 0;
@@ -448,10 +448,6 @@ bool BrotliCompressor::WriteMetaBlockInternal(const bool is_last,
       return false;
     }
   } else {
-    // Save the state of the distance cache in case we need to restore it for
-    // emitting an uncompressed block.
-    int saved_dist_cache[4];
-    memcpy(saved_dist_cache, dist_cache_, sizeof(dist_cache_));
     int num_direct_distance_codes = 0;
     int distance_postfix_bits = 0;
     if (params_.quality > 9 && params_.mode == BrotliParams::MODE_FONT) {
@@ -521,7 +517,7 @@ bool BrotliCompressor::WriteMetaBlockInternal(const bool is_last,
     }
     if (bytes + 4 < (storage_ix >> 3)) {
       // Restore the distance cache and last byte.
-      memcpy(dist_cache_, saved_dist_cache, sizeof(dist_cache_));
+      memcpy(dist_cache_, saved_dist_cache_, sizeof(dist_cache_));
       storage[0] = last_byte_;
       storage_ix = last_byte_bits_;
       if (!StoreUncompressedMetaBlock(is_last, data, last_flush_pos_, mask,
@@ -538,6 +534,9 @@ bool BrotliCompressor::WriteMetaBlockInternal(const bool is_last,
   prev_byte2_ = data[(last_flush_pos_ - 2) & mask];
   num_commands_ = 0;
   num_literals_ = 0;
+  // Save the state of the distance cache in case we need to restore it for
+  // emitting an uncompressed block.
+  memcpy(saved_dist_cache_, dist_cache_, sizeof(dist_cache_));
   *output = &storage[0];
   *out_size = storage_ix >> 3;
   return true;

@@ -40,7 +40,7 @@ void CreateHuffmanTree(const int *data,
                        uint8_t *depth);
 
 // Change the population counts in a way that the consequent
-// Hufmann tree compression, especially its rle-part will be more
+// Huffman tree compression, especially its rle-part will be more
 // likely to compress this data more efficiently.
 //
 // length contains the size of the histogram.
