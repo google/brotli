@@ -191,19 +191,19 @@ static BROTLI_INLINE int BrotliReadMoreInput(BrotliBitReader* const br) {
 /* Guarantees that there are at least 24 bits in the buffer. */
 static BROTLI_INLINE void BrotliFillBitWindow(BrotliBitReader* const br) {
 #if (BROTLI_USE_64_BITS)
-  if (br->bit_pos_ >= 40) {
+  if (br->bit_pos_ >= 32) {
     /*
-     * Advances the Read buffer by 5 bytes to make room for reading next
+     * Advances the Read buffer by 4 bytes to make room for reading next
      * 24 bits.
      * The expression below needs a little-endian arch to work correctly.
      * This gives a large speedup for decoding speed.
      */
-    br->val_ >>= 40;
-    br->val_ |= *(const uint64_t*)(
-        br->buf_ + (br->pos_ & BROTLI_IBUF_MASK)) << 24;
-    br->pos_ += 5;
-    br->bit_pos_ -= 40;
-    br->bit_end_pos_ -= 40;
+    br->val_ >>= 32;
+    br->val_ |= ((uint64_t)(*(const uint32_t*)(
+        br->buf_ + (br->pos_ & BROTLI_IBUF_MASK)))) << 32;
+    br->pos_ += 4;
+    br->bit_pos_ -= 32;
+    br->bit_end_pos_ -= 32;
   }
 #else
   ShiftBytes32(br);
