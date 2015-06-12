@@ -305,7 +305,7 @@ template <int kBucketBits,
           int kNumLastDistancesToCheck>
 class HashLongestMatch {
  public:
-  HashLongestMatch() : static_dict_(NULL) {
+  HashLongestMatch() {
     Reset();
   }
 
@@ -313,28 +313,6 @@ class HashLongestMatch {
     std::fill(&num_[0], &num_[sizeof(num_) / sizeof(num_[0])], 0);
     num_dict_lookups_ = 0;
     num_dict_matches_ = 0;
-  }
-
-  void CopyTo(HashLongestMatch* target) {
-    bool has_data = false;
-    for (int i = 0; i < kBucketSize; i++) {
-      target->num_[i] = num_[i];
-      has_data = (has_data || num_[i]);
-    }
-    if (has_data) {
-      for (int i = 0; i < kBucketSize; i++) {
-        for (int j = 0; j < kBlockSize; j++) {
-          target->buckets_[i][j] = buckets_[i][j];
-        }
-      }
-    }
-    target->num_dict_lookups_ = num_dict_lookups_;
-    target->num_dict_matches_ = num_dict_matches_;
-    target->static_dict_ = static_dict_;
-  }
-
-  void SetStaticDictionary(const StaticDictionary *dict) {
-    static_dict_ = dict;
   }
 
   // Look at 3 bytes at data.
@@ -558,18 +536,16 @@ class HashLongestMatch {
         }
       }
     }
-    if (static_dict_ != NULL) {
-      // We decide based on first 4 bytes how many bytes to test for.
-      uint32_t prefix = BROTLI_UNALIGNED_LOAD32(&data[cur_ix_masked]);
-      int maxlen = static_dict_->GetLength(prefix);
-      for (int len = std::min<size_t>(maxlen, max_length);
-           len > best_len && len >= 4; --len) {
-        std::string snippet((const char *)&data[cur_ix_masked], len);
-        int copy_len_code;
-        int word_id;
-        if (static_dict_->Get(snippet, &copy_len_code, &word_id)) {
-          const size_t backward = max_backward + word_id + 1;
-          *matches++ = BackwardMatch(backward, len, copy_len_code);
+    std::vector<int> dict_matches(kMaxDictionaryMatchLen + 1, kInvalidMatch);
+    int minlen = std::max<int>(4, best_len + 1);
+    if (FindAllStaticDictionaryMatches(&data[cur_ix_masked], minlen,
+                                       &dict_matches[0])) {
+      int maxlen = std::min<int>(kMaxDictionaryMatchLen, max_length);
+      for (int l = minlen; l <= maxlen; ++l) {
+        int dict_id = dict_matches[l];
+        if (dict_id < kInvalidMatch) {
+          *matches++ = BackwardMatch(max_backward + (dict_id >> 5) + 1, l,
+                                     dict_id & 31);
         }
       }
     }
@@ -595,8 +571,6 @@ class HashLongestMatch {
 
   size_t num_dict_lookups_;
   size_t num_dict_matches_;
-
-  const StaticDictionary *static_dict_;
 };
 
 struct Hashers {
@@ -626,11 +600,6 @@ struct Hashers {
       case 9: hash_h9.reset(new H9); break;
       default: break;
     }
-  }
-
-  // Brotli's built in static transformable dictionary.
-  void SetStaticDictionary(const StaticDictionary *dict) {
-    if (hash_h9.get() != NULL) hash_h9->SetStaticDictionary(dict);
   }
 
   template<typename Hasher>
