@@ -13,3 +13,6 @@ http://www.ietf.org/id/draft-alakuijala-brotli
 
 Brotli is open-sourced under the Apache License, Version 2.0, see the LICENSE
 file.
+
+Brotli mailing list:
+https://groups.google.com/forum/#!forum/brotli
