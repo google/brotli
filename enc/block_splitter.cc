@@ -74,7 +74,7 @@ void CopyLiteralsToByteArray(const Command* cmds,
 void CopyCommandsToByteArray(const Command* cmds,
                              const size_t num_commands,
                              std::vector<uint16_t>* insert_and_copy_codes,
-                             std::vector<uint8_t>* distance_prefixes) {
+                             std::vector<uint16_t>* distance_prefixes) {
   for (int i = 0; i < num_commands; ++i) {
     const Command& cmd = cmds[i];
     insert_and_copy_codes->push_back(cmd.cmd_prefix_);
@@ -356,7 +356,7 @@ void SplitBlock(const Command* cmds,
 
   // Compute prefix codes for commands.
   std::vector<uint16_t> insert_and_copy_codes;
-  std::vector<uint8_t> distance_prefixes;
+  std::vector<uint16_t> distance_prefixes;
   CopyCommandsToByteArray(cmds, num_commands,
                           &insert_and_copy_codes,
                           &distance_prefixes);

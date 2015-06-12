@@ -91,6 +91,9 @@ double PopulationCost(const Histogram<kSize>& histogram) {
       // Approximate the bit depth by round(-log2(P(symbol)))
       int depth = static_cast<int>(log2p + 0.5);
       bits += histogram.data_[i] * log2p;
+      if (depth > 15) {
+        depth = 15;
+      }
       if (depth > max_depth) {
         max_depth = depth;
       }

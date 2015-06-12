@@ -136,7 +136,9 @@ bool WriteMetaBlockParallel(const BrotliParams& params,
 
   // Copy prefix + next input block into a continuous area.
   size_t input_pos = prefix_size;
-  std::vector<uint8_t> input(prefix_size + input_size);
+  // CreateBackwardReferences reads up to 3 bytes past the end of input if the
+  // mask points past the end of input.
+  std::vector<uint8_t> input(prefix_size + input_size + 4);
   memcpy(&input[0], prefix_buffer, prefix_size);
   memcpy(&input[input_pos], input_buffer, input_size);
   // Since we don't have a ringbuffer, masking is a no-op.
@@ -151,8 +153,10 @@ bool WriteMetaBlockParallel(const BrotliParams& params,
   static const double kMinUTF8Ratio = 0.75;
   bool utf8_mode = IsMostlyUTF8(&input[input_pos], input_size, kMinUTF8Ratio);
 
-  // Compute literal costs.
-  std::vector<float> literal_cost(prefix_size + input_size);
+  // Compute literal costs. The 4 bytes at the end are there to cover for an
+  // over-read past the end of input, but not past the mask, in
+  // CreateBackwardReferences.
+  std::vector<float> literal_cost(prefix_size + input_size + 4);
   if (utf8_mode) {
     EstimateBitCostsForLiteralsUTF8(input_pos, input_size, mask, mask,
                                     &input[0], &literal_cost[0]);
