@@ -19,6 +19,7 @@
 #include <stdio.h>
 #include <string.h>
 #include "./huffman.h"
+#include "./port.h"
 #include "./safe_malloc.h"
 
 #if defined(__cplusplus) || defined(c_plusplus)
@@ -26,6 +27,9 @@ extern "C" {
 #endif
 
 #define MAX_LENGTH 15
+
+/* For current format this constant equals to kNumInsertAndCopyCodes */
+#define MAX_CODE_LENGTHS_SIZE 704
 
 /* Returns reverse(reverse(key, len) + 1, len), where reverse(key, len) is the
    bit-wise reversal of the len least significant bits of key. */
@@ -78,12 +82,11 @@ int BrotliBuildHuffmanTable(HuffmanCode* root_table,
   int table_bits;      /* key length of current table */
   int table_size;      /* size of current table */
   int total_size;      /* sum of root table size and 2nd level table sizes */
-  int* sorted;         /* symbols sorted by code length */
+  int sorted[MAX_CODE_LENGTHS_SIZE];  /* symbols sorted by code length */
   int count[MAX_LENGTH + 1] = { 0 };  /* number of codes of each length */
   int offset[MAX_LENGTH + 1];  /* offsets in sorted table for each length */
 
-  sorted = (int*)malloc((size_t)code_lengths_size * sizeof(*sorted));
-  if (sorted == NULL) {
+  if (PREDICT_FALSE(code_lengths_size > MAX_CODE_LENGTHS_SIZE)) {
     return 0;
   }
 
@@ -117,7 +120,6 @@ int BrotliBuildHuffmanTable(HuffmanCode* root_table,
     for (key = 0; key < total_size; ++key) {
       table[key] = code;
     }
-    free(sorted);
     return total_size;
   }
 
@@ -154,7 +156,6 @@ int BrotliBuildHuffmanTable(HuffmanCode* root_table,
     }
   }
 
-  free(sorted);
   return total_size;
 }
 

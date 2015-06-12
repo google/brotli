@@ -222,13 +222,16 @@ static BrotliResult ReadHuffmanCodeLengths(
         p += (br->val_ >> br->bit_pos_) & 31;
         br->bit_pos_ += p->bits;
         code_len = (uint8_t)p->value;
+        /* We predict that branch will be taken and write value now.
+           Even if branch is mispredicted - it works as prefetch. */
+        code_lengths[s->symbol] = code_len;
         if (code_len < kCodeLengthRepeatCode) {
           s->repeat = 0;
-          code_lengths[s->symbol++] = code_len;
           if (code_len != 0) {
             s->prev_code_len = code_len;
             s->space -= 32768 >> code_len;
           }
+          s->symbol++;
         } else {
           const int extra_bits = code_len - 14;
           int old_repeat;
