@@ -173,7 +173,6 @@ bool WriteMetaBlockParallel(const BrotliParams& params,
   int last_insert_len = 0;
   int num_commands = 0;
   int num_literals = 0;
-  double base_min_score = 8.115;
   int max_backward_distance = (1 << params.lgwin) - 16;
   int dist_cache[4] = { -4, -4, -4, -4 };
   std::vector<Command> commands((input_size + 1) >> 1);
@@ -182,7 +181,6 @@ bool WriteMetaBlockParallel(const BrotliParams& params,
       &input[0], mask,
       &literal_cost[0], mask,
       max_backward_distance,
-      base_min_score,
       params.quality,
       hashers.get(),
       hash_type,
@@ -206,7 +204,7 @@ bool WriteMetaBlockParallel(const BrotliParams& params,
   RecomputeDistancePrefixes(&commands,
                             num_direct_distance_codes,
                             distance_postfix_bits);
-  if (params.greedy_block_split) {
+  if (params.quality <= 9) {
     BuildMetaBlockGreedy(&input[0], input_pos, mask,
                          commands.data(), commands.size(),
                          &mb);
@@ -215,7 +213,6 @@ bool WriteMetaBlockParallel(const BrotliParams& params,
                    prev_byte, prev_byte2,
                    commands.data(), commands.size(),
                    literal_context_mode,
-                   true,
                    &mb);
   }
 

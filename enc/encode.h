@@ -65,7 +65,8 @@ struct BrotliParams {
   // If set to 0, the value will be set based on the quality.
   int lgblock;
 
-  // These settings will be respected only if quality > 9.
+  // These settings are deprecated and will be ignored.
+  // All speed vs. size compromises are controlled by the quality param.
   bool enable_dictionary;
   bool enable_transforms;
   bool greedy_block_split;

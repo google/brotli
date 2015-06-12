@@ -53,7 +53,6 @@ void BuildMetaBlock(const uint8_t* ringbuffer,
                     const Command* cmds,
                     size_t num_commands,
                     int literal_context_mode,
-                    bool enable_context_modleing,
                     MetaBlockSplit* mb);
 
 // Uses a fast greedy block splitter that tries to merge current block with the

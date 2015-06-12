@@ -305,8 +305,6 @@ void ZopfliIterate(size_t num_bytes,
                    const uint8_t* ringbuffer,
                    size_t ringbuffer_mask,
                    const size_t max_backward_limit,
-                   const double base_min_score,
-                   const int quality,
                    const ZopfliCostModel& model,
                    const std::vector<int>& num_matches,
                    const std::vector<BackwardMatch>& matches,
@@ -479,7 +477,6 @@ void CreateBackwardReferences(size_t num_bytes,
                               const uint8_t* ringbuffer,
                               size_t ringbuffer_mask,
                               const size_t max_backward_limit,
-                              const double base_min_score,
                               const int quality,
                               Hasher* hasher,
                               int* dist_cache,
@@ -508,13 +505,16 @@ void CreateBackwardReferences(size_t num_bytes,
   const int random_heuristics_window_size = quality < 9 ? 64 : 512;
   int apply_random_heuristics = i + random_heuristics_window_size;
 
+  // Minimum score to accept a backward reference.
+  const int kMinScore = 4.0;
+
   while (i + 3 < i_end) {
     int max_length = i_end - i;
     size_t max_distance = std::min(i + i_diff, max_backward_limit);
     int best_len = 0;
     int best_len_code = 0;
     int best_dist = 0;
-    double best_score = base_min_score;
+    double best_score = kMinScore;
     bool match_found = hasher->FindLongestMatch(
         ringbuffer, ringbuffer_mask,
         dist_cache, i + i_diff, max_length, max_distance,
@@ -527,7 +527,7 @@ void CreateBackwardReferences(size_t num_bytes,
         int best_len_2 = quality < 5 ? std::min(best_len - 1, max_length) : 0;
         int best_len_code_2 = 0;
         int best_dist_2 = 0;
-        double best_score_2 = base_min_score;
+        double best_score_2 = kMinScore;
         max_distance = std::min(i + i_diff + 1, max_backward_limit);
         hasher->Store(ringbuffer + i, i + i_diff);
         match_found = hasher->FindLongestMatch(
@@ -616,7 +616,6 @@ void CreateBackwardReferences(size_t num_bytes,
                               const float* literal_cost,
                               size_t literal_cost_mask,
                               const size_t max_backward_limit,
-                              const double base_min_score,
                               const int quality,
                               Hashers* hashers,
                               int hash_type,
@@ -691,8 +690,7 @@ void CreateBackwardReferences(size_t num_bytes,
       *last_insert_len = orig_last_insert_len;
       memcpy(dist_cache, orig_dist_cache, 4 * sizeof(dist_cache[0]));
       ZopfliIterate(num_bytes, position, ringbuffer, ringbuffer_mask,
-                    max_backward_limit, base_min_score,
-                    quality, model, num_matches, matches, dist_cache,
+                    max_backward_limit, model, num_matches, matches, dist_cache,
                     last_insert_len, commands, num_commands, num_literals);
     }
     return;
@@ -701,64 +699,55 @@ void CreateBackwardReferences(size_t num_bytes,
   switch (hash_type) {
     case 1:
       CreateBackwardReferences<Hashers::H1>(
-          num_bytes, position, ringbuffer, ringbuffer_mask,
-          max_backward_limit, base_min_score,
+          num_bytes, position, ringbuffer, ringbuffer_mask, max_backward_limit,
           quality, hashers->hash_h1.get(), dist_cache, last_insert_len,
           commands, num_commands, num_literals);
       break;
     case 2:
       CreateBackwardReferences<Hashers::H2>(
-          num_bytes, position, ringbuffer, ringbuffer_mask,
-          max_backward_limit, base_min_score,
+          num_bytes, position, ringbuffer, ringbuffer_mask, max_backward_limit,
           quality, hashers->hash_h2.get(), dist_cache, last_insert_len,
           commands, num_commands, num_literals);
       break;
     case 3:
       CreateBackwardReferences<Hashers::H3>(
-          num_bytes, position, ringbuffer, ringbuffer_mask,
-          max_backward_limit, base_min_score,
+          num_bytes, position, ringbuffer, ringbuffer_mask, max_backward_limit,
           quality, hashers->hash_h3.get(), dist_cache, last_insert_len,
           commands, num_commands, num_literals);
       break;
     case 4:
       CreateBackwardReferences<Hashers::H4>(
-          num_bytes, position, ringbuffer, ringbuffer_mask,
-          max_backward_limit, base_min_score,
+          num_bytes, position, ringbuffer, ringbuffer_mask, max_backward_limit,
           quality, hashers->hash_h4.get(), dist_cache, last_insert_len,
           commands, num_commands, num_literals);
       break;
     case 5:
       CreateBackwardReferences<Hashers::H5>(
-          num_bytes, position, ringbuffer, ringbuffer_mask,
-          max_backward_limit, base_min_score,
+          num_bytes, position, ringbuffer, ringbuffer_mask, max_backward_limit,
           quality, hashers->hash_h5.get(), dist_cache, last_insert_len,
           commands, num_commands, num_literals);
       break;
     case 6:
       CreateBackwardReferences<Hashers::H6>(
-          num_bytes, position, ringbuffer, ringbuffer_mask,
-          max_backward_limit, base_min_score,
+          num_bytes, position, ringbuffer, ringbuffer_mask, max_backward_limit,
           quality, hashers->hash_h6.get(), dist_cache, last_insert_len,
           commands, num_commands, num_literals);
       break;
     case 7:
       CreateBackwardReferences<Hashers::H7>(
-          num_bytes, position, ringbuffer, ringbuffer_mask,
-          max_backward_limit, base_min_score,
+          num_bytes, position, ringbuffer, ringbuffer_mask, max_backward_limit,
           quality, hashers->hash_h7.get(), dist_cache, last_insert_len,
           commands, num_commands, num_literals);
       break;
     case 8:
       CreateBackwardReferences<Hashers::H8>(
-          num_bytes, position, ringbuffer, ringbuffer_mask,
-          max_backward_limit, base_min_score,
+          num_bytes, position, ringbuffer, ringbuffer_mask, max_backward_limit,
           quality, hashers->hash_h8.get(), dist_cache, last_insert_len,
           commands, num_commands, num_literals);
       break;
     case 9:
       CreateBackwardReferences<Hashers::H9>(
-          num_bytes, position, ringbuffer, ringbuffer_mask,
-          max_backward_limit, base_min_score,
+          num_bytes, position, ringbuffer, ringbuffer_mask, max_backward_limit,
           quality, hashers->hash_h9.get(), dist_cache, last_insert_len,
           commands, num_commands, num_literals);
       break;
