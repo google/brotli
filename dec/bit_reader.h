@@ -97,19 +97,6 @@ static BROTLI_INLINE uint32_t BrotliPrefetchBits(BrotliBitReader* const br) {
   return (uint32_t)(br->val_ >> br->bit_pos_);
 }
 
-/* For jumping over a number of bits in the bit stream when accessed with */
-/* BrotliPrefetchBits and BrotliFillBitWindow. */
-static BROTLI_INLINE void BrotliSetBitPos(BrotliBitReader* const br,
-                                          uint32_t val) {
-#ifdef BROTLI_DECODE_DEBUG
-  uint32_t n_bits = val - br->bit_pos_;
-  const uint32_t bval = (uint32_t)(br->val_ >> br->bit_pos_) & BitMask(n_bits);
-  printf("[BrotliReadBits]  %010d %2d  val: %6x\n",
-         (br->pos_ << 3) + br->bit_pos_ - 64, n_bits, bval);
-#endif
-  br->bit_pos_ = val;
-}
-
 /*
  * Reload up to 32 bits byte-by-byte.
  * This function works on both little and big endian.

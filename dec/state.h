@@ -167,6 +167,10 @@ typedef struct {
   int context_index;
   int max_run_length_prefix;
   HuffmanCode* context_map_table;
+
+  /* For custom dictionaries */
+  const uint8_t* custom_dict;
+  int custom_dict_size;
 } BrotliState;
 
 void BrotliStateInit(BrotliState* s);

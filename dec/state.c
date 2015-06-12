@@ -46,6 +46,9 @@ void BrotliStateInit(BrotliState* s) {
 
   s->code_lengths = NULL;
   s->context_map_table = NULL;
+
+  s->custom_dict = NULL;
+  s->custom_dict_size = 0;
 }
 
 void BrotliStateCleanup(BrotliState* s) {
