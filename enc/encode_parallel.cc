@@ -166,12 +166,7 @@ bool WriteMetaBlockParallel(const BrotliParams& params,
   }
 
   // Initialize hashers.
-  int hash_type = 9;
-  switch (params.mode) {
-    case BrotliParams::MODE_TEXT: hash_type = 8; break;
-    case BrotliParams::MODE_FONT: hash_type = 9; break;
-    default: break;
-  }
+  int hash_type = std::min(9, params.quality);
   std::unique_ptr<Hashers> hashers(new Hashers());
   hashers->Init(hash_type);
   hashers->SetStaticDictionary(static_dict);

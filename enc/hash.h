@@ -74,24 +74,42 @@ inline uint32_t Hash(const uint8_t *data) {
 // This function is used to sometimes discard a longer backward reference
 // when it is not much longer and the bit cost for encoding it is more
 // than the saved literals.
-inline double BackwardReferenceScore(double average_cost,
-                                     int copy_length,
+inline double BackwardReferenceScore(int copy_length,
                                      int backward_reference_offset) {
-  return (copy_length * average_cost -
-          1.20 * Log2Floor(backward_reference_offset));
+  return 5.4 * copy_length - 1.20 * Log2Floor(backward_reference_offset);
 }
 
-inline double BackwardReferenceScoreUsingLastDistance(double average_cost,
-                                                      int copy_length,
+inline double BackwardReferenceScoreUsingLastDistance(int copy_length,
                                                       int distance_short_code) {
   static const double kDistanceShortCodeBitCost[16] = {
     -0.6, 0.95, 1.17, 1.27,
     0.93, 0.93, 0.96, 0.96, 0.99, 0.99,
     1.05, 1.05, 1.15, 1.15, 1.25, 1.25
   };
-  return (average_cost * copy_length
-          - kDistanceShortCodeBitCost[distance_short_code]);
+  return 5.4 * copy_length - kDistanceShortCodeBitCost[distance_short_code];
 }
+
+struct BackwardMatch {
+  BackwardMatch() : distance(0), length_and_code(0) {}
+
+  BackwardMatch(int dist, int len)
+      : distance(dist), length_and_code((len << 5)) {}
+
+  BackwardMatch(int dist, int len, int len_code)
+      : distance(dist),
+        length_and_code((len << 5) | (len == len_code ? 0 : len_code)) {}
+
+  int length() const {
+    return length_and_code >> 5;
+  }
+  int length_code() const {
+    int code = length_and_code & 31;
+    return code ? code : length();
+  }
+
+  int distance;
+  int length_and_code;
+};
 
 // A (forgetful) hash table to the data seen by the compressor, to
 // help create backward references to previous data.
@@ -132,8 +150,6 @@ class HashLongestMatchQuickly {
     }
   }
 
-  bool HasStaticDictionary() const { return false; }
-
   // Find a longest backward match of &ring_buffer[cur_ix & ring_buffer_mask]
   // up to the length of max_length.
   //
@@ -144,9 +160,6 @@ class HashLongestMatchQuickly {
   // best_distance_out.
   inline bool FindLongestMatch(const uint8_t * __restrict ring_buffer,
                                const size_t ring_buffer_mask,
-                               const float* __restrict literal_cost,
-                               const size_t literal_cost_mask,
-                               const double average_cost,
                                const int* __restrict distance_cache,
                                const uint32_t cur_ix,
                                const uint32_t max_length,
@@ -170,8 +183,7 @@ class HashLongestMatchQuickly {
                                            &ring_buffer[cur_ix_masked],
                                            max_length);
         if (len >= 4) {
-          best_score = BackwardReferenceScoreUsingLastDistance(average_cost,
-                                                               len, 0);
+          best_score = BackwardReferenceScoreUsingLastDistance(len, 0);
           best_len = len;
           *best_len_out = len;
           *best_len_code_out = len;
@@ -205,7 +217,7 @@ class HashLongestMatchQuickly {
         *best_len_out = len;
         *best_len_code_out = len;
         *best_distance_out = backward;
-        *best_score_out = BackwardReferenceScore(average_cost, len, backward);
+        *best_score_out = BackwardReferenceScore(len, backward);
         return true;
       }
     } else {
@@ -225,8 +237,7 @@ class HashLongestMatchQuickly {
                                      &ring_buffer[cur_ix_masked],
                                      max_length);
         if (len >= 4) {
-          const double score = BackwardReferenceScore(average_cost,
-                                                      len, backward);
+          const double score = BackwardReferenceScore(len, backward);
           if (best_score < score) {
             best_score = score;
             best_len = len;
@@ -255,8 +266,7 @@ class HashLongestMatchQuickly {
                                        &kBrotliDictionary[offset], len);
           if (matchlen == len) {
             const size_t backward = max_backward + dist + 1;
-            const double score = BackwardReferenceScore(average_cost,
-                                                        len, backward);
+            const double score = BackwardReferenceScore(len, backward);
             if (best_score < score) {
               ++num_dict_matches_;
               best_score = score;
@@ -281,6 +291,9 @@ class HashLongestMatchQuickly {
   size_t num_dict_matches_;
 };
 
+// The maximum length for which the zopflification uses distinct distances.
+static const int kMaxZopfliLen = 325;
+
 // A (forgetful) hash table to the data seen by the compressor, to
 // help create backward references to previous data.
 //
@@ -289,25 +302,39 @@ class HashLongestMatchQuickly {
 // index positions of the given hash key in the compressed data.
 template <int kBucketBits,
           int kBlockBits,
-          int kMinLength,
-          int kNumLastDistancesToCheck,
-          bool kUseCostModel,
-          bool kUseDictionary>
+          int kNumLastDistancesToCheck>
 class HashLongestMatch {
  public:
   HashLongestMatch() : static_dict_(NULL) {
     Reset();
   }
+
   void Reset() {
     std::fill(&num_[0], &num_[sizeof(num_) / sizeof(num_[0])], 0);
     num_dict_lookups_ = 0;
     num_dict_matches_ = 0;
   }
+
+  void CopyTo(HashLongestMatch* target) {
+    bool has_data = false;
+    for (int i = 0; i < kBucketSize; i++) {
+      target->num_[i] = num_[i];
+      has_data = (has_data || num_[i]);
+    }
+    if (has_data) {
+      for (int i = 0; i < kBucketSize; i++) {
+        for (int j = 0; j < kBlockSize; j++) {
+          target->buckets_[i][j] = buckets_[i][j];
+        }
+      }
+    }
+    target->num_dict_lookups_ = num_dict_lookups_;
+    target->num_dict_matches_ = num_dict_matches_;
+    target->static_dict_ = static_dict_;
+  }
+
   void SetStaticDictionary(const StaticDictionary *dict) {
     static_dict_ = dict;
-  }
-  bool HasStaticDictionary() const {
-    return static_dict_ != NULL;
   }
 
   // Look at 3 bytes at data.
@@ -337,9 +364,6 @@ class HashLongestMatch {
   // Write the score of the best match into best_score_out.
   bool FindLongestMatch(const uint8_t * __restrict data,
                         const size_t ring_buffer_mask,
-                        const float * __restrict literal_cost,
-                        const size_t literal_cost_mask,
-                        const double average_cost,
                         const int* __restrict distance_cache,
                         const uint32_t cur_ix,
                         uint32_t max_length,
@@ -350,26 +374,6 @@ class HashLongestMatch {
                         double * __restrict best_score_out) {
     *best_len_code_out = 0;
     const size_t cur_ix_masked = cur_ix & ring_buffer_mask;
-    double start_cost_diff4 = 0.0;
-    double start_cost_diff3 = 0.0;
-    double start_cost_diff2 = 0.0;
-    if (kUseCostModel && literal_cost != NULL) {
-      start_cost_diff4 =
-          literal_cost[cur_ix & literal_cost_mask] +
-          literal_cost[(cur_ix + 1) & literal_cost_mask] +
-          literal_cost[(cur_ix + 2) & literal_cost_mask] +
-          literal_cost[(cur_ix + 3) & literal_cost_mask] -
-          4 * average_cost;
-      start_cost_diff3 =
-          literal_cost[cur_ix & literal_cost_mask] +
-          literal_cost[(cur_ix + 1) & literal_cost_mask] +
-          literal_cost[(cur_ix + 2) & literal_cost_mask] -
-          3 * average_cost + 0.3;
-      start_cost_diff2 =
-          literal_cost[cur_ix & literal_cost_mask] +
-          literal_cost[(cur_ix + 1) & literal_cost_mask] -
-          2 * average_cost + 1.2;
-    }
     bool match_found = false;
     // Don't accept a short copy from far away.
     double best_score = *best_score_out;
@@ -400,15 +404,7 @@ class HashLongestMatch {
         // Comparing for >= 2 does not change the semantics, but just saves for
         // a few unnecessary binary logarithms in backward reference score,
         // since we are not interested in such short matches.
-        double score = BackwardReferenceScoreUsingLastDistance(
-            average_cost, len, i);
-        if (kUseCostModel) {
-          switch (len) {
-            case 2: score += start_cost_diff2; break;
-            case 3: score += start_cost_diff3; break;
-            default: score += start_cost_diff4;
-          }
-        }
+        double score = BackwardReferenceScoreUsingLastDistance(len, i);
         if (best_score < score) {
           best_score = score;
           best_len = len;
@@ -417,35 +413,6 @@ class HashLongestMatch {
           *best_distance_out = backward;
           *best_score_out = best_score;
           match_found = true;
-        }
-      }
-    }
-    if (kMinLength <= 3) {
-      const double lit_cost3 = 3 * average_cost + start_cost_diff3;
-      int stop = int(cur_ix) - 64;
-      if (stop < 0) { stop = 0; }
-      for (int i = cur_ix - 1; i > stop; --i) {
-        size_t prev_ix = i;
-        const size_t backward = cur_ix - prev_ix;
-        if (PREDICT_FALSE(backward > max_backward)) {
-          break;
-        }
-        prev_ix &= ring_buffer_mask;
-        if (data[cur_ix_masked] != data[prev_ix] ||
-            data[cur_ix_masked + 1] != data[prev_ix + 1] ||
-            data[cur_ix_masked + 2] != data[prev_ix + 2]) {
-          continue;
-        }
-        const int len = 3;
-        const double score = lit_cost3 - 1.2 * Log2Floor(backward);
-        if (best_score < score) {
-          best_score = score;
-          best_len = len;
-          *best_len_out = best_len;
-          *best_len_code_out = best_len;
-          *best_distance_out = backward;
-          match_found = true;
-          break;  // The score can never get better since backward increases.
         }
       }
     }
@@ -468,15 +435,11 @@ class HashLongestMatch {
         const size_t len =
             FindMatchLengthWithLimit(&data[prev_ix], &data[cur_ix_masked],
                                      max_length);
-        if (len >= std::max(kMinLength, 3)) {
+        if (len >= 4) {
           // Comparing for >= 3 does not change the semantics, but just saves
           // for a few unnecessary binary logarithms in backward reference
           // score, since we are not interested in such short matches.
-          double score = BackwardReferenceScore(average_cost,
-                                                len, backward);
-          if (kUseCostModel) {
-            score += (len >= 4) ? start_cost_diff4 : start_cost_diff3;
-          }
+          double score = BackwardReferenceScore(len, backward);
           if (best_score < score) {
             best_score = score;
             best_len = len;
@@ -504,11 +467,7 @@ class HashLongestMatch {
                                          &kBrotliDictionary[offset], len);
             if (matchlen == len) {
               const size_t backward = max_backward + dist + 1;
-              double score = BackwardReferenceScore(average_cost,
-                                                    len, backward);
-              if (kUseCostModel) {
-                score += start_cost_diff4;
-              }
+              double score = BackwardReferenceScore(len, backward);
               if (best_score < score) {
                 ++num_dict_matches_;
                 best_score = score;
@@ -525,7 +484,81 @@ class HashLongestMatch {
         }
       }
     }
-    if (kUseDictionary && static_dict_ != NULL) {
+    return match_found;
+  }
+
+  // Similar to FindLongestMatch(), but finds all matches.
+  //
+  // Sets *num_matches to the number of matches found, and stores the found
+  // matches in matches[0] to matches[*num_matches - 1].
+  //
+  // If the longest match is longer than kMaxZopfliLen, returns only this
+  // longest match.
+  //
+  // Requires that at least kMaxZopfliLen space is available in matches.
+  void FindAllMatches(const uint8_t* data,
+                      const size_t ring_buffer_mask,
+                      const uint32_t cur_ix,
+                      uint32_t max_length,
+                      const uint32_t max_backward,
+                      int* num_matches,
+                      BackwardMatch* matches) const {
+    BackwardMatch* const orig_matches = matches;
+    const size_t cur_ix_masked = cur_ix & ring_buffer_mask;
+    int best_len = 1;
+    int stop = static_cast<int>(cur_ix) - 64;
+    if (stop < 0) { stop = 0; }
+    for (int i = cur_ix - 1; i > stop && best_len <= 2; --i) {
+      size_t prev_ix = i;
+      const size_t backward = cur_ix - prev_ix;
+      if (PREDICT_FALSE(backward > max_backward)) {
+        break;
+      }
+      prev_ix &= ring_buffer_mask;
+      if (data[cur_ix_masked] != data[prev_ix] ||
+          data[cur_ix_masked + 1] != data[prev_ix + 1]) {
+        continue;
+      }
+      const size_t len =
+          FindMatchLengthWithLimit(&data[prev_ix], &data[cur_ix_masked],
+                                   max_length);
+      if (len > best_len) {
+        best_len = len;
+        if (len > kMaxZopfliLen) {
+          matches = orig_matches;
+        }
+        *matches++ = BackwardMatch(backward, len);
+      }
+    }
+    const uint32_t key = Hash<kBucketBits>(&data[cur_ix_masked]);
+    const int * __restrict const bucket = &buckets_[key][0];
+    const int down = (num_[key] > kBlockSize) ? (num_[key] - kBlockSize) : 0;
+    for (int i = num_[key] - 1; i >= down; --i) {
+      int prev_ix = bucket[i & kBlockMask];
+      if (prev_ix >= 0) {
+        const size_t backward = cur_ix - prev_ix;
+        if (PREDICT_FALSE(backward > max_backward)) {
+          break;
+        }
+        prev_ix &= ring_buffer_mask;
+        if (cur_ix_masked + best_len > ring_buffer_mask ||
+            prev_ix + best_len > ring_buffer_mask ||
+            data[cur_ix_masked + best_len] != data[prev_ix + best_len]) {
+          continue;
+        }
+        const size_t len =
+            FindMatchLengthWithLimit(&data[prev_ix], &data[cur_ix_masked],
+                                     max_length);
+        if (len > best_len) {
+          best_len = len;
+          if (len > kMaxZopfliLen) {
+            matches = orig_matches;
+          }
+          *matches++ = BackwardMatch(backward, len);
+        }
+      }
+    }
+    if (static_dict_ != NULL) {
       // We decide based on first 4 bytes how many bytes to test for.
       uint32_t prefix = BROTLI_UNALIGNED_LOAD32(&data[cur_ix_masked]);
       int maxlen = static_dict_->GetLength(prefix);
@@ -536,22 +569,11 @@ class HashLongestMatch {
         int word_id;
         if (static_dict_->Get(snippet, &copy_len_code, &word_id)) {
           const size_t backward = max_backward + word_id + 1;
-          const double score = (BackwardReferenceScore(average_cost,
-                                                       len, backward) +
-                                start_cost_diff4);
-          if (best_score < score) {
-            best_score = score;
-            best_len = len;
-            *best_len_out = best_len;
-            *best_len_code_out = copy_len_code;
-            *best_distance_out = backward;
-            *best_score_out = best_score;
-            match_found = true;
-          }
+          *matches++ = BackwardMatch(backward, len, copy_len_code);
         }
       }
     }
-    return match_found;
+    *num_matches += matches - orig_matches;
   }
 
  private:
@@ -585,12 +607,11 @@ struct Hashers {
   typedef HashLongestMatchQuickly<16, 2, false> H2;
   typedef HashLongestMatchQuickly<16, 4, false> H3;
   typedef HashLongestMatchQuickly<17, 4, true> H4;
-  typedef HashLongestMatch<14, 4, 4, 4, false, false> H5;
-  typedef HashLongestMatch<14, 5, 4, 4, false, false> H6;
-  typedef HashLongestMatch<15, 6, 4, 10, false, false> H7;
-  typedef HashLongestMatch<15, 7, 4, 10, false, false> H8;
-  typedef HashLongestMatch<15, 8, 4, 16, false, false> H9;
-  typedef HashLongestMatch<15, 8, 3, 16, true, true> H10;
+  typedef HashLongestMatch<14, 4, 4> H5;
+  typedef HashLongestMatch<14, 5, 4> H6;
+  typedef HashLongestMatch<15, 6, 10> H7;
+  typedef HashLongestMatch<15, 7, 10> H8;
+  typedef HashLongestMatch<15, 8, 16> H9;
 
   void Init(int type) {
     switch (type) {
@@ -603,13 +624,13 @@ struct Hashers {
       case 7: hash_h7.reset(new H7); break;
       case 8: hash_h8.reset(new H8); break;
       case 9: hash_h9.reset(new H9); break;
-      case 10: hash_h10.reset(new H10); break;
       default: break;
     }
   }
 
+  // Brotli's built in static transformable dictionary.
   void SetStaticDictionary(const StaticDictionary *dict) {
-    if (hash_h10.get() != NULL) hash_h10->SetStaticDictionary(dict);
+    if (hash_h9.get() != NULL) hash_h9->SetStaticDictionary(dict);
   }
 
   template<typename Hasher>
@@ -632,7 +653,6 @@ struct Hashers {
       case 7: WarmupHash(size, dict, hash_h7.get()); break;
       case 8: WarmupHash(size, dict, hash_h8.get()); break;
       case 9: WarmupHash(size, dict, hash_h9.get()); break;
-      case 10: WarmupHash(size, dict, hash_h10.get()); break;
       default: break;
     }
   }
@@ -646,7 +666,6 @@ struct Hashers {
   std::unique_ptr<H7> hash_h7;
   std::unique_ptr<H8> hash_h8;
   std::unique_ptr<H9> hash_h9;
-  std::unique_ptr<H10> hash_h10;
 };
 
 }  // namespace brotli
