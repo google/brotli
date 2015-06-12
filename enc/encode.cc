@@ -161,8 +161,6 @@ BrotliCompressor::BrotliCompressor(BrotliParams params)
                                std::max(kMinInputBlockBits, params_.lgblock));
   }
   if (params_.quality <= 9) {
-    params_.enable_dictionary = false;
-    params_.enable_transforms = false;
     params_.greedy_block_split = true;
     params_.enable_context_modeling = false;
   }
@@ -210,24 +208,9 @@ BrotliCompressor::BrotliCompressor(BrotliParams params)
   // Initialize hashers.
   hash_type_ = std::min(9, params_.quality);
   hashers_->Init(hash_type_);
-  if ((params_.mode == BrotliParams::MODE_GENERIC ||
-       params_.mode == BrotliParams::MODE_TEXT) &&
-      params_.enable_dictionary) {
-    StoreDictionaryWordHashes(params_.enable_transforms);
-  }
 }
 
 BrotliCompressor::~BrotliCompressor() {
-}
-
-StaticDictionary* BrotliCompressor::static_dictionary_ = NULL;
-
-void BrotliCompressor::StoreDictionaryWordHashes(bool enable_transforms) {
-  if (static_dictionary_ == NULL) {
-    static_dictionary_ = new StaticDictionary;
-    static_dictionary_->Fill(enable_transforms);
-  }
-  hashers_->SetStaticDictionary(static_dictionary_);
 }
 
 void BrotliCompressor::CopyInputToRingBuffer(const size_t input_size,

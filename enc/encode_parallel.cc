@@ -124,7 +124,6 @@ bool WriteMetaBlockParallel(const BrotliParams& params,
                             const uint8_t* input_buffer,
                             const size_t prefix_size,
                             const uint8_t* prefix_buffer,
-                            const StaticDictionary* static_dict,
                             const bool is_first,
                             const bool is_last,
                             size_t* encoded_size,
@@ -169,7 +168,6 @@ bool WriteMetaBlockParallel(const BrotliParams& params,
   int hash_type = std::min(9, params.quality);
   std::unique_ptr<Hashers> hashers(new Hashers());
   hashers->Init(hash_type);
-  hashers->SetStaticDictionary(static_dict);
 
   // Compute backward references.
   int last_insert_len = 0;
@@ -318,8 +316,6 @@ int BrotliCompressBufferParallel(BrotliParams params,
   size_t max_input_block_size = 1 << params.lgblock;
 
   std::vector<std::vector<uint8_t> > compressed_pieces;
-  StaticDictionary dict;
-  dict.Fill(params.enable_transforms);
 
   // Compress block-by-block independently.
   for (size_t pos = 0; pos < input_size; ) {
@@ -331,7 +327,6 @@ int BrotliCompressBufferParallel(BrotliParams params,
                                 &input_buffer[pos],
                                 pos,
                                 input_buffer,
-                                &dict,
                                 pos == 0,
                                 pos + input_block_size == input_size,
                                 &out_size,

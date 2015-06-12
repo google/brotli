@@ -139,9 +139,6 @@ class BrotliCompressor {
   void WriteStreamHeader() {}
 
  private:
-  // Initializes the hasher with the hashes of dictionary words.
-  void StoreDictionaryWordHashes(bool enable_transforms);
-
   uint8_t* GetBrotliStorage(size_t size);
 
   bool WriteMetaBlockInternal(const bool is_last,
@@ -172,7 +169,6 @@ class BrotliCompressor {
   uint8_t prev_byte2_;
   int storage_size_;
   std::unique_ptr<uint8_t[]> storage_;
-  static StaticDictionary *static_dictionary_;
 };
 
 // Compresses the data in input_buffer into encoded_buffer, and sets
