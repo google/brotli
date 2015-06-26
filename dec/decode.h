@@ -37,6 +37,20 @@ typedef enum {
   BROTLI_RESULT_NEEDS_MORE_OUTPUT = 3
 } BrotliResult;
 
+/* BROTLI_FAILURE macro unwraps to BROTLI_RESULT_ERROR in non-debug build. */
+/* In debug build it dumps file name, line and pretty function name. */
+#if defined(_MSC_VER) || !defined(BROTLI_DEBUG)
+#define BROTLI_FAILURE() BROTLI_RESULT_ERROR
+#else
+#define BROTLI_FAILURE() \
+    BrotliFailure(__FILE__, __LINE__, __PRETTY_FUNCTION__)
+inline BrotliResult BrotliFailure(const char *f, int l, const char *fn) {
+  fprintf(stderr, "ERROR at %s:%d (%s)\n", f, l, fn);
+  fflush(stderr);
+  return BROTLI_RESULT_ERROR;
+}
+#endif
+
 /* Sets *decoded_size to the decompressed size of the given encoded stream. */
 /* This function only works if the encoded buffer has a single meta block, */
 /* or if it has two meta-blocks, where the first is uncompressed and the */

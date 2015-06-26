@@ -418,6 +418,9 @@ bool BrotliCompressor::WriteMetaBlockInternal(const bool is_last,
     }
     storage_ix = (storage_ix + 7) & ~7;
   } else if (uncompressed) {
+    // Restore the distance cache, as its last update by
+    // CreateBackwardReferences is now unused.
+    memcpy(dist_cache_, saved_dist_cache_, sizeof(dist_cache_));
     if (!StoreUncompressedMetaBlock(is_last,
                                     data, last_flush_pos_, mask, bytes,
                                     &storage_ix,
