@@ -159,19 +159,23 @@ static const float kLog2Table[] = {
   7.9943534368588578f
 };
 
+// Visual Studio 2010 does not have the log2() function defined, so we use
+// log() and a multiplication instead.
+static inline double _log2(double v) {
+#if defined(_MSC_VER) && _MSC_VER <= 1600
+  static const double kLog2Inv = 1.4426950408889634f;
+  return log(v) * kLog2Inv;
+#else
+  return log2(v);
+#endif
+}
+
 // Faster logarithm for small integers, with the property of log2(0) == 0.
 static inline double FastLog2(int v) {
-  if (v < (int)(sizeof(kLog2Table) / sizeof(kLog2Table[0]))) {
+  if (v < (int)(sizeof(kLog2Table) / sizeof(kLog2Table[0])))
     return kLog2Table[v];
-  }
-#if defined(_MSC_VER) && _MSC_VER <= 1600
-  // Visual Studio 2010 does not have the log2() function defined, so we use
-  // log() and a multiplication instead.
-  static const double kLog2Inv = 1.4426950408889634f;
-  return log(static_cast<double>(v)) * kLog2Inv;
-#else
-  return log2(static_cast<double>(v));
-#endif
+  else
+    return _log2(static_cast<double>(v));
 }
 
 }  // namespace brotli

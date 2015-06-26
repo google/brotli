@@ -17,13 +17,15 @@
 #include "./backward_references.h"
 
 #include <algorithm>
+#include <limits>
 #include <vector>
 
+#include "./fast_log.h"
 #include "./command.h"
 
 namespace brotli {
 
-static const double kInfinity = 1.0 / 0.0;
+static const double kInfinity = std::numeric_limits<double>::infinity();
 
 // Histogram based cost model for zopflification.
 class ZopfliCostModel {
@@ -136,12 +138,12 @@ class ZopfliCostModel {
     }
     for (size_t i = 0; i < histogram.size(); i++) {
       if (histogram[i] == 0) {
-        (*cost)[i] = -log2(0.25 / sum);
+        (*cost)[i] = -_log2(0.25 / sum);
         continue;
       }
 
       // Shannon bits for this symbol.
-      (*cost)[i] = -log2(histogram[i] / sum);
+      (*cost)[i] = -_log2(histogram[i] / sum);
 
       // Cannot be coded with less than 1 bit
       if ((*cost)[i] < 1) (*cost)[i] = 1;
