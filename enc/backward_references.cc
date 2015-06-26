@@ -17,13 +17,14 @@
 #include "./backward_references.h"
 
 #include <algorithm>
+#include <limits>
 #include <vector>
 
 #include "./command.h"
 
 namespace brotli {
 
-static const double kInfinity = 1.0 / 0.0;
+static const double kInfinity = std::numeric_limits<double>::infinity();
 
 // Histogram based cost model for zopflification.
 class ZopfliCostModel {
