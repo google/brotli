@@ -41,7 +41,7 @@ extern "C" {
 #endif
 #define BROTLI_MAX_NUM_BIT_READ   25
 #define BROTLI_READ_SIZE          4096
-#define BROTLI_IBUF_SIZE          (2 * BROTLI_READ_SIZE + 32)
+#define BROTLI_IBUF_SIZE          (2 * BROTLI_READ_SIZE + 128)
 #define BROTLI_IBUF_MASK          (2 * BROTLI_READ_SIZE - 1)
 
 #define UNALIGNED_COPY64(dst, src) memcpy(dst, src, 8)
@@ -166,6 +166,44 @@ static BROTLI_INLINE int BrotliReadMoreInput(BrotliBitReader* const br) {
 #else
       memcpy(br->buf_ + (BROTLI_READ_SIZE << 1), br->buf_, 32);
 #endif
+      br->buf_ptr_ = br->buf_ + BROTLI_READ_SIZE;
+    } else {
+      br->buf_ptr_ = br->buf_;
+    }
+    br->bit_end_pos_ += ((uint32_t)bytes_read << 3);
+    return 1;
+  }
+}
+
+/* Similar to BrotliReadMoreInput, but guarantees num bytes available. The
+   maximum value for num is 128 bytes, the slack region size. */
+static BROTLI_INLINE int BrotliReadInputAmount(
+    BrotliBitReader* const br, size_t num) {
+  if (PREDICT_TRUE(br->bit_end_pos_ > (num << 3))) {
+    return 1;
+  } else if (PREDICT_FALSE(br->eos_)) {
+    return br->bit_pos_ <= br->bit_end_pos_;
+  } else {
+    uint8_t* dst = br->buf_ptr_;
+    int bytes_read = BrotliRead(br->input_, dst + br->tmp_bytes_read_,
+        (size_t) (BROTLI_READ_SIZE - br->tmp_bytes_read_));
+    if (bytes_read < 0) {
+      return 0;
+    }
+    bytes_read += br->tmp_bytes_read_;
+    br->tmp_bytes_read_ = 0;
+    if (bytes_read < BROTLI_READ_SIZE) {
+      if (!br->finish_) {
+        br->tmp_bytes_read_ = bytes_read;
+        return 0;
+      }
+      br->eos_ = 1;
+      /* Store num bytes of zero after the stream end. */
+      memset(dst + bytes_read, 0, num);
+    }
+    if (dst == br->buf_) {
+      /* Copy the head of the ringbuffer to the slack region. */
+      memcpy(br->buf_ + (BROTLI_READ_SIZE << 1), br->buf_, num);
       br->buf_ptr_ = br->buf_ + BROTLI_READ_SIZE;
     } else {
       br->buf_ptr_ = br->buf_;
