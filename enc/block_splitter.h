@@ -54,11 +54,15 @@ struct BlockSplitIterator {
 void CopyLiteralsToByteArray(const Command* cmds,
                              const size_t num_commands,
                              const uint8_t* data,
+                             const size_t offset,
+                             const size_t mask,
                              std::vector<uint8_t>* literals);
 
 void SplitBlock(const Command* cmds,
                 const size_t num_commands,
                 const uint8_t* data,
+                const size_t offset,
+                const size_t mask,
                 BlockSplit* literal_split,
                 BlockSplit* insert_and_copy_split,
                 BlockSplit* dist_split);

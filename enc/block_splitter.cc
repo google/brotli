@@ -48,6 +48,8 @@ static const int kMinItersForRefining = 100;
 void CopyLiteralsToByteArray(const Command* cmds,
                              const size_t num_commands,
                              const uint8_t* data,
+                             const size_t offset,
+                             const size_t mask,
                              std::vector<uint8_t>* literals) {
   // Count how many we have.
   size_t total_length = 0;
@@ -63,11 +65,21 @@ void CopyLiteralsToByteArray(const Command* cmds,
 
   // Loop again, and copy this time.
   size_t pos = 0;
-  size_t from_pos = 0;
+  size_t from_pos = offset & mask;
   for (int i = 0; i < num_commands && pos < total_length; ++i) {
-    memcpy(&(*literals)[pos], data + from_pos, cmds[i].insert_len_);
-    pos += cmds[i].insert_len_;
-    from_pos += cmds[i].insert_len_ + cmds[i].copy_len_;
+    size_t insert_len = cmds[i].insert_len_;
+    if (from_pos + insert_len > mask) {
+      size_t head_size = mask + 1 - from_pos;
+      memcpy(&(*literals)[pos], data + from_pos, head_size);
+      from_pos = 0;
+      pos += head_size;
+      insert_len -= head_size;
+    }
+    if (insert_len > 0) {
+      memcpy(&(*literals)[pos], data + from_pos, insert_len);
+      pos += insert_len;
+    }
+    from_pos = (from_pos + insert_len + cmds[i].copy_len_) & mask;
   }
 }
 
@@ -347,12 +359,14 @@ void SplitByteVector(const std::vector<DataType>& data,
 void SplitBlock(const Command* cmds,
                 const size_t num_commands,
                 const uint8_t* data,
+                const size_t pos,
+                const size_t mask,
                 BlockSplit* literal_split,
                 BlockSplit* insert_and_copy_split,
                 BlockSplit* dist_split) {
   // Create a continuous array of literals.
   std::vector<uint8_t> literals;
-  CopyLiteralsToByteArray(cmds, num_commands, data, &literals);
+  CopyLiteralsToByteArray(cmds, num_commands, data, pos, mask, &literals);
 
   // Compute prefix codes for commands.
   std::vector<uint16_t> insert_and_copy_codes;
