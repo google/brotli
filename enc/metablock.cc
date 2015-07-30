@@ -34,7 +34,7 @@ void BuildMetaBlock(const uint8_t* ringbuffer,
                     int literal_context_mode,
                     MetaBlockSplit* mb) {
   SplitBlock(cmds, num_commands,
-             &ringbuffer[pos & mask],
+             ringbuffer, pos, mask,
              &mb->literal_split,
              &mb->command_split,
              &mb->distance_split);
