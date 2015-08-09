@@ -622,6 +622,7 @@ static BROTLI_INLINE void DecodeBlockTypeWithContext(BrotliState* s,
   s->context_lookup_offset2 = kContextLookupOffsets[s->context_mode + 1];
 }
 
+#if (defined(__x86_64__) || defined(_M_X64)) || defined(ARMv7)
 /* Copy len bytes from src to dst. It can write up to ten extra bytes
    after the end of the copy.
 
@@ -671,6 +672,7 @@ static BROTLI_INLINE void IncrementalCopyFastPath(
     len -= 8;
   }
 }
+#endif
 
 BrotliResult CopyUncompressedBlockToOutput(BrotliOutput output,
                                            int pos,
