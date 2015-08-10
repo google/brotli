@@ -20,12 +20,14 @@ inline void AddMatch(int distance, int len, int len_code, int* matches) {
   matches[len] = std::min(matches[len], (distance << 5) + len_code);
 }
 
-inline int DictMatchLength(const uint8_t* data, int id, int len) {
+inline int DictMatchLength(const uint8_t* data, int id, int len, int maxlen) {
   const int offset = kBrotliDictionaryOffsetsByLength[len] + len * id;
-  return FindMatchLengthWithLimit(&kBrotliDictionary[offset], data, len);
+  return FindMatchLengthWithLimit(&kBrotliDictionary[offset], data,
+                                  std::min(len, maxlen));
 }
 
-inline bool IsMatch(DictWord w, const uint8_t* data) {
+inline bool IsMatch(DictWord w, const uint8_t* data, int max_length) {
+  if (w.len > max_length) return false;
   const int offset = kBrotliDictionaryOffsetsByLength[w.len] + w.len * w.idx;
   const uint8_t* dict = &kBrotliDictionary[offset];
   if (w.transform == 0) {
@@ -54,6 +56,7 @@ inline bool IsMatch(DictWord w, const uint8_t* data) {
 
 bool FindAllStaticDictionaryMatches(const uint8_t* data,
                                     int min_length,
+                                    int max_length,
                                     int* matches) {
   bool found_match = false;
   uint32_t key = Hash(data);
@@ -67,7 +70,7 @@ bool FindAllStaticDictionaryMatches(const uint8_t* data,
       const int n = 1 << kBrotliDictionarySizeBitsByLength[l];
       const int id = w.idx;
       if (w.transform == 0) {
-        const int matchlen = DictMatchLength(data, id, l);
+        const int matchlen = DictMatchLength(data, id, l, max_length);
         // Transform "" + kIdentity + ""
         if (matchlen == l) {
           AddMatch(id, l, l, matches);
@@ -76,7 +79,8 @@ bool FindAllStaticDictionaryMatches(const uint8_t* data,
         // Transfroms "" + kOmitLast1 + "" and "" + kOmitLast1 + "ing "
         if (matchlen >= l - 1) {
           AddMatch(id + 12 * n, l - 1, l, matches);
-          if (data[l - 1] == 'i' && data[l] == 'n' && data[l + 1] == 'g' &&
+          if (l + 2 < max_length &&
+              data[l - 1] == 'i' && data[l] == 'n' && data[l + 1] == 'g' &&
               data[l + 2] == ' ') {
             AddMatch(id + 49 * n, l + 3, l, matches);
           }
@@ -89,7 +93,7 @@ bool FindAllStaticDictionaryMatches(const uint8_t* data,
           AddMatch(id + kOmitLastNTransforms[l - len] * n, len, l, matches);
           found_match = true;
         }
-        if (matchlen < l) {
+        if (matchlen < l || l + 6 >= max_length) {
           continue;
         }
         const uint8_t* s = &data[l];
@@ -242,12 +246,15 @@ bool FindAllStaticDictionaryMatches(const uint8_t* data,
       } else {
         // Set t=0 for kUppercaseFirst and t=1 for kUppercaseAll transform.
         const int t = w.transform - 10;
-        if (!IsMatch(w, data)) {
+        if (!IsMatch(w, data, max_length)) {
           continue;
         }
         // Transform "" + kUppercase{First,All} + ""
         AddMatch(id + (t ? 44 : 9) * n, l, l, matches);
         found_match = true;
+        if (l + 1 >= max_length) {
+          continue;
+        }
         // Transforms "" + kUppercase{First,All} + <suffix>
         const uint8_t* s = &data[l];
         if (s[0] == ' ') {
@@ -282,7 +289,7 @@ bool FindAllStaticDictionaryMatches(const uint8_t* data,
     }
   }
   // Transforms with prefixes " " and "."
-  if (data[0] == ' ' || data[0] == '.') {
+  if (max_length >= 5 && (data[0] == ' ' || data[0] == '.')) {
     bool is_space = (data[0] == ' ');
     key = Hash(&data[1]);
     bucket = kStaticDictionaryBuckets[key];
@@ -294,12 +301,15 @@ bool FindAllStaticDictionaryMatches(const uint8_t* data,
       const int n = 1 << kBrotliDictionarySizeBitsByLength[l];
       const int id = w.idx;
       if (w.transform == 0) {
-        if (!IsMatch(w, &data[1])) {
+        if (!IsMatch(w, &data[1], max_length - 1)) {
           continue;
         }
         // Transforms " " + kIdentity + "" and "." + kIdentity + ""
         AddMatch(id + (is_space ? 6 : 32) * n, l + 1, l, matches);
         found_match = true;
+        if (l + 2 >= max_length) {
+          continue;
+        }
         // Transforms " " + kIdentity + <suffix> and "." + kIdentity + <suffix>
         const uint8_t* s = &data[l + 1];
         if (s[0] == ' ') {
@@ -328,12 +338,15 @@ bool FindAllStaticDictionaryMatches(const uint8_t* data,
       } else if (is_space) {
         // Set t=0 for kUppercaseFirst and t=1 for kUppercaseAll transform.
         const int t = w.transform - 10;
-        if (!IsMatch(w, &data[1])) {
+        if (!IsMatch(w, &data[1], max_length - 1)) {
           continue;
         }
         // Transforms " " + kUppercase{First,All} + ""
         AddMatch(id + (t ? 85 : 30) * n, l + 1, l, matches);
         found_match = true;
+        if (l + 2 >= max_length) {
+          continue;
+        }
         // Transforms " " + kUppercase{First,All} + <suffix>
         const uint8_t* s = &data[l + 1];
         if (s[0] == ' ') {
@@ -360,54 +373,62 @@ bool FindAllStaticDictionaryMatches(const uint8_t* data,
       }
     }
   }
-  // Transforms with prefixes "e ", "s ", ", " and "\xc2\xa0"
-  if ((data[1] == ' ' &&
-       (data[0] == 'e' || data[0] == 's' || data[0] == ',')) ||
-      (data[0] == '\xc2' && data[1] == '\xa0')) {
-    key = Hash(&data[2]);
-    bucket = kStaticDictionaryBuckets[key];
-    int num = bucket & 0xff;
-    int offset = bucket >> 8;
-    for (int i = 0; i < num; ++i) {
-      const DictWord w = kStaticDictionaryWords[offset + i];
-      const int l = w.len;
-      const int n = 1 << kBrotliDictionarySizeBitsByLength[l];
-      const int id = w.idx;
-      if (w.transform == 0 && IsMatch(w, &data[2])) {
-        if (data[0] == '\xc2') {
-          AddMatch(id + 102 * n, l + 2, l, matches);
-          found_match = true;
-        } else if (data[l + 2] == ' ') {
-          int t = data[0] == 'e' ? 18 : (data[0] == 's' ? 7 : 13);
-          AddMatch(id + t * n, l + 3, l, matches);
-          found_match = true;
+  if (max_length >= 6) {
+    // Transforms with prefixes "e ", "s ", ", " and "\xc2\xa0"
+    if ((data[1] == ' ' &&
+         (data[0] == 'e' || data[0] == 's' || data[0] == ',')) ||
+        (data[0] == '\xc2' && data[1] == '\xa0')) {
+      key = Hash(&data[2]);
+      bucket = kStaticDictionaryBuckets[key];
+      int num = bucket & 0xff;
+      int offset = bucket >> 8;
+      for (int i = 0; i < num; ++i) {
+        const DictWord w = kStaticDictionaryWords[offset + i];
+        const int l = w.len;
+        const int n = 1 << kBrotliDictionarySizeBitsByLength[l];
+        const int id = w.idx;
+        if (w.transform == 0 && IsMatch(w, &data[2], max_length - 2)) {
+          if (data[0] == '\xc2') {
+            AddMatch(id + 102 * n, l + 2, l, matches);
+            found_match = true;
+          } else if (l + 2 < max_length && data[l + 2] == ' ') {
+            int t = data[0] == 'e' ? 18 : (data[0] == 's' ? 7 : 13);
+            AddMatch(id + t * n, l + 3, l, matches);
+            found_match = true;
+          }
         }
       }
     }
   }
-  // Transforms with prefixes " the " and ".com/"
-  if ((data[0] == ' ' && data[1] == 't' && data[2] == 'h' &&
-       data[3] == 'e' && data[4] == ' ') ||
-      (data[0] == '.' && data[1] == 'c' && data[2] == 'o' &&
-       data[3] == 'm' && data[4] == '/')) {
-    key = Hash(&data[5]);
-    bucket = kStaticDictionaryBuckets[key];
-    int num = bucket & 0xff;
-    int offset = bucket >> 8;
-    for (int i = 0; i < num; ++i) {
-      const DictWord w = kStaticDictionaryWords[offset + i];
-      const int l = w.len;
-      const int n = 1 << kBrotliDictionarySizeBitsByLength[l];
-      const int id = w.idx;
-      if (w.transform == 0 && IsMatch(w, &data[5])) {
-        AddMatch(id + (data[0] == ' ' ? 41 : 72) * n, l + 5, l, matches);
-        found_match = true;
-        const uint8_t* s = &data[l + 5];
-        if (data[0] == ' ') {
-          if (s[0] == ' ' && s[1] == 'o' && s[2] == 'f' && s[3] == ' ') {
-            AddMatch(id + 62 * n, l + 9, l, matches);
-            if (s[4] == 't' && s[5] == 'h' && s[6] == 'e' && s[7] == ' ') {
-              AddMatch(id + 73 * n, l + 13, l, matches);
+  if (max_length >= 9) {
+    // Transforms with prefixes " the " and ".com/"
+    if ((data[0] == ' ' && data[1] == 't' && data[2] == 'h' &&
+         data[3] == 'e' && data[4] == ' ') ||
+        (data[0] == '.' && data[1] == 'c' && data[2] == 'o' &&
+         data[3] == 'm' && data[4] == '/')) {
+      key = Hash(&data[5]);
+      bucket = kStaticDictionaryBuckets[key];
+      int num = bucket & 0xff;
+      int offset = bucket >> 8;
+      for (int i = 0; i < num; ++i) {
+        const DictWord w = kStaticDictionaryWords[offset + i];
+        const int l = w.len;
+        const int n = 1 << kBrotliDictionarySizeBitsByLength[l];
+        const int id = w.idx;
+        if (w.transform == 0 && IsMatch(w, &data[5], max_length - 5)) {
+          AddMatch(id + (data[0] == ' ' ? 41 : 72) * n, l + 5, l, matches);
+          found_match = true;
+          if (l + 5 < max_length) {
+            const uint8_t* s = &data[l + 5];
+            if (data[0] == ' ') {
+              if (l + 8 < max_length &&
+                  s[0] == ' ' && s[1] == 'o' && s[2] == 'f' && s[3] == ' ') {
+                AddMatch(id + 62 * n, l + 9, l, matches);
+                if (l + 12 < max_length &&
+                    s[4] == 't' && s[5] == 'h' && s[6] == 'e' && s[7] == ' ') {
+                  AddMatch(id + 73 * n, l + 13, l, matches);
+                }
+              }
             }
           }
         }

@@ -44,6 +44,9 @@ static const int kDistanceCacheOffset[] = {
   0, 0, 0, 0, -1, 1, -2, 2, -3, 3, -1, 1, -2, 2, -3, 3
 };
 
+static const int kCutoffTransformsCount = 10;
+static const int kCutoffTransforms[] = {0, 12, 27, 23, 42, 63, 56, 48, 59, 64};
+
 // kHashMul32 multiplier has these properties:
 // * The multiplier must be odd. Otherwise we may lose the highest bit.
 // * No long streaks of 1s or 0s.
@@ -264,15 +267,19 @@ class HashLongestMatchQuickly {
           const int matchlen =
               FindMatchLengthWithLimit(&ring_buffer[cur_ix_masked],
                                        &kBrotliDictionary[offset], len);
-          if (matchlen == len) {
-            const size_t backward = max_backward + dist + 1;
-            const double score = BackwardReferenceScore(len, backward);
+          if (matchlen > len - kCutoffTransformsCount && matchlen > 0) {
+            const int transform_id = kCutoffTransforms[len - matchlen];
+            const int word_id =
+                transform_id * (1 << kBrotliDictionarySizeBitsByLength[len]) +
+                dist;
+            const size_t backward = max_backward + word_id + 1;
+            const double score = BackwardReferenceScore(matchlen, backward);
             if (best_score < score) {
               ++num_dict_matches_;
               best_score = score;
-              best_len = len;
+              best_len = matchlen;
               *best_len_out = best_len;
-              *best_len_code_out = best_len;
+              *best_len_code_out = len;
               *best_distance_out = backward;
               *best_score_out = best_score;
               return true;
@@ -443,19 +450,22 @@ class HashLongestMatch {
             const int matchlen =
                 FindMatchLengthWithLimit(&data[cur_ix_masked],
                                          &kBrotliDictionary[offset], len);
-            if (matchlen == len) {
-              const size_t backward = max_backward + dist + 1;
-              double score = BackwardReferenceScore(len, backward);
+            if (matchlen > len - kCutoffTransformsCount && matchlen > 0) {
+              const int transform_id = kCutoffTransforms[len - matchlen];
+              const int word_id =
+                  transform_id * (1 << kBrotliDictionarySizeBitsByLength[len]) +
+                  dist;
+              const size_t backward = max_backward + word_id + 1;
+              double score = BackwardReferenceScore(matchlen, backward);
               if (best_score < score) {
                 ++num_dict_matches_;
                 best_score = score;
-                best_len = len;
+                best_len = matchlen;
                 *best_len_out = best_len;
-                *best_len_code_out = best_len;
+                *best_len_code_out = len;
                 *best_distance_out = backward;
                 *best_score_out = best_score;
                 match_found = true;
-                break;
               }
             }
           }
@@ -538,7 +548,7 @@ class HashLongestMatch {
     }
     std::vector<int> dict_matches(kMaxDictionaryMatchLen + 1, kInvalidMatch);
     int minlen = std::max<int>(4, best_len + 1);
-    if (FindAllStaticDictionaryMatches(&data[cur_ix_masked], minlen,
+    if (FindAllStaticDictionaryMatches(&data[cur_ix_masked], minlen, max_length,
                                        &dict_matches[0])) {
       int maxlen = std::min<int>(kMaxDictionaryMatchLen, max_length);
       for (int l = minlen; l <= maxlen; ++l) {
@@ -604,7 +614,7 @@ struct Hashers {
 
   template<typename Hasher>
   void WarmupHash(const size_t size, const uint8_t* dict, Hasher* hasher) {
-    for (size_t i = 0; i < size; i++) {
+    for (size_t i = 0; i + 3 < size; i++) {
       hasher->Store(dict, i);
     }
   }

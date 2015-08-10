@@ -137,7 +137,8 @@ bool WriteMetaBlockParallel(const BrotliParams& params,
   size_t input_pos = prefix_size;
   // CreateBackwardReferences reads up to 3 bytes past the end of input if the
   // mask points past the end of input.
-  std::vector<uint8_t> input(prefix_size + input_size + 4);
+  // FindMatchLengthWithLimit could do another 8 bytes look-forward.
+  std::vector<uint8_t> input(prefix_size + input_size + 4 + 8);
   memcpy(&input[0], prefix_buffer, prefix_size);
   memcpy(&input[input_pos], input_buffer, input_size);
   // Since we don't have a ringbuffer, masking is a no-op.
