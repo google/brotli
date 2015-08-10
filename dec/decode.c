@@ -13,6 +13,7 @@
    limitations under the License.
 */
 
+#include <malloc.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -24,7 +25,6 @@
 #include "./transform.h"
 #include "./huffman.h"
 #include "./prefix.h"
-#include "./safe_malloc.h"
 
 #ifdef __ARM_NEON__
 #include <arm_neon.h>
@@ -222,6 +222,10 @@ static BrotliResult ReadHuffmanCode(int alphabet_size,
      1 for simple code;
      0 for no skipping, 2 skips 2 code lengths, 3 skips 3 code lengths */
   int simple_code_or_skip;
+
+  /* Unnecessary masking, but might be good for safety. */
+  alphabet_size &= 0x3ff;
+
   /* State machine */
   for (;;) {
     switch(s->sub1_state) {
@@ -278,9 +282,7 @@ static BrotliResult ReadHuffmanCode(int alphabet_size,
           static const uint8_t huff_val[16] = {
             0, 4, 3, 2, 0, 4, 3, 1, 0, 4, 3, 2, 0, 4, 3, 5,
           };
-          s->code_lengths =
-              (uint8_t*)BrotliSafeMalloc((uint64_t)alphabet_size,
-                                         sizeof(*s->code_lengths));
+          s->code_lengths = (uint8_t*)malloc((size_t)alphabet_size);
           if (s->code_lengths == NULL) {
             return BROTLI_FAILURE();
           }
@@ -961,14 +963,16 @@ BrotliResult BrotliDecompressStreaming(BrotliInput input, BrotliOutput output,
         }
         s->max_backward_distance = (1 << s->window_bits) - 16;
 
+        /* Allocate memory for both block_type_trees and block_len_trees. */
         s->block_type_trees = (HuffmanCode*)malloc(
-            3 * BROTLI_HUFFMAN_MAX_TABLE_SIZE * sizeof(HuffmanCode));
-        s->block_len_trees = (HuffmanCode*)malloc(
-            3 * BROTLI_HUFFMAN_MAX_TABLE_SIZE * sizeof(HuffmanCode));
-        if (s->block_type_trees == NULL || s->block_len_trees == NULL) {
+            6 * BROTLI_HUFFMAN_MAX_TABLE_SIZE * sizeof(HuffmanCode));
+
+        if (s->block_type_trees == NULL) {
           result = BROTLI_FAILURE();
           break;
         }
+        s->block_len_trees = s->block_type_trees +
+            3 * BROTLI_HUFFMAN_MAX_TABLE_SIZE;
 
         s->state = BROTLI_STATE_METABLOCK_BEGIN;
         /* No break, continue to next state */
@@ -1235,19 +1239,13 @@ BrotliResult BrotliDecompressStreaming(BrotliInput input, BrotliOutput output,
         --s->block_length[1];
         {
           int cmd_code = ReadSymbol(s->htree_command, br);
-          int range_idx = cmd_code >> 6;
-          if (PREDICT_FALSE((range_idx & ~1) == 0)) {
+          const uint16_t *v = &kCmdLut[cmd_code][0];
+          if (PREDICT_FALSE((cmd_code & ~0x7f) == 0)) {
             s->distance_code = 0;
           }
-          s->insert_code =
-              kInsertRangeLut[range_idx] + ((cmd_code >> 3) & 7);
-          s->copy_code = kCopyRangeLut[range_idx] + (cmd_code & 7);
+          i = (int)BrotliReadBits(br, v[0]) + v[1];
+          s->copy_length = (int)BrotliReadBits(br, v[2]) + v[3];
         }
-        i = kInsertLengthPrefixCode[s->insert_code].offset +
-            (int)BrotliReadBits(br,
-                                kInsertLengthPrefixCode[s->insert_code].nbits);
-        s->copy_length = kCopyLengthPrefixCode[s->copy_code].offset +
-            (int)BrotliReadBits(br, kCopyLengthPrefixCode[s->copy_code].nbits);
         BROTLI_LOG_UINT(i);
         BROTLI_LOG_UINT(s->copy_length);
         BROTLI_LOG_UINT(s->distance_code);
