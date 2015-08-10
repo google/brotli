@@ -55,7 +55,7 @@ static BROTLI_INLINE void ReplicateValue(HuffmanCode* table,
 /* Returns the table width of the next 2nd level table. count is the histogram
    of bit lengths for the remaining symbols, len is the code length of the next
    processed symbol */
-static BROTLI_INLINE int NextTableBitSize(const int* const count,
+static BROTLI_INLINE int NextTableBitSize(const uint16_t* const count,
                                           int len, int root_bits) {
   int left = 1 << (len - root_bits);
   while (len < MAX_LENGTH) {
@@ -70,11 +70,12 @@ static BROTLI_INLINE int NextTableBitSize(const int* const count,
 int BrotliBuildHuffmanTable(HuffmanCode* root_table,
                             int root_bits,
                             const uint8_t* const code_lengths,
-                            int code_lengths_size) {
+                            int code_lengths_size,
+                            uint16_t *count) {
   HuffmanCode code;    /* current table entry */
   HuffmanCode* table;  /* next available space in table */
   int len;             /* current code length */
-  int symbol;          /* symbol index in original or sorted table */
+  int symbol;     /* symbol index in original or sorted table */
   int key;             /* reversed prefix code */
   int step;            /* step size to replicate values in current table */
   int low;             /* low bits for current root entry */
@@ -82,29 +83,32 @@ int BrotliBuildHuffmanTable(HuffmanCode* root_table,
   int table_bits;      /* key length of current table */
   int table_size;      /* size of current table */
   int total_size;      /* sum of root table size and 2nd level table sizes */
-  int sorted[MAX_CODE_LENGTHS_SIZE];  /* symbols sorted by code length */
-  int count[MAX_LENGTH + 1] = { 0 };  /* number of codes of each length */
-  int offset[MAX_LENGTH + 1];  /* offsets in sorted table for each length */
+  /* symbols sorted by code length */
+  uint16_t sorted[MAX_CODE_LENGTHS_SIZE];
+  /* offsets in sorted table for each length */
+  uint16_t offset[MAX_LENGTH + 1];
+  int max_length = 1;
 
   if (PREDICT_FALSE(code_lengths_size > MAX_CODE_LENGTHS_SIZE)) {
     return 0;
   }
 
-  /* build histogram of code lengths */
-  for (symbol = 0; symbol < code_lengths_size; symbol++) {
-    count[code_lengths[symbol]]++;
-  }
-
   /* generate offsets into sorted symbol table by code length */
-  offset[1] = 0;
-  for (len = 1; len < MAX_LENGTH; len++) {
-    offset[len + 1] = offset[len] + count[len];
+  {
+    uint16_t sum = 0;
+    for (len = 1; len <= MAX_LENGTH; len++) {
+      offset[len] = sum;
+      if (count[len]) {
+        sum = (uint16_t)(sum + count[len]);
+        max_length = len;
+      }
+    }
   }
 
   /* sort symbols by length, by symbol order within each length */
   for (symbol = 0; symbol < code_lengths_size; symbol++) {
     if (code_lengths[symbol] != 0) {
-      sorted[offset[code_lengths[symbol]]++] = symbol;
+      sorted[offset[code_lengths[symbol]]++] = (uint16_t)symbol;
     }
   }
 
@@ -124,22 +128,38 @@ int BrotliBuildHuffmanTable(HuffmanCode* root_table,
   }
 
   /* fill in root table */
+  /* let's reduce the table size to a smaller size if possible, and */
+  /* create the repetitions by memcpy if possible in the coming loop */
+  if (table_bits > max_length) {
+    table_bits = max_length;
+    table_size = 1 << table_bits;
+  }
   key = 0;
   symbol = 0;
-  for (len = 1, step = 2; len <= root_bits; ++len, step <<= 1) {
-    for (; count[len] > 0; --count[len]) {
-      code.bits = (uint8_t)(len);
+  code.bits = 1;
+  step = 2;
+  do {
+    for (; count[code.bits] != 0; --count[code.bits]) {
       code.value = (uint16_t)sorted[symbol++];
       ReplicateValue(&table[key], step, table_size, code);
-      key = GetNextKey(key, len);
+      key = GetNextKey(key, code.bits);
     }
+    step <<= 1;
+  } while (++code.bits <= table_bits);
+
+  /* if root_bits != table_bits we only created one fraction of the */
+  /* table, and we need to replicate it now. */
+  while (total_size != table_size) {
+    memcpy(&table[table_size], &table[0],
+           (size_t)table_size * sizeof(table[0]));
+    table_size <<= 1;
   }
 
   /* fill in 2nd level tables and add pointers to root table */
   mask = total_size - 1;
   low = -1;
-  for (len = root_bits + 1, step = 2; len <= MAX_LENGTH; ++len, step <<= 1) {
-    for (; count[len] > 0; --count[len]) {
+  for (len = root_bits + 1, step = 2; len <= max_length; ++len, step <<= 1) {
+    for (; count[len] != 0; --count[len]) {
       if ((key & mask) != low) {
         table += table_size;
         table_bits = NextTableBitSize(count, len, root_bits);
@@ -159,21 +179,113 @@ int BrotliBuildHuffmanTable(HuffmanCode* root_table,
   return total_size;
 }
 
+int BrotliBuildSimpleHuffmanTable(HuffmanCode* table,
+                                  int root_bits,
+                                  uint16_t *val,
+                                  uint32_t num_symbols) {
+  int table_size = 1;
+  const int goal_size = 1 << root_bits;
+  switch (num_symbols) {
+    case 0:
+      table[0].bits = 0;
+      table[0].value = val[0];
+      break;
+    case 1:
+      table[0].bits = 1;
+      table[1].bits = 1;
+      if (val[1] > val[0]) {
+        table[0].value = val[0];
+        table[1].value = val[1];
+      } else {
+        table[0].value = val[1];
+        table[1].value = val[0];
+      }
+      table_size = 2;
+      break;
+    case 2:
+      table[0].bits = 1;
+      table[0].value = val[0];
+      table[2].bits = 1;
+      table[2].value = val[0];
+      if (val[2] > val[1]) {
+        table[1].value = val[1];
+        table[3].value = val[2];
+      } else {
+        table[1].value = val[2];
+        table[3].value = val[1];
+      }
+      table[1].bits = 2;
+      table[3].bits = 2;
+      table_size = 4;
+      break;
+    case 3:
+      {
+        int i, k;
+        for (i = 0; i < 3; ++i) {
+          for (k = i + 1; k < 4; ++k) {
+            if (val[k] < val[i]) {
+              uint16_t t = val[k];
+              val[k] = val[i];
+              val[i] = t;
+            }
+          }
+        }
+        for (i = 0; i < 4; ++i) {
+          table[i].bits = 2;
+        }
+        table[0].value = val[0];
+        table[2].value = val[1];
+        table[1].value = val[2];
+        table[3].value = val[3];
+        table_size = 4;
+      }
+      break;
+    case 4:
+      {
+        int i;
+        if (val[3] < val[2]) {
+          uint16_t t = val[3];
+          val[3] = val[2];
+          val[2] = t;
+        }
+        for (i = 0; i < 7; ++i) {
+          table[i].value = val[0];
+          table[i].bits = (uint8_t)(1 + (i & 1));
+        }
+        table[1].value = val[1];
+        table[3].value = val[2];
+        table[5].value = val[1];
+        table[7].value = val[3];
+        table[3].bits = 3;
+        table[7].bits = 3;
+        table_size = 8;
+      }
+      break;
+  }
+  while (table_size != goal_size) {
+    memcpy(&table[table_size], &table[0],
+           (size_t)table_size * sizeof(table[0]));
+    table_size <<= 1;
+  }
+  return goal_size;
+}
+
 void BrotliHuffmanTreeGroupInit(HuffmanTreeGroup* group, int alphabet_size,
                                 int ntrees) {
-  group->alphabet_size = alphabet_size;
-  group->num_htrees = ntrees;
-  group->codes = (HuffmanCode*)malloc(
-      sizeof(HuffmanCode) * (size_t)(ntrees * BROTLI_HUFFMAN_MAX_TABLE_SIZE));
-  group->htrees = (HuffmanCode**)malloc(sizeof(HuffmanCode*) * (size_t)ntrees);
+  /* Pack two mallocs into one */
+  const size_t code_size =
+      sizeof(HuffmanCode) * (size_t)(ntrees * BROTLI_HUFFMAN_MAX_TABLE_SIZE);
+  const size_t htree_size = sizeof(HuffmanCode*) * (size_t)ntrees;
+  char *p = (char*)malloc(code_size + htree_size);
+  group->alphabet_size = (int16_t)alphabet_size;
+  group->num_htrees = (int16_t)ntrees;
+  group->codes = (HuffmanCode*)p;
+  group->htrees = (HuffmanCode**)(p + code_size);
 }
 
 void BrotliHuffmanTreeGroupRelease(HuffmanTreeGroup* group) {
   if (group->codes) {
     free(group->codes);
-  }
-  if (group->htrees) {
-    free(group->htrees);
   }
 }
 

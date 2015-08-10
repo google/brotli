@@ -25,7 +25,7 @@ extern "C" {
 #endif
 
 /* This is the maximum memory amount that we will ever try to allocate. */
-#define BROTLI_MAX_ALLOCABLE_MEMORY (1 << 30)
+#define BROTLI_MAX_ALLOCABLE_MEMORY_BITS 30
 
 /* size-checking safe malloc/calloc: verify that the requested size is not too
    large, or return NULL. You don't need to call these for constructs like
