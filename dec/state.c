@@ -148,9 +148,6 @@ void BrotliStateCleanup(BrotliState* s) {
   if (s->block_type_trees != 0) {
     free(s->block_type_trees);
   }
-  if (s->block_len_trees != 0) {
-    free(s->block_len_trees);
-  }
 }
 
 #if defined(__cplusplus) || defined(c_plusplus)

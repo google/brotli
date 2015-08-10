@@ -20,7 +20,6 @@
 #include <string.h>
 #include "./huffman.h"
 #include "./port.h"
-#include "./safe_malloc.h"
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {

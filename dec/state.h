@@ -131,8 +131,6 @@ typedef struct {
   const uint8_t* context_lookup2;
   HuffmanCode* htree_command;
 
-  int insert_code;
-  int copy_code;
   int copy_length;
   int distance_code;
   int distance;
