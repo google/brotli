@@ -79,9 +79,7 @@ PyDoc_STRVAR(compress__doc__,
 "Compress a byte string.\n"
 "\n"
 "Signature:\n"
-"  compress(string, mode=MODE_GENERIC, quality=11, lgwin=22, lgblock=0,\n"
-"           enable_dictionary=True, enable_transforms=False\n"
-"           greedy_block_split=False, enable_context_modeling=True)\n"
+"  compress(string, mode=MODE_GENERIC, quality=11, lgwin=22, lgblock=0)\n"
 "\n"
 "Args:\n"
 "  string (bytes): The input data.\n"
@@ -95,14 +93,6 @@ PyDoc_STRVAR(compress__doc__,
 "  lgblock (int, optional): Base 2 logarithm of the maximum input block size.\n"
 "    Range is 16 to 24. If set to 0, the value will be set based on the\n"
 "    quality. Defaults to 0.\n"
-"  enable_dictionary (bool, optional): Enables encoder dictionary. Defaults to\n"
-"    True. Respected only if quality > 9.\n"
-"  enable_transforms (bool, optional): Enable encoder transforms. Defaults to\n"
-"    False. Respected only if quality > 9.\n"
-"  greedy_block_split (bool, optional): Enables a faster but less dense\n"
-"    compression mode. Defaults to False. Respected only if quality > 9.\n"
-"  enable_context_modeling (bool, optional): Controls whether to enable context\n"
-"    modeling. Defaults to True. Respected only if quality > 9.\n"
 "\n"
 "Returns:\n"
 "  The compressed byte string.\n"
@@ -112,10 +102,6 @@ PyDoc_STRVAR(compress__doc__,
 
 static PyObject* brotli_compress(PyObject *self, PyObject *args, PyObject *keywds) {
   PyObject *ret = NULL;
-  PyObject* enable_dictionary = NULL;
-  PyObject* enable_transforms = NULL;
-  PyObject* greedy_block_split = NULL;
-  PyObject* enable_context_modeling = NULL;
   uint8_t *input, *output;
   size_t length, output_length;
   BrotliParams::Mode mode = (BrotliParams::Mode) -1;
@@ -124,20 +110,15 @@ static PyObject* brotli_compress(PyObject *self, PyObject *args, PyObject *keywd
   int lgblock = -1;
   int ok;
 
-  static char *kwlist[] = {"string", "mode", "quality", "lgwin", "lgblock",
-                           "enable_dictionary", "enable_transforms",
-                           "greedy_block_split", "enable_context_modeling", NULL};
+  static const char *kwlist[] = {"string", "mode", "quality", "lgwin", "lgblock"};
 
-  ok = PyArg_ParseTupleAndKeywords(args, keywds, "s#|O&O&O&O&O!O!O!O!:compress", kwlist,
+  ok = PyArg_ParseTupleAndKeywords(args, keywds, "s#|O&O&O&O&:compress",
+                        const_cast<char **>(kwlist),
                         &input, &length,
                         &mode_convertor, &mode,
                         &quality_convertor, &quality,
                         &lgwin_convertor, &lgwin,
-                        &lgblock_convertor, &lgblock,
-                        &PyBool_Type, &enable_dictionary,
-                        &PyBool_Type, &enable_transforms,
-                        &PyBool_Type, &greedy_block_split,
-                        &PyBool_Type, &enable_context_modeling);
+                        &lgblock_convertor, &lgblock);
 
   if (!ok)
     return NULL;
@@ -154,14 +135,6 @@ static PyObject* brotli_compress(PyObject *self, PyObject *args, PyObject *keywd
     params.lgwin = lgwin;
   if (lgblock != -1)
     params.lgblock = lgblock;
-  if (enable_dictionary)
-    params.enable_dictionary = PyObject_IsTrue(enable_dictionary);
-  if (enable_transforms)
-    params.enable_transforms = PyObject_IsTrue(enable_transforms);
-  if (greedy_block_split)
-    params.greedy_block_split = PyObject_IsTrue(greedy_block_split);
-  if (enable_context_modeling)
-    params.enable_context_modeling = PyObject_IsTrue(enable_context_modeling);
 
   ok = BrotliCompressBuffer(params, length, input,
                             &output_length, output);
