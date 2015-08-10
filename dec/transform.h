@@ -20,6 +20,7 @@
 
 #include <stdio.h>
 #include <ctype.h>
+#include "./port.h"
 #include "./types.h"
 
 #if defined(__cplusplus) || defined(c_plusplus)
@@ -51,133 +52,202 @@ enum WordTransformType {
 };
 
 typedef struct {
-  const char* prefix;
-  enum WordTransformType transform;
-  const char* suffix;
+  const uint8_t prefix_id;
+  const uint8_t transform;
+  const uint8_t suffix_id;
 } Transform;
 
+static const char kPrefixSuffix[208] =
+    "\0 \0, \0 of the \0 of \0s \0.\0 and \0 in \0\"\0 to \0\">\0\n\0. \0]\0"
+    " for \0 a \0 that \0\'\0 with \0 from \0 by \0(\0. The \0 on \0 as \0"
+    " is \0ing \0\n\t\0:\0ed \0=\"\0 at \0ly \0,\0=\'\0.com/\0. This \0"
+    " not \0er \0al \0ful \0ive \0less \0est \0ize \0\xc2\xa0\0ous ";
+
+enum {
+  /* EMPTY = ""
+     SP = " "
+     DQUOT = "\""
+     SQUOT = "'"
+     CLOSEBR = "]"
+     OPEN = "("
+     SLASH = "/"
+     NBSP = non-breaking space "\0xc2\xa0"
+  */
+  kPFix_EMPTY = 0,
+  kPFix_SP = 1,
+  kPFix_COMMASP = 3,
+  kPFix_SPofSPtheSP = 6,
+  kPFix_SPtheSP  = 9,
+  kPFix_eSP = 12,
+  kPFix_SPofSP  = 15,
+  kPFix_sSP = 20,
+  kPFix_DOT = 23,
+  kPFix_SPandSP = 25,
+  kPFix_SPinSP = 31,
+  kPFix_DQUOT = 36,
+  kPFix_SPtoSP  = 38,
+  kPFix_DQUOTGT = 43,
+  kPFix_NEWLINE = 46,
+  kPFix_DOTSP = 48,
+  kPFix_CLOSEBR = 51,
+  kPFix_SPforSP = 53,
+  kPFix_SPaSP = 59,
+  kPFix_SPthatSP = 63,
+  kPFix_SQUOT = 70,
+  kPFix_SPwithSP = 72,
+  kPFix_SPfromSP  = 79,
+  kPFix_SPbySP  = 86,
+  kPFix_OPEN = 91,
+  kPFix_DOTSPTheSP = 93,
+  kPFix_SPonSP  = 100,
+  kPFix_SPasSP  = 105,
+  kPFix_SPisSP  = 110,
+  kPFix_ingSP = 115,
+  kPFix_NEWLINETAB = 120,
+  kPFix_COLON = 123,
+  kPFix_edSP = 125,
+  kPFix_EQDQUOT = 129,
+  kPFix_SPatSP = 132,
+  kPFix_lySP  = 137,
+  kPFix_COMMA = 141,
+  kPFix_EQSQUOT = 143,
+  kPFix_DOTcomSLASH = 146,
+  kPFix_DOTSPThisSP = 152,
+  kPFix_SPnotSP = 160,
+  kPFix_erSP = 166,
+  kPFix_alSP = 170,
+  kPFix_fulSP = 174,
+  kPFix_iveSP = 179,
+  kPFix_lessSP = 184,
+  kPFix_estSP = 190,
+  kPFix_izeSP = 195,
+  kPFix_NBSP = 200,
+  kPFix_ousSP = 203
+};
+
+
 static const Transform kTransforms[] = {
-     {         "", kIdentity,       ""           },
-     {         "", kIdentity,       " "          },
-     {        " ", kIdentity,       " "          },
-     {         "", kOmitFirst1,     ""           },
-     {         "", kUppercaseFirst, " "          },
-     {         "", kIdentity,       " the "      },
-     {        " ", kIdentity,       ""           },
-     {       "s ", kIdentity,       " "          },
-     {         "", kIdentity,       " of "       },
-     {         "", kUppercaseFirst, ""           },
-     {         "", kIdentity,       " and "      },
-     {         "", kOmitFirst2,     ""           },
-     {         "", kOmitLast1,      ""           },
-     {       ", ", kIdentity,       " "          },
-     {         "", kIdentity,       ", "         },
-     {        " ", kUppercaseFirst, " "          },
-     {         "", kIdentity,       " in "       },
-     {         "", kIdentity,       " to "       },
-     {       "e ", kIdentity,       " "          },
-     {         "", kIdentity,       "\""         },
-     {         "", kIdentity,       "."          },
-     {         "", kIdentity,       "\">"        },
-     {         "", kIdentity,       "\n"         },
-     {         "", kOmitLast3,      ""           },
-     {         "", kIdentity,       "]"          },
-     {         "", kIdentity,       " for "      },
-     {         "", kOmitFirst3,     ""           },
-     {         "", kOmitLast2,      ""           },
-     {         "", kIdentity,       " a "        },
-     {         "", kIdentity,       " that "     },
-     {        " ", kUppercaseFirst, ""           },
-     {         "", kIdentity,       ". "         },
-     {        ".", kIdentity,       ""           },
-     {        " ", kIdentity,       ", "         },
-     {         "", kOmitFirst4,     ""           },
-     {         "", kIdentity,       " with "     },
-     {         "", kIdentity,       "'"          },
-     {         "", kIdentity,       " from "     },
-     {         "", kIdentity,       " by "       },
-     {         "", kOmitFirst5,     ""           },
-     {         "", kOmitFirst6,     ""           },
-     {    " the ", kIdentity,       ""           },
-     {         "", kOmitLast4,      ""           },
-     {         "", kIdentity,       ". The "     },
-     {         "", kUppercaseAll,   ""           },
-     {         "", kIdentity,       " on "       },
-     {         "", kIdentity,       " as "       },
-     {         "", kIdentity,       " is "       },
-     {         "", kOmitLast7,      ""           },
-     {         "", kOmitLast1,      "ing "       },
-     {         "", kIdentity,       "\n\t"       },
-     {         "", kIdentity,       ":"          },
-     {        " ", kIdentity,       ". "         },
-     {         "", kIdentity,       "ed "        },
-     {         "", kOmitFirst9,     ""           },
-     {         "", kOmitFirst7,     ""           },
-     {         "", kOmitLast6,      ""           },
-     {         "", kIdentity,       "("          },
-     {         "", kUppercaseFirst, ", "         },
-     {         "", kOmitLast8,      ""           },
-     {         "", kIdentity,       " at "       },
-     {         "", kIdentity,       "ly "        },
-     {    " the ", kIdentity,       " of "       },
-     {         "", kOmitLast5,      ""           },
-     {         "", kOmitLast9,      ""           },
-     {        " ", kUppercaseFirst, ", "         },
-     {         "", kUppercaseFirst, "\""         },
-     {        ".", kIdentity,       "("          },
-     {         "", kUppercaseAll,   " "          },
-     {         "", kUppercaseFirst, "\">"        },
-     {         "", kIdentity,       "=\""        },
-     {        " ", kIdentity,       "."          },
-     {    ".com/", kIdentity,       ""           },
-     {    " the ", kIdentity,       " of the "   },
-     {         "", kUppercaseFirst, "'"          },
-     {         "", kIdentity,       ". This "    },
-     {         "", kIdentity,       ","          },
-     {        ".", kIdentity,       " "          },
-     {         "", kUppercaseFirst, "("          },
-     {         "", kUppercaseFirst, "."          },
-     {         "", kIdentity,       " not "      },
-     {        " ", kIdentity,       "=\""        },
-     {         "", kIdentity,       "er "        },
-     {        " ", kUppercaseAll,   " "          },
-     {         "", kIdentity,       "al "        },
-     {        " ", kUppercaseAll,   ""           },
-     {         "", kIdentity,       "='"         },
-     {         "", kUppercaseAll,   "\""         },
-     {         "", kUppercaseFirst, ". "         },
-     {        " ", kIdentity,       "("          },
-     {         "", kIdentity,       "ful "       },
-     {        " ", kUppercaseFirst, ". "         },
-     {         "", kIdentity,       "ive "       },
-     {         "", kIdentity,       "less "      },
-     {         "", kUppercaseAll,   "'"          },
-     {         "", kIdentity,       "est "       },
-     {        " ", kUppercaseFirst, "."          },
-     {         "", kUppercaseAll,   "\">"        },
-     {        " ", kIdentity,       "='"         },
-     {         "", kUppercaseFirst, ","          },
-     {         "", kIdentity,       "ize "       },
-     {         "", kUppercaseAll,   "."          },
-     { "\xc2\xa0", kIdentity,       ""           },
-     {        " ", kIdentity,       ","          },
-     {         "", kUppercaseFirst, "=\""        },
-     {         "", kUppercaseAll,   "=\""        },
-     {         "", kIdentity,       "ous "       },
-     {         "", kUppercaseAll,   ", "         },
-     {         "", kUppercaseFirst, "='"         },
-     {        " ", kUppercaseFirst, ","          },
-     {        " ", kUppercaseAll,   "=\""        },
-     {        " ", kUppercaseAll,   ", "         },
-     {         "", kUppercaseAll,   ","          },
-     {         "", kUppercaseAll,   "("          },
-     {         "", kUppercaseAll,   ". "         },
-     {        " ", kUppercaseAll,   "."          },
-     {         "", kUppercaseAll,   "='"         },
-     {        " ", kUppercaseAll,   ". "         },
-     {        " ", kUppercaseFirst, "=\""        },
-     {        " ", kUppercaseAll,   "='"         },
-     {        " ", kUppercaseFirst, "='"         },
+  { kPFix_EMPTY, kIdentity, kPFix_EMPTY },
+  { kPFix_EMPTY, kIdentity, kPFix_SP },
+  { kPFix_SP, kIdentity, kPFix_SP },
+  { kPFix_EMPTY, kOmitFirst1, kPFix_EMPTY },
+  { kPFix_EMPTY, kUppercaseFirst, kPFix_SP },
+  { kPFix_EMPTY, kIdentity, kPFix_SPtheSP },
+  { kPFix_SP, kIdentity, kPFix_EMPTY },
+  { kPFix_sSP, kIdentity, kPFix_SP },
+  { kPFix_EMPTY, kIdentity, kPFix_SPofSP },
+  { kPFix_EMPTY, kUppercaseFirst, kPFix_EMPTY },
+  { kPFix_EMPTY, kIdentity, kPFix_SPandSP },
+  { kPFix_EMPTY, kOmitFirst2, kPFix_EMPTY },
+  { kPFix_EMPTY, kOmitLast1, kPFix_EMPTY },
+  { kPFix_COMMASP, kIdentity, kPFix_SP },
+  { kPFix_EMPTY, kIdentity, kPFix_COMMASP },
+  { kPFix_SP, kUppercaseFirst, kPFix_SP },
+  { kPFix_EMPTY, kIdentity, kPFix_SPinSP },
+  { kPFix_EMPTY, kIdentity, kPFix_SPtoSP },
+  { kPFix_eSP, kIdentity, kPFix_SP },
+  { kPFix_EMPTY, kIdentity, kPFix_DQUOT },
+  { kPFix_EMPTY, kIdentity, kPFix_DOT },
+  { kPFix_EMPTY, kIdentity, kPFix_DQUOTGT },
+  { kPFix_EMPTY, kIdentity, kPFix_NEWLINE },
+  { kPFix_EMPTY, kOmitLast3, kPFix_EMPTY },
+  { kPFix_EMPTY, kIdentity, kPFix_CLOSEBR },
+  { kPFix_EMPTY, kIdentity, kPFix_SPforSP },
+  { kPFix_EMPTY, kOmitFirst3, kPFix_EMPTY },
+  { kPFix_EMPTY, kOmitLast2, kPFix_EMPTY },
+  { kPFix_EMPTY, kIdentity, kPFix_SPaSP },
+  { kPFix_EMPTY, kIdentity, kPFix_SPthatSP },
+  { kPFix_SP, kUppercaseFirst, kPFix_EMPTY },
+  { kPFix_EMPTY, kIdentity, kPFix_DOTSP },
+  { kPFix_DOT, kIdentity, kPFix_EMPTY },
+  { kPFix_SP, kIdentity, kPFix_COMMASP },
+  { kPFix_EMPTY, kOmitFirst4, kPFix_EMPTY },
+  { kPFix_EMPTY, kIdentity, kPFix_SPwithSP },
+  { kPFix_EMPTY, kIdentity, kPFix_SQUOT },
+  { kPFix_EMPTY, kIdentity, kPFix_SPfromSP },
+  { kPFix_EMPTY, kIdentity, kPFix_SPbySP },
+  { kPFix_EMPTY, kOmitFirst5, kPFix_EMPTY },
+  { kPFix_EMPTY, kOmitFirst6, kPFix_EMPTY },
+  { kPFix_SPtheSP, kIdentity, kPFix_EMPTY },
+  { kPFix_EMPTY, kOmitLast4, kPFix_EMPTY },
+  { kPFix_EMPTY, kIdentity, kPFix_DOTSPTheSP },
+  { kPFix_EMPTY, kUppercaseAll, kPFix_EMPTY },
+  { kPFix_EMPTY, kIdentity, kPFix_SPonSP },
+  { kPFix_EMPTY, kIdentity, kPFix_SPasSP },
+  { kPFix_EMPTY, kIdentity, kPFix_SPisSP },
+  { kPFix_EMPTY, kOmitLast7, kPFix_EMPTY },
+  { kPFix_EMPTY, kOmitLast1, kPFix_ingSP },
+  { kPFix_EMPTY, kIdentity, kPFix_NEWLINETAB },
+  { kPFix_EMPTY, kIdentity, kPFix_COLON },
+  { kPFix_SP, kIdentity, kPFix_DOTSP },
+  { kPFix_EMPTY, kIdentity, kPFix_edSP },
+  { kPFix_EMPTY, kOmitFirst9, kPFix_EMPTY },
+  { kPFix_EMPTY, kOmitFirst7, kPFix_EMPTY },
+  { kPFix_EMPTY, kOmitLast6, kPFix_EMPTY },
+  { kPFix_EMPTY, kIdentity, kPFix_OPEN },
+  { kPFix_EMPTY, kUppercaseFirst, kPFix_COMMASP },
+  { kPFix_EMPTY, kOmitLast8, kPFix_EMPTY },
+  { kPFix_EMPTY, kIdentity, kPFix_SPatSP },
+  { kPFix_EMPTY, kIdentity, kPFix_lySP },
+  { kPFix_SPtheSP, kIdentity, kPFix_SPofSP },
+  { kPFix_EMPTY, kOmitLast5, kPFix_EMPTY },
+  { kPFix_EMPTY, kOmitLast9, kPFix_EMPTY },
+  { kPFix_SP, kUppercaseFirst, kPFix_COMMASP },
+  { kPFix_EMPTY, kUppercaseFirst, kPFix_DQUOT },
+  { kPFix_DOT, kIdentity, kPFix_OPEN },
+  { kPFix_EMPTY, kUppercaseAll, kPFix_SP },
+  { kPFix_EMPTY, kUppercaseFirst, kPFix_DQUOTGT },
+  { kPFix_EMPTY, kIdentity, kPFix_EQDQUOT },
+  { kPFix_SP, kIdentity, kPFix_DOT },
+  { kPFix_DOTcomSLASH, kIdentity, kPFix_EMPTY },
+  { kPFix_SPtheSP, kIdentity, kPFix_SPofSPtheSP },
+  { kPFix_EMPTY, kUppercaseFirst, kPFix_SQUOT },
+  { kPFix_EMPTY, kIdentity, kPFix_DOTSPThisSP },
+  { kPFix_EMPTY, kIdentity, kPFix_COMMA },
+  { kPFix_DOT, kIdentity, kPFix_SP },
+  { kPFix_EMPTY, kUppercaseFirst, kPFix_OPEN },
+  { kPFix_EMPTY, kUppercaseFirst, kPFix_DOT },
+  { kPFix_EMPTY, kIdentity, kPFix_SPnotSP },
+  { kPFix_SP, kIdentity, kPFix_EQDQUOT },
+  { kPFix_EMPTY, kIdentity, kPFix_erSP },
+  { kPFix_SP, kUppercaseAll, kPFix_SP },
+  { kPFix_EMPTY, kIdentity, kPFix_alSP },
+  { kPFix_SP, kUppercaseAll, kPFix_EMPTY },
+  { kPFix_EMPTY, kIdentity, kPFix_EQSQUOT },
+  { kPFix_EMPTY, kUppercaseAll, kPFix_DQUOT },
+  { kPFix_EMPTY, kUppercaseFirst, kPFix_DOTSP },
+  { kPFix_SP, kIdentity, kPFix_OPEN },
+  { kPFix_EMPTY, kIdentity, kPFix_fulSP },
+  { kPFix_SP, kUppercaseFirst, kPFix_DOTSP },
+  { kPFix_EMPTY, kIdentity, kPFix_iveSP },
+  { kPFix_EMPTY, kIdentity, kPFix_lessSP },
+  { kPFix_EMPTY, kUppercaseAll, kPFix_SQUOT },
+  { kPFix_EMPTY, kIdentity, kPFix_estSP },
+  { kPFix_SP, kUppercaseFirst, kPFix_DOT },
+  { kPFix_EMPTY, kUppercaseAll, kPFix_DQUOTGT },
+  { kPFix_SP, kIdentity, kPFix_EQSQUOT },
+  { kPFix_EMPTY, kUppercaseFirst, kPFix_COMMA },
+  { kPFix_EMPTY, kIdentity, kPFix_izeSP },
+  { kPFix_EMPTY, kUppercaseAll, kPFix_DOT },
+  { kPFix_NBSP, kIdentity, kPFix_EMPTY },
+  { kPFix_SP, kIdentity, kPFix_COMMA },
+  { kPFix_EMPTY, kUppercaseFirst, kPFix_EQDQUOT },
+  { kPFix_EMPTY, kUppercaseAll, kPFix_EQDQUOT },
+  { kPFix_EMPTY, kIdentity, kPFix_ousSP },
+  { kPFix_EMPTY, kUppercaseAll, kPFix_COMMASP },
+  { kPFix_EMPTY, kUppercaseFirst, kPFix_EQSQUOT },
+  { kPFix_SP, kUppercaseFirst, kPFix_COMMA },
+  { kPFix_SP, kUppercaseAll, kPFix_EQDQUOT },
+  { kPFix_SP, kUppercaseAll, kPFix_COMMASP },
+  { kPFix_EMPTY, kUppercaseAll, kPFix_COMMA },
+  { kPFix_EMPTY, kUppercaseAll, kPFix_OPEN },
+  { kPFix_EMPTY, kUppercaseAll, kPFix_DOTSP },
+  { kPFix_SP, kUppercaseAll, kPFix_DOT },
+  { kPFix_EMPTY, kUppercaseAll, kPFix_EQSQUOT },
+  { kPFix_SP, kUppercaseAll, kPFix_DOTSP },
+  { kPFix_SP, kUppercaseFirst, kPFix_EQDQUOT },
+  { kPFix_SP, kUppercaseAll, kPFix_EQSQUOT },
+  { kPFix_SP, kUppercaseFirst, kPFix_EQSQUOT },
 };
 
 static const int kNumTransforms = sizeof(kTransforms) / sizeof(kTransforms[0]);
@@ -199,37 +269,43 @@ static int ToUpperCase(uint8_t *p) {
   return 3;
 }
 
-static BROTLI_INLINE int TransformDictionaryWord(
+static BROTLI_NOINLINE int TransformDictionaryWord(
     uint8_t* dst, const uint8_t* word, int len, int transform) {
-  const char* prefix = kTransforms[transform].prefix;
-  const char* suffix = kTransforms[transform].suffix;
-  const int t = kTransforms[transform].transform;
-  int skip = t < kOmitFirst1 ? 0 : t - (kOmitFirst1 - 1);
   int idx = 0;
-  int i = 0;
-  uint8_t* uppercase;
-  if (skip > len) {
-    skip = len;
+  {
+    const char* prefix = &kPrefixSuffix[kTransforms[transform].prefix_id];
+    while (*prefix) { dst[idx++] = (uint8_t)*prefix++; }
   }
-  while (*prefix) { dst[idx++] = (uint8_t)*prefix++; }
-  word += skip;
-  len -= skip;
-  if (t <= kOmitLast9) {
-    len -= t;
-  }
-  while (i < len) { dst[idx++] = word[i++]; }
-  uppercase = &dst[idx - len];
-  if (t == kUppercaseFirst) {
-    ToUpperCase(uppercase);
-  } else if (t == kUppercaseAll) {
-    while (len > 0) {
-      int step = ToUpperCase(uppercase);
-      uppercase += step;
-      len -= step;
+  {
+    const int t = kTransforms[transform].transform;
+    int skip = t < kOmitFirst1 ? 0 : t - (kOmitFirst1 - 1);
+    int i = 0;
+    uint8_t* uppercase;
+    if (skip > len) {
+      skip = len;
+    }
+    word += skip;
+    len -= skip;
+    if (t <= kOmitLast9) {
+      len -= t;
+    }
+    while (i < len) { dst[idx++] = word[i++]; }
+    uppercase = &dst[idx - len];
+    if (t == kUppercaseFirst) {
+      ToUpperCase(uppercase);
+    } else if (t == kUppercaseAll) {
+      while (len > 0) {
+        int step = ToUpperCase(uppercase);
+        uppercase += step;
+        len -= step;
+      }
     }
   }
-  while (*suffix) { dst[idx++] = (uint8_t)*suffix++; }
-  return idx;
+  {
+    const char* suffix = &kPrefixSuffix[kTransforms[transform].suffix_id];
+    while (*suffix) { dst[idx++] = (uint8_t)*suffix++; }
+    return idx;
+  }
 }
 
 #if defined(__cplusplus) || defined(c_plusplus)

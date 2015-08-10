@@ -23,8 +23,8 @@
 /* Represents the range of values belonging to a prefix code: */
 /* [offset, offset + 2^nbits) */
 struct PrefixCodeRange {
-  int offset;
-  int nbits;
+  int16_t offset;
+  int8_t nbits;
 };
 
 static const struct PrefixCodeRange kBlockLengthPrefixCode[] = {
@@ -55,12 +55,12 @@ static const struct PrefixCodeRange kCopyLengthPrefixCode[] = {
   {326, 8}, { 582,  9}, {1094, 10}, {2118, 24},
 };
 
-static const int kInsertRangeLut[9] = {
-  0, 0, 8, 8, 0, 16, 8, 16, 16,
+static const uint8_t kInsertRangeLut[11] = {
+  0, 0, 0, 0, 8, 8, 0, 16, 8, 16, 16,
 };
 
-static const int kCopyRangeLut[9] = {
-  0, 8, 0, 8, 16, 0, 16, 8, 16,
+static const uint8_t kCopyRangeLut[11] = {
+  0, 8, 0, 8, 0, 8, 16, 0, 16, 8, 16,
 };
 
 #endif  /* BROTLI_DEC_PREFIX_H_ */

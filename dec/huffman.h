@@ -38,14 +38,20 @@ typedef struct {
 int BrotliBuildHuffmanTable(HuffmanCode* root_table,
                             int root_bits,
                             const uint8_t* const code_lengths,
-                            int code_lengths_size);
+                            int code_lengths_size,
+                            uint16_t *count_arg);
+
+int BrotliBuildSimpleHuffmanTable(HuffmanCode* table,
+                                  int root_bits,
+                                  uint16_t *symbols,
+                                  uint32_t num_symbols);
 
 /* Contains a collection of huffman trees with the same alphabet size. */
 typedef struct {
-  int alphabet_size;
-  int num_htrees;
-  HuffmanCode* codes;
   HuffmanCode** htrees;
+  HuffmanCode* codes;
+  int16_t alphabet_size;
+  int16_t num_htrees;
 } HuffmanTreeGroup;
 
 void BrotliHuffmanTreeGroupInit(HuffmanTreeGroup* group,

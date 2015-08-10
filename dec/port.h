@@ -25,6 +25,16 @@
 #define __has_builtin(x) 0
 #endif
 
+#ifndef __has_attribute
+#define __has_attribute(x) 0
+#endif
+
+#ifndef __has_feature
+#define __has_feature(x) 0
+#endif
+
+#define BROTLI_ASAN_BUILD __has_feature(address_sanitizer)
+
 /* Define "PREDICT_TRUE" and "PREDICT_FALSE" macros for capable compilers.
 
 To apply compiler hint, enclose the branching condition into macros, like this:
@@ -51,10 +61,70 @@ OR:
 #define PREDICT_TRUE(x) (x)
 #endif
 
+/* IS_CONSTANT macros returns true for compile-time constant expressions. */
+#if (__GNUC__ > 3) || (__GNUC__ == 3 && __GNUC_MINOR__ > 0) || \
+    (defined(__llvm__) && __has_builtin(__builtin_constant_p))
+#define IS_CONSTANT(x) __builtin_constant_p(x)
+#else
+#define IS_CONSTANT(x) 0
+#endif
+
+#if (__GNUC__ > 3) || (__GNUC__ == 3 && __GNUC_MINOR__ > 0) || \
+    (defined(__llvm__) && __has_attribute(always_inline))
+#define ATTRIBUTE_ALWAYS_INLINE __attribute__ ((always_inline))
+#else
+#define ATTRIBUTE_ALWAYS_INLINE
+#endif
+
+#ifndef _MSC_VER
+#if defined(__cplusplus) || !defined(__STRICT_ANSI__) \
+    || __STDC_VERSION__ >= 199901L
+#define BROTLI_INLINE inline ATTRIBUTE_ALWAYS_INLINE
+#else
+#define BROTLI_INLINE
+#endif
+#else  /* _MSC_VER */
+#define BROTLI_INLINE __forceinline
+#endif  /* _MSC_VER */
+
 #ifdef BROTLI_DECODE_DEBUG
 #define BROTLI_DCHECK(x) assert(x)
 #else
 #define BROTLI_DCHECK(x)
+#endif
+
+#if (defined(__x86_64__) || defined(_M_X64) || defined(__aarch64__) || \
+     defined(__PPC64__))
+#define BROTLI_64_BITS 1
+#define BROTLI_PRELOAD_SYMBOLS 1
+#else
+#define BROTLI_64_BITS 0
+#define BROTLI_PRELOAD_SYMBOLS 0
+#endif
+
+#if (defined(__BYTE_ORDER__) && (__BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__))
+#define BROTLI_LITTLE_ENDIAN 1
+#else
+#define BROTLI_LITTLE_ENDIAN 0
+#endif
+
+#if (BROTLI_64_BITS && BROTLI_LITTLE_ENDIAN)
+#define BROTLI_64_BITS_LITTLE_ENDIAN 1
+#else
+#define BROTLI_64_BITS_LITTLE_ENDIAN 0
+#endif
+
+#if (__GNUC__ > 3) || (__GNUC__ == 3 && __GNUC_MINOR__ >= 1) || \
+    (defined(__llvm__) && __has_attribute(noinline))
+#define BROTLI_NOINLINE __attribute__ ((noinline))
+#else
+#define BROTLI_NOINLINE
+#endif
+
+#if BROTLI_ASAN_BUILD
+#define BROTLI_NO_ASAN __attribute__((no_sanitize("address"))) BROTLI_NOINLINE
+#else
+#define BROTLI_NO_ASAN
 #endif
 
 #endif  /* BROTLI_DEC_PORT_H_ */
