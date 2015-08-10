@@ -1,7 +1,22 @@
+import distutils
 from distutils.core import setup, Extension
 from distutils.command.build_ext import build_ext
 from distutils.cmd import Command
 import platform
+
+
+# when compiling for Windows Python 2.7, force distutils to use Visual Studio
+# 2010 instead of 2008, as the latter doesn't support c++0x
+if platform.system() == 'Windows':
+    try:
+        import distutils.msvc9compiler
+    except distutils.errors.DistutilsPlatformError:
+        pass  # importing msvc9compiler raises when running under MinGW
+    else:
+        orig_find_vcvarsall = distutils.msvc9compiler.find_vcvarsall
+        def patched_find_vcvarsall(version):
+            return orig_find_vcvarsall(version if version != 9.0 else 10.0)
+        distutils.msvc9compiler.find_vcvarsall = patched_find_vcvarsall
 
 
 class TestCommand(Command):
