@@ -74,6 +74,11 @@ class BuildExt(build_ext):
             macros = ext.define_macros[:]
             if platform.system() == "Darwin":
                 macros.append(("OS_MACOSX", "1"))
+            elif self.compiler.compiler_type == "mingw32":
+                # On Windows Python 2.7, pyconfig.h defines "hypot" as "_hypot",
+                # This clashes with GCC's cmath, and causes compilation errors when
+                # building under MinGW: http://bugs.python.org/issue11566
+                macros.append(("_hypot", "hypot"))
             for undef in ext.undef_macros:
                 macros.append((undef,))
 
@@ -90,6 +95,10 @@ class BuildExt(build_ext):
         if ext.extra_objects:
             objects.extend(ext.extra_objects)
         extra_args = ext.extra_link_args or []
+        # when using GCC on Windows, we statically link libgcc and libstdc++,
+        # so that we don't need to package extra DLLs
+        if self.compiler.compiler_type == "mingw32":
+            extra_args.extend(['-static-libgcc', '-static-libstdc++'])
 
         ext_path = self.get_ext_fullpath(ext.name)
         # Detect target language, if not provided
