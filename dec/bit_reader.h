@@ -162,9 +162,9 @@ static BROTLI_INLINE void BrotliFillBitWindow(
   while (br->bit_pos_ >= 8) {
     br->val_ >>= 8;
     br->val_ |= ((uint32_t)*br->next_in) << 24;
-    ++br->pos_;
     br->bit_pos_ -= 8;
     --br->avail_in;
+    ++br->next_in;
   }
 #endif
 }

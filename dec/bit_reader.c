@@ -41,7 +41,11 @@ void BrotliWarmupBitReader(BrotliBitReader* const br) {
   size_t i;
   br->val_ = 0;
   for (i = 0; i < sizeof(br->val_); ++i) {
+#if (BROTLI_64_BITS_LITTLE_ENDIAN)
     br->val_ |= ((uint64_t)*br->next_in) << (8 * i);
+#else
+    br->val_ |= ((uint32_t)*br->next_in) << (8 * i);
+#endif
     ++br->next_in;
     --br->avail_in;
   }
