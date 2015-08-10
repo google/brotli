@@ -104,6 +104,9 @@ OR:
 
 #if (defined(__BYTE_ORDER__) && (__BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__))
 #define BROTLI_LITTLE_ENDIAN 1
+#elif defined(_WIN32)
+/* Win32 can currently always be assumed to be little endian */
+#define BROTLI_LITTLE_ENDIAN 1
 #else
 #define BROTLI_LITTLE_ENDIAN 0
 #endif
