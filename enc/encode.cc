@@ -265,9 +265,12 @@ void BrotliCompressor::BrotliSetCustomDictionary(
   CopyInputToRingBuffer(size, dict);
   last_flush_pos_ = size;
   last_processed_pos_ = size;
-  if (size > 0) prev_byte_ = dict[size - 1];
-  if (size > 1) prev_byte2_ = dict[size - 2];
-
+  if (size > 0) {
+    prev_byte_ = dict[size - 1];
+  }
+  if (size > 1) {
+    prev_byte2_ = dict[size - 2];
+  }
   hashers_->PrependCustomDictionary(hash_type_, size, dict);
 }
 

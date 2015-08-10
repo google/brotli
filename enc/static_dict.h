@@ -32,6 +32,7 @@ static const int kInvalidMatch = 0xfffffff;
 //   all elements are initialized to kInvalidMatch
 bool FindAllStaticDictionaryMatches(const uint8_t* data,
                                     int min_length,
+                                    int max_length,
                                     int* matches);
 
 }  // namespace brotli

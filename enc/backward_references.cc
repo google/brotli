@@ -250,6 +250,12 @@ class StartPosQueue {
   }
 
   void Push(size_t pos, double costdiff) {
+    if (costdiff == kInfinity) {
+      // We can't start a command from an unreachable start position.
+      // E.g. position 1 in a stream is always unreachable, because all commands
+      // have a copy of at least length 2.
+      return;
+    }
     q_[idx_ & mask_] = std::make_pair(pos, costdiff);
     // Restore the sorted order.
     for (int i = idx_; i > 0 && i > idx_ - mask_; --i) {
