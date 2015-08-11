@@ -1,0 +1,71 @@
+environment:
+
+  global:
+    # SDK v7.0 MSVC Express 2008's SetEnv.cmd script will fail if the
+    # /E:ON and /V:ON options are not enabled in the batch script intepreter
+    # See: http://stackoverflow.com/a/13751649/163740
+    WITH_COMPILER: "cmd /E:ON /V:ON /C .\\appveyor\\run_with_compiler.cmd"
+
+  matrix:
+    - PYTHON: "C:\\Python27"
+      PYTHON_VERSION: "2.7.x"
+      PYTHON_ARCH: "32"
+
+    - PYTHON: "C:\\Python34"
+      PYTHON_VERSION: "3.4.x"
+      PYTHON_ARCH: "32"
+
+    - PYTHON: "C:\\Python27-x64"
+      PYTHON_VERSION: "2.7.x"
+      PYTHON_ARCH: "64"
+      WINDOWS_SDK_VERSION: "v7.1"
+
+    - PYTHON: "C:\\Python34-x64"
+      PYTHON_VERSION: "3.4.x"
+      PYTHON_ARCH: "64"
+      WINDOWS_SDK_VERSION: "v7.1"
+
+init:
+  - "ECHO %PYTHON% %PYTHON_VERSION% %PYTHON_ARCH%"
+
+install:
+  # install Python and pip when not already installed
+  - ps: if (-not(Test-Path($env:PYTHON))) { & appveyor\install.ps1 }
+
+  # prepend newly installed Python to the PATH
+  - "SET PATH=%PYTHON%;%PYTHON%\\Scripts;%PATH%"
+
+  # check that we have the expected version and architecture for Python
+  - "python --version"
+  - "python -c \"import struct; print(struct.calcsize('P') * 8)\""
+
+  # upgrade pip to avoid out-of-date warnings
+  - "pip install --disable-pip-version-check --user --upgrade pip"
+
+  # install wheel to build compiled packages
+  - "pip install --upgrade wheel"
+
+build: false
+
+test_script:
+  - "%WITH_COMPILER% python setup.py build_ext test"
+
+after_test:
+  # if tests are successful, create binary packages for the project
+  - "%WITH_COMPILER% pip wheel -w dist ."
+
+artifacts:
+  # archive the generated packages in the ci.appveyor.com build report
+  - path: dist\*
+
+# For info, see: http://www.appveyor.com/docs/deployment/github
+
+# deploy:
+#   - provider: GitHub
+#     auth_token: 
+#       secure: <your Github OAuth token>
+#     artifact:
+#     draft: false
+#     prerelease: false
+#     on:
+#       appveyor_repo_tag: true
