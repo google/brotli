@@ -9,6 +9,8 @@
 #define PyInt_AsLong PyLong_AsLong
 #endif
 
+#define BROTLI_VERSION "0.1.0"
+
 using namespace brotli;
 
 static PyObject *BrotliError;
@@ -110,7 +112,7 @@ static PyObject* brotli_compress(PyObject *self, PyObject *args, PyObject *keywd
   int lgblock = -1;
   int ok;
 
-  static const char *kwlist[] = {"string", "mode", "quality", "lgwin", "lgblock"};
+  static const char *kwlist[] = {"string", "mode", "quality", "lgwin", "lgblock", NULL};
 
   ok = PyArg_ParseTupleAndKeywords(args, keywds, "s#|O&O&O&O&:compress",
                         const_cast<char **>(kwlist),
@@ -242,6 +244,8 @@ PyMODINIT_FUNC INIT_BROTLI(void) {
   PyModule_AddIntConstant(m, "MODE_GENERIC", (int) BrotliParams::Mode::MODE_GENERIC);
   PyModule_AddIntConstant(m, "MODE_TEXT", (int) BrotliParams::Mode::MODE_TEXT);
   PyModule_AddIntConstant(m, "MODE_FONT", (int) BrotliParams::Mode::MODE_FONT);
+
+  PyModule_AddStringConstant(m, "__version__", BROTLI_VERSION);
 
   RETURN_BROTLI;
 }

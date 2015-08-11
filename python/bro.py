@@ -9,9 +9,6 @@ import brotli
 import platform
 
 
-__version__ = '1.0'
-
-
 # default values of encoder parameters
 DEFAULT_PARAMS = {
     'mode': brotli.MODE_GENERIC,
@@ -54,7 +51,7 @@ def main():
     parser = argparse.ArgumentParser(
         prog='bro.py',
         description="Compression/decompression utility using the Brotli algorithm.")
-    parser.add_argument('--version', action='version', version='%(prog)s 1.0')
+    parser.add_argument('--version', action='version', version=brotli.__version__)
     parser.add_argument('-i', '--input', metavar='FILE', type=str, dest='infile',
                         help='Input file', default=None)
     parser.add_argument('-o', '--output', metavar='FILE', type=str, dest='outfile',
