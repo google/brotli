@@ -110,7 +110,7 @@ static PyObject* brotli_compress(PyObject *self, PyObject *args, PyObject *keywd
   int lgblock = -1;
   int ok;
 
-  static const char *kwlist[] = {"string", "mode", "quality", "lgwin", "lgblock"};
+  static const char *kwlist[] = {"string", "mode", "quality", "lgwin", "lgblock", NULL};
 
   ok = PyArg_ParseTupleAndKeywords(args, keywds, "s#|O&O&O&O&:compress",
                         const_cast<char **>(kwlist),
