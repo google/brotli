@@ -3,7 +3,11 @@ from distutils.core import setup, Extension
 from distutils.command.build_ext import build_ext
 from distutils.cmd import Command
 import platform
+import os
+import re
 
+
+CURR_DIR = os.path.abspath(os.path.dirname(os.path.realpath(__file__)))
 
 # when compiling for Windows Python 2.7, force distutils to use Visual Studio
 # 2010 instead of 2008, as the latter doesn't support c++0x
@@ -17,6 +21,17 @@ if platform.system() == 'Windows':
         def patched_find_vcvarsall(version):
             return orig_find_vcvarsall(version if version != 9.0 else 10.0)
         distutils.msvc9compiler.find_vcvarsall = patched_find_vcvarsall
+
+
+def get_version():
+    """ Return BROTLI_VERSION string as defined in 'brotlimodule.cc' file. """
+    brotlimodule = os.path.join(CURR_DIR, 'python', 'brotlimodule.cc')
+    with open(brotlimodule, 'r') as f:
+        for line in f:
+            m = re.match(r'#define\sBROTLI_VERSION\s"(.*)"', line)
+            if m:
+                return m.group(1)
+    return ""
 
 
 class TestCommand(Command):
@@ -33,10 +48,9 @@ class TestCommand(Command):
         pass
 
     def run(self):
-        import sys, os, subprocess, glob
+        import sys, subprocess, glob
 
-        curr_dir = os.path.abspath(os.path.dirname(os.path.realpath(__file__)))
-        test_dir = os.path.join(curr_dir, 'python', 'tests')
+        test_dir = os.path.join(CURR_DIR, 'python', 'tests')
         os.chdir(test_dir)
 
         for test in glob.glob("*_test.py"):
@@ -177,7 +191,7 @@ brotli = Extension("brotli",
 
 setup(
     name="Brotli",
-    version="0.1",
+    version=get_version(),
     url="https://github.com/google/brotli",
     description="Python binding of the Brotli compression library",
     author="Khaled Hosny",
