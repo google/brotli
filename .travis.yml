@@ -1,0 +1,20 @@
+language:
+- objective-c
+env:
+  matrix:
+  - INSTALL_TYPE='system' VERSION=2.7
+  - INSTALL_TYPE='homebrew' VERSION=2.7.9
+  - INSTALL_TYPE='homebrew' VERSION=3.4.3
+install:
+- source terryfy/travis_tools.sh
+- get_python_environment $INSTALL_TYPE $VERSION venv
+- pip install --upgrade wheel
+script:
+- python setup.py build_ext test
+after_success:
+- pip wheel -w dist .
+before_deploy:
+- cd dist
+- "wheels=$(echo *.whl)"
+#deploy:
+# - TODO: upload the content of $wheels to a public wheelhouse
