@@ -3,6 +3,8 @@ language:
 env:
   matrix:
   - INSTALL_TYPE='system' VERSION=2.7
+  - INSTALL_TYPE='macpython' VERSION=2.7.10 CC=clang CXX=clang++
+  - INSTALL_TYPE='macpython' VERSION=3.4.3 CC=clang CXX=clang++
   - INSTALL_TYPE='homebrew' VERSION=2.7.10
   - INSTALL_TYPE='homebrew' VERSION=3.4.3
 install:
