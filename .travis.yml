@@ -3,7 +3,7 @@ language:
 env:
   matrix:
   - INSTALL_TYPE='system' VERSION=2.7
-  - INSTALL_TYPE='homebrew' VERSION=2.7.9
+  - INSTALL_TYPE='homebrew' VERSION=2.7.10
   - INSTALL_TYPE='homebrew' VERSION=3.4.3
 install:
 - source terryfy/travis_tools.sh
