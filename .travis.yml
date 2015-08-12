@@ -16,7 +16,17 @@ script:
 after_success:
 - pip wheel -w dist .
 before_deploy:
-- cd dist
-- "wheels=$(echo *.whl)"
-#deploy:
-# - TODO: upload the content of $wheels to a public wheelhouse
+- export WHEELS=$(ls ./dist/*.whl)
+
+# use `travis setup releases` to create a Github OAuth token
+# http://docs.travis-ci.com/user/deployment/releases/
+
+# deploy:
+#   provider: releases
+#   api_key: <encrypted Github OAuth token> 
+#   file:
+#     - "${WHEELS}"
+#   skip_cleanup: true
+#   on:
+#     repo: google/brotli
+#     tags: true
