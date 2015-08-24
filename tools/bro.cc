@@ -15,12 +15,22 @@
    Example main() function for Brotli library.
 */
 
+#define _CRT_SECURE_NO_WARNINGS
+#define _CRT_NONSTDC_NO_DEPRECATE
+
 #include <fcntl.h>
 #include <stdio.h>
 #include <string>
 #include <sys/stat.h>
 #include <sys/types.h>
+#ifndef _MSC_VER
 #include <unistd.h>
+#else
+#include <io.h>
+#define STDIN_FILENO 0
+#define STDOUT_FILENO 1
+#define STDERR_FILENO 2
+#endif
 
 #include "../dec/decode.h"
 #include "../enc/encode.h"
@@ -129,8 +139,13 @@ static FILE *OpenOutputFile(const char *output_path, const int force) {
       exit(1);
     }
   }
-  int fd = open(output_path, O_CREAT | O_WRONLY | O_TRUNC,
-                S_IRUSR | S_IWUSR);
+  int fd = open(output_path, O_CREAT | O_WRONLY | O_TRUNC
+#ifdef _MSC_VER
+	  | O_BINARY
+#else
+	  , S_IRUSR | S_IWUSR
+#endif
+	  );
   if (fd < 0) {
     perror("open");
     exit(1);
