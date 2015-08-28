@@ -29,7 +29,8 @@ extern "C" {
 
 #define BROTLI_MAX_NUM_BIT_READ   25
 #define BROTLI_READ_SIZE          1024
-#define BROTLI_IBUF_SIZE          (BROTLI_READ_SIZE + 128)
+#define BROTLI_IMPLICIT_ZEROES    128
+#define BROTLI_IBUF_SIZE          (BROTLI_READ_SIZE + BROTLI_IMPLICIT_ZEROES)
 #define BROTLI_IBUF_MASK          (BROTLI_READ_SIZE - 1)
 
 /* Masking with this expression turns to a single "Unsigned Bit Field Extract"
@@ -47,9 +48,6 @@ typedef struct {
   uint32_t    avail_in;
   int         eos_;          /* input stream is finished */
   BrotliInput input_;        /* input callback */
-
-  /* indicates how much bytes already read when reading partial data */
-  int         tmp_bytes_read_;
 
   /* Input byte buffer, consist of a ringbuffer and a "slack" region where */
   /* bytes from the start of the ringbuffer are copied. */
@@ -73,8 +71,8 @@ void BrotliWarmupBitReader(BrotliBitReader* const br);
       when more data is available makes it continue including the partially read
       data
 
-   If finish is true and the end of the stream is reached, 128 additional zero
-   bytes are copied to the ringbuffer.
+   If finish is true and the end of the stream is reached,
+   BROTLI_IMPLICIT_ZEROES additional zero bytes are copied to the ringbuffer.
 */
 static BROTLI_INLINE int BrotliReadInput(
     BrotliBitReader* const br, int finish) {
@@ -83,35 +81,27 @@ static BROTLI_INLINE int BrotliReadInput(
   } else {
     size_t i;
     int bytes_read;
-    uint8_t* dst = br->buf_;
     if (br->next_in != br->buf_) {
-      int num = (int)(br->avail_in);
-      for (i = 0; i < num; i++) {
+      for (i = 0; i < br->avail_in; i++) {
         br->buf_[i] = br->next_in[i];
       }
       br->next_in = br->buf_;
-      br->tmp_bytes_read_ = num;
     }
-
-    bytes_read = BrotliRead(br->input_, dst + br->tmp_bytes_read_,
-        (size_t) (BROTLI_READ_SIZE - br->tmp_bytes_read_));
+    bytes_read = BrotliRead(br->input_, br->next_in + br->avail_in,
+        (size_t)(BROTLI_READ_SIZE - br->avail_in));
     if (bytes_read < 0) {
       return 0;
     }
-    bytes_read += br->tmp_bytes_read_;
-    br->tmp_bytes_read_ = 0;
-    if (bytes_read < BROTLI_READ_SIZE) {
+    br->avail_in += (uint32_t)bytes_read;
+    if (br->avail_in < BROTLI_READ_SIZE) {
       if (!finish) {
-        br->tmp_bytes_read_ = bytes_read;
         return 0;
       }
       br->eos_ = 1;
-      /* Store 128 bytes of zero after the stream end. */
-      memset(dst + bytes_read, 0, 128);
-      bytes_read += 128;
+      /* Store BROTLI_IMPLICIT_ZEROES bytes of zero after the stream end. */
+      memset(br->next_in + br->avail_in, 0, BROTLI_IMPLICIT_ZEROES);
+      br->avail_in += BROTLI_IMPLICIT_ZEROES;
     }
-    br->avail_in = (uint32_t)bytes_read;
-    br->next_in = br->buf_;
     return 1;
   }
 }
@@ -123,7 +113,8 @@ static BROTLI_INLINE size_t BrotliGetRemainingBytes(BrotliBitReader* br) {
 }
 
 /* Checks if there is at least num bytes left in the input ringbuffer (excluding
-   the bits remaining in br->val_). The maximum value for num is 128 bytes. */
+   the bits remaining in br->val_). The maximum value for num is
+   BROTLI_IMPLICIT_ZEROES bytes. */
 static BROTLI_INLINE int BrotliCheckInputAmount(
     BrotliBitReader* const br, size_t num) {
   return br->avail_in >= num;
@@ -134,28 +125,56 @@ static BROTLI_INLINE int BrotliCheckInputAmount(
 static BROTLI_INLINE void BrotliFillBitWindow(
     BrotliBitReader* const br, int n_bits) {
 #if (BROTLI_64_BITS_LITTLE_ENDIAN)
-  if (br->bit_pos_ >= 32) {
-    br->val_ >>= 32;
-    br->bit_pos_ ^= 32;  /* here same as -= 32 because of the if condition */
-    br->val_ |= ((uint64_t)(*(const uint32_t*)(br->next_in))) << 32;
-    br->avail_in -= 4;
-    br->next_in += 4;
+  if (IS_CONSTANT(n_bits) && n_bits <= 8) {
+    if (br->bit_pos_ >= 56) {
+      br->val_ >>= 56;
+      br->bit_pos_ ^= 56;  /* here same as -= 56 because of the if condition */
+      br->val_ |= (*(const uint64_t*)(br->next_in)) << 8;
+      br->avail_in -= 7;
+      br->next_in += 7;
+    }
+  } else if (IS_CONSTANT(n_bits) && n_bits <= 16) {
+    if (br->bit_pos_ >= 48) {
+      br->val_ >>= 48;
+      br->bit_pos_ ^= 48;  /* here same as -= 48 because of the if condition */
+      br->val_ |= (*(const uint64_t*)(br->next_in)) << 16;
+      br->avail_in -= 6;
+      br->next_in += 6;
+    }
+  } else {
+    if (br->bit_pos_ >= 32) {
+      br->val_ >>= 32;
+      br->bit_pos_ ^= 32;  /* here same as -= 32 because of the if condition */
+      br->val_ |= ((uint64_t)(*(const uint32_t*)(br->next_in))) << 32;
+      br->avail_in -= 4;
+      br->next_in += 4;
+    }
   }
 #elif (BROTLI_LITTLE_ENDIAN)
-  if (br->bit_pos_ >= 16) {
-    br->val_ >>= 16;
-    br->bit_pos_ ^= 16;  /* here same as -= 16 because of the if condition */
-    br->val_ |= ((uint32_t)(*(const uint16_t*)(br->next_in))) << 16;
-    br->avail_in -= 2;
-    br->next_in += 2;
-  }
-  if (!IS_CONSTANT(n_bits) || (n_bits > 16)) {
-    if (br->bit_pos_ >= 8) {
-      br->val_ >>= 8;
-      br->bit_pos_ ^= 8;  /* here same as -= 8 because of the if condition */
-      br->val_ |= ((uint32_t)*br->next_in) << 24;
-      --br->avail_in;
-      ++br->next_in;
+  if (IS_CONSTANT(n_bits) && n_bits <= 8) {
+    if (br->bit_pos_ >= 24) {
+      br->val_ >>= 24;
+      br->bit_pos_ ^= 24;  /* here same as -= 24 because of the if condition */
+      br->val_ |= (*(const uint32_t*)(br->next_in)) << 8;
+      br->avail_in -= 3;
+      br->next_in += 3;
+    }
+  } else {
+    if (br->bit_pos_ >= 16) {
+      br->val_ >>= 16;
+      br->bit_pos_ ^= 16;  /* here same as -= 16 because of the if condition */
+      br->val_ |= ((uint32_t)(*(const uint16_t*)(br->next_in))) << 16;
+      br->avail_in -= 2;
+      br->next_in += 2;
+    }
+    if (!IS_CONSTANT(n_bits) || (n_bits > 16)) {
+      if (br->bit_pos_ >= 8) {
+        br->val_ >>= 8;
+        br->bit_pos_ ^= 8;  /* here same as -= 8 because of the if condition */
+        br->val_ |= ((uint32_t)*br->next_in) << 24;
+        --br->avail_in;
+        ++br->next_in;
+      }
     }
   }
 #else
