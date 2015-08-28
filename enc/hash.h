@@ -130,9 +130,7 @@ class HashLongestMatchQuickly {
     // not filling will make the results of the compression stochastic
     // (but correct). This is because random data would cause the
     // system to find accidentally good backward references here and there.
-    std::fill(&buckets_[0],
-              &buckets_[sizeof(buckets_) / sizeof(buckets_[0])],
-              0);
+    memset(&buckets_[0], 0, sizeof(buckets_));
     num_dict_lookups_ = 0;
     num_dict_matches_ = 0;
   }
@@ -140,7 +138,7 @@ class HashLongestMatchQuickly {
   // Compute a hash from these, and store the value somewhere within
   // [ix .. ix+3].
   inline void Store(const uint8_t *data, const int ix) {
-    const uint32_t key = Hash<kBucketBits>(data);
+    const uint32_t key = HashBytes(data);
     // Wiggle the value with the bucket sweep range.
     const uint32_t off = (static_cast<uint32_t>(ix) >> 3) % kBucketSweep;
     buckets_[key + off] = ix;
@@ -201,7 +199,7 @@ class HashLongestMatchQuickly {
         }
       }
     }
-    const uint32_t key = Hash<kBucketBits>(&ring_buffer[cur_ix_masked]);
+    const uint32_t key = HashBytes(&ring_buffer[cur_ix_masked]);
     if (kBucketSweep == 1) {
       // Only one to look for, don't bother to prepare for a loop.
       prev_ix = buckets_[key];
@@ -291,6 +289,21 @@ class HashLongestMatchQuickly {
     return match_found;
   }
 
+  enum { kHashLength = 5 };
+  enum { kHashTypeLength = 8 };
+  // HashBytes is the function that chooses the bucket to place
+  // the address in. The HashLongestMatch and HashLongestMatchQuickly
+  // classes have separate, different implementations of hashing.
+  static uint32_t HashBytes(const uint8_t *data) {
+    // Computing a hash based on 5 bytes works much better for
+    // qualities 1 and 3, where the next hash value is likely to replace
+    static const uint32_t kHashMul32 = 0x1e35a7bd;
+    uint64_t h = (BROTLI_UNALIGNED_LOAD64(data) << 24) * kHashMul32;
+    // The higher bits contain more mixture from the multiplication,
+    // so we take our results from there.
+    return h >> (64 - kBucketBits);
+  }
+
  private:
   static const uint32_t kBucketSize = 1 << kBucketBits;
   uint32_t buckets_[kBucketSize + kBucketSweep];
@@ -317,7 +330,7 @@ class HashLongestMatch {
   }
 
   void Reset() {
-    std::fill(&num_[0], &num_[sizeof(num_) / sizeof(num_[0])], 0);
+    memset(&num_[0], 0, sizeof(num_));
     num_dict_lookups_ = 0;
     num_dict_matches_ = 0;
   }
@@ -325,7 +338,7 @@ class HashLongestMatch {
   // Look at 3 bytes at data.
   // Compute a hash from these, and store the value of ix at that position.
   inline void Store(const uint8_t *data, const int ix) {
-    const uint32_t key = Hash<kBucketBits>(data);
+    const uint32_t key = HashBytes(data);
     const int minor_ix = num_[key] & kBlockMask;
     buckets_[key][minor_ix] = ix;
     ++num_[key];
@@ -401,7 +414,7 @@ class HashLongestMatch {
         }
       }
     }
-    const uint32_t key = Hash<kBucketBits>(&data[cur_ix_masked]);
+    const uint32_t key = HashBytes(&data[cur_ix_masked]);
     const int * __restrict const bucket = &buckets_[key][0];
     const int down = (num_[key] > kBlockSize) ? (num_[key] - kBlockSize) : 0;
     for (int i = num_[key] - 1; i >= down; --i) {
@@ -518,7 +531,7 @@ class HashLongestMatch {
         *matches++ = BackwardMatch(backward, len);
       }
     }
-    const uint32_t key = Hash<kBucketBits>(&data[cur_ix_masked]);
+    const uint32_t key = HashBytes(&data[cur_ix_masked]);
     const int * __restrict const bucket = &buckets_[key][0];
     const int down = (num_[key] > kBlockSize) ? (num_[key] - kBlockSize) : 0;
     for (int i = num_[key] - 1; i >= down; --i) {
@@ -560,6 +573,27 @@ class HashLongestMatch {
       }
     }
     *num_matches += matches - orig_matches;
+  }
+
+  enum { kHashLength = 4 };
+  enum { kHashTypeLength = 4 };
+
+  // HashBytes is the function that chooses the bucket to place
+  // the address in. The HashLongestMatch and HashLongestMatchQuickly
+  // classes have separate, different implementations of hashing.
+  static uint32_t HashBytes(const uint8_t *data) {
+    // kHashMul32 multiplier has these properties:
+    // * The multiplier must be odd. Otherwise we may lose the highest bit.
+    // * No long streaks of 1s or 0s.
+    // * Is not unfortunate (see the unittest) for the English language.
+    // * There is no effort to ensure that it is a prime, the oddity is enough
+    //   for this use.
+    // * The number has been tuned heuristically against compression benchmarks.
+    static const uint32_t kHashMul32 = 0x1e35a7bd;
+    uint32_t h = BROTLI_UNALIGNED_LOAD32(data) * kHashMul32;
+    // The higher bits contain more mixture from the multiplication,
+    // so we take our results from there.
+    return h >> (32 - kBucketBits);
   }
 
  private:
@@ -614,7 +648,7 @@ struct Hashers {
 
   template<typename Hasher>
   void WarmupHash(const size_t size, const uint8_t* dict, Hasher* hasher) {
-    for (size_t i = 0; i + 3 < size; i++) {
+    for (size_t i = 0; i + Hasher::kHashTypeLength - 1 < size; i++) {
       hasher->Store(dict, i);
     }
   }

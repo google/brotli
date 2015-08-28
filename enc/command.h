@@ -19,22 +19,9 @@
 
 #include <stdint.h>
 #include "./fast_log.h"
+#include "./prefix.h"
 
 namespace brotli {
-
-static inline void GetDistCode(int distance_code,
-                               uint16_t* code, uint32_t* extra) {
-  if (distance_code < 16) {
-    *code = distance_code;
-    *extra = 0;
-  } else {
-    distance_code -= 12;
-    int numextra = Log2FloorNonZero(distance_code) - 1;
-    int prefix = distance_code >> numextra;
-    *code = 12 + 2 * numextra + prefix;
-    *extra = (numextra << 24) | (distance_code - (prefix << numextra));
-  }
-}
 
 static int insbase[] =   { 0, 1, 2, 3, 4, 5, 6, 8, 10, 14, 18, 26, 34, 50, 66,
     98, 130, 194, 322, 578, 1090, 2114, 6210, 22594 };
@@ -108,7 +95,10 @@ struct Command {
   // distance_code is e.g. 0 for same-as-last short code, or 16 for offset 1.
   Command(int insertlen, int copylen, int copylen_code, int distance_code)
       : insert_len_(insertlen), copy_len_(copylen) {
-    GetDistCode(distance_code, &dist_prefix_, &dist_extra_);
+    // The distance prefix and extra bits are stored in this Command as if
+    // npostfix and ndirect were 0, they are only recomputed later after the
+    // clustering if needed.
+    PrefixEncodeCopyDistance(distance_code, 0, 0, &dist_prefix_, &dist_extra_);
     GetLengthCode(insertlen, copylen_code, dist_prefix_,
                   &cmd_prefix_, &cmd_extra_);
   }

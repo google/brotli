@@ -213,6 +213,7 @@ void HistogramRemap(const HistogramType* in, int in_size,
     symbols[i] = best_out;
   }
 
+
   // Recompute each out based on raw and symbols.
   for (std::set<int>::const_iterator k = all_symbols.begin();
        k != all_symbols.end(); ++k) {
@@ -282,6 +283,7 @@ void ClusterHistograms(const std::vector<HistogramType>& in,
   // Convert the context map to a canonical form.
   HistogramReindex(out, histogram_symbols);
 }
+
 
 }  // namespace brotli
 

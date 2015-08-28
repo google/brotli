@@ -108,8 +108,7 @@ void RecomputeDistancePrefixes(Command* cmds,
                                size_t num_commands,
                                int num_direct_distance_codes,
                                int distance_postfix_bits) {
-  if (num_direct_distance_codes == 0 &&
-      distance_postfix_bits == 0) {
+  if (num_direct_distance_codes == 0 && distance_postfix_bits == 0) {
     return;
   }
   for (int i = 0; i < num_commands; ++i) {
@@ -187,9 +186,12 @@ BrotliCompressor::BrotliCompressor(BrotliParams params)
   } else if (params_.lgwin == 17) {
     last_byte_ = 1;
     last_byte_bits_ = 7;
-  } else {
+  } else if (params_.lgwin > 17) {
     last_byte_ = ((params_.lgwin - 17) << 1) | 1;
     last_byte_bits_ = 4;
+  } else {
+    last_byte_ = ((params_.lgwin - 8) << 4) | 1;
+    last_byte_bits_ = 7;
   }
 
   // Initialize distance cache.
@@ -340,6 +342,71 @@ bool BrotliCompressor::WriteBrotliData(const bool is_last,
   return WriteMetaBlockInternal(is_last, utf8_mode, out_size, output);
 }
 
+// Decide about the context map based on the ability of the prediction
+// ability of the previous byte UTF8-prefix on the next byte. The
+// prediction ability is calculated as shannon entropy. Here we need
+// shannon entropy instead of 'BitsEntropy' since the prefix will be
+// encoded with the remaining 6 bits of the following byte, and
+// BitsEntropy will assume that symbol to be stored alone using Huffman
+// coding.
+void ChooseContextMap(int quality,
+                      int* bigram_histo,
+                      int* num_literal_contexts,
+                      const int** literal_context_map) {
+  int monogram_histo[3] = { 0 };
+  int two_prefix_histo[6] = { 0 };
+  int total = 0;
+  for (int i = 0; i < 9; ++i) {
+    total += bigram_histo[i];
+    monogram_histo[i % 3] += bigram_histo[i];
+    int j = i;
+    if (j >= 6) {
+      j -= 6;
+    }
+    two_prefix_histo[j] += bigram_histo[i];
+  }
+  int dummy;
+  double entropy1 = ShannonEntropy(monogram_histo, 3, &dummy);
+  double entropy2 = (ShannonEntropy(two_prefix_histo, 3, &dummy) +
+                     ShannonEntropy(two_prefix_histo + 3, 3, &dummy));
+  double entropy3 = 0;
+  for (int k = 0; k < 3; ++k) {
+    entropy3 += ShannonEntropy(bigram_histo + 3 * k, 3, &dummy);
+  }
+  entropy1 *= (1.0 / total);
+  entropy2 *= (1.0 / total);
+  entropy3 *= (1.0 / total);
+
+  static const int kStaticContextMapContinuation[64] = {
+    1, 1, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+  };
+  static const int kStaticContextMapSimpleUTF8[64] = {
+    0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+  };
+  if (quality < 7) {
+    // 3 context models is a bit slower, don't use it at lower qualities.
+    entropy3 = entropy1 * 10;
+  }
+  // If expected savings by symbol are less than 0.2 bits, skip the
+  // context modeling -- in exchange for faster decoding speed.
+  if (entropy1 - entropy2 < 0.2 &&
+      entropy1 - entropy3 < 0.2) {
+    *num_literal_contexts = 1;
+  } else if (entropy2 - entropy3 < 0.02) {
+    *num_literal_contexts = 2;
+    *literal_context_map = kStaticContextMapSimpleUTF8;
+  } else {
+    *num_literal_contexts = 3;
+    *literal_context_map = kStaticContextMapContinuation;
+  }
+}
+
 void DecideOverLiteralContextModeling(const uint8_t* input,
                                       size_t start_pos,
                                       size_t length,
@@ -351,40 +418,24 @@ void DecideOverLiteralContextModeling(const uint8_t* input,
   if (quality < kMinQualityForContextModeling || length < 64) {
     return;
   }
-  // Simple heuristics to guess if the data is UTF8 or not. The goal is to
-  // recognize non-UTF8 data quickly by searching for the following obvious
-  // violations: a continuation byte following an ASCII byte or an ASCII or
-  // lead byte following a lead byte. If we find such violation we decide that
-  // the data is not UTF8. To make the analysis of UTF8 data faster we only
-  // examine 64 byte long strides at every 4kB intervals, if there are no
-  // violations found, we assume the whole data is UTF8.
+  // Gather bigram data of the UTF8 byte prefixes. To make the analysis of
+  // UTF8 data faster we only examine 64 byte long strides at every 4kB
+  // intervals.
   const size_t end_pos = start_pos + length;
+  int bigram_prefix_histo[9] = { 0 };
   for (; start_pos + 64 < end_pos; start_pos += 4096) {
+      static const int lut[4] = { 0, 0, 1, 2 };
     const size_t stride_end_pos = start_pos + 64;
-    uint8_t prev = input[start_pos & mask];
+    int prev = lut[input[start_pos & mask] >> 6] * 3;
     for (size_t pos = start_pos + 1; pos < stride_end_pos; ++pos) {
       const uint8_t literal = input[pos & mask];
-      if ((prev < 128 && (literal & 0xc0) == 0x80) ||
-          (prev >= 192 && (literal & 0xc0) != 0x80)) {
-        return;
-      }
-      prev = literal;
+      ++bigram_prefix_histo[prev + lut[literal >> 6]];
+      prev = lut[literal >> 6] * 3;
     }
   }
   *literal_context_mode = CONTEXT_UTF8;
-  // If the data is UTF8, this static context map distinguishes between ASCII
-  // or lead bytes and continuation bytes: the UTF8 context value based on the
-  // last two bytes is 2 or 3 if and only if the next byte is a continuation
-  // byte (see table in context.h).
-  static const int kStaticContextMap[64] = {
-    0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-  };
-  static const int kNumLiteralContexts = 2;
-  *num_literal_contexts = kNumLiteralContexts;
-  *literal_context_map = kStaticContextMap;
+  ChooseContextMap(quality, &bigram_prefix_histo[0], num_literal_contexts,
+                   literal_context_map);
 }
 
 bool BrotliCompressor::WriteMetaBlockInternal(const bool is_last,

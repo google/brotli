@@ -731,7 +731,7 @@ bool StoreMetaBlock(const uint8_t* input,
         int distnumextra = cmd.dist_extra_ >> 24;
         int distextra = cmd.dist_extra_ & 0xffffff;
         if (mb.distance_context_map.empty()) {
-        distance_enc.StoreSymbol(dist_code, storage_ix, storage);
+          distance_enc.StoreSymbol(dist_code, storage_ix, storage);
         } else {
           int context = cmd.DistanceContext();
           distance_enc.StoreSymbolWithContext<kDistanceContextBits>(
