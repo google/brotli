@@ -45,9 +45,6 @@ void BrotliStateInit(BrotliState* s) {
   s->distance_hgroup.codes = NULL;
   s->distance_hgroup.htrees = NULL;
 
-  s->code_lengths = NULL;
-  s->context_map_table = NULL;
-
   s->custom_dict = NULL;
   s->custom_dict_size = 0;
 
@@ -61,6 +58,9 @@ void BrotliStateInit(BrotliState* s) {
   s->dist_rb_idx = 0;
   s->block_type_trees = NULL;
   s->block_len_trees = NULL;
+
+  /* Make small negative indexes addressable. */
+  s->symbol_lists = &s->symbols_lists_array[BROTLI_HUFFMAN_MAX_CODE_LENGTH + 1];
 
   s->mtf_upper_bound = 255;
 }
@@ -84,6 +84,7 @@ void BrotliStateMetablockBegin(BrotliState* s) {
   s->dist_context_map = NULL;
   s->context_map_slice = NULL;
   s->literal_htree_index = 0;
+  s->literal_htree = NULL;
   s->dist_context_map_slice = NULL;
   s->dist_htree_index = 0;
   s->context_lookup1 = NULL;
@@ -122,13 +123,6 @@ void BrotliStateCleanupAfterMetablock(BrotliState* s) {
 }
 
 void BrotliStateCleanup(BrotliState* s) {
-  if (s->context_map_table != 0) {
-    free(s->context_map_table);
-  }
-  if (s->code_lengths != 0) {
-    free(s->code_lengths);
-  }
-
   if (s->context_modes != 0) {
     free(s->context_modes);
   }

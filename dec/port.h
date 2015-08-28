@@ -130,4 +130,21 @@ OR:
 #define BROTLI_NO_ASAN
 #endif
 
+#define BROTLI_REPEAT(N, X) { \
+  if ((N & 1) != 0) {X;} \
+  if ((N & 2) != 0) {X; X;} \
+  if ((N & 4) != 0) {X; X; X; X;} \
+}
+
+#if (__GNUC__ > 2) || defined(__llvm__)
+#if (defined(__ARM_ARCH) && (__ARM_ARCH >= 7))
+static BROTLI_INLINE unsigned BrotliRBit(unsigned input) {
+  unsigned output;
+  __asm__("rbit %0, %1\n" : "=r"(output) : "r"(input));
+  return output;
+}
+#define BROTLI_RBIT(x) BrotliRBit(x)
+#endif  /* armv7 */
+#endif  /* gcc || clang */
+
 #endif  /* BROTLI_DEC_PORT_H_ */

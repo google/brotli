@@ -32,8 +32,7 @@ void BrotliInitBitReader(BrotliBitReader* const br, BrotliInput input) {
   br->bit_pos_ = 0;
   br->avail_in = 0;
   br->eos_ = 0;
-  br->tmp_bytes_read_ = 0;
-  br->next_in = NULL;
+  br->next_in = br->buf_;
 }
 
 
