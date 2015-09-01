@@ -197,7 +197,8 @@ int BrotliBuildHuffmanTable(HuffmanCode* root_table,
         total_size += table_size;
         low = key & mask;
         root_table[low].bits = (uint8_t)(table_bits + root_bits);
-        root_table[low].value = (uint16_t)((table - root_table) - low);
+        root_table[low].value = (uint16_t)(
+            ((size_t)(table - root_table)) - low);
       }
       code.bits = (uint8_t)(len - root_bits);
       symbol = symbol_lists[symbol];
