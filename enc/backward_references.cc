@@ -455,6 +455,7 @@ void ZopfliIterate(size_t num_bytes,
     pos += insert_length;
     if (i == 0) {
       insert_length += *last_insert_len;
+      *last_insert_len = 0;
     }
     int distance = next.distance;
     int len_code = next.length_code;
@@ -476,7 +477,7 @@ void ZopfliIterate(size_t num_bytes,
     insert_length = 0;
     pos += copy_length;
   }
-  *last_insert_len = num_bytes - pos;
+  *last_insert_len += num_bytes - pos;
   *num_commands += (commands - orig_commands);
 }
 
