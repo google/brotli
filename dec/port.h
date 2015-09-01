@@ -96,10 +96,8 @@ OR:
 #if (defined(__x86_64__) || defined(_M_X64) || defined(__aarch64__) || \
      defined(__PPC64__))
 #define BROTLI_64_BITS 1
-#define BROTLI_PRELOAD_SYMBOLS 1
 #else
 #define BROTLI_64_BITS 0
-#define BROTLI_PRELOAD_SYMBOLS 0
 #endif
 
 #if (defined(__BYTE_ORDER__) && (__BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__))
