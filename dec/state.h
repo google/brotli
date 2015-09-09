@@ -34,17 +34,15 @@ typedef enum {
   BROTLI_STATE_METABLOCK_BEGIN,
   BROTLI_STATE_METABLOCK_HEADER_1,
   BROTLI_STATE_METABLOCK_HEADER_2,
-  BROTLI_STATE_BLOCK_BEGIN,
-  BROTLI_STATE_BLOCK_INNER,
-  BROTLI_STATE_BLOCK_DISTANCE,
-  BROTLI_STATE_BLOCK_POST,
+  BROTLI_STATE_COMMAND_BEGIN,
+  BROTLI_STATE_COMMAND_INNER,
   BROTLI_STATE_UNCOMPRESSED,
   BROTLI_STATE_METADATA,
-  BROTLI_STATE_BLOCK_INNER_WRITE,
+  BROTLI_STATE_COMMAND_INNER_WRITE,
   BROTLI_STATE_METABLOCK_DONE,
-  BROTLI_STATE_BLOCK_POST_WRITE_1,
-  BROTLI_STATE_BLOCK_POST_WRITE_2,
-  BROTLI_STATE_BLOCK_POST_WRAP_COPY,
+  BROTLI_STATE_COMMAND_POST_WRITE_1,
+  BROTLI_STATE_COMMAND_POST_WRITE_2,
+  BROTLI_STATE_COMMAND_POST_WRAP_COPY,
   BROTLI_STATE_HUFFMAN_CODE_0,
   BROTLI_STATE_HUFFMAN_CODE_1,
   BROTLI_STATE_HUFFMAN_CODE_2,
@@ -70,92 +68,76 @@ typedef enum {
 
 typedef enum {
   BROTLI_STATE_SUB1_NONE,
-  BROTLI_STATE_SUB1_HUFFMAN_LENGTH_BEGIN,
-  BROTLI_STATE_SUB1_HUFFMAN_LENGTH_SYMBOLS,
-  BROTLI_STATE_SUB1_HUFFMAN_DONE
+  BROTLI_STATE_SUB1_HUFFMAN_LENGTH_SYMBOLS
 } BrotliRunningSub1State;
 
 typedef struct {
   BrotliRunningState state;
-  BrotliRunningSub0State sub0_state;  /* State inside function call */
-  BrotliRunningSub1State sub1_state;  /* State inside function call */
-
+  /* This counter is reused for several disjoint loops. */
+  BrotliBitReader br;
+  int loop_counter;
   int pos;
-  int input_end;
-  uint32_t window_bits;
   int max_backward_distance;
+  int max_backward_distance_minus_custom_dict_size;
   int max_distance;
   int ringbuffer_size;
   int ringbuffer_mask;
+  int dist_rb_idx;
+  int dist_rb[4];
   uint8_t* ringbuffer;
   uint8_t* ringbuffer_end;
+  HuffmanCode* htree_command;
+  const uint8_t* context_lookup1;
+  const uint8_t* context_lookup2;
+  uint8_t* context_map_slice;
+  uint8_t* dist_context_map_slice;
+
   /* This ring buffer holds a few past copy distances that will be used by */
   /* some special distance codes. */
-  int dist_rb[4];
-  int dist_rb_idx;
   HuffmanTreeGroup literal_hgroup;
   HuffmanTreeGroup insert_copy_hgroup;
   HuffmanTreeGroup distance_hgroup;
-
   HuffmanCode* block_type_trees;
   HuffmanCode* block_len_trees;
-  BrotliBitReader br;
-  /* This counter is reused for several disjoint loops. */
-  int loop_counter;
   /* This is true if the literal context map histogram type always matches the
   block type. It is then not needed to keep the context (faster decoding). */
   int trivial_literal_context;
-
+  int distance_context;
   int meta_block_remaining_len;
-  int is_metadata;
-  int is_uncompressed;
   int block_length[3];
   int num_block_types[3];
   int block_type_rb[6];
   int distance_postfix_bits;
   int num_direct_distance_codes;
   int distance_postfix_mask;
-  uint8_t* context_map;
-  uint8_t* context_modes;
-  int num_literal_htrees;
   uint8_t* dist_context_map;
-  int num_dist_htrees;
-  uint8_t* context_map_slice;
-  uint8_t* dist_context_map_slice;
   uint8_t literal_htree_index;
+  HuffmanCode *literal_htree;
   uint8_t dist_htree_index;
-  uint8_t prev_code_len;
   uint8_t repeat_code_len;
-
-  const uint8_t* context_lookup1;
-  const uint8_t* context_lookup2;
-  HuffmanCode* htree_command;
+  uint8_t prev_code_len;
 
   int copy_length;
   int distance_code;
-  int distance;
-
-  /* For CopyUncompressedBlockToOutput */
-  int nbytes;
 
   /* For partial write operations */
   int to_write;
   int partially_written;
 
-  /* For HuffmanTreeGroupDecode */
-  int htrees_decoded;
-
-  /* For ReadHuffmanCodeLengths */
-  int symbol;
-  int repeat;
-  int space;
-  HuffmanCode table[32];
-  uint8_t code_length_code_lengths[18];
-
   /* For ReadHuffmanCode */
-  uint8_t* code_lengths;
-  /* The maximum non-zero code length index in code lengths */
-  uint32_t huffman_max_nonzero;
+  uint32_t symbol;
+  uint32_t repeat;
+  uint32_t space;
+
+  HuffmanCode table[32];
+  /* List of of symbol chains. */
+  uint16_t* symbol_lists;
+  /* Storage from symbol_lists. */
+  uint16_t symbols_lists_array[BROTLI_HUFFMAN_MAX_CODE_LENGTH + 1 +
+      BROTLI_HUFFMAN_MAX_CODE_LENGTHS_SIZE];
+  /* Tails of symbol chains. */
+  int next_symbol[32];
+  uint8_t code_length_code_lengths[18];
   /* Population counts for the code lengths */
   uint16_t code_length_histo[16];
 
@@ -166,7 +148,7 @@ typedef struct {
   /* For DecodeContextMap */
   int context_index;
   int max_run_length_prefix;
-  HuffmanCode* context_map_table;
+  HuffmanCode context_map_table[BROTLI_HUFFMAN_MAX_TABLE_SIZE];
 
   /* For InverseMoveToFrontTransform */
   int mtf_upper_bound;
@@ -175,6 +157,20 @@ typedef struct {
   /* For custom dictionaries */
   const uint8_t* custom_dict;
   int custom_dict_size;
+
+  /* less used attributes are in the end of this struct */
+  BrotliRunningSub0State sub0_state;  /* State inside function call */
+  BrotliRunningSub1State sub1_state;  /* State inside function call */
+
+  int input_end;
+  uint32_t window_bits;
+
+  /* For CopyUncompressedBlockToOutput */
+  int nbytes;
+
+  int num_literal_htrees;
+  uint8_t* context_map;
+  uint8_t* context_modes;
 } BrotliState;
 
 void BrotliStateInit(BrotliState* s);

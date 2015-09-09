@@ -18,15 +18,13 @@ after_success:
 before_deploy:
 - export WHEELS=$(ls ./dist/*.whl)
 
-# use `travis setup releases` to create a Github OAuth token
-# http://docs.travis-ci.com/user/deployment/releases/
-
-# deploy:
-#   provider: releases
-#   api_key: <encrypted Github OAuth token> 
-#   file:
-#     - "${WHEELS}"
-#   skip_cleanup: true
-#   on:
-#     repo: google/brotli
-#     tags: true
+deploy:
+  provider: releases
+  api_key:
+    secure: YcCBi6W/w4dtKCa59Wfm8L5lGWvK7KxaFNDr3yh1Hz5aStXXf758pEMHGewnlbfbwuj5a3SjBb1nLp1M69OQJfxm442uXBaBKo52PM9PPbD7NjvbNIso73pqcSODXQXKuZxDFpEhfuDTVq3hUkUqiwhChWhrFucJsSL51i7qSss=
+  file:
+    - "${WHEELS}"
+  skip_cleanup: true
+  on:
+    repo: google/brotli
+    tags: true

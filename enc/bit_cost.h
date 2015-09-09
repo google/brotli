@@ -17,6 +17,7 @@
 #ifndef BROTLI_ENC_BIT_COST_H_
 #define BROTLI_ENC_BIT_COST_H_
 
+
 #include <stdint.h>
 
 #include "./entropy_encode.h"
@@ -24,7 +25,8 @@
 
 namespace brotli {
 
-static inline double BitsEntropy(const int *population, int size) {
+static inline double ShannonEntropy(const int *population, int size,
+                                    int *total) {
   int sum = 0;
   double retval = 0;
   const int *population_end = population + size;
@@ -42,12 +44,20 @@ static inline double BitsEntropy(const int *population, int size) {
     retval -= p * FastLog2(p);
   }
   if (sum) retval += sum * FastLog2(sum);
+  *total = sum;
+  return retval;
+}
+
+static inline double BitsEntropy(const int *population, int size) {
+  int sum;
+  double retval = ShannonEntropy(population, size, &sum);
   if (retval < sum) {
     // At least one bit per literal is needed.
     retval = sum;
   }
   return retval;
 }
+
 
 template<int kSize>
 double PopulationCost(const Histogram<kSize>& histogram) {

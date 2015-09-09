@@ -377,7 +377,7 @@ bool FindAllStaticDictionaryMatches(const uint8_t* data,
     // Transforms with prefixes "e ", "s ", ", " and "\xc2\xa0"
     if ((data[1] == ' ' &&
          (data[0] == 'e' || data[0] == 's' || data[0] == ',')) ||
-        (data[0] == '\xc2' && data[1] == '\xa0')) {
+        (data[0] == 0xc2 && data[1] == 0xa0)) {
       key = Hash(&data[2]);
       bucket = kStaticDictionaryBuckets[key];
       int num = bucket & 0xff;
@@ -388,7 +388,7 @@ bool FindAllStaticDictionaryMatches(const uint8_t* data,
         const int n = 1 << kBrotliDictionarySizeBitsByLength[l];
         const int id = w.idx;
         if (w.transform == 0 && IsMatch(w, &data[2], max_length - 2)) {
-          if (data[0] == '\xc2') {
+          if (data[0] == 0xc2) {
             AddMatch(id + 102 * n, l + 2, l, matches);
             found_match = true;
           } else if (l + 2 < max_length && data[l + 2] == ' ') {

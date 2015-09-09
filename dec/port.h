@@ -96,10 +96,8 @@ OR:
 #if (defined(__x86_64__) || defined(_M_X64) || defined(__aarch64__) || \
      defined(__PPC64__))
 #define BROTLI_64_BITS 1
-#define BROTLI_PRELOAD_SYMBOLS 1
 #else
 #define BROTLI_64_BITS 0
-#define BROTLI_PRELOAD_SYMBOLS 0
 #endif
 
 #if (defined(__BYTE_ORDER__) && (__BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__))
@@ -129,5 +127,22 @@ OR:
 #else
 #define BROTLI_NO_ASAN
 #endif
+
+#define BROTLI_REPEAT(N, X) { \
+  if ((N & 1) != 0) {X;} \
+  if ((N & 2) != 0) {X; X;} \
+  if ((N & 4) != 0) {X; X; X; X;} \
+}
+
+#if (__GNUC__ > 2) || defined(__llvm__)
+#if (defined(__ARM_ARCH) && (__ARM_ARCH >= 7))
+static BROTLI_INLINE unsigned BrotliRBit(unsigned input) {
+  unsigned output;
+  __asm__("rbit %0, %1\n" : "=r"(output) : "r"(input));
+  return output;
+}
+#define BROTLI_RBIT(x) BrotliRBit(x)
+#endif  /* armv7 */
+#endif  /* gcc || clang */
 
 #endif  /* BROTLI_DEC_PORT_H_ */

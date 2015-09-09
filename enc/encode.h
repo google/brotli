@@ -30,7 +30,7 @@
 namespace brotli {
 
 static const int kMaxWindowBits = 24;
-static const int kMinWindowBits = 16;
+static const int kMinWindowBits = 10;
 static const int kMinInputBlockBits = 16;
 static const int kMaxInputBlockBits = 24;
 
@@ -59,7 +59,7 @@ struct BrotliParams {
   // Controls the compression-speed vs compression-density tradeoffs. The higher
   // the quality, the slower the compression. Range is 0 to 11.
   int quality;
-  // Base 2 logarithm of the sliding window size. Range is 16 to 24.
+  // Base 2 logarithm of the sliding window size. Range is 10 to 24.
   int lgwin;
   // Base 2 logarithm of the maximum input block size. Range is 16 to 24.
   // If set to 0, the value will be set based on the quality.

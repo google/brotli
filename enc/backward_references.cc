@@ -112,7 +112,7 @@ class ZopfliCostModel {
     uint64_t copynumextra = copyextra[copycode];
     uint16_t dist_symbol;
     uint32_t distextra;
-    GetDistCode(dist_code, &dist_symbol, &distextra);
+    PrefixEncodeCopyDistance(dist_code, 0, 0, &dist_symbol, &distextra);
     uint32_t distnumextra = distextra >> 24;
 
     double result = insnumextra + copynumextra + distnumextra;
@@ -455,6 +455,7 @@ void ZopfliIterate(size_t num_bytes,
     pos += insert_length;
     if (i == 0) {
       insert_length += *last_insert_len;
+      *last_insert_len = 0;
     }
     int distance = next.distance;
     int len_code = next.length_code;
@@ -476,7 +477,7 @@ void ZopfliIterate(size_t num_bytes,
     insert_length = 0;
     pos += copy_length;
   }
-  *last_insert_len = num_bytes - pos;
+  *last_insert_len += num_bytes - pos;
   *num_commands += (commands - orig_commands);
 }
 
@@ -517,7 +518,7 @@ void CreateBackwardReferences(size_t num_bytes,
   // Minimum score to accept a backward reference.
   const int kMinScore = 4.0;
 
-  while (i + 3 < i_end) {
+  while (i + Hasher::kHashTypeLength - 1 < i_end) {
     int max_length = i_end - i;
     size_t max_distance = std::min(i + i_diff, max_backward_limit);
     int best_len = 0;
