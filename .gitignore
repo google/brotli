@@ -6,3 +6,5 @@
 tools/bro
 build/
 dist/
+tools/brotli.sdf
+*.suo
