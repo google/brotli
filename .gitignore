@@ -6,3 +6,6 @@
 tools/bro
 build/
 dist/
+*.suo
+*.sdf
+*.opensdf
