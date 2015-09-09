@@ -26,6 +26,7 @@
 #ifndef _MSC_VER
 #include <unistd.h>
 #else
+#include <time.h>
 #include <io.h>
 #define STDIN_FILENO 0
 #define STDOUT_FILENO 1
@@ -158,18 +159,7 @@ static FILE *OpenOutputFile(const char *output_path, const int force) {
       exit(1);
     }
   }
-  int fd = open(output_path, O_CREAT | O_WRONLY | O_TRUNC
-#ifdef _MSC_VER
-	  | O_BINARY
-#else
-	  , S_IRUSR | S_IWUSR
-#endif
-	  );
-  if (fd < 0) {
-    perror("open");
-    exit(1);
-  }
-  return fdopen(fd, "wb");
+  return fopen(output_path, "wb");
 }
 
 int64_t FileSize(char *path) {
