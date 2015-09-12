@@ -39,6 +39,6 @@ addons:
       name: "google/brotli"
       description: "Build submitted via Travis CI"
     notification_email: eustas.ru@gmail.com
-    build_command_prepend: "./configure; make clean"
-    build_command:   "make -j 4"
+    build_command_prepend: "make clean"
+    build_command:   "make"
     branch_pattern: coverity_scan
