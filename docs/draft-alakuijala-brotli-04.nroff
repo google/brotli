@@ -724,11 +724,11 @@ follows:
       lengths are implicit zeros and are not present in the
       code lengths sequence above.
 
-      If there are at least two
-      non-zero code lengths, any trailing zero code lengths are
-      omitted, i.e. the last code length in the sequence must
-      be non-zero. In this case the sum of (32 >> code length)
-      over all the non-zero code lengths must equal to 32.
+      If there are at least two non-zero code lengths, any
+      trailing zero code lengths are omitted, i.e. the last
+      code length in the sequence must be non-zero. In this
+      case the sum of (32 >> code length) over all the non-zero
+      code lengths must equal to 32.
 
       If the lengths have been read for the entire code length
       alphabet and there was only one non-zero code length,
@@ -751,7 +751,10 @@ follows:
       between 1 and 16. The sum of (32768 >> code length) over
       all the non-zero code lengths in the alphabet, including
       those encoded using repeat code(s) of 16, must equal to
-      32768.
+      32768. If the number of times to repeat the previous length
+      or repeat a zero length would result in more lengths in
+      total than the number of symbols in the alphabet, then the
+      stream should be rejected as invalid.
 .fi
 
 .ti 0
@@ -1195,12 +1198,18 @@ for literal and distance context maps):
    Prefix code with alphabet size NTREES + RLEMAX
 
    Context map size values encoded with the above prefix code
-      and run length coding for zero values
+      and run length coding for zero values. If a run length
+      would result in more lengths in total than the size of
+      the context map, then the stream should be rejected as
+      invalid.
 
    1 bit:  IMTF bit, if set, we do an inverse move-to-front
            transform on the values in the context map to get
            the prefix code indexes
 .fi
+
+Note that RLEMAX may be larger than the value necessary to represent
+the longest sequence of zero values.
 
 For the encoding of NTREES see Section 9.2. We define the
 inverse move-to-front transform used in this specification by the
@@ -1236,8 +1245,8 @@ from the compressed stream, as described in section 4, can produce
 distances that are greater than this maximum allowed value. The
 difference between these distances and the first invalid distance
 value is treated as reference to a word in the static dictionary
-given in Appendix A. The maximum valid copy length for a static
-dictionary reference is 24. The static dictionary has three parts:
+given in Appendix A. The copy length for a static dictionary reference
+must be between 4 and 24. The static dictionary has three parts:
 
 .nf
    * DICT[0..DICTSIZE], an array of bytes
@@ -1280,8 +1289,8 @@ follows:
 
 The string copied to the uncompressed stream is computed by applying the
 transformation to the base dictionary word. If transform_id is
-greater than 120 or length is greater than 24, the
-compressed data set is invalid.
+greater than 120 or length is smaller than 4 or greater than 24, then
+the compressed stream should be rejected as invalid.
 
 Each word transformation has the following form:
 
@@ -1400,7 +1409,7 @@ the following:
 
 .nf
       1 bit:  ISLAST, set to 1 if this is the last meta-block
-      1 bit:  ISLASTEMPTY, set to 1 if the last meta-block is empty,
+      1 bit:  ISLASTEMPTY, if set to 1, the meta-block is empty;
               this field is only present if ISLAST bit is set -- if
               it is 1, then the meta-block and the brotli stream ends
               at that bit, with any remaining bits in the last byte
@@ -1575,8 +1584,21 @@ commands. Each command has the following format:
 .fi
 
 The number of commands in the meta-block is such that the sum of
-insert lengths and copy lengths over all the commands gives the
-uncompressed length, MLEN encoded in the meta-block header.
+the uncompressed bytes produced (i.e. the number of literals inserted
+plus the number of bytes copied from past data or generated from the
+static dictionary) over all the commands gives the uncompressed length,
+MLEN encoded in the meta-block header.
+
+If the total number of uncompressed bytes produced atfer the insert part
+of the last command equals MLEN, then the copy length of the last command
+is ignored and will not produce any uncompressed output. In this case the
+copy length of the last command can have any value. In any other case, if
+the number of literals to insert, the copy length, or the resulting
+dictionary word length would cause MLEN to be exceeded, then the stream
+should be rejected as invalid.
+
+If the last command of the last non-empty meta-block does not end on
+a byte boundary, the unused bits in the last byte must be zeros.
 
 .ti 0
 10. Decoding algorithm
@@ -1671,6 +1693,9 @@ The decoding algorithm that produces the uncompressed data is as follows:
       while number of uncompressed bytes for this meta-block < MLEN
    while not ISLAST
 .fi
+
+If the stream ends before the completion of the last meta-block, then
+the stream should be rejected as invalid.
 
 Note that a duplicated string reference may refer to a string in a
 previous meta-block, i.e. the backward distance may cross one or
@@ -5607,8 +5632,8 @@ suffix sequence of bytes plus a terminating zero. The value for the transforms
 are 0 for Identity, 1 for UppercaseFirst, 2 for UppercaseAll, 3 to 11 for
 OmitFirst1 to OmitFirst9, and 12 to 20 for OmitLast1 to OmitLast9. The byte
 sequences that represent the 121 transforms are then concatenated to a single
-sequence of bytes. The length of that sequence is 657 bytes, and the zlib CRC
-is 0x00f1fd60.
+sequence of bytes. The length of that sequence is 648 bytes, and the zlib CRC
+is 0x3d965f81.
 
 .nf
        ID       Prefix     Transform            Suffix
