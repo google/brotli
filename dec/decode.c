@@ -422,7 +422,7 @@ static BROTLI_INLINE int ReadBlockLength(const HuffmanCode* table,
    To reduce the cost of initialization, we reuse L, remember the upper bound
    of Y values, and reinitialize only first elements in L.
 
-   Most of input values are 0 and 1. To reduce number of brances, we replace
+   Most of input values are 0 and 1. To reduce number of branches, we replace
    inner for loop with do-while.
  */
 static BROTLI_NOINLINE void InverseMoveToFrontTransform(uint8_t* v, int v_len,
@@ -1283,7 +1283,7 @@ postDecodeLiterals:
           s->distance_code = s->dist_rb[s->dist_rb_idx & 3];
           goto postReadDistance;  /* We already have the implicit distance */
         }
-        /* Read distance code in the command, unless it was implicitely zero. */
+        /* Read distance code in the command, unless it was implicitly zero. */
         BROTLI_DCHECK(s->distance_code < 0);
         if (s->block_length[2] == 0) {
           /* Block switch for distance codes */
