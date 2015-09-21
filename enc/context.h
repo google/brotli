@@ -23,7 +23,7 @@ namespace brotli {
 
 // Second-order context lookup table for UTF8 byte streams.
 //
-// If p1 and p2 are the previous two bytes, we calcualte the context as
+// If p1 and p2 are the previous two bytes, we calculate the context as
 //
 //   context = kUTF8ContextLookup[p1] | kUTF8ContextLookup[p2 + 256].
 //

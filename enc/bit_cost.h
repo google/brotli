@@ -110,7 +110,7 @@ double PopulationCost(const Histogram<kSize>& histogram) {
       ++depth_histo[depth];
       ++i;
     } else {
-      // Compute the run length of zeros and add the appropiate number of 0 and
+      // Compute the run length of zeros and add the appropriate number of 0 and
       // 17 code length codes to the code length code histogram.
       int reps = 1;
       for (int k = i + 1; k < kSize && histogram.data_[k] == 0; ++k) {

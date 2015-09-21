@@ -22,7 +22,7 @@
      CONTEXT_SIGNED: second-order context model tuned for signed integers.
 
    The context id for the UTF8 context model is calculated as follows. If p1
-   and p2 are the previous two bytes, we calcualte the context as
+   and p2 are the previous two bytes, we calculate the context as
 
      context = kContextLookup[p1] | kContextLookup[p2 + 256].
 
