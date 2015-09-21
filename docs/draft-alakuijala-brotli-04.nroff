@@ -1589,7 +1589,7 @@ plus the number of bytes copied from past data or generated from the
 static dictionary) over all the commands gives the uncompressed length,
 MLEN encoded in the meta-block header.
 
-If the total number of uncompressed bytes produced atfer the insert part
+If the total number of uncompressed bytes produced after the insert part
 of the last command equals MLEN, then the copy length of the last command
 is ignored and will not produce any uncompressed output. In this case the
 copy length of the last command can have any value. In any other case, if
