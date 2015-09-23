@@ -25,8 +25,11 @@ extern "C" {
 
 void BrotliStateInit(BrotliState* s) {
   s->state = BROTLI_STATE_UNINITED;
-  s->sub0_state = BROTLI_STATE_SUB0_NONE;
-  s->sub1_state = BROTLI_STATE_SUB1_NONE;
+  s->substate_metablock_header = BROTLI_STATE_METABLOCK_HEADER_NONE;
+  s->substate_tree_group = BROTLI_STATE_TREE_GROUP_NONE;
+  s->substate_context_map = BROTLI_STATE_CONTEXT_MAP_NONE;
+  s->substate_uncompressed = BROTLI_STATE_UNCOMPRESSED_NONE;
+  s->substate_huffman = BROTLI_STATE_HUFFMAN_NONE;
 
   s->block_type_trees = NULL;
   s->block_len_trees = NULL;
@@ -45,10 +48,11 @@ void BrotliStateInit(BrotliState* s) {
   s->distance_hgroup.codes = NULL;
   s->distance_hgroup.htrees = NULL;
 
+
   s->custom_dict = NULL;
   s->custom_dict_size = 0;
 
-  s->input_end = 0;
+  s->is_last_metablock = 0;
   s->window_bits = 0;
   s->max_distance = 0;
   s->dist_rb[0] = 16;
