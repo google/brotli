@@ -27,9 +27,10 @@
 extern "C" {
 #endif
 
-#define BROTLI_MAX_NUM_BIT_READ   25
 #define BROTLI_READ_SIZE          1024
-#define BROTLI_IMPLICIT_ZEROES    128
+/* 128 bytes, plus 8 bytes slack for valid 128-byte BrotliCheckInputAmount with
+   some bytes read in val_ of bit reader. */
+#define BROTLI_IMPLICIT_ZEROES    136
 #define BROTLI_IBUF_SIZE          (BROTLI_READ_SIZE + BROTLI_IMPLICIT_ZEROES)
 #define BROTLI_IBUF_MASK          (BROTLI_READ_SIZE - 1)
 
@@ -54,13 +55,12 @@ typedef struct {
   uint8_t buf_[BROTLI_IBUF_SIZE];
 } BrotliBitReader;
 
-/* Initializes the bitreader fields. After this, BrotliReadInput then
-   BrotliWarmupBitReader must be used. */
+/* Initializes the bitreader fields. */
 void BrotliInitBitReader(BrotliBitReader* const br, BrotliInput input);
 
-/* Initializes bit reading and bit position with the first input data available.
-   Requires that there is enough input available (BrotliCheckInputAmount). */
-void BrotliWarmupBitReader(BrotliBitReader* const br);
+/* Ensures that accumulator is not empty. May consume one byte of input.
+   Returns 0 if data is required but there is no input available. */
+int BrotliWarmupBitReader(BrotliBitReader* const br);
 
 /* Pulls data from the input to the the read buffer.
 
@@ -109,7 +109,14 @@ static BROTLI_INLINE int BrotliReadInput(
 /* Returns amount of unread bytes the bit reader still has buffered from the
    BrotliInput, including whole bytes in br->val_. */
 static BROTLI_INLINE size_t BrotliGetRemainingBytes(BrotliBitReader* br) {
-  return br->avail_in + sizeof(br->val_) - (br->bit_pos_ >> 3);
+  size_t result = br->avail_in + sizeof(br->val_) - (br->bit_pos_ >> 3);
+  if (!br->eos_) {
+    return result;
+  }
+  if (result <= BROTLI_IMPLICIT_ZEROES) {
+    return 0;
+  }
+  return result - BROTLI_IMPLICIT_ZEROES;
 }
 
 /* Checks if there is at least num bytes left in the input ringbuffer (excluding
@@ -120,7 +127,8 @@ static BROTLI_INLINE int BrotliCheckInputAmount(
   return br->avail_in >= num;
 }
 
-/* Guarantees that there are at least n_bits in the buffer.
+/* Guarantees that there are at least n_bits + 1 bits in accumulator.
+   Precondition: accumulator contains at least 1 bit.
    n_bits should be in the range [1..24] */
 static BROTLI_INLINE void BrotliFillBitWindow(
     BrotliBitReader* const br, int n_bits) {
@@ -188,6 +196,19 @@ static BROTLI_INLINE void BrotliFillBitWindow(
 #endif
 }
 
+/* Pulls one byte of input to accumulator. */
+static BROTLI_INLINE void BrotliPullByte(BrotliBitReader* const br) {
+  br->val_ >>= 8;
+#if (BROTLI_64_BITS_LITTLE_ENDIAN)
+    br->val_ |= ((uint64_t)*br->next_in) << 56;
+#else
+    br->val_ |= ((uint32_t)*br->next_in) << 24;
+#endif
+  br->bit_pos_ -= 8;
+  --br->avail_in;
+  ++br->next_in;
+}
+
 /* Like BrotliGetBits, but does not mask the result, it is only guaranteed
 that it has minimum n_bits. */
 static BROTLI_INLINE uint32_t BrotliGetBitsUnmasked(
@@ -209,26 +230,69 @@ static BROTLI_INLINE void BrotliDropBits(
   br->bit_pos_ += (uint32_t)n_bits;
 }
 
-/* Reads the specified number of bits from br and advances the bit pos. */
-static BROTLI_INLINE uint32_t BrotliReadBits(
-    BrotliBitReader* const br, int n_bits) {
-  uint32_t val;
-  BrotliFillBitWindow(br, n_bits);
-  val = (uint32_t)(br->val_ >> br->bit_pos_) & BitMask(n_bits);
+/* Reads the specified number of bits from br and advances the bit pos.
+   Precondition: accumulator MUST contain at least n_bits. */
+static BROTLI_INLINE void BrotliTakeBits(
+  BrotliBitReader* const br, int n_bits, uint32_t* val) {
+  *val = (uint32_t)(br->val_ >> br->bit_pos_) & BitMask(n_bits);
 #ifdef BROTLI_DECODE_DEBUG
   printf("[BrotliReadBits]  %d %d %d val: %6x\n",
          (int)br->avail_in, (int)br->bit_pos_, n_bits, val);
 #endif
   br->bit_pos_ += (uint32_t)n_bits;
+}
+
+/* Reads the specified number of bits from br and advances the bit pos.
+   Assumes that there is enough input to perform BrotliFillBitWindow. */
+static BROTLI_INLINE uint32_t BrotliReadBits(
+    BrotliBitReader* const br, int n_bits) {
+  uint32_t val;
+  BrotliFillBitWindow(br, n_bits);
+  BrotliTakeBits(br, n_bits, &val);
   return val;
+}
+
+/* Tries to read the specified amount of bits. Returns 0, if there is not
+   enough input. */
+static BROTLI_INLINE int BrotliSafeReadBits(
+  BrotliBitReader* const br, int n_bits, uint32_t* val) {
+  while (br->bit_pos_ + (uint32_t)n_bits > (sizeof(br->val_) << 3)) {
+    if (br->avail_in == 0) {
+      return 0;
+    }
+    BrotliPullByte(br);
+  }
+  BrotliTakeBits(br, n_bits, val);
+  return 1;
 }
 
 /* Advances the bit reader position to the next byte boundary and verifies
    that any skipped bits are set to zero. */
 static BROTLI_INLINE int BrotliJumpToByteBoundary(BrotliBitReader* br) {
-  uint32_t new_bit_pos = (br->bit_pos_ + 7) & (uint32_t)(~7UL);
-  uint32_t pad_bits = BrotliReadBits(br, (int)(new_bit_pos - br->bit_pos_));
+  int pad_bits_count = (64 - (int)br->bit_pos_) & 0x7;
+  uint32_t pad_bits = 0;
+  if (pad_bits_count != 0) {
+    BrotliTakeBits(br, pad_bits_count, &pad_bits);
+  }
   return pad_bits == 0;
+}
+
+/* Peeks a byte at specified offset.
+   Precondition: bit reader is parked to a byte boundry.
+   Returns -1 if operation is not feasible. */
+static BROTLI_INLINE int BrotliPeekByte(BrotliBitReader* br, int offset) {
+  int bytes_left = (int)(sizeof(br->val_) - (br->bit_pos_ >> 3));
+  if (br->bit_pos_ & 7) {
+    return -1;
+  }
+  if (offset < bytes_left) {
+    return (br->val_ >> (br->bit_pos_ + (unsigned)(offset << 3))) & 0xFF;
+  }
+  offset -= bytes_left;
+  if (offset < br->avail_in) {
+    return br->next_in[offset];
+  }
+  return -1;
 }
 
 /* Copies remaining input bytes stored in the bit reader to the output. Value
@@ -246,8 +310,19 @@ static BROTLI_INLINE void BrotliCopyBytes(uint8_t* dest,
   memcpy(dest, br->next_in, num);
   br->avail_in -= (uint32_t)num;
   br->next_in += num;
-  br->bit_pos_ = 0;
 }
+
+/* Checks that bit reader hasn't read after the end of input.
+   Returns 0 if bit reader has used implicit zeroes after the end of input. */
+static BROTLI_INLINE int BrotliIsBitReaderOK(BrotliBitReader* br) {
+  size_t remaining_bytes =
+      br->avail_in + sizeof(br->val_) - (br->bit_pos_ >> 3);
+  return !br->eos_ || (remaining_bytes >= BROTLI_IMPLICIT_ZEROES);
+}
+
+#undef BROTLI_IMPLICIT_ZEROES
+#undef BROTLI_IBUF_SIZE
+#undef BROTLI_IBUF_MASK
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }    /* extern "C" */
