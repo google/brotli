@@ -58,7 +58,7 @@ int BrotliBuildSimpleHuffmanTable(HuffmanCode* table,
                                   uint16_t *symbols,
                                   uint32_t num_symbols);
 
-/* Contains a collection of huffman trees with the same alphabet size. */
+/* Contains a collection of Huffman trees with the same alphabet size. */
 typedef struct {
   HuffmanCode** htrees;
   HuffmanCode* codes;

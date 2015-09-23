@@ -76,7 +76,7 @@ bool FindAllStaticDictionaryMatches(const uint8_t* data,
           AddMatch(id, l, l, matches);
           found_match = true;
         }
-        // Transfroms "" + kOmitLast1 + "" and "" + kOmitLast1 + "ing "
+        // Transforms "" + kOmitLast1 + "" and "" + kOmitLast1 + "ing "
         if (matchlen >= l - 1) {
           AddMatch(id + 12 * n, l - 1, l, matches);
           if (l + 2 < max_length &&

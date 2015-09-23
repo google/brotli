@@ -860,8 +860,8 @@ bool StoreUncompressedMetaBlock(bool final_block,
   // compatible with WriteBits.
   brotli::WriteBitsPrepareStorage(*storage_ix, storage);
 
-  // Since the uncomressed block itself may not be the final block, add an empty
-  // one after this.
+  // Since the uncompressed block itself may not be the final block, add an
+  // empty one after this.
   if (final_block) {
     brotli::WriteBits(1, 1, storage_ix, storage);  // islast
     brotli::WriteBits(1, 1, storage_ix, storage);  // isempty

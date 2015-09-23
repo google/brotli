@@ -61,7 +61,7 @@ class RingBuffer {
       // Copy into the end of the buffer, including the tail buffer.
       memcpy(&buffer_[masked_pos], bytes,
              std::min(n, ((1 << window_bits_) + tail_size_) - masked_pos));
-      // Copy into the begining of the buffer
+      // Copy into the beginning of the buffer
       memcpy(&buffer_[0], bytes + ((1 << window_bits_) - masked_pos),
              n - ((1 << window_bits_) - masked_pos));
     }

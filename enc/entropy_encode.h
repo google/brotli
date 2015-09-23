@@ -47,7 +47,7 @@ void CreateHuffmanTree(const int *data,
 // counts contains the population counts.
 int OptimizeHuffmanCountsForRle(int length, int* counts);
 
-// Write a huffman tree from bit depths into the bitstream representation
+// Write a Huffman tree from bit depths into the bitstream representation
 // of a Huffman tree. The generated Huffman tree is to be compressed once
 // more using a Huffman tree
 void WriteHuffmanTree(const uint8_t* depth,
