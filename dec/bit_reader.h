@@ -237,7 +237,7 @@ static BROTLI_INLINE void BrotliTakeBits(
   *val = (uint32_t)(br->val_ >> br->bit_pos_) & BitMask(n_bits);
 #ifdef BROTLI_DECODE_DEBUG
   printf("[BrotliReadBits]  %d %d %d val: %6x\n",
-         (int)br->avail_in, (int)br->bit_pos_, n_bits, val);
+         (int)br->avail_in, (int)br->bit_pos_, n_bits, (int)*val);
 #endif
   br->bit_pos_ += (uint32_t)n_bits;
 }
@@ -278,7 +278,7 @@ static BROTLI_INLINE int BrotliJumpToByteBoundary(BrotliBitReader* br) {
 }
 
 /* Peeks a byte at specified offset.
-   Precondition: bit reader is parked to a byte boundry.
+   Precondition: bit reader is parked to a byte boundary.
    Returns -1 if operation is not feasible. */
 static BROTLI_INLINE int BrotliPeekByte(BrotliBitReader* br, int offset) {
   int bytes_left = (int)(sizeof(br->val_) - (br->bit_pos_ >> 3));

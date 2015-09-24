@@ -30,6 +30,7 @@ void BrotliStateInit(BrotliState* s) {
   s->substate_context_map = BROTLI_STATE_CONTEXT_MAP_NONE;
   s->substate_uncompressed = BROTLI_STATE_UNCOMPRESSED_NONE;
   s->substate_huffman = BROTLI_STATE_HUFFMAN_NONE;
+  s->substate_decode_uint8 = BROTLI_STATE_DECODE_UINT8_NONE;
 
   s->block_type_trees = NULL;
   s->block_len_trees = NULL;
