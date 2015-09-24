@@ -81,6 +81,7 @@ typedef enum {
 
 typedef enum {
   BROTLI_STATE_CONTEXT_MAP_NONE,
+  BROTLI_STATE_CONTEXT_MAP_READ_PREFIX,
   BROTLI_STATE_CONTEXT_MAP_HUFFMAN,
   BROTLI_STATE_CONTEXT_MAP_DECODE
 } BrotliRunningContextMapState;
@@ -89,6 +90,12 @@ typedef enum {
   BROTLI_STATE_HUFFMAN_NONE,
   BROTLI_STATE_HUFFMAN_LENGTH_SYMBOLS
 } BrotliRunningHuffmanState;
+
+typedef enum {
+  BROTLI_STATE_DECODE_UINT8_NONE,
+  BROTLI_STATE_DECODE_UINT8_SHORT,
+  BROTLI_STATE_DECODE_UINT8_LONG
+} BrotliRunningDecodeUint8State;
 
 typedef struct {
   BrotliRunningState state;
@@ -186,6 +193,7 @@ typedef struct {
   BrotliRunningContextMapState substate_context_map;
   BrotliRunningUncompressedState substate_uncompressed;
   BrotliRunningHuffmanState substate_huffman;
+  BrotliRunningDecodeUint8State substate_decode_uint8;
 
   uint8_t is_last_metablock;
   uint8_t is_uncompressed;

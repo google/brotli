@@ -53,6 +53,10 @@ int BrotliBuildHuffmanTable(HuffmanCode* root_table,
                             const uint16_t* const symbol_lists,
                             uint16_t *count_arg);
 
+/* Builds a simple Huffman table. The num_symbols parameter is to be */
+/* interpreted as follows: 0 means 1 symbol, 1 means 2 symbols, 2 means 3 */
+/* symbols, 3 means 4 symbols with lengths 2,2,2,2, 4 means 4 symbols with */
+/* lengths 1,2,3,3. */
 int BrotliBuildSimpleHuffmanTable(HuffmanCode* table,
                                   int root_bits,
                                   uint16_t *symbols,
