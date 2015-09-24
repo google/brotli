@@ -192,7 +192,6 @@ int main(int argc, char** argv) {
       }
     } else {
       brotli::BrotliParams params;
-      params.quality = quality;
       brotli::BrotliFileIn in(fin, 1 << 16);
       brotli::BrotliFileOut out(fout);
       if (!BrotliCompress(params, &in, &out)) {
