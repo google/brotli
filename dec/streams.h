@@ -93,6 +93,10 @@ BrotliInput BrotliFileInput(FILE* f);
 int BrotliFileOutputFunction(void* data, const uint8_t* buf, size_t count);
 BrotliOutput BrotliFileOutput(FILE* f);
 
+/* Output callback that does nothing, always consumes the whole input. */
+int BrotliNullOutputFunction(void* data, const uint8_t* buf, size_t count);
+BrotliOutput BrotliNullOutput();
+
 #if defined(__cplusplus) || defined(c_plusplus)
 }    /* extern "C" */
 #endif

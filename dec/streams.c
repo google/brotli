@@ -93,6 +93,16 @@ BrotliOutput BrotliFileOutput(FILE* f) {
   return out;
 }
 
+int BrotliNullOutputFunction(void* data, const uint8_t* buf, size_t count) {
+  return (int)count;
+}
+
+BrotliOutput BrotliNullOutput() {
+  BrotliOutput out;
+  out.cb_ = BrotliNullOutputFunction;
+  out.data_ = NULL;
+  return out;
+}
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }    /* extern "C" */
