@@ -838,7 +838,6 @@ BrotliResult BROTLI_NOINLINE CopyUncompressedBlockToOutput(BrotliOutput output,
           break;
         }
         if (s->substate_uncompressed == BROTLI_STATE_UNCOMPRESSED_WRITE_1) {
-          s->meta_block_remaining_len -= s->ringbuffer_size;
           /* If we wrote past the logical end of the ringbuffer, copy the tail
              of the ringbuffer to its beginning and flush the ringbuffer to the
              output. */
