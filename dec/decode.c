@@ -826,23 +826,16 @@ BrotliResult BROTLI_NOINLINE CopyUncompressedBlockToOutput(BrotliOutput output,
         /* No break, if state is updated, continue to next state */
       case BROTLI_STATE_UNCOMPRESSED_WRITE_1:
       case BROTLI_STATE_UNCOMPRESSED_WRITE_2:
-      case BROTLI_STATE_UNCOMPRESSED_WRITE_3:
         result = WriteRingBuffer(output, s);
         if (result != BROTLI_RESULT_SUCCESS) {
           return result;
         }
         pos &= s->ringbuffer_mask;
         s->max_distance = s->max_backward_distance;
-        if (s->substate_uncompressed == BROTLI_STATE_UNCOMPRESSED_WRITE_2) {
-          s->substate_uncompressed = BROTLI_STATE_UNCOMPRESSED_SHORT;
-          break;
-        }
-        if (s->substate_uncompressed == BROTLI_STATE_UNCOMPRESSED_WRITE_1) {
-          /* If we wrote past the logical end of the ringbuffer, copy the tail
-             of the ringbuffer to its beginning and flush the ringbuffer to the
-             output. */
-          memcpy(s->ringbuffer, s->ringbuffer_end, (size_t)pos);
-        }
+        /* If we wrote past the logical end of the ringbuffer, copy the tail
+           of the ringbuffer to its beginning and flush the ringbuffer to the
+           output. */
+        memcpy(s->ringbuffer, s->ringbuffer_end, (size_t)pos);
         if (pos + s->meta_block_remaining_len >= s->ringbuffer_size) {
           s->substate_uncompressed = BROTLI_STATE_UNCOMPRESSED_FILL;
         } else {
@@ -865,9 +858,8 @@ BrotliResult BROTLI_NOINLINE CopyUncompressedBlockToOutput(BrotliOutput output,
         }
         s->to_write = s->ringbuffer_size;
         s->partially_written = 0;
-        s->substate_uncompressed = BROTLI_STATE_UNCOMPRESSED_WRITE_3;
+        s->substate_uncompressed = BROTLI_STATE_UNCOMPRESSED_WRITE_1;
         break;
-        /* No break, continue to next state */
       case BROTLI_STATE_UNCOMPRESSED_COPY:
         /* Copy straight from the input onto the ringbuffer. The ringbuffer will
            be flushed to the output at a later time. */
