@@ -280,8 +280,8 @@ static BROTLI_INLINE int BrotliJumpToByteBoundary(BrotliBitReader* br) {
 /* Peeks a byte at specified offset.
    Precondition: bit reader is parked to a byte boundary.
    Returns -1 if operation is not feasible. */
-static BROTLI_INLINE int BrotliPeekByte(BrotliBitReader* br, int offset) {
-  int bytes_left = (int)(sizeof(br->val_) - (br->bit_pos_ >> 3));
+static BROTLI_INLINE int BrotliPeekByte(BrotliBitReader* br, unsigned int offset) {
+  unsigned int bytes_left = (sizeof(br->val_) - (br->bit_pos_ >> 3));
   if (br->bit_pos_ & 7) {
     return -1;
   }
