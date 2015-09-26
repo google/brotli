@@ -7,6 +7,10 @@ env:
   - INSTALL_TYPE='macpython' VERSION=3.4.3 CC=clang CXX=clang++
   - INSTALL_TYPE='homebrew' VERSION=2.7.10
   - INSTALL_TYPE='homebrew' VERSION=3.4.3
+  global:
+   # The next declaration is the encrypted COVERITY_SCAN_TOKEN, created
+   #   via the "travis encrypt" command using the project repo's public key
+   - secure: "N9gWONR0+iou47KvLFVSHQwcjk9UkI64bX5uHy1fmbqpubNpHxDXhCE15EzOgE84qXjYNb7QIAVw2d9X/ocw0S8MKxmsiyqhgwPI3Ra/k8pRsvD/I1ueFHfymb7Ml+6bCTRomJJn5Acv45fr+QAwEokCPR9pDGllgdsWlP9YP90="
 install:
 - source terryfy/travis_tools.sh
 - get_python_environment $INSTALL_TYPE $VERSION venv
@@ -28,3 +32,13 @@ deploy:
   on:
     repo: google/brotli
     tags: true
+
+addons:
+  coverity_scan:
+    project:
+      name: "google/brotli"
+      description: "Build submitted via Travis CI"
+    notification_email: eustas.ru@gmail.com
+    build_command_prepend: "make clean"
+    build_command:   "make"
+    branch_pattern: coverity_scan
