@@ -36,15 +36,19 @@ void BrotliInitBitReader(BrotliBitReader* const br, BrotliInput input) {
 }
 
 int BrotliWarmupBitReader(BrotliBitReader* const br) {
-  if (br->bit_pos_ == (sizeof(br->val_) << 3)) {
+  size_t aligned_read_mask = (sizeof(br->val_) >> 1) - 1;
+  /* Fixing alignment after unaligned BrotliFillWindow would result accumulator
+     overflow. If unalignment is caused by BrotliSafeReadBits, then there is
+     enough space in accumulator to fix aligment. */
+  if (!BROTLI_ALIGNED_READ) {
+    aligned_read_mask = 0;
+  }
+  while (br->bit_pos_ == (sizeof(br->val_) << 3) ||
+      (((size_t)br->next_in) & aligned_read_mask) != 0) {
     if (!br->avail_in) {
       return 0;
     }
-    br->bit_pos_ -= 8;
-    br->val_ = *br->next_in;
-    br->val_ <<= br->bit_pos_;
-    br->next_in++;
-    br->avail_in--;
+    BrotliPullByte(br);
   }
   return 1;
 }

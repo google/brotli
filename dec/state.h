@@ -67,10 +67,8 @@ typedef enum {
 typedef enum {
   BROTLI_STATE_UNCOMPRESSED_NONE,
   BROTLI_STATE_UNCOMPRESSED_SHORT,
-  BROTLI_STATE_UNCOMPRESSED_FILL,
   BROTLI_STATE_UNCOMPRESSED_COPY,
-  BROTLI_STATE_UNCOMPRESSED_WRITE_1,
-  BROTLI_STATE_UNCOMPRESSED_WRITE_2
+  BROTLI_STATE_UNCOMPRESSED_WRITE
 } BrotliRunningUncompressedState;
 
 typedef enum {
@@ -199,9 +197,6 @@ typedef struct {
   uint8_t is_metadata;
   uint8_t size_nibbles;
   uint32_t window_bits;
-
-  /* For CopyUncompressedBlockToOutput */
-  int nbytes;
 
   int num_literal_htrees;
   uint8_t* context_map;

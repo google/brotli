@@ -13,7 +13,15 @@
    limitations under the License.
 */
 
-/* Macros for branch prediction. */
+/* Macros for compiler / platform specific features and build options.
+
+   Build options are:
+    * BROTLI_BUILD_PORTABLE disables dangerous optimizations, like unaligned
+      read and overlapping memcpy; this reduces decompression speed by 5%
+    * BROTLI_DEBUG dumps file name and line number when decoder detects stream
+      or memory error
+    * BROTLI_DECODE_DEBUG enables asserts and dumps various state information
+ */
 
 #ifndef BROTLI_DEC_PORT_H_
 #define BROTLI_DEC_PORT_H_
@@ -31,6 +39,14 @@
 
 #ifndef __has_feature
 #define __has_feature(x) 0
+#endif
+
+#ifdef BROTLI_BUILD_PORTABLE
+#define BROTLI_ALIGNED_READ 1
+#define BROTLI_SAFE_MEMMOVE 1
+#else
+#define BROTLI_ALIGNED_READ 0
+#define BROTLI_SAFE_MEMMOVE 0
 #endif
 
 #define BROTLI_ASAN_BUILD __has_feature(address_sanitizer)
@@ -122,7 +138,7 @@ OR:
 #define BROTLI_NOINLINE
 #endif
 
-#if BROTLI_ASAN_BUILD
+#if BROTLI_ASAN_BUILD && !defined(BROTLI_BUILD_PORTABLE)
 #define BROTLI_NO_ASAN __attribute__((no_sanitize("address"))) BROTLI_NOINLINE
 #else
 #define BROTLI_NO_ASAN

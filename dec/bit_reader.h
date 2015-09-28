@@ -59,7 +59,9 @@ typedef struct {
 void BrotliInitBitReader(BrotliBitReader* const br, BrotliInput input);
 
 /* Ensures that accumulator is not empty. May consume one byte of input.
-   Returns 0 if data is required but there is no input available. */
+   Returns 0 if data is required but there is no input available.
+   For BROTLI_BUILD_PORTABLE this function also prepares bit reader for aligned
+   reading. */
 int BrotliWarmupBitReader(BrotliBitReader* const br);
 
 /* Pulls data from the input to the the read buffer.
@@ -129,11 +131,12 @@ static BROTLI_INLINE int BrotliCheckInputAmount(
 
 /* Guarantees that there are at least n_bits + 1 bits in accumulator.
    Precondition: accumulator contains at least 1 bit.
-   n_bits should be in the range [1..24] */
+   n_bits should be in the range [1..24] for regular build. For portable
+   non-64-bit little endian build only 16 bits are safe to request. */
 static BROTLI_INLINE void BrotliFillBitWindow(
     BrotliBitReader* const br, int n_bits) {
 #if (BROTLI_64_BITS_LITTLE_ENDIAN)
-  if (IS_CONSTANT(n_bits) && n_bits <= 8) {
+  if (!BROTLI_ALIGNED_READ && IS_CONSTANT(n_bits) && (n_bits <= 8)) {
     if (br->bit_pos_ >= 56) {
       br->val_ >>= 56;
       br->bit_pos_ ^= 56;  /* here same as -= 56 because of the if condition */
@@ -141,7 +144,7 @@ static BROTLI_INLINE void BrotliFillBitWindow(
       br->avail_in -= 7;
       br->next_in += 7;
     }
-  } else if (IS_CONSTANT(n_bits) && n_bits <= 16) {
+  } else if (!BROTLI_ALIGNED_READ && IS_CONSTANT(n_bits) && (n_bits <= 16)) {
     if (br->bit_pos_ >= 48) {
       br->val_ >>= 48;
       br->bit_pos_ ^= 48;  /* here same as -= 48 because of the if condition */
@@ -159,7 +162,7 @@ static BROTLI_INLINE void BrotliFillBitWindow(
     }
   }
 #elif (BROTLI_LITTLE_ENDIAN)
-  if (IS_CONSTANT(n_bits) && n_bits <= 8) {
+  if (!BROTLI_ALIGNED_READ && IS_CONSTANT(n_bits) && (n_bits <= 8)) {
     if (br->bit_pos_ >= 24) {
       br->val_ >>= 24;
       br->bit_pos_ ^= 24;  /* here same as -= 24 because of the if condition */
@@ -175,23 +178,10 @@ static BROTLI_INLINE void BrotliFillBitWindow(
       br->avail_in -= 2;
       br->next_in += 2;
     }
-    if (!IS_CONSTANT(n_bits) || (n_bits > 16)) {
-      if (br->bit_pos_ >= 8) {
-        br->val_ >>= 8;
-        br->bit_pos_ ^= 8;  /* here same as -= 8 because of the if condition */
-        br->val_ |= ((uint32_t)*br->next_in) << 24;
-        --br->avail_in;
-        ++br->next_in;
-      }
-    }
   }
 #else
-  while (br->bit_pos_ >= 8) {
-    br->val_ >>= 8;
-    br->val_ |= ((uint32_t)*br->next_in) << 24;
-    br->bit_pos_ -= 8;
-    --br->avail_in;
-    ++br->next_in;
+  while (br->bit_pos_ >= 16) {
+    BrotliPullByte(br);
   }
 #endif
 }
@@ -246,10 +236,20 @@ static BROTLI_INLINE void BrotliTakeBits(
    Assumes that there is enough input to perform BrotliFillBitWindow. */
 static BROTLI_INLINE uint32_t BrotliReadBits(
     BrotliBitReader* const br, int n_bits) {
-  uint32_t val;
-  BrotliFillBitWindow(br, n_bits);
-  BrotliTakeBits(br, n_bits, &val);
-  return val;
+  if (BROTLI_64_BITS_LITTLE_ENDIAN || (n_bits <= 16)) {
+    uint32_t val;
+    BrotliFillBitWindow(br, n_bits);
+    BrotliTakeBits(br, n_bits, &val);
+    return val;
+  } else {
+    uint32_t low_val;
+    uint32_t high_val;
+    BrotliFillBitWindow(br, 16);
+    BrotliTakeBits(br, 16, &low_val);
+    BrotliFillBitWindow(br, 8);
+    BrotliTakeBits(br, n_bits - 16, &high_val);
+    return low_val | (high_val << 16);
+  }
 }
 
 /* Tries to read the specified amount of bits. Returns 0, if there is not

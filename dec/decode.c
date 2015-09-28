@@ -94,7 +94,16 @@ static uint32_t DecodeWindowBits(BrotliBitReader* br) {
 
 static BROTLI_INLINE BROTLI_NO_ASAN void memmove16(
     uint8_t* dst, uint8_t* src) {
-#ifdef __ARM_NEON__
+#if BROTLI_SAFE_MEMMOVE
+  /* For x86 this compiles to the same binary as signle memcpy.
+     On ARM memcpy is not inlined, so it works slower.
+     This implementation makes decompression 1% slower than regular one,
+     and 2% slower than NEON implementation.
+   */
+  uint32_t buffer[4];
+  memcpy(buffer, src, 16);
+  memcpy(dst, buffer, 16);
+#elif defined(__ARM_NEON__)
   vst1q_u8(dst, vld1q_u8(src));
 #else
   /* memcpy is unsafe for overlapping regions and ASAN detects this.
@@ -777,6 +786,7 @@ BrotliResult BROTLI_NOINLINE CopyUncompressedBlockToOutput(BrotliOutput output,
                                                            BrotliState* s) {
   BrotliResult result;
   int num_read;
+  int nbytes;
   /* State machine */
   for (;;) {
     switch ((int)s->substate_uncompressed) {
@@ -788,21 +798,17 @@ BrotliResult BROTLI_NOINLINE CopyUncompressedBlockToOutput(BrotliOutput output,
           break;
         }
         /* Copy remaining bytes from s->br.buf_ to ringbuffer. */
-        s->nbytes = (int)BrotliGetRemainingBytes(&s->br);
-        BrotliCopyBytes(&s->ringbuffer[pos], &s->br, (size_t)s->nbytes);
-        pos += s->nbytes;
-        s->meta_block_remaining_len -= s->nbytes;
+        nbytes = (int)BrotliGetRemainingBytes(&s->br);
+        BrotliCopyBytes(&s->ringbuffer[pos], &s->br, (size_t)nbytes);
+        pos += nbytes;
+        s->meta_block_remaining_len -= nbytes;
         if (pos >= s->ringbuffer_size) {
           s->to_write = s->ringbuffer_size;
           s->partially_written = 0;
-          s->substate_uncompressed = BROTLI_STATE_UNCOMPRESSED_WRITE_1;
+          s->substate_uncompressed = BROTLI_STATE_UNCOMPRESSED_WRITE;
           break;
         }
-        if (pos + s->meta_block_remaining_len >= s->ringbuffer_size) {
-          s->substate_uncompressed = BROTLI_STATE_UNCOMPRESSED_FILL;
-        } else {
-          s->substate_uncompressed = BROTLI_STATE_UNCOMPRESSED_COPY;
-        }
+        s->substate_uncompressed = BROTLI_STATE_UNCOMPRESSED_COPY;
         break;
       case BROTLI_STATE_UNCOMPRESSED_SHORT:
         if (!BrotliWarmupBitReader(&s->br)) {
@@ -818,14 +824,13 @@ BrotliResult BROTLI_NOINLINE CopyUncompressedBlockToOutput(BrotliOutput output,
         if (pos >= s->ringbuffer_size) {
           s->to_write = s->ringbuffer_size;
           s->partially_written = 0;
-          s->substate_uncompressed = BROTLI_STATE_UNCOMPRESSED_WRITE_2;
+          s->substate_uncompressed = BROTLI_STATE_UNCOMPRESSED_WRITE;
         } else {
           s->substate_uncompressed = BROTLI_STATE_UNCOMPRESSED_NONE;
           return BROTLI_RESULT_SUCCESS;
         }
         /* No break, if state is updated, continue to next state */
-      case BROTLI_STATE_UNCOMPRESSED_WRITE_1:
-      case BROTLI_STATE_UNCOMPRESSED_WRITE_2:
+      case BROTLI_STATE_UNCOMPRESSED_WRITE:
         result = WriteRingBuffer(output, s);
         if (result != BROTLI_RESULT_SUCCESS) {
           return result;
@@ -836,40 +841,28 @@ BrotliResult BROTLI_NOINLINE CopyUncompressedBlockToOutput(BrotliOutput output,
            of the ringbuffer to its beginning and flush the ringbuffer to the
            output. */
         memcpy(s->ringbuffer, s->ringbuffer_end, (size_t)pos);
-        if (pos + s->meta_block_remaining_len >= s->ringbuffer_size) {
-          s->substate_uncompressed = BROTLI_STATE_UNCOMPRESSED_FILL;
-        } else {
-          s->substate_uncompressed = BROTLI_STATE_UNCOMPRESSED_COPY;
-          break;
-        }
+        s->substate_uncompressed = BROTLI_STATE_UNCOMPRESSED_COPY;
         /* No break, continue to next state */
-      case BROTLI_STATE_UNCOMPRESSED_FILL:
-        /* If we have more to copy than the remaining size of the ringbuffer,
-           then we first fill the ringbuffer from the input and then flush the
-           ringbuffer to the output */
-        s->nbytes = s->ringbuffer_size - pos;
-        num_read = BrotliRead(s->br.input_, &s->ringbuffer[pos],
-                              (size_t)s->nbytes);
-        pos += num_read;
-        s->meta_block_remaining_len -= num_read;
-        if (num_read < s->nbytes) {
-          if (num_read < 0) return BROTLI_FAILURE();
-          return BROTLI_RESULT_NEEDS_MORE_INPUT;
-        }
-        s->to_write = s->ringbuffer_size;
-        s->partially_written = 0;
-        s->substate_uncompressed = BROTLI_STATE_UNCOMPRESSED_WRITE_1;
-        break;
       case BROTLI_STATE_UNCOMPRESSED_COPY:
         /* Copy straight from the input onto the ringbuffer. The ringbuffer will
            be flushed to the output at a later time. */
+        nbytes = s->meta_block_remaining_len;
+        if (pos + nbytes > s->ringbuffer_size) {
+          nbytes = s->ringbuffer_size - pos;
+        }
         num_read = BrotliRead(s->br.input_, &s->ringbuffer[pos],
-                              (size_t)s->meta_block_remaining_len);
+                              (size_t)nbytes);
         pos += num_read;
         s->meta_block_remaining_len -= num_read;
-        if (s->meta_block_remaining_len > 0) {
+        if (num_read < nbytes) {
           if (num_read < 0) return BROTLI_FAILURE();
           return BROTLI_RESULT_NEEDS_MORE_INPUT;
+        }
+        if (pos == s->ringbuffer_size) {
+          s->to_write = s->ringbuffer_size;
+          s->partially_written = 0;
+          s->substate_uncompressed = BROTLI_STATE_UNCOMPRESSED_WRITE;
+          break;
         }
         s->substate_uncompressed = BROTLI_STATE_UNCOMPRESSED_NONE;
         return BROTLI_RESULT_SUCCESS;
@@ -1317,16 +1310,20 @@ BrotliResult BrotliDecompressStreaming(BrotliInput input, BrotliOutput output,
         }
         {
           int cmd_code = ReadSymbol(s->htree_command, br);
+          int insert_len_extra = 0;
           CmdLutElement v;
           --s->block_length[1];
           v = kCmdLut[cmd_code];
           s->distance_code = v.distance_code;
           s->distance_context = v.context;
           s->dist_htree_index = s->dist_context_map_slice[s->distance_context];
-          i = (int)BrotliReadBits(br, v.insert_len_extra_bits) +
-              v.insert_len_offset;
+          i = v.insert_len_offset;
+          if (PREDICT_FALSE(v.insert_len_extra_bits != 0)) {
+            insert_len_extra = (int)BrotliReadBits(br, v.insert_len_extra_bits);
+          }
           s->copy_length = (int)BrotliReadBits(br, v.copy_len_extra_bits) +
-              v.copy_len_offset;
+                           v.copy_len_offset;
+          i += insert_len_extra;
         }
         BROTLI_LOG_UINT(i);
         BROTLI_LOG_UINT(s->copy_length);
