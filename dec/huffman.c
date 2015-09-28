@@ -88,6 +88,7 @@ void BrotliBuildCodeLengthsHuffmanTable(HuffmanCode* table,
     offset[bits] = symbol;
     bits++;
   });
+  /* Symbols with code length 0 are placed after all other symbols. */
   offset[0] = 17;
 
   /* sort symbols by length, by symbol order within each length */
@@ -101,8 +102,8 @@ void BrotliBuildCodeLengthsHuffmanTable(HuffmanCode* table,
 
   table_size = 1 << BROTLI_HUFFMAN_MAX_CODE_LENGTH_CODE_LENGTH;
 
-  /* special case code with only one value */
-  if (offset[BROTLI_HUFFMAN_MAX_CODE_LENGTH_CODE_LENGTH] == 0) {
+  /* Special case: all symbols but one have 0 code length. */
+  if (offset[0] == 0) {
     code.bits = 0;
     code.value = (uint16_t)sorted[0];
     for (key = 0; key < table_size; ++key) {
