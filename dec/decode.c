@@ -1317,16 +1317,20 @@ BrotliResult BrotliDecompressStreaming(BrotliInput input, BrotliOutput output,
         }
         {
           int cmd_code = ReadSymbol(s->htree_command, br);
+          int insert_len_extra = 0;
           CmdLutElement v;
           --s->block_length[1];
           v = kCmdLut[cmd_code];
           s->distance_code = v.distance_code;
           s->distance_context = v.context;
           s->dist_htree_index = s->dist_context_map_slice[s->distance_context];
-          i = (int)BrotliReadBits(br, v.insert_len_extra_bits) +
-              v.insert_len_offset;
+          i = v.insert_len_offset;
+          if (PREDICT_FALSE(v.insert_len_extra_bits != 0)) {
+            insert_len_extra = (int)BrotliReadBits(br, v.insert_len_extra_bits);
+          }
           s->copy_length = (int)BrotliReadBits(br, v.copy_len_extra_bits) +
-              v.copy_len_offset;
+                           v.copy_len_offset;
+          i += insert_len_extra;
         }
         BROTLI_LOG_UINT(i);
         BROTLI_LOG_UINT(s->copy_length);
