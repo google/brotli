@@ -60,12 +60,12 @@ artifacts:
 
 # For info, see: http://www.appveyor.com/docs/deployment/github
 
-# deploy:
-#   - provider: GitHub
-#     auth_token: 
-#       secure: <your Github OAuth token>
-#     artifact:
-#     draft: false
-#     prerelease: false
-#     on:
-#       appveyor_repo_tag: true
+deploy:
+  - provider: GitHub
+    auth_token:
+      secure: dfL56DgbwuGJNNE5GzKi/pAgBQnJ37Du+AnCtnsTnIYxpis8ah3fPmA/G+bn4NJ3
+    artifact:
+    draft: false
+    prerelease: false
+    on:
+      appveyor_repo_tag: true
