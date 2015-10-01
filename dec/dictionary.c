@@ -15,6 +15,10 @@
 
 #include "./dictionary.h"
 
+#if defined(__cplusplus) || defined(c_plusplus)
+extern "C" {
+#endif
+
 /* In case of multiple definition linker error with dictionary.cc from the
   encoder: include only one of enc/dictionary.cc or dec/dictionary.c in a
   target using both enc and dec. */
@@ -9465,3 +9469,7 @@ const uint8_t kBrotliDictionary[122784] = {
   0x88, 0xe0, 0xa4, 0xb8, 0xe0, 0xa4, 0x95, 0xe0, 0xa5, 0x8d, 0xe0, 0xa4, 0xb0,
   0xe0, 0xa4, 0xbf, 0xe0, 0xa4, 0xaf, 0xe0, 0xa4, 0xa4, 0xe0, 0xa4, 0xbe,
 };
+
+#if defined(__cplusplus) || defined(c_plusplus)
+}    /* extern "C" */
+#endif

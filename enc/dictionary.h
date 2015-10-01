@@ -21,6 +21,10 @@
 
 // No namespace, use same identifier as for the C decoder.
 
+#if defined(__cplusplus) || defined(c_plusplus)
+extern "C" {
+#endif
+
 extern const uint8_t kBrotliDictionary[122784];
 
 static const int kBrotliDictionaryOffsetsByLength[] = {
@@ -37,5 +41,9 @@ static const int kBrotliDictionarySizeBitsByLength[] = {
 
 static const int kBrotliMinDictionaryWordLength = 4;
 static const int kBrotliMaxDictionaryWordLength = 24;
+
+#if defined(__cplusplus) || defined(c_plusplus)
+}    /* extern "C" */
+#endif
 
 #endif  // BROTLI_ENC_DICTIONARY_H_
