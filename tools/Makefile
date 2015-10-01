@@ -17,7 +17,7 @@ $(EXECUTABLES) : $(EXE_OBJS) deps
 
 deps :
 	$(MAKE) -C $(BROTLI)/dec
-	$(MAKE) -C $(BROTLI)/enc
+	$(MAKE) -C $(BROTLI)/enc nodict
 
 clean :
 	rm -f $(OBJS) $(EXE_OBJS) $(EXECUTABLES)
