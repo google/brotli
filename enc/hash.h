@@ -18,8 +18,6 @@
 #ifndef BROTLI_ENC_HASH_H_
 #define BROTLI_ENC_HASH_H_
 
-#include <stddef.h>
-#include <stdint.h>
 #include <string.h>
 #include <sys/types.h>
 #include <algorithm>
@@ -34,6 +32,7 @@
 #include "./prefix.h"
 #include "./static_dict.h"
 #include "./transform.h"
+#include "./types.h"
 
 namespace brotli {
 
@@ -622,17 +621,32 @@ struct Hashers {
   typedef HashLongestMatch<15, 7, 10> H8;
   typedef HashLongestMatch<15, 8, 16> H9;
 
+  Hashers() : hash_h1(0), hash_h2(0), hash_h3(0), hash_h4(0), hash_h5(0),
+              hash_h6(0), hash_h7(0), hash_h8(0), hash_h9(0) {}
+
+  ~Hashers() {
+    delete hash_h1;
+    delete hash_h2;
+    delete hash_h3;
+    delete hash_h4;
+    delete hash_h5;
+    delete hash_h6;
+    delete hash_h7;
+    delete hash_h8;
+    delete hash_h9;
+  }
+
   void Init(int type) {
     switch (type) {
-      case 1: hash_h1.reset(new H1); break;
-      case 2: hash_h2.reset(new H2); break;
-      case 3: hash_h3.reset(new H3); break;
-      case 4: hash_h4.reset(new H4); break;
-      case 5: hash_h5.reset(new H5); break;
-      case 6: hash_h6.reset(new H6); break;
-      case 7: hash_h7.reset(new H7); break;
-      case 8: hash_h8.reset(new H8); break;
-      case 9: hash_h9.reset(new H9); break;
+      case 1: hash_h1 = new H1; break;
+      case 2: hash_h2 = new H2; break;
+      case 3: hash_h3 = new H3; break;
+      case 4: hash_h4 = new H4; break;
+      case 5: hash_h5 = new H5; break;
+      case 6: hash_h6 = new H6; break;
+      case 7: hash_h7 = new H7; break;
+      case 8: hash_h8 = new H8; break;
+      case 9: hash_h9 = new H9; break;
       default: break;
     }
   }
@@ -648,28 +662,28 @@ struct Hashers {
   void PrependCustomDictionary(
       int type, const size_t size, const uint8_t* dict) {
     switch (type) {
-      case 1: WarmupHash(size, dict, hash_h1.get()); break;
-      case 2: WarmupHash(size, dict, hash_h2.get()); break;
-      case 3: WarmupHash(size, dict, hash_h3.get()); break;
-      case 4: WarmupHash(size, dict, hash_h4.get()); break;
-      case 5: WarmupHash(size, dict, hash_h5.get()); break;
-      case 6: WarmupHash(size, dict, hash_h6.get()); break;
-      case 7: WarmupHash(size, dict, hash_h7.get()); break;
-      case 8: WarmupHash(size, dict, hash_h8.get()); break;
-      case 9: WarmupHash(size, dict, hash_h9.get()); break;
+      case 1: WarmupHash(size, dict, hash_h1); break;
+      case 2: WarmupHash(size, dict, hash_h2); break;
+      case 3: WarmupHash(size, dict, hash_h3); break;
+      case 4: WarmupHash(size, dict, hash_h4); break;
+      case 5: WarmupHash(size, dict, hash_h5); break;
+      case 6: WarmupHash(size, dict, hash_h6); break;
+      case 7: WarmupHash(size, dict, hash_h7); break;
+      case 8: WarmupHash(size, dict, hash_h8); break;
+      case 9: WarmupHash(size, dict, hash_h9); break;
       default: break;
     }
   }
 
-  std::unique_ptr<H1> hash_h1;
-  std::unique_ptr<H2> hash_h2;
-  std::unique_ptr<H3> hash_h3;
-  std::unique_ptr<H4> hash_h4;
-  std::unique_ptr<H5> hash_h5;
-  std::unique_ptr<H6> hash_h6;
-  std::unique_ptr<H7> hash_h7;
-  std::unique_ptr<H8> hash_h8;
-  std::unique_ptr<H9> hash_h9;
+  H1* hash_h1;
+  H2* hash_h2;
+  H3* hash_h3;
+  H4* hash_h4;
+  H5* hash_h5;
+  H6* hash_h6;
+  H7* hash_h7;
+  H8* hash_h8;
+  H9* hash_h9;
 };
 
 }  // namespace brotli

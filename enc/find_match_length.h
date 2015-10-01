@@ -17,11 +17,9 @@
 #ifndef BROTLI_ENC_FIND_MATCH_LENGTH_H_
 #define BROTLI_ENC_FIND_MATCH_LENGTH_H_
 
-#include <stdint.h>
-
-#include <stddef.h>
 
 #include "./port.h"
+#include "./types.h"
 
 namespace brotli {
 

@@ -17,7 +17,7 @@
 #ifndef BROTLI_ENC_CONTEXT_H_
 #define BROTLI_ENC_CONTEXT_H_
 
-#include <stdint.h>
+#include "./types.h"
 
 namespace brotli {
 

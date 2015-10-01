@@ -17,8 +17,7 @@
 #ifndef BROTLI_ENC_LITERAL_COST_H_
 #define BROTLI_ENC_LITERAL_COST_H_
 
-#include <stddef.h>
-#include <stdint.h>
+#include "./types.h"
 
 namespace brotli {
 

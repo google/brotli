@@ -16,13 +16,13 @@
 
 #include "./entropy_encode.h"
 
-#include <stdint.h>
 #include <algorithm>
 #include <limits>
 #include <vector>
 #include <cstdlib>
 
 #include "./histogram.h"
+#include "./types.h"
 
 namespace brotli {
 

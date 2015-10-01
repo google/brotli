@@ -18,7 +18,6 @@
 #define BROTLI_ENC_CLUSTER_H_
 
 #include <math.h>
-#include <stdint.h>
 #include <stdio.h>
 #include <algorithm>
 #include <complex>
@@ -31,6 +30,7 @@
 #include "./entropy_encode.h"
 #include "./fast_log.h"
 #include "./histogram.h"
+#include "./types.h"
 
 namespace brotli {
 
@@ -264,6 +264,7 @@ void ClusterHistograms(const std::vector<HistogramType>& in,
     (*histogram_symbols)[i] = i;
   }
 
+
   const int max_input_histograms = 64;
   for (int i = 0; i < in_size; i += max_input_histograms) {
     int num_to_combine = std::min(in_size - i, max_input_histograms);
@@ -282,6 +283,7 @@ void ClusterHistograms(const std::vector<HistogramType>& in,
 
   // Convert the context map to a canonical form.
   HistogramReindex(out, histogram_symbols);
+
 }
 
 

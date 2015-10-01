@@ -17,11 +17,11 @@
 #ifndef BROTLI_ENC_ENTROPY_ENCODE_H_
 #define BROTLI_ENC_ENTROPY_ENCODE_H_
 
-#include <stdint.h>
 #include <string.h>
 #include <vector>
 #include "./histogram.h"
 #include "./prefix.h"
+#include "./types.h"
 
 namespace brotli {
 

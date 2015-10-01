@@ -18,10 +18,10 @@
 #define BROTLI_ENC_BIT_COST_H_
 
 
-#include <stdint.h>
 
 #include "./entropy_encode.h"
 #include "./fast_log.h"
+#include "./types.h"
 
 namespace brotli {
 

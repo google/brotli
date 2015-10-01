@@ -17,13 +17,13 @@
 #ifndef BROTLI_ENC_HISTOGRAM_H_
 #define BROTLI_ENC_HISTOGRAM_H_
 
-#include <stdint.h>
 #include <string.h>
 #include <vector>
 #include <utility>
 #include "./command.h"
 #include "./fast_log.h"
 #include "./prefix.h"
+#include "./types.h"
 
 namespace brotli {
 
