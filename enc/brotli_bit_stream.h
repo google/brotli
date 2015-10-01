@@ -24,11 +24,10 @@
 #ifndef BROTLI_ENC_BROTLI_BIT_STREAM_H_
 #define BROTLI_ENC_BROTLI_BIT_STREAM_H_
 
-#include <stddef.h>
-#include <stdint.h>
 #include <vector>
 
 #include "./metablock.h"
+#include "./types.h"
 
 namespace brotli {
 

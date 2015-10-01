@@ -17,14 +17,13 @@
 #ifndef BROTLI_ENC_BLOCK_SPLITTER_H_
 #define BROTLI_ENC_BLOCK_SPLITTER_H_
 
-#include <stddef.h>
-#include <stdint.h>
 #include <string.h>
 #include <vector>
 #include <utility>
 
 #include "./command.h"
 #include "./metablock.h"
+#include "./types.h"
 
 namespace brotli {
 

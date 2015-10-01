@@ -636,7 +636,7 @@ void CreateBackwardReferences(size_t num_bytes,
                               int* num_literals) {
   bool zopflify = quality > 9;
   if (zopflify) {
-    Hashers::H9* hasher = hashers->hash_h9.get();
+    Hashers::H9* hasher = hashers->hash_h9;
     if (num_bytes >= 3 && position >= 3) {
       // Prepare the hashes for three last bytes of the last write.
       // These could not be calculated before, since they require knowledge
@@ -710,55 +710,55 @@ void CreateBackwardReferences(size_t num_bytes,
     case 1:
       CreateBackwardReferences<Hashers::H1>(
           num_bytes, position, ringbuffer, ringbuffer_mask, max_backward_limit,
-          quality, hashers->hash_h1.get(), dist_cache, last_insert_len,
+          quality, hashers->hash_h1, dist_cache, last_insert_len,
           commands, num_commands, num_literals);
       break;
     case 2:
       CreateBackwardReferences<Hashers::H2>(
           num_bytes, position, ringbuffer, ringbuffer_mask, max_backward_limit,
-          quality, hashers->hash_h2.get(), dist_cache, last_insert_len,
+          quality, hashers->hash_h2, dist_cache, last_insert_len,
           commands, num_commands, num_literals);
       break;
     case 3:
       CreateBackwardReferences<Hashers::H3>(
           num_bytes, position, ringbuffer, ringbuffer_mask, max_backward_limit,
-          quality, hashers->hash_h3.get(), dist_cache, last_insert_len,
+          quality, hashers->hash_h3, dist_cache, last_insert_len,
           commands, num_commands, num_literals);
       break;
     case 4:
       CreateBackwardReferences<Hashers::H4>(
           num_bytes, position, ringbuffer, ringbuffer_mask, max_backward_limit,
-          quality, hashers->hash_h4.get(), dist_cache, last_insert_len,
+          quality, hashers->hash_h4, dist_cache, last_insert_len,
           commands, num_commands, num_literals);
       break;
     case 5:
       CreateBackwardReferences<Hashers::H5>(
           num_bytes, position, ringbuffer, ringbuffer_mask, max_backward_limit,
-          quality, hashers->hash_h5.get(), dist_cache, last_insert_len,
+          quality, hashers->hash_h5, dist_cache, last_insert_len,
           commands, num_commands, num_literals);
       break;
     case 6:
       CreateBackwardReferences<Hashers::H6>(
           num_bytes, position, ringbuffer, ringbuffer_mask, max_backward_limit,
-          quality, hashers->hash_h6.get(), dist_cache, last_insert_len,
+          quality, hashers->hash_h6, dist_cache, last_insert_len,
           commands, num_commands, num_literals);
       break;
     case 7:
       CreateBackwardReferences<Hashers::H7>(
           num_bytes, position, ringbuffer, ringbuffer_mask, max_backward_limit,
-          quality, hashers->hash_h7.get(), dist_cache, last_insert_len,
+          quality, hashers->hash_h7, dist_cache, last_insert_len,
           commands, num_commands, num_literals);
       break;
     case 8:
       CreateBackwardReferences<Hashers::H8>(
           num_bytes, position, ringbuffer, ringbuffer_mask, max_backward_limit,
-          quality, hashers->hash_h8.get(), dist_cache, last_insert_len,
+          quality, hashers->hash_h8, dist_cache, last_insert_len,
           commands, num_commands, num_literals);
       break;
     case 9:
       CreateBackwardReferences<Hashers::H9>(
           num_bytes, position, ringbuffer, ringbuffer_mask, max_backward_limit,
-          quality, hashers->hash_h9.get(), dist_cache, last_insert_len,
+          quality, hashers->hash_h9, dist_cache, last_insert_len,
           commands, num_commands, num_literals);
       break;
     default:

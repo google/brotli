@@ -16,7 +16,6 @@
 
 #include "./histogram.h"
 
-#include <stdint.h>
 #include <cmath>
 
 #include "./block_splitter.h"

@@ -18,10 +18,10 @@
 #define BROTLI_ENC_BIT_COST_H_
 
 
-#include <stdint.h>
 
 #include "./entropy_encode.h"
 #include "./fast_log.h"
+#include "./types.h"
 
 namespace brotli {
 
@@ -77,12 +77,12 @@ double PopulationCost(const Histogram<kSize>& histogram) {
     return 20 + histogram.total_count_;
   }
   double bits = 0;
-  uint8_t depth[kSize] = { 0 };
+  uint8_t depth_array[kSize] = { 0 };
   if (count <= 4) {
     // For very low symbol count we build the Huffman tree.
-    CreateHuffmanTree(&histogram.data_[0], kSize, 15, depth);
+    CreateHuffmanTree(&histogram.data_[0], kSize, 15, depth_array);
     for (int i = 0; i < kSize; ++i) {
-      bits += histogram.data_[i] * depth[i];
+      bits += histogram.data_[i] * depth_array[i];
     }
     return count == 3 ? bits + 28 : bits + 37;
   }

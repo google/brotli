@@ -17,9 +17,10 @@
 #ifndef BROTLI_ENC_STREAMS_H_
 #define BROTLI_ENC_STREAMS_H_
 
-#include <stddef.h>
 #include <stdio.h>
 #include <string>
+#include "./port.h"
+#include "./types.h"
 
 namespace brotli {
 
@@ -56,7 +57,7 @@ class BrotliMemIn : public BrotliIn {
   // returns the amount of data consumed
   int position() const { return pos_; }
 
-  const void* Read(size_t n, size_t* OUTPUT) override;
+  const void* Read(size_t n, size_t* OUTPUT);
 
  private:
   const void* buf_;  // start of input buffer
@@ -74,7 +75,7 @@ class BrotliMemOut : public BrotliOut {
   // returns the amount of data written
   int position() const { return pos_; }
 
-  bool Write(const void* buf, size_t n) override;
+  bool Write(const void* buf, size_t n);
 
  private:
   void* buf_;  // start of output buffer
@@ -92,7 +93,7 @@ class BrotliStringOut : public BrotliOut {
 
   void Reset(std::string* buf, int max_len);
 
-  bool Write(const void* buf, size_t n) override;
+  bool Write(const void* buf, size_t n);
 
  private:
   std::string* buf_;  // start of output buffer
@@ -105,7 +106,7 @@ class BrotliFileIn : public BrotliIn {
   BrotliFileIn(FILE* f, size_t max_read_size);
   ~BrotliFileIn();
 
-  const void* Read(size_t n, size_t* bytes_read) override;
+  const void* Read(size_t n, size_t* bytes_read);
 
  private:
   FILE* f_;
@@ -118,7 +119,7 @@ class BrotliFileOut : public BrotliOut {
  public:
   explicit BrotliFileOut(FILE* f);
 
-  bool Write(const void* buf, size_t n) override;
+  bool Write(const void* buf, size_t n);
  private:
   FILE* f_;
 };

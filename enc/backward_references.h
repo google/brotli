@@ -17,11 +17,11 @@
 #ifndef BROTLI_ENC_BACKWARD_REFERENCES_H_
 #define BROTLI_ENC_BACKWARD_REFERENCES_H_
 
-#include <stdint.h>
 #include <vector>
 
 #include "./hash.h"
 #include "./command.h"
+#include "./types.h"
 
 namespace brotli {
 

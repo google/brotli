@@ -17,8 +17,6 @@
 #ifndef BROTLI_ENC_ENCODE_H_
 #define BROTLI_ENC_ENCODE_H_
 
-#include <stddef.h>
-#include <stdint.h>
 #include <string>
 #include <vector>
 #include "./command.h"
@@ -26,6 +24,7 @@
 #include "./ringbuffer.h"
 #include "./static_dict.h"
 #include "./streams.h"
+#include "./types.h"
 
 namespace brotli {
 
@@ -149,14 +148,14 @@ class BrotliCompressor {
 
   BrotliParams params_;
   int max_backward_distance_;
-  std::unique_ptr<Hashers> hashers_;
+  Hashers* hashers_;
   int hash_type_;
   size_t input_pos_;
-  std::unique_ptr<RingBuffer> ringbuffer_;
-  std::unique_ptr<float[]> literal_cost_;
+  RingBuffer* ringbuffer_;
+  float* literal_cost_;
   size_t literal_cost_mask_;
   size_t cmd_buffer_size_;
-  std::unique_ptr<Command[]> commands_;
+  Command* commands_;
   int num_commands_;
   int num_literals_;
   int last_insert_len_;
@@ -169,7 +168,7 @@ class BrotliCompressor {
   uint8_t prev_byte_;
   uint8_t prev_byte2_;
   int storage_size_;
-  std::unique_ptr<uint8_t[]> storage_;
+  uint8_t* storage_;
 };
 
 // Compresses the data in input_buffer into encoded_buffer, and sets

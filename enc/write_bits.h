@@ -18,10 +18,10 @@
 #define BROTLI_ENC_WRITE_BITS_H_
 
 #include <assert.h>
-#include <stdint.h>
 #include <stdio.h>
 
 #include "./port.h"
+#include "./types.h"
 
 namespace brotli {
 

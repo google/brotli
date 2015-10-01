@@ -17,10 +17,9 @@
 #ifndef BROTLI_ENC_RINGBUFFER_H_
 #define BROTLI_ENC_RINGBUFFER_H_
 
-#include <stddef.h>
-#include <stdint.h>
 
 #include "./port.h"
+#include "./types.h"
 
 namespace brotli {
 

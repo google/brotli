@@ -18,8 +18,8 @@
 #ifndef BROTLI_ENC_PREFIX_H_
 #define BROTLI_ENC_PREFIX_H_
 
-#include <stdint.h>
 #include "./fast_log.h"
+#include "./types.h"
 
 namespace brotli {
 

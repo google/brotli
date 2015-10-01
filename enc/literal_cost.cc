@@ -17,10 +17,10 @@
 #include "./literal_cost.h"
 
 #include <math.h>
-#include <stdint.h>
 #include <algorithm>
 
 #include "./fast_log.h"
+#include "./types.h"
 
 namespace brotli {
 

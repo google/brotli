@@ -28,7 +28,6 @@
 #include "./fast_log.h"
 #include "./prefix.h"
 #include "./write_bits.h"
-
 namespace brotli {
 
 // returns false if fail
@@ -274,6 +273,7 @@ void StoreHuffmanTree(const uint8_t* depths, size_t num,
                             code_length_bitdepth_symbols,
                             storage_ix, storage);
 }
+
 
 void BuildAndStoreHuffmanTree(const int *histogram,
                               const int length,

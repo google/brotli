@@ -18,6 +18,7 @@
 #define BROTLI_ENC_PORT_H_
 
 #include <string.h>
+#include "./types.h"
 
 #if defined OS_LINUX || defined OS_CYGWIN
 #include <endian.h>
