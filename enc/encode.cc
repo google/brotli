@@ -40,6 +40,9 @@ namespace brotli {
 static const int kMinQualityForBlockSplit = 4;
 static const int kMinQualityForContextModeling = 5;
 static const int kMinQualityForOptimizeHistograms = 4;
+// For quality 1 there is no block splitting, so we buffer at most this much
+// literals and commands.
+static const int kMaxNumDelayedSymbols = 0x2fff;
 
 void RecomputeDistancePrefixes(Command* cmds,
                                size_t num_commands,
@@ -110,9 +113,8 @@ BrotliCompressor::BrotliCompressor(BrotliParams params)
   int ringbuffer_bits = std::max(params_.lgwin + 1, params_.lgblock + 1);
   ringbuffer_ = new RingBuffer(ringbuffer_bits, params_.lgblock);
 
-  // Allocate command buffer.
-  cmd_buffer_size_ = std::max(1 << 18, 1 << params_.lgblock);
-  commands_ = new brotli::Command[cmd_buffer_size_];
+  commands_ = 0;
+  cmd_alloc_size_ = 0;
 
   // Initialize last byte with stream header.
   if (params_.lgwin == 16) {
@@ -145,7 +147,7 @@ BrotliCompressor::BrotliCompressor(BrotliParams params)
 
 BrotliCompressor::~BrotliCompressor() {
   delete[] storage_;
-  delete[] commands_;
+  free(commands_);
   delete ringbuffer_;
   delete hashers_;
 }
@@ -155,10 +157,10 @@ void BrotliCompressor::CopyInputToRingBuffer(const size_t input_size,
   ringbuffer_->Write(input_buffer, input_size);
   input_pos_ += input_size;
 
-  // Erase a few more bytes in the ring buffer to make hashing not
-  // depend on uninitialized data. This makes compression deterministic
-  // and it prevents uninitialized memory warnings in Valgrind. Even
-  // without erasing, the output would be valid (but nondeterministic).
+  // TL;DR: If needed, initialize 7 more bytes in the ring buffer to make the
+  // hashing not depend on uninitialized data. This makes compression
+  // deterministic and it prevents uninitialized memory warnings in Valgrind.
+  // Even without erasing, the output would be valid (but nondeterministic).
   //
   // Background information: The compressor stores short (at most 8 bytes)
   // substrings of the input already read in a hash table, and detects
@@ -186,7 +188,7 @@ void BrotliCompressor::CopyInputToRingBuffer(const size_t input_size,
   // subsequent rounds data in the ringbuffer would be affected.
   if (pos <= ringbuffer_->mask()) {
     // This is the first time when the ring buffer is being written.
-    // We clear 3 bytes just after the bytes that have been copied from
+    // We clear 7 bytes just after the bytes that have been copied from
     // the input buffer.
     //
     // The ringbuffer has a "tail" that holds a copy of the beginning,
@@ -195,9 +197,9 @@ void BrotliCompressor::CopyInputToRingBuffer(const size_t input_size,
     // in this tail (where index may be larger than mask), so that
     // we have exactly defined behavior and don't read un-initialized
     // memory. Due to performance reasons, hashing reads data using a
-    // LOAD32, which can go 3 bytes beyond the bytes written in the
+    // LOAD64, which can go 7 bytes beyond the bytes written in the
     // ringbuffer.
-    memset(ringbuffer_->start() + pos, 0, 3);
+    memset(ringbuffer_->start() + pos, 0, 7);
   }
 }
 
@@ -227,6 +229,17 @@ bool BrotliCompressor::WriteBrotliData(const bool is_last,
     return false;
   }
 
+  // Theoretical max number of commands is 1 per 2 bytes.
+  size_t newsize = num_commands_ + bytes / 2 + 1;
+  if (newsize > cmd_alloc_size_) {
+    // Reserve a bit more memory to allow merging with a next block
+    // without realloc: that would impact speed.
+    newsize += bytes / 4;
+    cmd_alloc_size_ = newsize;
+    commands_ =
+        static_cast<Command*>(realloc(commands_, sizeof(Command) * newsize));
+  }
+
   CreateBackwardReferences(bytes, last_processed_pos_, data, mask,
                            max_backward_distance_,
                            params_.quality,
@@ -238,16 +251,12 @@ bool BrotliCompressor::WriteBrotliData(const bool is_last,
                            &num_commands_,
                            &num_literals_);
 
-  // For quality 1 there is no block splitting, so we buffer at most this much
-  // literals and commands.
-  static const int kMaxNumDelayedSymbols = 0x2fff;
   int max_length = std::min<int>(mask + 1, 1 << kMaxInputBlockBits);
   if (!is_last && !force_flush &&
       (params_.quality >= kMinQualityForBlockSplit ||
        (num_literals_ + num_commands_ < kMaxNumDelayedSymbols)) &&
-      num_commands_ + (input_block_size() >> 1) < cmd_buffer_size_ &&
       input_pos_ + input_block_size() <= last_flush_pos_ + max_length) {
-    // Everything will happen later.
+    // Merge with next input block. Everything will happen later.
     last_processed_pos_ = input_pos_;
     *out_size = 0;
     return true;
@@ -637,5 +646,6 @@ int BrotliCompressWithCustomDictionary(size_t dictsize, const uint8_t* dict,
   }
   return true;
 }
+
 
 }  // namespace brotli

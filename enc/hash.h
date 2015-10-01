@@ -675,6 +675,7 @@ struct Hashers {
     }
   }
 
+
   H1* hash_h1;
   H2* hash_h2;
   H3* hash_h3;
