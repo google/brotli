@@ -31,74 +31,13 @@
 #include "./fast_log.h"
 #include "./hash.h"
 #include "./histogram.h"
-#include "./literal_cost.h"
 #include "./prefix.h"
+#include "./utf8_util.h"
 #include "./write_bits.h"
 
 namespace brotli {
 
 namespace {
-
-int ParseAsUTF8(int* symbol, const uint8_t* input, int size) {
-  // ASCII
-  if ((input[0] & 0x80) == 0) {
-    *symbol = input[0];
-    if (*symbol > 0) {
-      return 1;
-    }
-  }
-  // 2-byte UTF8
-  if (size > 1 &&
-      (input[0] & 0xe0) == 0xc0 &&
-      (input[1] & 0xc0) == 0x80) {
-    *symbol = (((input[0] & 0x1f) << 6) |
-               (input[1] & 0x3f));
-    if (*symbol > 0x7f) {
-      return 2;
-    }
-  }
-  // 3-byte UFT8
-  if (size > 2 &&
-      (input[0] & 0xf0) == 0xe0 &&
-      (input[1] & 0xc0) == 0x80 &&
-      (input[2] & 0xc0) == 0x80) {
-    *symbol = (((input[0] & 0x0f) << 12) |
-               ((input[1] & 0x3f) << 6) |
-               (input[2] & 0x3f));
-    if (*symbol > 0x7ff) {
-      return 3;
-    }
-  }
-  // 4-byte UFT8
-  if (size > 3 &&
-      (input[0] & 0xf8) == 0xf0 &&
-      (input[1] & 0xc0) == 0x80 &&
-      (input[2] & 0xc0) == 0x80 &&
-      (input[3] & 0xc0) == 0x80) {
-    *symbol = (((input[0] & 0x07) << 18) |
-               ((input[1] & 0x3f) << 12) |
-               ((input[2] & 0x3f) << 6) |
-               (input[3] & 0x3f));
-    if (*symbol > 0xffff && *symbol <= 0x10ffff) {
-      return 4;
-    }
-  }
-  // Not UTF8, emit a special symbol above the UTF8-code space
-  *symbol = 0x110000 | input[0];
-  return 1;
-}
-
-// Returns true if at least min_fraction of the data is UTF8-encoded.
-bool IsMostlyUTF8(const uint8_t* data, size_t length, double min_fraction) {
-  size_t size_utf8 = 0;
-  for (size_t pos = 0; pos < length; ) {
-    int symbol;
-    int bytes_read = ParseAsUTF8(&symbol, data + pos, length - pos);
-    pos += bytes_read;
-    if (symbol < 0x110000) size_utf8 += bytes_read;
-  }
-  return size_utf8 > min_fraction * length;
-}
 
 void RecomputeDistancePrefixes(std::vector<Command>* cmds,
                                int num_direct_distance_codes,
@@ -151,19 +90,8 @@ bool WriteMetaBlockParallel(const BrotliParams& params,
 
   // Decide about UTF8 mode.
   static const double kMinUTF8Ratio = 0.75;
-  bool utf8_mode = IsMostlyUTF8(&input[input_pos], input_size, kMinUTF8Ratio);
-
-  // Compute literal costs. The 4 bytes at the end are there to cover for an
-  // over-read past the end of input, but not past the mask, in
-  // CreateBackwardReferences.
-  std::vector<float> literal_cost(prefix_size + input_size + 4);
-  if (utf8_mode) {
-    EstimateBitCostsForLiteralsUTF8(input_pos, input_size, mask, mask,
-                                    &input[0], &literal_cost[0]);
-  } else {
-    EstimateBitCostsForLiterals(input_pos, input_size, mask, mask,
-                                &input[0], &literal_cost[0]);
-  }
+  bool utf8_mode = IsMostlyUTF8(&input[0], input_pos, mask, input_size,
+                                kMinUTF8Ratio);
 
   // Initialize hashers.
   int hash_type = std::min(9, params.quality);
@@ -180,7 +108,6 @@ bool WriteMetaBlockParallel(const BrotliParams& params,
   CreateBackwardReferences(
       input_size, input_pos,
       &input[0], mask,
-      &literal_cost[0], mask,
       max_backward_distance,
       params.quality,
       hashers,

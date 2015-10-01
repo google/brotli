@@ -1,3 +1,6 @@
+#ifndef BROTLI_ENC_UTF8_UTIL_H_
+#define BROTLI_ENC_UTF8_UTIL_H_
+
 // Copyright 2013 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -12,21 +15,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //
-// Literal cost model to allow backward reference replacement to be efficient.
-
-#ifndef BROTLI_ENC_LITERAL_COST_H_
-#define BROTLI_ENC_LITERAL_COST_H_
+// Heuristics for deciding about the UTF8-ness of strings.
 
 #include "./types.h"
 
 namespace brotli {
 
-// Estimates how many bits the literals in the interval [pos, pos + len) in the
-// ringbuffer (data, mask) will take entropy coded and writes these estimates
-// to the cost[0..len) array.
-void EstimateBitCostsForLiterals(size_t pos, size_t len, size_t mask,
-                                 const uint8_t *data, float *cost);
+static const double kMinUTF8Ratio = 0.75;
+
+// Returns true if at least min_fraction of the bytes between pos and
+// pos + length in the (data, mask) ringbuffer is UTF8-encoded.
+bool IsMostlyUTF8(const uint8_t* data, const size_t pos, const size_t mask,
+                  const size_t length, const double min_fraction);
 
 }  // namespace brotli
 
-#endif  // BROTLI_ENC_LITERAL_COST_H_
+#endif  // BROTLI_ENC_UTF8_UTIL_H_
