@@ -22,6 +22,7 @@
 
 #include "./command.h"
 #include "./fast_log.h"
+#include "./literal_cost.h"
 
 namespace brotli {
 
@@ -78,19 +79,15 @@ class ZopfliCostModel {
 
   void SetFromLiteralCosts(size_t num_bytes,
                            size_t position,
-                           const float* literal_cost,
-                           size_t literal_cost_mask) {
+                           const uint8_t* ringbuffer,
+                           size_t ringbuffer_mask) {
+    std::vector<float> literal_cost(num_bytes);
+    EstimateBitCostsForLiterals(position, num_bytes, ringbuffer_mask,
+                                ringbuffer, &literal_cost[0]);
     literal_costs_.resize(num_bytes + 1);
     literal_costs_[0] = 0.0;
-    if (literal_cost) {
-      for (int i = 0; i < num_bytes; ++i) {
-        literal_costs_[i + 1] = literal_costs_[i] +
-            literal_cost[(position + i) & literal_cost_mask];
-      }
-    } else {
-      for (int i = 1; i <= num_bytes; ++i) {
-        literal_costs_[i] = i * 5.4;
-      }
+    for (int i = 0; i < num_bytes; ++i) {
+      literal_costs_[i + 1] = literal_costs_[i] + literal_cost[i];
     }
     cost_cmd_.resize(kNumCommandPrefixes);
     cost_dist_.resize(kNumDistancePrefixes);
@@ -623,8 +620,6 @@ void CreateBackwardReferences(size_t num_bytes,
                               size_t position,
                               const uint8_t* ringbuffer,
                               size_t ringbuffer_mask,
-                              const float* literal_cost,
-                              size_t literal_cost_mask,
                               const size_t max_backward_limit,
                               const int quality,
                               Hashers* hashers,
@@ -688,7 +683,7 @@ void CreateBackwardReferences(size_t num_bytes,
       ZopfliCostModel model;
       if (i == 0) {
         model.SetFromLiteralCosts(num_bytes, position,
-                                  literal_cost, literal_cost_mask);
+                                  ringbuffer, ringbuffer_mask);
       } else {
         model.SetFromCommands(num_bytes, position,
                               ringbuffer, ringbuffer_mask,

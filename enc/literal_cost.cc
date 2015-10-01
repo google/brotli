@@ -21,6 +21,7 @@
 
 #include "./fast_log.h"
 #include "./types.h"
+#include "./utf8_util.h"
 
 namespace brotli {
 
@@ -61,8 +62,7 @@ static int DecideMultiByteStatsLevel(size_t pos, size_t len, size_t mask,
 }
 
 void EstimateBitCostsForLiteralsUTF8(size_t pos, size_t len, size_t mask,
-                                     size_t cost_mask, const uint8_t *data,
-                                     float *cost) {
+                                     const uint8_t *data, float *cost) {
 
   // max_utf8 is 0 (normal ascii single byte modeling),
   // 1 (for 2-byte utf-8 modeling), or 2 (for 3-byte utf-8 modeling).
@@ -126,13 +126,16 @@ void EstimateBitCostsForLiteralsUTF8(size_t pos, size_t len, size_t mask,
     if (i < 2000) {
       lit_cost += 0.7 - ((2000 - i) / 2000.0 * 0.35);
     }
-    cost[(pos + i) & cost_mask] = lit_cost;
+    cost[i] = lit_cost;
   }
 }
 
 void EstimateBitCostsForLiterals(size_t pos, size_t len, size_t mask,
-                                 size_t cost_mask, const uint8_t *data,
-                                 float *cost) {
+                                 const uint8_t *data, float *cost) {
+  if (IsMostlyUTF8(data, pos, mask, len, kMinUTF8Ratio)) {
+    EstimateBitCostsForLiteralsUTF8(pos, len, mask, data, cost);
+    return;
+  }
   int histogram[256] = { 0 };
   int window_half = 2000;
   int in_window = std::min(static_cast<size_t>(window_half), len);
@@ -164,7 +167,7 @@ void EstimateBitCostsForLiterals(size_t pos, size_t len, size_t mask,
       lit_cost *= 0.5;
       lit_cost += 0.5;
     }
-    cost[(pos + i) & cost_mask] = lit_cost;
+    cost[i] = lit_cost;
   }
 }
 
