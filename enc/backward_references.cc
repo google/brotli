@@ -81,7 +81,7 @@ class ZopfliCostModel {
                            size_t position,
                            const uint8_t* ringbuffer,
                            size_t ringbuffer_mask) {
-    std::vector<float> literal_cost(num_bytes);
+    std::vector<float> literal_cost(num_bytes + 1);
     EstimateBitCostsForLiterals(position, num_bytes, ringbuffer_mask,
                                 ringbuffer, &literal_cost[0]);
     literal_costs_.resize(num_bytes + 1);

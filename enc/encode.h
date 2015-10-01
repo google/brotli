@@ -151,7 +151,7 @@ class BrotliCompressor {
   int hash_type_;
   size_t input_pos_;
   RingBuffer* ringbuffer_;
-  size_t cmd_buffer_size_;
+  size_t cmd_alloc_size_;
   Command* commands_;
   int num_commands_;
   int num_literals_;
@@ -186,6 +186,7 @@ int BrotliCompress(BrotliParams params, BrotliIn* in, BrotliOut* out);
 int BrotliCompressWithCustomDictionary(size_t dictsize, const uint8_t* dict,
                                        BrotliParams params,
                                        BrotliIn* in, BrotliOut* out);
+
 
 }  // namespace brotli
 
