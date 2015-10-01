@@ -1,17 +1,16 @@
-/* Copyright 2013 Google Inc. All Rights Reserved.
-
-   Licensed under the Apache License, Version 2.0 (the "License");
-   you may not use this file except in compliance with the License.
-   You may obtain a copy of the License at
-
-   http://www.apache.org/licenses/LICENSE-2.0
-
-   Unless required by applicable law or agreed to in writing, software
-   distributed under the License is distributed on an "AS IS" BASIS,
-   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-   See the License for the specific language governing permissions and
-   limitations under the License.
-*/
+// Copyright 2013 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+// http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #include "./dictionary.h"
 
@@ -19,9 +18,9 @@
 extern "C" {
 #endif
 
-/* In case of multiple definition linker error with dictionary.cc from the
-  encoder: include only one of enc/dictionary.cc or dec/dictionary.c in a
-  target using both enc and dec. */
+// In case of multiple definition linker error with dictionary.c from the
+// decoder: include only one of enc/dictionary.cc or dec/dictionary.c in a
+// target using both enc and dec.
 const uint8_t kBrotliDictionary[122784] = {
   0x74, 0x69, 0x6d, 0x65, 0x64, 0x6f, 0x77, 0x6e, 0x6c, 0x69, 0x66, 0x65, 0x6c,
   0x65, 0x66, 0x74, 0x62, 0x61, 0x63, 0x6b, 0x63, 0x6f, 0x64, 0x65, 0x64, 0x61,
