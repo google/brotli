@@ -373,6 +373,8 @@ void ChooseContextMap(int quality,
   for (int k = 0; k < 3; ++k) {
     entropy3 += ShannonEntropy(bigram_histo + 3 * k, 3, &dummy);
   }
+
+  assert(total != 0);
   entropy1 *= (1.0 / total);
   entropy2 *= (1.0 / total);
   entropy3 *= (1.0 / total);
@@ -423,7 +425,7 @@ void DecideOverLiteralContextModeling(const uint8_t* input,
   // intervals.
   const size_t end_pos = start_pos + length;
   int bigram_prefix_histo[9] = { 0 };
-  for (; start_pos + 64 < end_pos; start_pos += 4096) {
+  for (; start_pos + 64 <= end_pos; start_pos += 4096) {
       static const int lut[4] = { 0, 0, 1, 2 };
     const size_t stride_end_pos = start_pos + 64;
     int prev = lut[input[start_pos & mask] >> 6] * 3;

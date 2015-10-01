@@ -27,7 +27,7 @@
 
 namespace brotli {
 
-class BlockSplit;
+struct BlockSplit;
 
 // A simple container for histograms of data in blocks.
 template<int kDataSize>

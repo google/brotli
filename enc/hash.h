@@ -174,8 +174,8 @@ class HashLongestMatchQuickly {
     int compare_char = ring_buffer[cur_ix_masked + best_len_in];
     double best_score = *best_score_out;
     int best_len = best_len_in;
-    int backward = distance_cache[0];
-    size_t prev_ix = cur_ix - backward;
+    int cached_backward = distance_cache[0];
+    size_t prev_ix = cur_ix - cached_backward;
     bool match_found = false;
     if (prev_ix < cur_ix) {
       prev_ix &= ring_buffer_mask;
@@ -188,7 +188,7 @@ class HashLongestMatchQuickly {
           best_len = len;
           *best_len_out = len;
           *best_len_code_out = len;
-          *best_distance_out = backward;
+          *best_distance_out = cached_backward;
           *best_score_out = best_score;
           compare_char = ring_buffer[cur_ix_masked + best_len];
           if (kBucketSweep == 1) {
@@ -203,7 +203,7 @@ class HashLongestMatchQuickly {
     if (kBucketSweep == 1) {
       // Only one to look for, don't bother to prepare for a loop.
       prev_ix = buckets_[key];
-      backward = cur_ix - prev_ix;
+      int backward = cur_ix - prev_ix;
       prev_ix &= ring_buffer_mask;
       if (compare_char != ring_buffer[prev_ix + best_len_in]) {
         return false;
@@ -255,8 +255,8 @@ class HashLongestMatchQuickly {
     if (kUseDictionary && !match_found &&
         num_dict_matches_ >= (num_dict_lookups_ >> 7)) {
       ++num_dict_lookups_;
-      const uint32_t key = Hash<14>(&ring_buffer[cur_ix_masked]) << 1;
-      const uint16_t v = kStaticDictionaryHash[key];
+      const uint32_t dict_key = Hash<14>(&ring_buffer[cur_ix_masked]) << 1;
+      const uint16_t v = kStaticDictionaryHash[dict_key];
       if (v > 0) {
         const int len = v & 31;
         const int dist = v >> 5;
@@ -297,7 +297,6 @@ class HashLongestMatchQuickly {
   static uint32_t HashBytes(const uint8_t *data) {
     // Computing a hash based on 5 bytes works much better for
     // qualities 1 and 3, where the next hash value is likely to replace
-    static const uint32_t kHashMul32 = 0x1e35a7bd;
     uint64_t h = (BROTLI_UNALIGNED_LOAD64(data) << 24) * kHashMul32;
     // The higher bits contain more mixture from the multiplication,
     // so we take our results from there.
@@ -451,10 +450,10 @@ class HashLongestMatch {
       }
     }
     if (!match_found && num_dict_matches_ >= (num_dict_lookups_ >> 7)) {
-      uint32_t key = Hash<14>(&data[cur_ix_masked]) << 1;
-      for (int k = 0; k < 2; ++k, ++key) {
+      uint32_t dict_key = Hash<14>(&data[cur_ix_masked]) << 1;
+      for (int k = 0; k < 2; ++k, ++dict_key) {
         ++num_dict_lookups_;
-        const uint16_t v = kStaticDictionaryHash[key];
+        const uint16_t v = kStaticDictionaryHash[dict_key];
         if (v > 0) {
           const int len = v & 31;
           const int dist = v >> 5;
@@ -582,14 +581,6 @@ class HashLongestMatch {
   // the address in. The HashLongestMatch and HashLongestMatchQuickly
   // classes have separate, different implementations of hashing.
   static uint32_t HashBytes(const uint8_t *data) {
-    // kHashMul32 multiplier has these properties:
-    // * The multiplier must be odd. Otherwise we may lose the highest bit.
-    // * No long streaks of 1s or 0s.
-    // * Is not unfortunate (see the unittest) for the English language.
-    // * There is no effort to ensure that it is a prime, the oddity is enough
-    //   for this use.
-    // * The number has been tuned heuristically against compression benchmarks.
-    static const uint32_t kHashMul32 = 0x1e35a7bd;
     uint32_t h = BROTLI_UNALIGNED_LOAD32(data) * kHashMul32;
     // The higher bits contain more mixture from the multiplication,
     // so we take our results from there.
