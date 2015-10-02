@@ -39,7 +39,7 @@ extern "C" {
 static BROTLI_INLINE uint32_t BitMask(int n) { return ~((0xffffffff) << n); }
 
 typedef struct {
-#if (BROTLI_64_BITS_LITTLE_ENDIAN)
+#if (BROTLI_64_BITS)
   uint64_t    val_;          /* pre-fetched bits */
 #else
   uint32_t    val_;          /* pre-fetched bits */
@@ -129,18 +129,74 @@ static BROTLI_INLINE int BrotliCheckInputAmount(
   return br->avail_in >= num;
 }
 
+static BROTLI_INLINE uint16_t BrotliLoad16LE(const uint8_t* in) {
+  if (BROTLI_LITTLE_ENDIAN) {
+    return *((const uint16_t*)in);
+  } else if (BROTLI_BIG_ENDIAN) {
+    uint16_t value = *((const uint16_t*)in);
+    return (uint16_t)(
+        ((value & 0xFFU) << 8) |
+        ((value & 0xFF00U) >> 8));
+  } else {
+    return (uint16_t)(in[0] | (in[1] << 8));
+  }
+}
+
+static BROTLI_INLINE uint32_t BrotliLoad32LE(const uint8_t* in) {
+  if (BROTLI_LITTLE_ENDIAN) {
+    return *((const uint32_t*)in);
+  } else if (BROTLI_BIG_ENDIAN) {
+    uint32_t value = *((const uint32_t*)in);
+    return ((value & 0xFFU) << 24) | ((value & 0xFF00U) << 8) |
+        ((value & 0xFF0000U) >> 8) | ((value & 0xFF000000U) >> 24);
+  } else {
+    uint32_t value = (uint32_t)(*(in++));
+    value |= (uint32_t)(*(in++)) << 8;
+    value |= (uint32_t)(*(in++)) << 16;
+    value |= (uint32_t)(*(in++)) << 24;
+    return value;
+  }
+}
+
+static BROTLI_INLINE uint64_t BrotliLoad64LE(const uint8_t* in) {
+  if (BROTLI_LITTLE_ENDIAN) {
+    return *((const uint64_t*)in);
+  } else if (BROTLI_BIG_ENDIAN) {
+    uint64_t value = *((const uint64_t*)in);
+    return
+        ((value & 0xFFU) << 56) |
+        ((value & 0xFF00U) << 40) |
+        ((value & 0xFF0000U) << 24) |
+        ((value & 0xFF000000U) << 8) |
+        ((value & 0xFF00000000U) >> 8) |
+        ((value & 0xFF0000000000U) >> 24) |
+        ((value & 0xFF000000000000U) >> 40) |
+        ((value & 0xFF00000000000000U) >> 56);
+  } else {
+    uint64_t value = (uint64_t)(*(in++));
+    value |= (uint64_t)(*(in++)) << 8;
+    value |= (uint64_t)(*(in++)) << 16;
+    value |= (uint64_t)(*(in++)) << 24;
+    value |= (uint64_t)(*(in++)) << 32;
+    value |= (uint64_t)(*(in++)) << 40;
+    value |= (uint64_t)(*(in++)) << 48;
+    value |= (uint64_t)(*(in++)) << 56;
+    return value;
+  }
+}
+
 /* Guarantees that there are at least n_bits + 1 bits in accumulator.
    Precondition: accumulator contains at least 1 bit.
    n_bits should be in the range [1..24] for regular build. For portable
    non-64-bit little endian build only 16 bits are safe to request. */
 static BROTLI_INLINE void BrotliFillBitWindow(
     BrotliBitReader* const br, int n_bits) {
-#if (BROTLI_64_BITS_LITTLE_ENDIAN)
+#if (BROTLI_64_BITS)
   if (!BROTLI_ALIGNED_READ && IS_CONSTANT(n_bits) && (n_bits <= 8)) {
     if (br->bit_pos_ >= 56) {
       br->val_ >>= 56;
       br->bit_pos_ ^= 56;  /* here same as -= 56 because of the if condition */
-      br->val_ |= (*(const uint64_t*)(br->next_in)) << 8;
+      br->val_ |= BrotliLoad64LE(br->next_in) << 8;
       br->avail_in -= 7;
       br->next_in += 7;
     }
@@ -148,7 +204,7 @@ static BROTLI_INLINE void BrotliFillBitWindow(
     if (br->bit_pos_ >= 48) {
       br->val_ >>= 48;
       br->bit_pos_ ^= 48;  /* here same as -= 48 because of the if condition */
-      br->val_ |= (*(const uint64_t*)(br->next_in)) << 16;
+      br->val_ |= BrotliLoad64LE(br->next_in) << 16;
       br->avail_in -= 6;
       br->next_in += 6;
     }
@@ -156,17 +212,17 @@ static BROTLI_INLINE void BrotliFillBitWindow(
     if (br->bit_pos_ >= 32) {
       br->val_ >>= 32;
       br->bit_pos_ ^= 32;  /* here same as -= 32 because of the if condition */
-      br->val_ |= ((uint64_t)(*(const uint32_t*)(br->next_in))) << 32;
+      br->val_ |= ((uint64_t)BrotliLoad32LE(br->next_in)) << 32;
       br->avail_in -= 4;
       br->next_in += 4;
     }
   }
-#elif (BROTLI_LITTLE_ENDIAN)
+#else
   if (!BROTLI_ALIGNED_READ && IS_CONSTANT(n_bits) && (n_bits <= 8)) {
     if (br->bit_pos_ >= 24) {
       br->val_ >>= 24;
       br->bit_pos_ ^= 24;  /* here same as -= 24 because of the if condition */
-      br->val_ |= (*(const uint32_t*)(br->next_in)) << 8;
+      br->val_ |= BrotliLoad32LE(br->next_in) << 8;
       br->avail_in -= 3;
       br->next_in += 3;
     }
@@ -174,14 +230,10 @@ static BROTLI_INLINE void BrotliFillBitWindow(
     if (br->bit_pos_ >= 16) {
       br->val_ >>= 16;
       br->bit_pos_ ^= 16;  /* here same as -= 16 because of the if condition */
-      br->val_ |= ((uint32_t)(*(const uint16_t*)(br->next_in))) << 16;
+      br->val_ |= ((uint32_t)BrotliLoad16LE(br->next_in)) << 16;
       br->avail_in -= 2;
       br->next_in += 2;
     }
-  }
-#else
-  while (br->bit_pos_ >= 16) {
-    BrotliPullByte(br);
   }
 #endif
 }
@@ -189,7 +241,7 @@ static BROTLI_INLINE void BrotliFillBitWindow(
 /* Pulls one byte of input to accumulator. */
 static BROTLI_INLINE void BrotliPullByte(BrotliBitReader* const br) {
   br->val_ >>= 8;
-#if (BROTLI_64_BITS_LITTLE_ENDIAN)
+#if (BROTLI_64_BITS)
     br->val_ |= ((uint64_t)*br->next_in) << 56;
 #else
     br->val_ |= ((uint32_t)*br->next_in) << 24;
@@ -236,7 +288,7 @@ static BROTLI_INLINE void BrotliTakeBits(
    Assumes that there is enough input to perform BrotliFillBitWindow. */
 static BROTLI_INLINE uint32_t BrotliReadBits(
     BrotliBitReader* const br, int n_bits) {
-  if (BROTLI_64_BITS_LITTLE_ENDIAN || (n_bits <= 16)) {
+  if (BROTLI_64_BITS || (n_bits <= 16)) {
     uint32_t val;
     BrotliFillBitWindow(br, n_bits);
     BrotliTakeBits(br, n_bits, &val);
@@ -300,7 +352,7 @@ static BROTLI_INLINE int BrotliPeekByte(BrotliBitReader* br, int offset) {
    warmed up again after this. */
 static BROTLI_INLINE void BrotliCopyBytes(uint8_t* dest,
                                           BrotliBitReader* br, size_t num) {
-  while (br->bit_pos_ + 8 <= (BROTLI_64_BITS_LITTLE_ENDIAN ? 64 : 32)
+  while (br->bit_pos_ + 8 <= (BROTLI_64_BITS ? 64 : 32)
       && num > 0) {
     *dest = (uint8_t)(br->val_ >> br->bit_pos_);
     br->bit_pos_ += 8;
