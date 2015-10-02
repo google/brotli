@@ -948,7 +948,7 @@ int BROTLI_NOINLINE BrotliAllocateRingBuffer(BrotliState* s,
   s->ringbuffer = (uint8_t*)malloc((size_t)(s->ringbuffer_size +
                                          kRingBufferWriteAheadSlack +
                                          kBrotliMaxDictionaryWordLength));
-  if (!s->ringbuffer) {
+  if (s->ringbuffer == 0) {
     return 0;
   }
   s->ringbuffer_end = s->ringbuffer + s->ringbuffer_size;
@@ -1069,8 +1069,7 @@ BrotliResult BrotliDecompressStreaming(BrotliInput input, BrotliOutput output,
         /* Allocate memory for both block_type_trees and block_len_trees. */
         s->block_type_trees = (HuffmanCode*)malloc(
             6 * BROTLI_HUFFMAN_MAX_TABLE_SIZE * sizeof(HuffmanCode));
-
-        if (s->block_type_trees == NULL) {
+        if (s->block_type_trees == 0) {
           result = BROTLI_FAILURE();
           break;
         }
@@ -1249,6 +1248,11 @@ BrotliResult BrotliDecompressStreaming(BrotliInput input, BrotliOutput output,
               s->num_block_types[1]);
           BrotliHuffmanTreeGroupInit(
               &s->distance_hgroup, num_distance_codes, s->num_dist_htrees);
+          if (s->literal_hgroup.codes == 0 ||
+              s->insert_copy_hgroup.codes == 0 ||
+              s->distance_hgroup.codes == 0) {
+            return BROTLI_FAILURE();
+          }
         }
         i = 0;
         s->state = BROTLI_STATE_TREE_GROUP;

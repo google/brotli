@@ -316,9 +316,7 @@ void BrotliHuffmanTreeGroupInit(HuffmanTreeGroup* group, int alphabet_size,
 }
 
 void BrotliHuffmanTreeGroupRelease(HuffmanTreeGroup* group) {
-  if (group->codes) {
-    free(group->codes);
-  }
+  BROTLI_FREE(group->codes);
 }
 
 #if defined(__cplusplus) || defined(c_plusplus)

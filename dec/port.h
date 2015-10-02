@@ -161,4 +161,9 @@ static BROTLI_INLINE unsigned BrotliRBit(unsigned input) {
 #endif  /* armv7 */
 #endif  /* gcc || clang */
 
+#define BROTLI_FREE(X) { \
+  free(X); \
+  X = NULL; \
+}
+
 #endif  /* BROTLI_DEC_PORT_H_ */
