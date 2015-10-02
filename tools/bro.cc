@@ -17,11 +17,12 @@
 
 #include <fcntl.h>
 #include <stdio.h>
-#include <string>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <time.h>
 #include <unistd.h>
+
+#include <string>
 
 #include "../dec/decode.h"
 #include "../enc/encode.h"
@@ -47,12 +48,14 @@ static void ParseArgv(int argc, char **argv,
                       int *quality,
                       int *decompress,
                       int *repeat,
-                      int *verbose) {
+                      int *verbose,
+                      int *lgwin) {
   *force = 0;
   *input_path = 0;
   *output_path = 0;
   *repeat = 1;
   *verbose = 0;
+  *lgwin = 22;
   {
     size_t argv0_len = strlen(argv[0]);
     *decompress =
@@ -112,6 +115,16 @@ static void ParseArgv(int argc, char **argv,
         }
         ++k;
         continue;
+      }  else if (!strcmp("--window", argv[k]) ||
+                  !strcmp("-w", argv[k])) {
+        if (!ParseQuality(argv[k + 1], lgwin)) {
+          goto error;
+        }
+        if (*lgwin < 10 || *lgwin >= 25) {
+          goto error;
+        }
+        ++k;
+        continue;
       }
     }
     goto error;
@@ -121,7 +134,7 @@ error:
   fprintf(stderr,
           "Usage: %s [--force] [--quality n] [--decompress]"
           " [--input filename] [--output filename] [--repeat iters]"
-          " [--verbose]\n",
+          " [--verbose] [--window n]\n",
           argv[0]);
   exit(1);
 }
@@ -142,16 +155,17 @@ static FILE *OpenOutputFile(const char *output_path, const int force) {
   if (output_path == 0) {
     return fdopen(STDOUT_FILENO, "wb");
   }
-  if (!force) {
-    struct stat statbuf;
-    if (stat(output_path, &statbuf) == 0) {
-      fprintf(stderr, "output file exists\n");
-      exit(1);
-    }
-  }
-  int fd = open(output_path, O_CREAT | O_WRONLY | O_TRUNC,
+  int excl = force ? 0 : O_EXCL;
+  int fd = open(output_path, O_CREAT | excl | O_WRONLY | O_TRUNC,
                 S_IRUSR | S_IWUSR);
   if (fd < 0) {
+    if (!force) {
+      struct stat statbuf;
+      if (stat(output_path, &statbuf) == 0) {
+        fprintf(stderr, "output file exists\n");
+        exit(1);
+      }
+    }
     perror("open");
     exit(1);
   }
@@ -177,8 +191,9 @@ int main(int argc, char** argv) {
   int decompress = 0;
   int repeat = 1;
   int verbose = 0;
+  int lgwin = 0;
   ParseArgv(argc, argv, &input_path, &output_path, &force,
-            &quality, &decompress, &repeat, &verbose);
+            &quality, &decompress, &repeat, &verbose, &lgwin);
   const clock_t clock_start = clock();
   for (int i = 0; i < repeat; ++i) {
     FILE* fin = OpenInputFile(input_path);
@@ -192,6 +207,7 @@ int main(int argc, char** argv) {
       }
     } else {
       brotli::BrotliParams params;
+      params.lgwin = lgwin;
       params.quality = quality;
       brotli::BrotliFileIn in(fin, 1 << 16);
       brotli::BrotliFileOut out(fout);
