@@ -50,37 +50,37 @@ class BrotliOut {
 // Adapter class to make BrotliIn objects from raw memory.
 class BrotliMemIn : public BrotliIn {
  public:
-  BrotliMemIn(const void* buf, int len);
+  BrotliMemIn(const void* buf, size_t len);
 
-  void Reset(const void* buf, int len);
+  void Reset(const void* buf, size_t len);
 
   // returns the amount of data consumed
-  int position() const { return pos_; }
+  size_t position() const { return pos_; }
 
   const void* Read(size_t n, size_t* OUTPUT);
 
  private:
   const void* buf_;  // start of input buffer
-  int len_;  // length of input
-  int pos_;  // current read position within input
+  size_t len_;  // length of input
+  size_t pos_;  // current read position within input
 };
 
 // Adapter class to make BrotliOut objects from raw memory.
 class BrotliMemOut : public BrotliOut {
  public:
-  BrotliMemOut(void* buf, int len);
+  BrotliMemOut(void* buf, size_t len);
 
-  void Reset(void* buf, int len);
+  void Reset(void* buf, size_t len);
 
   // returns the amount of data written
-  int position() const { return pos_; }
+  size_t position() const { return pos_; }
 
   bool Write(const void* buf, size_t n);
 
  private:
   void* buf_;  // start of output buffer
-  int len_;  // length of output
-  int pos_;  // current write position within output
+  size_t len_;  // length of output
+  size_t pos_;  // current write position within output
 };
 
 // Adapter class to make BrotliOut objects from a string.
@@ -89,15 +89,15 @@ class BrotliStringOut : public BrotliOut {
   // Create a writer that appends its data to buf.
   // buf->size() will grow to at most max_size
   // buf is expected to be empty when constructing BrotliStringOut.
-  BrotliStringOut(std::string* buf, int max_size);
+  BrotliStringOut(std::string* buf, size_t max_size);
 
-  void Reset(std::string* buf, int max_len);
+  void Reset(std::string* buf, size_t max_len);
 
   bool Write(const void* buf, size_t n);
 
  private:
   std::string* buf_;  // start of output buffer
-  int max_size_;  // max length of output
+  size_t max_size_;  // max length of output
 };
 
 // Adapter class to make BrotliIn object from a file.

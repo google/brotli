@@ -23,12 +23,12 @@
 
 namespace brotli {
 
-BrotliMemOut::BrotliMemOut(void* buf, int len)
+BrotliMemOut::BrotliMemOut(void* buf, size_t len)
     : buf_(buf),
       len_(len),
       pos_(0) {}
 
-void BrotliMemOut::Reset(void* buf, int len) {
+void BrotliMemOut::Reset(void* buf, size_t len) {
   buf_ = buf;
   len_ = len;
   pos_ = 0;
@@ -44,13 +44,13 @@ bool BrotliMemOut::Write(const void *buf, size_t n) {
   return true;
 }
 
-BrotliStringOut::BrotliStringOut(std::string* buf, int max_size)
+BrotliStringOut::BrotliStringOut(std::string* buf, size_t max_size)
     : buf_(buf),
       max_size_(max_size) {
   assert(buf->empty());
 }
 
-void BrotliStringOut::Reset(std::string* buf, int max_size) {
+void BrotliStringOut::Reset(std::string* buf, size_t max_size) {
   buf_ = buf;
   max_size_ = max_size;
 }
@@ -63,12 +63,12 @@ bool BrotliStringOut::Write(const void *buf, size_t n) {
   return true;
 }
 
-BrotliMemIn::BrotliMemIn(const void* buf, int len)
+BrotliMemIn::BrotliMemIn(const void* buf, size_t len)
     : buf_(buf),
       len_(len),
       pos_(0) {}
 
-void BrotliMemIn::Reset(const void* buf, int len) {
+void BrotliMemIn::Reset(const void* buf, size_t len) {
   buf_ = buf;
   len_ = len;
   pos_ = 0;
