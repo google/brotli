@@ -3,13 +3,12 @@
 #include <bytesobject.h>
 #include "../enc/encode.h"
 #include "../dec/decode.h"
+#include "../tools/version.h"
 
 #if PY_MAJOR_VERSION >= 3
 #define PyInt_Check PyLong_Check
 #define PyInt_AsLong PyLong_AsLong
 #endif
-
-#define BROTLI_VERSION "0.1.0"
 
 using namespace brotli;
 

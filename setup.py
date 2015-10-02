@@ -24,8 +24,8 @@ if platform.system() == 'Windows':
 
 
 def get_version():
-    """ Return BROTLI_VERSION string as defined in 'brotlimodule.cc' file. """
-    brotlimodule = os.path.join(CURR_DIR, 'python', 'brotlimodule.cc')
+    """ Return BROTLI_VERSION string as defined in 'tools/version.h' file. """
+    brotlimodule = os.path.join(CURR_DIR, 'tools', 'version.h')
     with open(brotlimodule, 'r') as f:
         for line in f:
             m = re.match(r'#define\sBROTLI_VERSION\s"(.*)"', line)
