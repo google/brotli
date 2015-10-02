@@ -25,17 +25,59 @@
 extern "C" {
 #endif
 
-/* Returns reverse(reverse(key, len) + 1, len), where reverse(key, len) is the
-   bit-wise reversal of the len least significant bits of key. */
-static BROTLI_INLINE uint32_t GetNextKey(uint32_t key, int len) {
+#define BROTLI_REVERSE_BITS_MAX 8
+
 #ifdef BROTLI_RBIT
-  return BROTLI_RBIT(BROTLI_RBIT(key) + (1 << (8 * sizeof(unsigned) - len)));
+#define BROTLI_REVERSE_BITS_BASE (32 - BROTLI_REVERSE_BITS_MAX)
 #else
-  unsigned step = (unsigned)(1 << (len - 1));
-  while (key & step) {
-    step >>= 1;
-  }
-  return (key & (step - 1)) + step;
+#define BROTLI_REVERSE_BITS_BASE 0
+static uint8_t kReverseBits[1 << BROTLI_REVERSE_BITS_MAX] = {
+    0x00, 0x80, 0x40, 0xC0, 0x20, 0xA0, 0x60, 0xE0,
+    0x10, 0x90, 0x50, 0xD0, 0x30, 0xB0, 0x70, 0xF0,
+    0x08, 0x88, 0x48, 0xC8, 0x28, 0xA8, 0x68, 0xE8,
+    0x18, 0x98, 0x58, 0xD8, 0x38, 0xB8, 0x78, 0xF8,
+    0x04, 0x84, 0x44, 0xC4, 0x24, 0xA4, 0x64, 0xE4,
+    0x14, 0x94, 0x54, 0xD4, 0x34, 0xB4, 0x74, 0xF4,
+    0x0C, 0x8C, 0x4C, 0xCC, 0x2C, 0xAC, 0x6C, 0xEC,
+    0x1C, 0x9C, 0x5C, 0xDC, 0x3C, 0xBC, 0x7C, 0xFC,
+    0x02, 0x82, 0x42, 0xC2, 0x22, 0xA2, 0x62, 0xE2,
+    0x12, 0x92, 0x52, 0xD2, 0x32, 0xB2, 0x72, 0xF2,
+    0x0A, 0x8A, 0x4A, 0xCA, 0x2A, 0xAA, 0x6A, 0xEA,
+    0x1A, 0x9A, 0x5A, 0xDA, 0x3A, 0xBA, 0x7A, 0xFA,
+    0x06, 0x86, 0x46, 0xC6, 0x26, 0xA6, 0x66, 0xE6,
+    0x16, 0x96, 0x56, 0xD6, 0x36, 0xB6, 0x76, 0xF6,
+    0x0E, 0x8E, 0x4E, 0xCE, 0x2E, 0xAE, 0x6E, 0xEE,
+    0x1E, 0x9E, 0x5E, 0xDE, 0x3E, 0xBE, 0x7E, 0xFE,
+    0x01, 0x81, 0x41, 0xC1, 0x21, 0xA1, 0x61, 0xE1,
+    0x11, 0x91, 0x51, 0xD1, 0x31, 0xB1, 0x71, 0xF1,
+    0x09, 0x89, 0x49, 0xC9, 0x29, 0xA9, 0x69, 0xE9,
+    0x19, 0x99, 0x59, 0xD9, 0x39, 0xB9, 0x79, 0xF9,
+    0x05, 0x85, 0x45, 0xC5, 0x25, 0xA5, 0x65, 0xE5,
+    0x15, 0x95, 0x55, 0xD5, 0x35, 0xB5, 0x75, 0xF5,
+    0x0D, 0x8D, 0x4D, 0xCD, 0x2D, 0xAD, 0x6D, 0xED,
+    0x1D, 0x9D, 0x5D, 0xDD, 0x3D, 0xBD, 0x7D, 0xFD,
+    0x03, 0x83, 0x43, 0xC3, 0x23, 0xA3, 0x63, 0xE3,
+    0x13, 0x93, 0x53, 0xD3, 0x33, 0xB3, 0x73, 0xF3,
+    0x0B, 0x8B, 0x4B, 0xCB, 0x2B, 0xAB, 0x6B, 0xEB,
+    0x1B, 0x9B, 0x5B, 0xDB, 0x3B, 0xBB, 0x7B, 0xFB,
+    0x07, 0x87, 0x47, 0xC7, 0x27, 0xA7, 0x67, 0xE7,
+    0x17, 0x97, 0x57, 0xD7, 0x37, 0xB7, 0x77, 0xF7,
+    0x0F, 0x8F, 0x4F, 0xCF, 0x2F, 0xAF, 0x6F, 0xEF,
+    0x1F, 0x9F, 0x5F, 0xDF, 0x3F, 0xBF, 0x7F, 0xFF
+};
+#endif /* BROTLI_RBIT */
+
+#define BROTLI_REVERSE_BITS_LOWEST \
+    (1U << (BROTLI_REVERSE_BITS_MAX - 1 + BROTLI_REVERSE_BITS_BASE))
+
+/* Returns reverse(num >> BROTLI_REVERSE_BITS_BASE, BROTLI_REVERSE_BITS_MAX),
+   where reverse(value, len) is the bit-wise reversal of the len least
+   significant bits of value. */
+static BROTLI_INLINE uint32_t BrotliReverseBits(uint32_t num) {
+#ifdef BROTLI_RBIT
+  return BROTLI_RBIT(num);
+#else
+  return kReverseBits[num];
 #endif
 }
 
@@ -71,7 +113,8 @@ void BrotliBuildCodeLengthsHuffmanTable(HuffmanCode* table,
                                         uint16_t *count) {
   HuffmanCode code;    /* current table entry */
   int symbol;          /* symbol index in original or sorted table */
-  unsigned key;        /* reversed prefix code */
+  uint32_t key;        /* prefix code */
+  uint32_t key_step;   /* prefix code addend */
   int step;            /* step size to replicate values in current table */
   int table_size;      /* size of current table */
   int sorted[18];      /* symbols sorted by code length */
@@ -79,6 +122,8 @@ void BrotliBuildCodeLengthsHuffmanTable(HuffmanCode* table,
   int offset[BROTLI_HUFFMAN_MAX_CODE_LENGTH_CODE_LENGTH + 1];
   int bits;
   int bits_count;
+  BROTLI_DCHECK(
+      BROTLI_HUFFMAN_MAX_CODE_LENGTH_CODE_LENGTH <= BROTLI_REVERSE_BITS_MAX);
 
   /* generate offsets into sorted symbol table by code length */
   symbol = -1;
@@ -114,6 +159,7 @@ void BrotliBuildCodeLengthsHuffmanTable(HuffmanCode* table,
 
   /* fill in table */
   key = 0;
+  key_step = BROTLI_REVERSE_BITS_LOWEST;
   symbol = 0;
   bits = 1;
   step = 2;
@@ -121,10 +167,11 @@ void BrotliBuildCodeLengthsHuffmanTable(HuffmanCode* table,
     code.bits = (uint8_t)bits;
     for (bits_count = count[bits]; bits_count != 0; --bits_count) {
       code.value = (uint16_t)sorted[symbol++];
-      ReplicateValue(&table[key], step, table_size, code);
-      key = GetNextKey(key, bits);
+      ReplicateValue(&table[BrotliReverseBits(key)], step, table_size, code);
+      key += key_step;
     }
     step <<= 1;
+    key_step >>= 1;
   } while (++bits <= BROTLI_HUFFMAN_MAX_CODE_LENGTH_CODE_LENGTH);
 }
 
@@ -136,16 +183,21 @@ int BrotliBuildHuffmanTable(HuffmanCode* root_table,
   HuffmanCode* table;  /* next available space in table */
   int len;             /* current code length */
   int symbol;          /* symbol index in original or sorted table */
-  unsigned key;        /* reversed prefix code */
+  uint32_t key;        /* prefix code */
+  uint32_t key_step;   /* prefix code addend */
+  uint32_t sub_key;    /* 2nd level table prefix code */
+  uint32_t sub_key_step;/* 2nd level table prefix code addend */
   int step;            /* step size to replicate values in current table */
-  unsigned low;        /* low bits for current root entry */
-  unsigned mask;       /* mask for low bits */
   int table_bits;      /* key length of current table */
   int table_size;      /* size of current table */
   int total_size;      /* sum of root table size and 2nd level table sizes */
   int max_length = -1;
   int bits;
   int bits_count;
+
+  BROTLI_DCHECK(root_bits <= BROTLI_REVERSE_BITS_MAX);
+  BROTLI_DCHECK(
+      BROTLI_HUFFMAN_MAX_CODE_LENGTH - root_bits <= BROTLI_REVERSE_BITS_MAX);
 
   while (symbol_lists[max_length] == 0xFFFF) max_length--;
   max_length += BROTLI_HUFFMAN_MAX_CODE_LENGTH + 1;
@@ -163,6 +215,7 @@ int BrotliBuildHuffmanTable(HuffmanCode* root_table,
     table_size = 1 << table_bits;
   }
   key = 0;
+  key_step = BROTLI_REVERSE_BITS_LOWEST;
   bits = 1;
   step = 2;
   do {
@@ -171,10 +224,11 @@ int BrotliBuildHuffmanTable(HuffmanCode* root_table,
     for (bits_count = count[bits]; bits_count != 0; --bits_count) {
       symbol = symbol_lists[symbol];
       code.value = (uint16_t)symbol;
-      ReplicateValue(&table[key], step, table_size, code);
-      key = GetNextKey(key, bits);
+      ReplicateValue(&table[BrotliReverseBits(key)], step, table_size, code);
+      key += key_step;
     }
     step <<= 1;
+    key_step >>= 1;
   } while (++bits <= table_bits);
 
   /* if root_bits != table_bits we only created one fraction of the */
@@ -186,27 +240,33 @@ int BrotliBuildHuffmanTable(HuffmanCode* root_table,
   }
 
   /* fill in 2nd level tables and add pointers to root table */
-  mask = (unsigned)(total_size - 1);
-  low = (unsigned)-1;
-  for (len = root_bits + 1, step = 2; len <= max_length; ++len, step <<= 1) {
+  key_step = BROTLI_REVERSE_BITS_LOWEST >> (root_bits - 1);
+  sub_key = (BROTLI_REVERSE_BITS_LOWEST << 1);
+  sub_key_step = BROTLI_REVERSE_BITS_LOWEST;
+  for (len = root_bits + 1, step = 2; len <= max_length; ++len) {
     symbol = len - (BROTLI_HUFFMAN_MAX_CODE_LENGTH + 1);
     for (; count[len] != 0; --count[len]) {
-      if ((key & mask) != low) {
+      if (sub_key == (uint32_t)(BROTLI_REVERSE_BITS_LOWEST << 1)) {
         table += table_size;
         table_bits = NextTableBitSize(count, len, root_bits);
         table_size = 1 << table_bits;
         total_size += table_size;
-        low = key & mask;
-        root_table[low].bits = (uint8_t)(table_bits + root_bits);
-        root_table[low].value = (uint16_t)(
-            ((size_t)(table - root_table)) - low);
+        sub_key = BrotliReverseBits(key);
+        key += key_step;
+        root_table[sub_key].bits = (uint8_t)(table_bits + root_bits);
+        root_table[sub_key].value = (uint16_t)(
+            ((size_t)(table - root_table)) - sub_key);
+        sub_key = 0;
       }
       code.bits = (uint8_t)(len - root_bits);
       symbol = symbol_lists[symbol];
       code.value = (uint16_t)symbol;
-      ReplicateValue(&table[key >> root_bits], step, table_size, code);
-      key = GetNextKey(key, len);
+      ReplicateValue(
+          &table[BrotliReverseBits(sub_key)], step, table_size, code);
+      sub_key += sub_key_step;
     }
+    step <<= 1;
+    sub_key_step >>= 1;
   }
   return total_size;
 }
@@ -316,9 +376,7 @@ void BrotliHuffmanTreeGroupInit(HuffmanTreeGroup* group, int alphabet_size,
 }
 
 void BrotliHuffmanTreeGroupRelease(HuffmanTreeGroup* group) {
-  if (group->codes) {
-    free(group->codes);
-  }
+  BROTLI_FREE(group->codes);
 }
 
 #if defined(__cplusplus) || defined(c_plusplus)

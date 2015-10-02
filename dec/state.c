@@ -32,6 +32,9 @@ void BrotliStateInit(BrotliState* s) {
   s->substate_huffman = BROTLI_STATE_HUFFMAN_NONE;
   s->substate_decode_uint8 = BROTLI_STATE_DECODE_UINT8_NONE;
 
+  s->loop_counter = 0;
+  s->pos = 0;
+
   s->block_type_trees = NULL;
   s->block_len_trees = NULL;
   s->ringbuffer = NULL;
@@ -103,18 +106,9 @@ void BrotliStateMetablockBegin(BrotliState* s) {
 }
 
 void BrotliStateCleanupAfterMetablock(BrotliState* s) {
-  if (s->context_modes != 0) {
-    free(s->context_modes);
-    s->context_modes = NULL;
-  }
-  if (s->context_map != 0) {
-    free(s->context_map);
-    s->context_map = NULL;
-  }
-  if (s->dist_context_map != 0) {
-    free(s->dist_context_map);
-    s->dist_context_map = NULL;
-  }
+  BROTLI_FREE(s->context_modes);
+  BROTLI_FREE(s->context_map);
+  BROTLI_FREE(s->dist_context_map);
 
   BrotliHuffmanTreeGroupRelease(&s->literal_hgroup);
   BrotliHuffmanTreeGroupRelease(&s->insert_copy_hgroup);
@@ -128,25 +122,16 @@ void BrotliStateCleanupAfterMetablock(BrotliState* s) {
 }
 
 void BrotliStateCleanup(BrotliState* s) {
-  if (s->context_modes != 0) {
-    free(s->context_modes);
-  }
-  if (s->context_map != 0) {
-    free(s->context_map);
-  }
-  if (s->dist_context_map != 0) {
-    free(s->dist_context_map);
-  }
+  BROTLI_FREE(s->context_modes);
+  BROTLI_FREE(s->context_map);
+  BROTLI_FREE(s->dist_context_map);
+
   BrotliHuffmanTreeGroupRelease(&s->literal_hgroup);
   BrotliHuffmanTreeGroupRelease(&s->insert_copy_hgroup);
   BrotliHuffmanTreeGroupRelease(&s->distance_hgroup);
 
-  if (s->ringbuffer != 0) {
-    free(s->ringbuffer);
-  }
-  if (s->block_type_trees != 0) {
-    free(s->block_type_trees);
-  }
+  BROTLI_FREE(s->ringbuffer);
+  BROTLI_FREE(s->block_type_trees);
 }
 
 #if defined(__cplusplus) || defined(c_plusplus)

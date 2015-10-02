@@ -16,6 +16,11 @@
 /* Macros for compiler / platform specific features and build options.
 
    Build options are:
+    * BROTLI_BUILD_32_BIT disables 64-bit optimizations
+    * BROTLI_BUILD_64_BIT forces to use 64-bit optimizations
+    * BROTLI_BUILD_BIG_ENDIAN forces to use big-endian optimizations
+    * BROTLI_BUILD_LITTLE_ENDIAN forces to use little-endian optimizations
+    * BROTLI_BUILD_ENDIAN_NEUTRAL disables endian-aware optimizations
     * BROTLI_BUILD_PORTABLE disables dangerous optimizations, like unaligned
       read and overlapping memcpy; this reduces decompression speed by 5%
     * BROTLI_DEBUG dumps file name and line number when decoder detects stream
@@ -109,26 +114,40 @@ OR:
 #define BROTLI_DCHECK(x)
 #endif
 
-#if (defined(__x86_64__) || defined(_M_X64) || defined(__aarch64__) || \
-     defined(__PPC64__))
+#if defined(BROTLI_BUILD_64_BIT)
+#define BROTLI_64_BITS 1
+#elif defined(BROTLI_BUILD_32_BIT)
+#define BROTLI_64_BITS 0
+#elif defined(__x86_64__) || defined(_M_X64) || defined(__aarch64__) || \
+     defined(__PPC64__)
 #define BROTLI_64_BITS 1
 #else
 #define BROTLI_64_BITS 0
 #endif
 
-#if (defined(__BYTE_ORDER__) && (__BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__))
+#if defined(BROTLI_BUILD_BIG_ENDIAN)
+#define BROTLI_LITTLE_ENDIAN 0
+#define BROTLI_BIG_ENDIAN 1
+#elif defined(BROTLI_BUILD_LITTLE_ENDIAN)
 #define BROTLI_LITTLE_ENDIAN 1
+#define BROTLI_BIG_ENDIAN 0
+#elif defined(BROTLI_BUILD_ENDIAN_NEUTRAL)
+#define BROTLI_LITTLE_ENDIAN 0
+#define BROTLI_BIG_ENDIAN 0
+#elif defined(__BYTE_ORDER__) && (__BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__)
+#define BROTLI_LITTLE_ENDIAN 1
+#define BROTLI_BIG_ENDIAN 0
 #elif defined(_WIN32)
 /* Win32 can currently always be assumed to be little endian */
 #define BROTLI_LITTLE_ENDIAN 1
+#define BROTLI_BIG_ENDIAN 0
 #else
-#define BROTLI_LITTLE_ENDIAN 0
+#if (defined(__BYTE_ORDER__) && (__BYTE_ORDER__ == __ORDER_BIG_ENDIAN__))
+#define BROTLI_BIG_ENDIAN 1
+#else
+#define BROTLI_BIG_ENDIAN 0
 #endif
-
-#if (BROTLI_64_BITS && BROTLI_LITTLE_ENDIAN)
-#define BROTLI_64_BITS_LITTLE_ENDIAN 1
-#else
-#define BROTLI_64_BITS_LITTLE_ENDIAN 0
+#define BROTLI_LITTLE_ENDIAN 0
 #endif
 
 #if (__GNUC__ > 3) || (__GNUC__ == 3 && __GNUC_MINOR__ >= 1) || \
@@ -160,5 +179,10 @@ static BROTLI_INLINE unsigned BrotliRBit(unsigned input) {
 #define BROTLI_RBIT(x) BrotliRBit(x)
 #endif  /* armv7 */
 #endif  /* gcc || clang */
+
+#define BROTLI_FREE(X) { \
+  free(X); \
+  X = NULL; \
+}
 
 #endif  /* BROTLI_DEC_PORT_H_ */
