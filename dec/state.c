@@ -32,6 +32,9 @@ void BrotliStateInit(BrotliState* s) {
   s->substate_huffman = BROTLI_STATE_HUFFMAN_NONE;
   s->substate_decode_uint8 = BROTLI_STATE_DECODE_UINT8_NONE;
 
+  s->loop_counter = 0;
+  s->pos = 0;
+
   s->block_type_trees = NULL;
   s->block_len_trees = NULL;
   s->ringbuffer = NULL;
