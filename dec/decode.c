@@ -343,12 +343,12 @@ static BROTLI_INLINE int Log2Floor(int x) {
     B.2) Decoded table is used to decode code lengths of symbols in resulting
          Huffman table. In worst case 3520 bits are read.
 */
-static BrotliResult ReadHuffmanCode(int alphabet_size,
+static BrotliResult ReadHuffmanCode(unsigned int alphabet_size,
                                     HuffmanCode* table,
                                     int* opt_table_size,
                                     BrotliState* s) {
   BrotliBitReader* br = &s->br;
-  int i;
+  unsigned int i;
   /* Unnecessary masking, but might be good for safety. */
   alphabet_size &= 0x3ff;
   /* State machine */
@@ -380,7 +380,7 @@ static BrotliResult ReadHuffmanCode(int alphabet_size,
           BROTLI_LOG_UINT(s->symbols_lists_array[i]);
         } while (++i <= num_symbols);
         for (i = 0; i < num_symbols; ++i) {
-          int k = i + 1;
+          unsigned int k = i + 1;
           for (; k <= num_symbols; ++k) {
             if (s->symbols_lists_array[i] == s->symbols_lists_array[k]) {
               return BROTLI_FAILURE();

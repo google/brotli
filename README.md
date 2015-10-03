@@ -16,3 +16,9 @@ file.
 
 Brotli mailing list:
 https://groups.google.com/forum/#!forum/brotli
+
+Brotli's native language is C/C++
+
+An OCaml wrapper is at https://github.com/fxfactorial/ocaml-brotli
+
+A Lua wrapper is at https://github.com/witchu/lua-brotli and on luarock
