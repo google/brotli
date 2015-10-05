@@ -36,7 +36,9 @@ extern "C" {
 
 /* Masking with this expression turns to a single "Unsigned Bit Field Extract"
    UBFX instruction on ARM. */
-static BROTLI_INLINE uint32_t BitMask(int n) { return ~((0xffffffff) << n); }
+static BROTLI_INLINE uint32_t BitMask(uint32_t n) {
+    return ~((0xffffffffU) << n);
+}
 
 typedef struct {
 #if (BROTLI_64_BITS)
@@ -190,7 +192,7 @@ static BROTLI_INLINE uint64_t BrotliLoad64LE(const uint8_t* in) {
    n_bits should be in the range [1..24] for regular build. For portable
    non-64-bit little endian build only 16 bits are safe to request. */
 static BROTLI_INLINE void BrotliFillBitWindow(
-    BrotliBitReader* const br, int n_bits) {
+    BrotliBitReader* const br, uint32_t n_bits) {
 #if (BROTLI_64_BITS)
   if (!BROTLI_ALIGNED_READ && IS_CONSTANT(n_bits) && (n_bits <= 8)) {
     if (br->bit_pos_ >= 56) {
@@ -254,14 +256,14 @@ static BROTLI_INLINE void BrotliPullByte(BrotliBitReader* const br) {
 /* Like BrotliGetBits, but does not mask the result, it is only guaranteed
 that it has minimum n_bits. */
 static BROTLI_INLINE uint32_t BrotliGetBitsUnmasked(
-    BrotliBitReader* const br, int n_bits) {
+    BrotliBitReader* const br, uint32_t n_bits) {
   BrotliFillBitWindow(br, n_bits);
   return (uint32_t)(br->val_ >> br->bit_pos_);
 }
 
 /* Returns the specified number of bits from br without advancing bit pos. */
 static BROTLI_INLINE uint32_t BrotliGetBits(
-    BrotliBitReader* const br, int n_bits) {
+    BrotliBitReader* const br, uint32_t n_bits) {
   BrotliFillBitWindow(br, n_bits);
   return (uint32_t)(br->val_ >> br->bit_pos_) & BitMask(n_bits);
 }
@@ -275,19 +277,19 @@ static BROTLI_INLINE void BrotliDropBits(
 /* Reads the specified number of bits from br and advances the bit pos.
    Precondition: accumulator MUST contain at least n_bits. */
 static BROTLI_INLINE void BrotliTakeBits(
-  BrotliBitReader* const br, int n_bits, uint32_t* val) {
+  BrotliBitReader* const br, uint32_t n_bits, uint32_t* val) {
   *val = (uint32_t)(br->val_ >> br->bit_pos_) & BitMask(n_bits);
 #ifdef BROTLI_DECODE_DEBUG
   printf("[BrotliReadBits]  %d %d %d val: %6x\n",
          (int)br->avail_in, (int)br->bit_pos_, n_bits, (int)*val);
 #endif
-  br->bit_pos_ += (uint32_t)n_bits;
+  br->bit_pos_ += n_bits;
 }
 
 /* Reads the specified number of bits from br and advances the bit pos.
    Assumes that there is enough input to perform BrotliFillBitWindow. */
 static BROTLI_INLINE uint32_t BrotliReadBits(
-    BrotliBitReader* const br, int n_bits) {
+    BrotliBitReader* const br, uint32_t n_bits) {
   if (BROTLI_64_BITS || (n_bits <= 16)) {
     uint32_t val;
     BrotliFillBitWindow(br, n_bits);
@@ -307,7 +309,7 @@ static BROTLI_INLINE uint32_t BrotliReadBits(
 /* Tries to read the specified amount of bits. Returns 0, if there is not
    enough input. */
 static BROTLI_INLINE int BrotliSafeReadBits(
-  BrotliBitReader* const br, int n_bits, uint32_t* val) {
+  BrotliBitReader* const br, uint32_t n_bits, uint32_t* val) {
   while (br->bit_pos_ + (uint32_t)n_bits > (sizeof(br->val_) << 3)) {
     if (br->avail_in == 0) {
       return 0;
@@ -321,7 +323,7 @@ static BROTLI_INLINE int BrotliSafeReadBits(
 /* Advances the bit reader position to the next byte boundary and verifies
    that any skipped bits are set to zero. */
 static BROTLI_INLINE int BrotliJumpToByteBoundary(BrotliBitReader* br) {
-  int pad_bits_count = (64 - (int)br->bit_pos_) & 0x7;
+  uint32_t pad_bits_count = (64 - (int)br->bit_pos_) & 0x7;
   uint32_t pad_bits = 0;
   if (pad_bits_count != 0) {
     BrotliTakeBits(br, pad_bits_count, &pad_bits);
@@ -332,8 +334,8 @@ static BROTLI_INLINE int BrotliJumpToByteBoundary(BrotliBitReader* br) {
 /* Peeks a byte at specified offset.
    Precondition: bit reader is parked to a byte boundary.
    Returns -1 if operation is not feasible. */
-static BROTLI_INLINE int BrotliPeekByte(BrotliBitReader* br, int offset) {
-  int bytes_left = (int)(sizeof(br->val_) - (br->bit_pos_ >> 3));
+static BROTLI_INLINE int BrotliPeekByte(BrotliBitReader* br, size_t offset) {
+  size_t bytes_left = sizeof(br->val_) - (br->bit_pos_ >> 3);
   if (br->bit_pos_ & 7) {
     return -1;
   }

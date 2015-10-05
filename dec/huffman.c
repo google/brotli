@@ -151,7 +151,7 @@ void BrotliBuildCodeLengthsHuffmanTable(HuffmanCode* table,
   if (offset[0] == 0) {
     code.bits = 0;
     code.value = (uint16_t)sorted[0];
-    for (key = 0; key < table_size; ++key) {
+    for (key = 0; key < (uint32_t)table_size; ++key) {
       table[key] = code;
     }
     return;
@@ -175,10 +175,10 @@ void BrotliBuildCodeLengthsHuffmanTable(HuffmanCode* table,
   } while (++bits <= BROTLI_HUFFMAN_MAX_CODE_LENGTH_CODE_LENGTH);
 }
 
-int BrotliBuildHuffmanTable(HuffmanCode* root_table,
-                            int root_bits,
-                            const uint16_t* const symbol_lists,
-                            uint16_t *count) {
+uint32_t BrotliBuildHuffmanTable(HuffmanCode* root_table,
+                                 int root_bits,
+                                 const uint16_t* const symbol_lists,
+                                 uint16_t *count) {
   HuffmanCode code;    /* current table entry */
   HuffmanCode* table;  /* next available space in table */
   int len;             /* current code length */
@@ -268,15 +268,15 @@ int BrotliBuildHuffmanTable(HuffmanCode* root_table,
     step <<= 1;
     sub_key_step >>= 1;
   }
-  return total_size;
+  return (uint32_t)total_size;
 }
 
-int BrotliBuildSimpleHuffmanTable(HuffmanCode* table,
-                                  int root_bits,
-                                  uint16_t *val,
-                                  uint32_t num_symbols) {
-  int table_size = 1;
-  const int goal_size = 1 << root_bits;
+uint32_t BrotliBuildSimpleHuffmanTable(HuffmanCode* table,
+                                       int root_bits,
+                                       uint16_t *val,
+                                       uint32_t num_symbols) {
+  uint32_t table_size = 1;
+  const uint32_t goal_size = 1U << root_bits;
   switch (num_symbols) {
     case 0:
       table[0].bits = 0;
@@ -362,15 +362,15 @@ int BrotliBuildSimpleHuffmanTable(HuffmanCode* table,
   return goal_size;
 }
 
-void BrotliHuffmanTreeGroupInit(HuffmanTreeGroup* group, int alphabet_size,
-                                int ntrees) {
+void BrotliHuffmanTreeGroupInit(HuffmanTreeGroup* group, uint32_t alphabet_size,
+                                uint32_t ntrees) {
   /* Pack two mallocs into one */
   const size_t code_size =
       sizeof(HuffmanCode) * (size_t)(ntrees * BROTLI_HUFFMAN_MAX_TABLE_SIZE);
   const size_t htree_size = sizeof(HuffmanCode*) * (size_t)ntrees;
   char *p = (char*)malloc(code_size + htree_size);
-  group->alphabet_size = (int16_t)alphabet_size;
-  group->num_htrees = (int16_t)ntrees;
+  group->alphabet_size = (uint16_t)alphabet_size;
+  group->num_htrees = (uint16_t)ntrees;
   group->codes = (HuffmanCode*)p;
   group->htrees = (HuffmanCode**)(p + code_size);
 }

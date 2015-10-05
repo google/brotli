@@ -24,7 +24,7 @@
 /* [offset, offset + 2^nbits) */
 struct PrefixCodeRange {
   int16_t offset;
-  int8_t nbits;
+  uint8_t nbits;
 };
 
 static const struct PrefixCodeRange kBlockLengthPrefixCode[] = {
