@@ -191,7 +191,7 @@ static PyObject* brotli_decompress(PyObject *self, PyObject *args) {
 
   ok = BrotliDecompress(in, out);
   if (ok) {
-    ret = PyBytes_FromStringAndSize((char*)output.data(), output.size());
+    ret = PyBytes_FromStringAndSize((char*)(output.size() ? &output[0] : NULL), output.size());
   } else {
     PyErr_SetString(BrotliError, "BrotliDecompress failed");
   }
