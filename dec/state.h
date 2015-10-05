@@ -128,12 +128,12 @@ typedef struct {
   int distance_context;
   int meta_block_remaining_len;
   int block_length[3];
-  int num_block_types[3];
-  int block_type_rb[6];
-  int distance_postfix_bits;
-  int num_direct_distance_codes;
+  uint32_t num_block_types[3];
+  uint32_t block_type_rb[6];
+  uint32_t distance_postfix_bits;
+  uint32_t num_direct_distance_codes;
   int distance_postfix_mask;
-  int num_dist_htrees;
+  uint32_t num_dist_htrees;
   uint8_t* dist_context_map;
   HuffmanCode *literal_htree;
   uint8_t literal_htree_index;
@@ -171,12 +171,12 @@ typedef struct {
   HuffmanCode* next;
 
   /* For DecodeContextMap */
-  int context_index;
-  int max_run_length_prefix;
+  uint32_t context_index;
+  uint32_t max_run_length_prefix;
   HuffmanCode context_map_table[BROTLI_HUFFMAN_MAX_TABLE_SIZE];
 
   /* For InverseMoveToFrontTransform */
-  int mtf_upper_bound;
+  uint32_t mtf_upper_bound;
   uint8_t mtf[256];
 
   /* For custom dictionaries */
@@ -198,7 +198,7 @@ typedef struct {
   uint8_t size_nibbles;
   uint32_t window_bits;
 
-  int num_literal_htrees;
+  uint32_t num_literal_htrees;
   uint8_t* context_map;
   uint8_t* context_modes;
 } BrotliState;

@@ -185,4 +185,6 @@ static BROTLI_INLINE unsigned BrotliRBit(unsigned input) {
   X = NULL; \
 }
 
+#define BROTLI_UNUSED(X) (void)(X)
+
 #endif  /* BROTLI_DEC_PORT_H_ */

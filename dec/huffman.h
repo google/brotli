@@ -48,30 +48,30 @@ void BrotliBuildCodeLengthsHuffmanTable(HuffmanCode* root_table,
 
 /* Builds Huffman lookup table assuming code lengths are in symbol order. */
 /* Returns size of resulting table. */
-int BrotliBuildHuffmanTable(HuffmanCode* root_table,
-                            int root_bits,
-                            const uint16_t* const symbol_lists,
-                            uint16_t *count_arg);
+uint32_t BrotliBuildHuffmanTable(HuffmanCode* root_table,
+                                 int root_bits,
+                                 const uint16_t* const symbol_lists,
+                                 uint16_t *count_arg);
 
 /* Builds a simple Huffman table. The num_symbols parameter is to be */
 /* interpreted as follows: 0 means 1 symbol, 1 means 2 symbols, 2 means 3 */
 /* symbols, 3 means 4 symbols with lengths 2,2,2,2, 4 means 4 symbols with */
 /* lengths 1,2,3,3. */
-int BrotliBuildSimpleHuffmanTable(HuffmanCode* table,
-                                  int root_bits,
-                                  uint16_t *symbols,
-                                  uint32_t num_symbols);
+uint32_t BrotliBuildSimpleHuffmanTable(HuffmanCode* table,
+                                       int root_bits,
+                                       uint16_t *symbols,
+                                       uint32_t num_symbols);
 
 /* Contains a collection of Huffman trees with the same alphabet size. */
 typedef struct {
   HuffmanCode** htrees;
   HuffmanCode* codes;
-  int16_t alphabet_size;
-  int16_t num_htrees;
+  uint16_t alphabet_size;
+  uint16_t num_htrees;
 } HuffmanTreeGroup;
 
 void BrotliHuffmanTreeGroupInit(HuffmanTreeGroup* group,
-                                int alphabet_size, int ntrees);
+                                uint32_t alphabet_size, uint32_t ntrees);
 void BrotliHuffmanTreeGroupRelease(HuffmanTreeGroup* group);
 
 #if defined(__cplusplus) || defined(c_plusplus)
