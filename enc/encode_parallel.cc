@@ -123,6 +123,7 @@ bool WriteMetaBlockParallel(const BrotliParams& params,
     commands.push_back(Command(last_insert_len));
     num_literals += last_insert_len;
   }
+  assert(!commands.empty());
 
   // Build the meta-block.
   MetaBlockSplit mb;
@@ -135,12 +136,12 @@ bool WriteMetaBlockParallel(const BrotliParams& params,
                             distance_postfix_bits);
   if (params.quality <= 9) {
     BuildMetaBlockGreedy(&input[0], input_pos, mask,
-                         commands.data(), commands.size(),
+                         &commands[0], commands.size(),
                          &mb);
   } else {
     BuildMetaBlock(&input[0], input_pos, mask,
                    prev_byte, prev_byte2,
-                   commands.data(), commands.size(),
+                   &commands[0], commands.size(),
                    literal_context_mode,
                    &mb);
   }
@@ -172,7 +173,7 @@ bool WriteMetaBlockParallel(const BrotliParams& params,
                       num_direct_distance_codes,
                       distance_postfix_bits,
                       literal_context_mode,
-                      commands.data(), commands.size(),
+                      &commands[0], commands.size(),
                       mb,
                       &storage_ix, &storage[0])) {
     return false;
