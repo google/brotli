@@ -256,7 +256,7 @@ void StoreHuffmanTree(const uint8_t* depths, size_t num,
   CreateHuffmanTree(&huffman_tree_histogram[0], kCodeLengthCodes,
                     5, &code_length_bitdepth[0]);
   ConvertBitDepthsToSymbols(code_length_bitdepth, kCodeLengthCodes,
-                            code_length_bitdepth_symbols.data());
+                            &code_length_bitdepth_symbols[0]);
 
   // Now, we have all the data, let's start storing it
   StoreHuffmanTreeOfHuffmanTreeToBitMask(num_codes, code_length_bitdepth,

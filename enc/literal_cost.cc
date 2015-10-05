@@ -97,10 +97,8 @@ void EstimateBitCostsForLiteralsUTF8(size_t pos, size_t len, size_t mask,
     }
     if (i + window_half < len) {
       // Add a byte in the future.
-      int c = (i + window_half - 1) < 0 ?
-          0 : data[(pos + i + window_half - 1) & mask];
-      int last_c = (i + window_half - 2) < 0 ?
-          0 : data[(pos + i + window_half - 2) & mask];
+      int c = data[(pos + i + window_half - 1) & mask];
+      int last_c = data[(pos + i + window_half - 2) & mask];
       int utf8_pos2 = UTF8Position(last_c, c, max_utf8);
       ++histogram[utf8_pos2][data[(pos + i + window_half) & mask]];
       ++in_window_utf8[utf8_pos2];

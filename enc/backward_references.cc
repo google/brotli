@@ -31,6 +31,8 @@ static const double kInfinity = std::numeric_limits<double>::infinity();
 // Histogram based cost model for zopflification.
 class ZopfliCostModel {
  public:
+  ZopfliCostModel() : min_cost_cmd_(kInfinity) {}
+
   void SetFromCommands(size_t num_bytes,
                        size_t position,
                        const uint8_t* ringbuffer,
@@ -64,7 +66,6 @@ class ZopfliCostModel {
     Set(histogram_cmd, &cost_cmd_);
     Set(histogram_dist, &cost_dist_);
 
-    min_cost_cmd_ = kInfinity;
     for (int i = 0; i < kNumCommandPrefixes; ++i) {
       min_cost_cmd_ = std::min(min_cost_cmd_, cost_cmd_[i]);
     }
