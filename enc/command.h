@@ -90,8 +90,6 @@ static inline void GetLengthCode(int insertlen, int copylen, int distancecode,
 }
 
 struct Command {
-  Command() {}
-
   // distance_code is e.g. 0 for same-as-last short code, or 16 for offset 1.
   Command(int insertlen, int copylen, int copylen_code, int distance_code)
       : insert_len_(insertlen), copy_len_(copylen) {

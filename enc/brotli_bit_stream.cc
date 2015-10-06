@@ -339,6 +339,7 @@ std::vector<int> MoveToFrontTransform(const std::vector<int>& v) {
   std::vector<int> result(v.size());
   for (int i = 0; i < v.size(); ++i) {
     int index = IndexOf(mtf, v[i]);
+    assert(index >= 0);
     result[i] = index;
     MoveToFront(&mtf, index);
   }

@@ -110,7 +110,7 @@ class BrotliFileIn : public BrotliIn {
 
  private:
   FILE* f_;
-  void* buf_;
+  char* buf_;
   size_t buf_size_;
 };
 
