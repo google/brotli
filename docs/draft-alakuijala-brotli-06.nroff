@@ -1731,7 +1731,7 @@ registration below:
    +----------+----------------------------------------+---------------+
    | Name     | Description                            | Reference     |
    +----------+----------------------------------------+---------------+
-   | bro      | Brotli Compressed Data Format          | RFCXXXX       |
+   | br       | Brotli Compressed Data Format          | RFCXXXX       |
    +----------+----------------------------------------+---------------+
 .KE
 .fi
