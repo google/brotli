@@ -89,18 +89,14 @@ const void* BrotliMemIn::Read(size_t n, size_t* output) {
 
 BrotliFileIn::BrotliFileIn(FILE* f, size_t max_read_size)
     : f_(f),
-      buf_(malloc(max_read_size)),
-      buf_size_(max_read_size) {}
+      buf_(new char[max_read_size]),
+      buf_size_(max_read_size) { }
 
 BrotliFileIn::~BrotliFileIn() {
-  if (buf_) free(buf_);
+  delete[] buf_;
 }
 
 const void* BrotliFileIn::Read(size_t n, size_t* bytes_read) {
-  if (buf_ == NULL) {
-    *bytes_read = 0;
-    return NULL;
-  }
   if (n > buf_size_) {
     n = buf_size_;
   } else if (n == 0) {

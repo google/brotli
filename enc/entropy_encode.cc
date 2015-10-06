@@ -29,7 +29,6 @@ namespace brotli {
 namespace {
 
 struct HuffmanTree {
-  HuffmanTree();
   HuffmanTree(int count, int16_t left, int16_t right)
       : total_count_(count),
         index_left_(left),
@@ -39,8 +38,6 @@ struct HuffmanTree {
   int16_t index_left_;
   int16_t index_right_or_value_;
 };
-
-HuffmanTree::HuffmanTree() {}
 
 // Sort the root nodes, least popular first.
 bool SortHuffmanTree(const HuffmanTree &v0, const HuffmanTree &v1) {

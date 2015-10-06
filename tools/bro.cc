@@ -177,7 +177,10 @@ int64_t FileSize(char *path) {
   if (f == NULL) {
     return -1;
   }
-  fseek(f, 0L, SEEK_END);
+  if (fseek(f, 0L, SEEK_END) != 0) {
+    fclose(f);
+    return -1;
+  }
   int64_t retval = ftell(f);
   fclose(f);
   return retval;
@@ -209,10 +212,16 @@ int main(int argc, char** argv) {
       brotli::BrotliParams params;
       params.lgwin = lgwin;
       params.quality = quality;
-      brotli::BrotliFileIn in(fin, 1 << 16);
-      brotli::BrotliFileOut out(fout);
-      if (!BrotliCompress(params, &in, &out)) {
-        fprintf(stderr, "compression failed\n");
+      try {
+        brotli::BrotliFileIn in(fin, 1 << 16);
+        brotli::BrotliFileOut out(fout);
+        if (!BrotliCompress(params, &in, &out)) {
+          fprintf(stderr, "compression failed\n");
+          unlink(output_path);
+          exit(1);
+        }
+      } catch (std::bad_alloc&) {
+        fprintf(stderr, "not enough memory\n");
         unlink(output_path);
         exit(1);
       }

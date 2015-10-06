@@ -18,6 +18,7 @@
 #define BROTLI_ENC_HISTOGRAM_H_
 
 #include <string.h>
+#include <limits>
 #include <vector>
 #include <utility>
 #include "./command.h"
@@ -38,6 +39,7 @@ struct Histogram {
   void Clear() {
     memset(data_, 0, sizeof(data_));
     total_count_ = 0;
+    bit_cost_ = std::numeric_limits<double>::infinity();
   }
   void Add(int val) {
     ++data_[val];
