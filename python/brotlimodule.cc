@@ -53,8 +53,8 @@ static int lgwin_convertor(PyObject *o, int *lgwin) {
   }
 
   *lgwin = PyInt_AsLong(o);
-  if (*lgwin < 16 || *lgwin > 24) {
-    PyErr_SetString(BrotliError, "Invalid lgwin. Range is 16 to 24.");
+  if (*lgwin < 10 || *lgwin > 24) {
+    PyErr_SetString(BrotliError, "Invalid lgwin. Range is 10 to 24.");
     return 0;
   }
 
@@ -90,7 +90,7 @@ PyDoc_STRVAR(compress__doc__,
 "    density tradeoff. The higher the quality, the slower the compression.\n"
 "    Range is 0 to 11. Defaults to 11.\n"
 "  lgwin (int, optional): Base 2 logarithm of the sliding window size. Range\n"
-"    is 16 to 24. Defaults to 22.\n"
+"    is 10 to 24. Defaults to 22.\n"
 "  lgblock (int, optional): Base 2 logarithm of the maximum input block size.\n"
 "    Range is 16 to 24. If set to 0, the value will be set based on the\n"
 "    quality. Defaults to 0.\n"
