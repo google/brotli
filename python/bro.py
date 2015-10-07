@@ -46,7 +46,7 @@ def get_binary_stdio(stream):
             return orig_stdio.buffer
 
 
-def main():
+def main(args=None):
 
     parser = argparse.ArgumentParser(
         prog='bro.py',
@@ -63,7 +63,7 @@ def main():
     params = parser.add_argument_group('optional encoder parameters')
     params.add_argument('-m', '--mode', metavar="MODE", type=int, choices=[0, 1],
                         help='The compression mode can be 0 for generic input, '
-                        '1 for UTF-8 encoded text, or 2 for WOFF 2.0 font data.'
+                        '1 for UTF-8 encoded text, or 2 for WOFF 2.0 font data. '
                         'Defaults to 0.')
     params.add_argument('-q', '--quality', metavar="QUALITY", type=int,
                         choices=list(range(0, 12)),
@@ -73,7 +73,7 @@ def main():
     params.add_argument('--lgwin', metavar="LGWIN", type=int,
                         choices=list(range(16, 25)),
                         help='Base 2 logarithm of the sliding window size. Range is '
-                        '16 to 24. Defaults to 22.')
+                        '10 to 24. Defaults to 22.')
     params.add_argument('--lgblock', metavar="LGBLOCK", type=int,
                         choices=[0] + list(range(16, 25)),
                         help='Base 2 logarithm of the maximum input block size. '
@@ -82,7 +82,7 @@ def main():
     # set default values using global DEFAULT_PARAMS dictionary
     parser.set_defaults(**DEFAULT_PARAMS)
 
-    options = parser.parse_args()
+    options = parser.parse_args(args=args)
 
     if options.infile:
         if not os.path.isfile(options.infile):
