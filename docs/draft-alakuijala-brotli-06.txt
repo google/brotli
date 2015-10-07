@@ -1911,7 +1911,7 @@ Internet-Draft                   Brotli                     October 2015
       +----------+----------------------------------------+---------------+
       | Name     | Description                            | Reference     |
       +----------+----------------------------------------+---------------+
-      | bro      | Brotli Compressed Data Format          | RFCXXXX       |
+      | br       | Brotli Compressed Data Format          | RFCXXXX       |
       +----------+----------------------------------------+---------------+
 
 13. Informative References
