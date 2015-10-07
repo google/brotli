@@ -1,16 +1,25 @@
 # Sample script to install Python and pip under Windows
-# Authors: Olivier Grisel and Kyle Kastner
+# Authors: Olivier Grisel, Jonathan Helmus, Kyle Kastner, and Alex Willmer
 # License: CC0 1.0 Universal: http://creativecommons.org/publicdomain/zero/1.0/
+# Source: https://github.com/ogrisel/python-appveyor-demo/blob/master/appveyor/install.ps1
 
 $BASE_URL = "https://www.python.org/ftp/python/"
 $GET_PIP_URL = "https://bootstrap.pypa.io/get-pip.py"
 $GET_PIP_PATH = "C:\get-pip.py"
 
+$PYTHON_PRERELEASE_REGEX = @"
+(?x)
+(?<major>\d+)
+\.
+(?<minor>\d+)
+\.
+(?<micro>\d+)
+(?<prerelease>[a-z]{1,2}\d+)
+"@
 
-function DownloadPython ($python_version, $platform_suffix) {
+
+function Download ($filename, $url) {
     $webclient = New-Object System.Net.WebClient
-    $filename = "python-" + $python_version + $platform_suffix + ".msi"
-    $url = $BASE_URL + $python_version + "/" + $filename
 
     $basedir = $pwd.Path + "\"
     $filepath = $basedir + $filename
@@ -19,10 +28,10 @@ function DownloadPython ($python_version, $platform_suffix) {
         return $filepath
     }
 
-    # Download and retry up to 5 times in case of network transient errors.
+    # Download and retry up to 3 times in case of network transient errors.
     Write-Host "Downloading" $filename "from" $url
-    $retry_attempts = 3
-    for($i=0; $i -lt $retry_attempts; $i++){
+    $retry_attempts = 2
+    for ($i = 0; $i -lt $retry_attempts; $i++) {
         try {
             $webclient.DownloadFile($url, $filepath)
             break
@@ -30,9 +39,65 @@ function DownloadPython ($python_version, $platform_suffix) {
         Catch [Exception]{
             Start-Sleep 1
         }
-   }
-   Write-Host "File saved at" $filepath
-   return $filepath
+    }
+    if (Test-Path $filepath) {
+        Write-Host "File saved at" $filepath
+    } else {
+        # Retry once to get the error message if any at the last try
+        $webclient.DownloadFile($url, $filepath)
+    }
+    return $filepath
+}
+
+
+function ParsePythonVersion ($python_version) {
+    if ($python_version -match $PYTHON_PRERELEASE_REGEX) {
+        return ([int]$matches.major, [int]$matches.minor, [int]$matches.micro,
+                $matches.prerelease)
+    }
+    $version_obj = [version]$python_version
+    return ($version_obj.major, $version_obj.minor, $version_obj.build, "")
+}
+
+
+function DownloadPython ($python_version, $platform_suffix) {
+    $major, $minor, $micro, $prerelease = ParsePythonVersion $python_version
+
+    if (($major -le 2 -and $micro -eq 0) `
+        -or ($major -eq 3 -and $minor -le 2 -and $micro -eq 0) `
+        ) {
+        $dir = "$major.$minor"
+        $python_version = "$major.$minor$prerelease"
+    } else {
+        $dir = "$major.$minor.$micro"
+    }
+
+    if ($prerelease) {
+        if (($major -le 2) `
+            -or ($major -eq 3 -and $minor -eq 1) `
+            -or ($major -eq 3 -and $minor -eq 2) `
+            -or ($major -eq 3 -and $minor -eq 3) `
+            ) {
+            $dir = "$dir/prev"
+        }
+    }
+
+    if (($major -le 2) -or ($major -le 3 -and $minor -le 4)) {
+        $ext = "msi"
+        if ($platform_suffix) {
+            $platform_suffix = ".$platform_suffix"
+        }
+    } else {
+        $ext = "exe"
+        if ($platform_suffix) {
+            $platform_suffix = "-$platform_suffix"
+        }
+    }
+
+    $filename = "python-$python_version$platform_suffix.$ext"
+    $url = "$BASE_URL$dir/$filename"
+    $filepath = Download $filename $url
+    return $filepath
 }
 
 
@@ -45,41 +110,68 @@ function InstallPython ($python_version, $architecture, $python_home) {
     if ($architecture -eq "32") {
         $platform_suffix = ""
     } else {
-        $platform_suffix = ".amd64"
+        $platform_suffix = "amd64"
     }
-    $filepath = DownloadPython $python_version $platform_suffix
-    Write-Host "Installing" $filepath "to" $python_home
-    $args = "/qn /i $filepath TARGETDIR=$python_home"
-    Write-Host "msiexec.exe" $args
-    Start-Process -FilePath "msiexec.exe" -ArgumentList $args -Wait -Passthru
-    Write-Host "Python $python_version ($architecture) installation complete"
-    return $true
+    $installer_path = DownloadPython $python_version $platform_suffix
+    $installer_ext = [System.IO.Path]::GetExtension($installer_path)
+    Write-Host "Installing $installer_path to $python_home"
+    $install_log = $python_home + ".log"
+    if ($installer_ext -eq '.msi') {
+        InstallPythonMSI $installer_path $python_home $install_log
+    } else {
+        InstallPythonEXE $installer_path $python_home $install_log
+    }
+    if (Test-Path $python_home) {
+        Write-Host "Python $python_version ($architecture) installation complete"
+    } else {
+        Write-Host "Failed to install Python in $python_home"
+        Get-Content -Path $install_log
+        Exit 1
+    }
+}
+
+
+function InstallPythonEXE ($exepath, $python_home, $install_log) {
+    $install_args = "/quiet InstallAllUsers=1 TargetDir=$python_home"
+    RunCommand $exepath $install_args
+}
+
+
+function InstallPythonMSI ($msipath, $python_home, $install_log) {
+    $install_args = "/qn /log $install_log /i $msipath TARGETDIR=$python_home"
+    $uninstall_args = "/qn /x $msipath"
+    RunCommand "msiexec.exe" $install_args
+    if (-not(Test-Path $python_home)) {
+        Write-Host "Python seems to be installed else-where, reinstalling."
+        RunCommand "msiexec.exe" $uninstall_args
+        RunCommand "msiexec.exe" $install_args
+    }
+}
+
+function RunCommand ($command, $command_args) {
+    Write-Host $command $command_args
+    Start-Process -FilePath $command -ArgumentList $command_args -Wait -Passthru
 }
 
 
 function InstallPip ($python_home) {
-    $pip_path = $python_home + "/Scripts/pip.exe"
-    $python_path = $python_home + "/python.exe"
+    $pip_path = $python_home + "\Scripts\pip.exe"
+    $python_path = $python_home + "\python.exe"
     if (-not(Test-Path $pip_path)) {
         Write-Host "Installing pip..."
         $webclient = New-Object System.Net.WebClient
         $webclient.DownloadFile($GET_PIP_URL, $GET_PIP_PATH)
         Write-Host "Executing:" $python_path $GET_PIP_PATH
-        Start-Process -FilePath "$python_path" -ArgumentList "$GET_PIP_PATH" -Wait -Passthru
+        & $python_path $GET_PIP_PATH
     } else {
         Write-Host "pip already installed."
     }
 }
 
-function InstallPackage ($python_home, $pkg) {
-    $pip_path = $python_home + "/Scripts/pip.exe"
-    & $pip_path install $pkg
-}
 
 function main () {
     InstallPython $env:PYTHON_VERSION $env:PYTHON_ARCH $env:PYTHON
     InstallPip $env:PYTHON
-    InstallPackage $env:PYTHON wheel
 }
 
 main
