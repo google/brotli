@@ -331,6 +331,30 @@ static BROTLI_INLINE uint32_t Log2Floor(uint32_t x) {
   return result;
 }
 
+/* Calculates the Floor of Log2(x) using a binary search in the lower 16 bits,
+   Precondition: x<2**16 
+*/
+static BROTLI_INLINE uint32_t l16_Log2Floor(uint32_t x) {
+  uint32_t result = 8;
+  uint32_t mask = 0x0000FF00;
+  uint32_t i = 4;
+  if (x == 0)
+    return 0;
+  while (i){
+    if (mask & x){
+      result += i;
+      mask <<= i;
+    }else{
+      result -= i;
+      mask >>= i;
+    }
+    i /= 2;
+  }
+  if (x & mask)
+    result++;
+  return result;
+}
+
 /* Decodes the Huffman tables.
    There are 2 scenarios:
     A) Huffman code contains only few symbols (1..4). Those symbols are read
@@ -364,7 +388,7 @@ static BrotliResult ReadHuffmanCode(uint32_t alphabet_size,
       BROTLI_LOG_UINT(i);
       if (i == 1) {
         /* Read symbols, codes & code lengths directly. */
-        uint32_t max_bits = Log2Floor(alphabet_size - 1);
+        uint32_t max_bits = l16_Log2Floor(alphabet_size - 1);
         uint32_t num_symbols = BrotliReadBits(br, 2);
         for (i = 0; i < 4; ++i) {
           s->symbols_lists_array[i] = 0;
