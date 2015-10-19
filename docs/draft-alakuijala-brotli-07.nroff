@@ -579,7 +579,33 @@ literal codes the alphabet size is 256. For insert-and-copy
 length codes the alphabet size is 704. For block count codes,
 the alphabet size is 26. For distance codes, block type codes and
 the prefix codes used in compressing the context map, the
-alphabet size is dynamic and is based on other parameters.
+alphabet size is dynamic and is based on parameters defined in
+later sections. The following table summarizes the alphabet sizes
+for the various prefix codes and the sections where they are defined.
+
+.nf
+.KS
+   +-----------------+------------------------+-------------+
+   | Prefix code     | Alphabet size          | Definition  |
+   +-----------------+------------------------+-------------+
+   | literal         | 256                    |             |
+   +-----------------+------------------------+-------------+
+   | distance        | 16 + NDIRECT +         | Section 4.  |
+   |                 | (48 << NPOSTFIX)       |             |
+   +-----------------+------------------------+-------------+
+   | insert-and-copy | 704                    | Section 5.  |
+   | length          |                        |             |
+   +-----------------+------------------------+-------------+
+   | block count     | 26                     | Section 6.  |
+   +-----------------+------------------------+-------------+
+   | block type      | NBLTYPESx + 2,         | Section 6.  |
+   |                 | (where x is I, L or D) |             |
+   +-----------------+------------------------+-------------+
+   | context map     | NTREESx + RLEMAXx      | Section 7.  |
+   |                 | (where x is L or D)    |             |
+   +-----------------+------------------------+-------------+
+.KE
+.fi
 
 .ti 0
 3.4. Simple prefix codes
