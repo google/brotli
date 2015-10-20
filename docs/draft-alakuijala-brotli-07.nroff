@@ -493,11 +493,11 @@ from most- to least-significant bit. The code lengths are
 initially in tree[I].Len; the codes are produced in tree[I].Code.
 
 .nf
-   1)  Count the number of codes for each code length. Let
-       bl_count[N] be the number of codes of length N, N >= 1.
+   1) Count the number of codes for each code length. Let
+      bl_count[N] be the number of codes of length N, N >= 1.
 
-   2)  Find the numerical value of the smallest code for each
-       code length:
+   2) Find the numerical value of the smallest code for each
+      code length:
 
 .KS
          code = 0;
@@ -508,11 +508,11 @@ initially in tree[I].Len; the codes are produced in tree[I].Code.
          }
 .KE
 
-   3)  Assign numerical values to all codes, using consecutive
-       values for all codes of the same length with the base
-       values determined at step 2. Codes that are never used
-       (which have a bit length of zero) must not be assigned a
-       value.
+   3) Assign numerical values to all codes, using consecutive
+      values for all codes of the same length with the base
+      values determined at step 2. Codes that are never used
+      (which have a bit length of zero) must not be assigned a
+      value.
 
 .KS
          for (n = 0;  n <= max_code; n++) {
