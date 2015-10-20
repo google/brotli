@@ -1243,20 +1243,20 @@ following C language function:
 
 .nf
    void InverseMoveToFrontTransform(uint8_t* v, int v_len) {
-     uint8_t mtf[256];
-     int i;
-     for (i = 0; i < 256; ++i) {
-       mtf[i] = (uint8_t)i;
-     }
-     for (i = 0; i < v_len; ++i) {
-       uint8_t index = v[i];
-       uint8_t value = mtf[index];
-       v[i] = value;
-       for (; index; --index) {
-         mtf[index] = mtf[index - 1];
-       }
-       mtf[0] = value;
-     }
+      uint8_t mtf[256];
+      int i;
+      for (i = 0; i < 256; ++i) {
+         mtf[i] = (uint8_t)i;
+      }
+      for (i = 0; i < v_len; ++i) {
+         uint8_t index = v[i];
+         uint8_t value = mtf[index];
+         v[i] = value;
+         for (; index; --index) {
+            mtf[index] = mtf[index - 1];
+         }
+         mtf[0] = value;
+      }
    }
 .fi
 
@@ -1795,7 +1795,7 @@ available in the brotli open-source project:
 https://github.com/google/brotli
 
 .ti 0
-15. Acknowledgements
+15. Acknowledgments
 
 The authors would like to thank Mark Adler for providing helpful review
 comments, validating the specification by writing an independent decompressor
