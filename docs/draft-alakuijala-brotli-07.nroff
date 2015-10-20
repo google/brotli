@@ -4,7 +4,7 @@
 .lt 7.2i
 .nr LL 7.2i
 .nr LT 7.2i
-.ds LF Alakuijala & Szabadka 
+.ds LF Alakuijala & Szabadka
 .ds RF FORMFEED[Page %]
 .ds LH Internet-Draft
 .ds RH October 2015
@@ -417,7 +417,7 @@ We define a prefix code in terms of a binary tree in which the two
 edges descending from each non-leaf node are labeled 0 and 1 and
 in which the leaf nodes correspond one-for-one with (are labeled
 with) the symbols of the alphabet; then the code for a symbol is
-the sequence of 0's and 1's on the edges leading from the root to 
+the sequence of 0's and 1's on the edges leading from the root to
 the leaf labeled with that symbol. For example:
 
 .nf
@@ -436,7 +436,7 @@ the leaf labeled with that symbol. For example:
 .fi
 
 A parser can decode the next symbol from the compressed stream
-by walking down the tree from the root, at each step choosing the 
+by walking down the tree from the root, at each step choosing the
 edge corresponding to the next compressed data bit.
 
 Given an alphabet with known symbol frequencies, the Huffman
@@ -493,35 +493,35 @@ from most- to least-significant bit. The code lengths are
 initially in tree[I].Len; the codes are produced in tree[I].Code.
 
 .nf
-   1)  Count the number of codes for each code length. Let
-       bl_count[N] be the number of codes of length N, N >= 1.
+   1) Count the number of codes for each code length. Let
+      bl_count[N] be the number of codes of length N, N >= 1.
 
-   2)  Find the numerical value of the smallest code for each
-       code length:
+   2) Find the numerical value of the smallest code for each
+      code length:
 
 .KS
-          code = 0;
-          bl_count[0] = 0;
-          for (bits = 1; bits <= MAX_BITS; bits++) {
-             code = (code + bl_count[bits-1]) << 1;
-             next_code[bits] = code;
-          }
+         code = 0;
+         bl_count[0] = 0;
+         for (bits = 1; bits <= MAX_BITS; bits++) {
+            code = (code + bl_count[bits-1]) << 1;
+            next_code[bits] = code;
+         }
 .KE
 
-    3)  Assign numerical values to all codes, using consecutive
-        values for all codes of the same length with the base
-        values determined at step 2. Codes that are never used
-        (which have a bit length of zero) must not be assigned a
-        value.
+   3) Assign numerical values to all codes, using consecutive
+      values for all codes of the same length with the base
+      values determined at step 2. Codes that are never used
+      (which have a bit length of zero) must not be assigned a
+      value.
 
 .KS
-           for (n = 0;  n <= max_code; n++) {
-              len = tree[n].Len;
-              if (len != 0) {
-                 tree[n].Code = next_code[len];
-                 next_code[len]++;
-              }
-           }
+         for (n = 0;  n <= max_code; n++) {
+            len = tree[n].Len;
+            if (len != 0) {
+               tree[n].Code = next_code[len];
+               next_code[len]++;
+            }
+         }
 .KE
 .fi
 
@@ -827,7 +827,7 @@ past distances as follows:
   13: second-to-last distance + 2
   14: second-to-last distance - 3
   15: second-to-last distance + 3
-.fi 
+.fi
 
 The ring buffer of four last distances is initialized by the values
 16, 15, 11 and 4 (i.e. the fourth-to-last is set to 16, the third-to-last
@@ -887,7 +887,7 @@ integer values. The number of insert and copy extra bits can be
 Some of the insert-and-copy length codes also express the fact that
 the distance symbol of the distance in the same command is 0, i.e. the
 distance component of the command is the same as that of the previous
-command. In this case, the distance code and extra bits for the 
+command. In this case, the distance code and extra bits for the
 distance are omitted from the compressed data stream.
 
 We describe the insert-and-copy length code alphabet in terms of the
@@ -1066,9 +1066,9 @@ p1 and p2 are initialized to zero.
 There are four methods, called context modes, to compute the
 Context ID:
 .nf
-   * MSB6, where the Context ID is the value of six most
-     significant bits of p1,
    * LSB6, where the Context ID is the value of six least
+     significant bits of p1,
+   * MSB6, where the Context ID is the value of six most
      significant bits of p1,
    * UTF8, where the Context ID is a complex function of p1, p2,
      optimized for text compression, and
@@ -1213,7 +1213,7 @@ RLEMAX + NTREES symbols:
 
 If RLEMAX = 0, the run length coding is not used, and the symbols
 of the alphabet are directly the values in the context map. We can
-now define the format of the context map (the same format is used 
+now define the format of the context map (the same format is used
 for literal and distance context maps):
 
 .nf
@@ -1243,20 +1243,20 @@ following C language function:
 
 .nf
    void InverseMoveToFrontTransform(uint8_t* v, int v_len) {
-     uint8_t mtf[256];
-     int i;
-     for (i = 0; i < 256; ++i) {
-       mtf[i] = (uint8_t)i;
-     }
-     for (i = 0; i < v_len; ++i) {
-       uint8_t index = v[i];
-       uint8_t value = mtf[index];
-       v[i] = value;
-       for (; index; --index) {
-         mtf[index] = mtf[index - 1];
-       }
-       mtf[0] = value;
-     }
+      uint8_t mtf[256];
+      int i;
+      for (i = 0; i < 256; ++i) {
+         mtf[i] = (uint8_t)i;
+      }
+      for (i = 0; i < v_len; ++i) {
+         uint8_t index = v[i];
+         uint8_t value = mtf[index];
+         v[i] = value;
+         for (; index; --index) {
+            mtf[index] = mtf[index - 1];
+         }
+         mtf[0] = value;
+      }
    }
 .fi
 
@@ -1326,8 +1326,8 @@ where the _i subscript denotes the transform_id above. Each T_i
 is one of the following 21 elementary transforms:
 
 .nf
-   Identity, OmitLast1, ..., OmitLast9, UppercaseFirst, UppercaseAll,
-   OmitFirst1, ..., OmitFirst9
+   Identity, UppercaseFirst, UppercaseAll,
+   OmitFirst1, ..., OmitFirst9, OmitLast1, ..., OmitLast9
 .fi
 
 The form of these elementary transforms are as follows:
@@ -1335,15 +1335,15 @@ The form of these elementary transforms are as follows:
 .nf
    Identity(word) = word
 
-   OmitLastk(word) = the first (length(word) - k) bytes of word, or
-                     empty string if length(word) < k
-
    UppercaseFirst(word) = first UTF-8 character of word upper-cased
 
    UppercaseAll(word) = all UTF-8 characters of word upper-cased
 
    OmitFirstk(word) = the last (length(word) - k) bytes of word, or
                       empty string if length(word) < k
+
+   OmitLastk(word) = the first (length(word) - k) bytes of word, or
+                     empty string if length(word) < k
 .fi
 
 For the purposes of UppercaseAll, word is parsed into UTF-8
@@ -1434,57 +1434,57 @@ meta-block is the last one. The format of the meta-block header is
 the following:
 
 .nf
-      1 bit:  ISLAST, set to 1 if this is the last meta-block
-      1 bit:  ISLASTEMPTY, if set to 1, the meta-block is empty;
-              this field is only present if ISLAST bit is set -- if
-              it is 1, then the meta-block and the brotli stream ends
-              at that bit, with any remaining bits in the last byte
-              of the compressed stream filled with zeros (if the
-              fill bits are not zero, then the stream should be
-              rejected as invalid)
-      2 bits: MNIBBLES, # of nibbles to represent the uncompressed
-              length, encoded as follows: if set to 3, MNIBBLES is 0,
-              otherwise MNIBBLES is the value of this field plus 4.
-              If MNIBBLES is 0, the meta-block is empty, i.e. it does
-              not generate any uncompressed data. In this case, the
-              rest of the meta-block has the following format:
+   1 bit:  ISLAST, set to 1 if this is the last meta-block
+   1 bit:  ISLASTEMPTY, if set to 1, the meta-block is empty;
+           this field is only present if ISLAST bit is set -- if
+           it is 1, then the meta-block and the brotli stream ends
+           at that bit, with any remaining bits in the last byte
+           of the compressed stream filled with zeros (if the
+           fill bits are not zero, then the stream should be
+           rejected as invalid)
+   2 bits: MNIBBLES, # of nibbles to represent the uncompressed
+           length, encoded as follows: if set to 3, MNIBBLES is 0,
+           otherwise MNIBBLES is the value of this field plus 4.
+           If MNIBBLES is 0, the meta-block is empty, i.e. it does
+           not generate any uncompressed data. In this case, the
+           rest of the meta-block has the following format:
 
-                 1 bit:  reserved, must be zero
+              1 bit:  reserved, must be zero
 
-                 2 bits: MSKIPBYTES, # of bytes to represent metadata
-                         length
+              2 bits: MSKIPBYTES, # of bytes to represent metadata
+                      length
 
-                 MSKIPBYTES x 8 bits: MSKIPLEN - 1, where MSKIPLEN is
-                         the number of metadata bytes; this field is
-                         only present if MSKIPBYTES is positive,
-                         otherwise MSKIPLEN is 0 (if MSKIPBYTES is
-                         greater than 1, and the last byte is all
-                         zeros, then the stream should be rejected
-                         as invalid)
+              MSKIPBYTES x 8 bits: MSKIPLEN - 1, where MSKIPLEN is
+                      the number of metadata bytes; this field is
+                      only present if MSKIPBYTES is positive,
+                      otherwise MSKIPLEN is 0 (if MSKIPBYTES is
+                      greater than 1, and the last byte is all
+                      zeros, then the stream should be rejected
+                      as invalid)
 
-                 0 - 7 bits: fill bits until the next byte boundary,
-                             must be all zeros
+              0 - 7 bits: fill bits until the next byte boundary,
+                          must be all zeros
 
-                 MSKIPLEN bytes of metadata, not part of the
-                         uncompressed data or the sliding window
+              MSKIPLEN bytes of metadata, not part of the
+                      uncompressed data or the sliding window
 
-     MNIBBLES x 4 bits: MLEN - 1, where MLEN is the length
-              of the meta-block uncompressed data in bytes (if the
-              number of nibbles is greater than 4, and the last
-              nibble is all zeros, then the stream should be
-              rejected as invalid)
+   MNIBBLES x 4 bits: MLEN - 1, where MLEN is the length
+           of the meta-block uncompressed data in bytes (if the
+           number of nibbles is greater than 4, and the last
+           nibble is all zeros, then the stream should be
+           rejected as invalid)
 
-      1 bit:  ISUNCOMPRESSED, if set to 1, any bits of compressed
-              data up to the next byte boundary are ignored, and
-              the rest of the meta-block contains MLEN bytes of
-              literal data; this field is only present if the
-              ISLAST bit is not set (if the ignored bits are not
-              all zeros, the stream should be rejected as invalid)
+   1 bit:  ISUNCOMPRESSED, if set to 1, any bits of compressed
+           data up to the next byte boundary are ignored, and
+           the rest of the meta-block contains MLEN bytes of
+           literal data; this field is only present if the
+           ISLAST bit is not set (if the ignored bits are not
+           all zeros, the stream should be rejected as invalid)
 
    1-11 bits: NBLTYPESL, # of literal block types, encoded with
-              the following variable length code (as it appears in
-              the compressed data, where the bits are parsed from
-              right to left, so 0110111 has the value 12):
+           the following variable length code (as it appears in
+           the compressed data, where the bits are parsed from
+           right to left, so 0110111 has the value 12):
 
                     Value    Bit Pattern
                     -----    -----------
@@ -1531,13 +1531,13 @@ the following:
       Block count code + Extra bits for first distance block
          count, only if NBLTYPESD >= 2
 
-      2 bits: NPOSTFIX, parameter used in the distance coding
+   2 bits: NPOSTFIX, parameter used in the distance coding
 
-      4 bits: four most significant bits of NDIRECT, to get the
-              actual value of the parameter NDIRECT, left-shift
-              this four bit number by NPOSTFIX bits
+   4 bits: four most significant bits of NDIRECT, to get the
+           actual value of the parameter NDIRECT, left-shift
+           this four bit number by NPOSTFIX bits
 
-      NBLTYPESL x 2 bits: context mode for each literal block type
+   NBLTYPESL x 2 bits: context mode for each literal block type
 
    1-11 bits: NTREESL, # of literal prefix trees, encoded with
               the same variable length code as NBLTYPESL
@@ -1553,11 +1553,11 @@ the following:
          appears only if NTREESD >= 2, otherwise the context map
          has only zero values
 
-      NTREESL prefix codes for literals
+   NTREESL prefix codes for literals
 
-      NBLTYPESI prefix codes for insert-and-copy lengths
+   NBLTYPESI prefix codes for insert-and-copy lengths
 
-      NTREESD prefix codes for distances
+   NTREESD prefix codes for distances
 .fi
 
 .ti 0
@@ -1596,8 +1596,8 @@ commands. Each command has the following format:
             described in Paragraph 7.3.
 
       Block type code for next distance block type, appears only
-        if NBLTYPESD >= 2 and the previous distance block count
-        is zero
+         if NBLTYPESD >= 2 and the previous distance block count
+         is zero
 
       Block count code + Extra bits for next distance block
          length, appears only if NBLTYPESD >= 2 and the previous
@@ -1686,7 +1686,7 @@ The decoding algorithm that produces the uncompressed data is as follows:
                save previous block type
             read block count using HTREE_BLEN_I and set BLEN_I
          decrement BLEN_I
-         read insert and copy length, ILEN, CLEN with HTREEI[BTYPE_I]
+         read insert and copy length, ILEN, CLEN using HTREEI[BTYPE_I]
          loop for ILEN
             if BLEN_L is zero
                read block type using HTREE_BTYPE_L and set BTYPE_L
@@ -1709,9 +1709,9 @@ The decoding algorithm that produces the uncompressed data is as follows:
                read block count using HTREE_BLEN_D and set BLEN_D
             decrement BLEN_D
             compute context ID, CIDD from CLEN
-            read distance code with HTREED[CMAPD[4 * BTYPE_D + CIDD]]
+            read distance code using HTREED[CMAPD[4 * BTYPE_D + CIDD]]
             compute distance by distance short code substitution
-          move backwards distance bytes in the uncompressed data and
+         move backwards distance bytes in the uncompressed data and
             copy CLEN bytes from this position to the uncompressed
             stream, or look up the static dictionary word, transform
             the word as directed, and copy the result to the
@@ -1795,7 +1795,7 @@ available in the brotli open-source project:
 https://github.com/google/brotli
 
 .ti 0
-15. Acknowledgements
+15. Acknowledgments
 
 The authors would like to thank Mark Adler for providing helpful review
 comments, validating the specification by writing an independent decompressor
@@ -5654,7 +5654,7 @@ length is 122,784 bytes and the zlib CRC-32 of the byte sequence is
       NDBITS :=  0,  0,  0,  0, 10, 10, 11, 11, 10, 10,
                 10, 10, 10,  9,  9,  8,  7,  7,  8,  7,
                  7,  6,  6,  5,  5
-.fi 
+.fi
 
 .ti 0
 Appendix B. List of word transformations
