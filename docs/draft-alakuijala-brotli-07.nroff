@@ -217,7 +217,7 @@ In other words, if one were to print out the compressed data as
 a sequence of bytes, starting with the first byte at the
 *right* margin and proceeding to the *left*, with the most-
 significant bit of each byte on the left as usual, one would be
-able to parse the result from right to left, with fixed-width
+able to parse the result from right-to-left, with fixed-width
 elements in the correct MSB-to-LSB order and prefix codes in
 bit-reversed order (i.e., with the first bit of the code in the
 relative LSB position).
@@ -424,8 +424,8 @@ the leaf labeled with that symbol. For example:
 .KS
             /\\              Symbol    Code
            0  1             ------    ----
-          /    \\                A      00
-         /\\     B               B       1
+          /    \\                A     00
+         /\\     B               B     1
         0  1                    C     011
        /    \\                   D     010
       A     /\\
@@ -559,16 +559,21 @@ Step 3 produces the following code values:
 .KS
    Symbol Length   Code
    ------ ------   ----
-   A       3        010
-   B       3        011
-   C       3        100
-   D       3        101
-   E       3        110
-   F       2         00
+   A       3       010
+   B       3       011
+   C       3       100
+   D       3       101
+   E       3       110
+   F       2       00
    G       4       1110
    H       4       1111
 .KE
 .fi
+
+The above prefix code contains codes that are parsed from left-to-right
+(with MSB on the left). All subsequent prefix codes in this
+specification will have codes that are parsed from right-to-left
+(with MSB on the right) as they actually appear in the compressed data.
 
 .ti 0
 3.3. Alphabet sizes
@@ -708,18 +713,18 @@ earlier. A complex prefix code must have at least two non-zero
 code lengths.
 
 The bit lengths of the prefix code over the code length alphabet
-are compressed with the following static prefix code (where the
-bits shown are reversed in the actual compressed stream):
+are compressed with the following static prefix code (as it appears
+in the compressed data, where the bits are parsed from right-to-left):
 
 .nf
 .KS
    Symbol   Code
    ------   ----
    0          00
-   1        1110
-   2         110
-   3          01
-   4          10
+   1        0111
+   2         011
+   3          10
+   4          01
    5        1111
 .KE
 .fi
@@ -1184,11 +1189,11 @@ The context map is encoded as a one-dimensional array,
 CMAPL[0..(64 * NBLTYPESL - 1)] and CMAPD[0..(4 * NBLTYPESD - 1)].
 
 The index of the prefix code for encoding a literal or distance
-code with context ID "cid" and block type "bltype" is
+code with context ID, CIDx, and block type, BTYPE_x, is:
 
-   index of literal prefix code = CMAPL[bltype * 64 + cid]
+   index of literal prefix code = CMAPL[64 * BTYPE_L + CIDL]
 
-   index of distance prefix code = CMAPD[bltype * 4 + cid]
+   index of distance prefix code = CMAPD[4 * BTYPE_D + CIDD]
 
 The values of the context map are encoded with the combination
 of run length encoding for zero values and prefix coding. Let
@@ -1394,7 +1399,7 @@ The stream header has only the following one field:
    1-7 bits: WBITS, a value in the range 10 - 24, encoded with
              the following variable length code (as it appears in
              the compressed data, where the bits are parsed from
-             right to left):
+             right-to-left):
 
                    Value    Bit Pattern
                    -----    -----------
@@ -1442,12 +1447,11 @@ the following:
            of the compressed stream filled with zeros (if the
            fill bits are not zero, then the stream should be
            rejected as invalid)
-   2 bits: MNIBBLES, # of nibbles to represent the uncompressed
-           length, encoded as follows: if set to 3, MNIBBLES is 0,
-           otherwise MNIBBLES is the value of this field plus 4.
-           If MNIBBLES is 0, the meta-block is empty, i.e. it does
-           not generate any uncompressed data. In this case, the
-           rest of the meta-block has the following format:
+   2 bits: MNIBBLES - 4, # of nibbles to represent the uncompressed
+           length. If MNIBBLES is 7, then MNIBBLES is set to 0 and
+           the meta-block is empty, i.e. it does not generate any
+           uncompressed data. In this case, the rest of the
+           meta-block has the following format:
 
               1 bit:  reserved, must be zero
 
@@ -1469,8 +1473,8 @@ the following:
                       uncompressed data or the sliding window
 
    MNIBBLES x 4 bits: MLEN - 1, where MLEN is the length
-           of the meta-block uncompressed data in bytes (if the
-           number of nibbles is greater than 4, and the last
+           of the meta-block uncompressed data in bytes (if
+           MNIBBLES is greater than 4, and the last
            nibble is all zeros, then the stream should be
            rejected as invalid)
 
@@ -1484,7 +1488,7 @@ the following:
    1-11 bits: NBLTYPESL, # of literal block types, encoded with
            the following variable length code (as it appears in
            the compressed data, where the bits are parsed from
-           right to left, so 0110111 has the value 12):
+           right-to-left, so 0110111 has the value 12):
 
                     Value    Bit Pattern
                     -----    -----------
