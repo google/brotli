@@ -1469,10 +1469,10 @@ the following:
                       uncompressed data or the sliding window
 
    MNIBBLES x 4 bits: MLEN - 1, where MLEN is the length
-            of the meta-block uncompressed data in bytes (if the
-            number of nibbles is greater than 4, and the last
-            nibble is all zeros, then the stream should be
-            rejected as invalid)
+           of the meta-block uncompressed data in bytes (if the
+           number of nibbles is greater than 4, and the last
+           nibble is all zeros, then the stream should be
+           rejected as invalid)
 
    1 bit:  ISUNCOMPRESSED, if set to 1, any bits of compressed
            data up to the next byte boundary are ignored, and
@@ -1482,9 +1482,9 @@ the following:
            all zeros, the stream should be rejected as invalid)
 
    1-11 bits: NBLTYPESL, # of literal block types, encoded with
-              the following variable length code (as it appears in
-              the compressed data, where the bits are parsed from
-              right to left, so 0110111 has the value 12):
+           the following variable length code (as it appears in
+           the compressed data, where the bits are parsed from
+           right to left, so 0110111 has the value 12):
 
                     Value    Bit Pattern
                     -----    -----------
@@ -1596,8 +1596,8 @@ commands. Each command has the following format:
             described in Paragraph 7.3.
 
       Block type code for next distance block type, appears only
-        if NBLTYPESD >= 2 and the previous distance block count
-        is zero
+         if NBLTYPESD >= 2 and the previous distance block count
+         is zero
 
       Block count code + Extra bits for next distance block
          length, appears only if NBLTYPESD >= 2 and the previous
