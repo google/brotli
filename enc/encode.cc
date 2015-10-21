@@ -576,7 +576,6 @@ int BrotliCompressBuffer(BrotliParams params,
     // Output buffer needs at least one byte.
     return 0;
   }
-  BrotliCompressor compressor(params);
   BrotliMemIn in(input_buffer, input_size);
   BrotliMemOut out(encoded_buffer, *encoded_size);
   if (!BrotliCompress(params, &in, &out)) {
