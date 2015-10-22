@@ -713,7 +713,7 @@ earlier. A complex prefix code must have at least two non-zero
 code lengths.
 
 The bit lengths of the prefix code over the code length alphabet
-are compressed with the following static prefix code (as it appears
+are compressed with the following variable length code (as it appears
 in the compressed data, where the bits are parsed from right to left):
 
 .nf
@@ -748,7 +748,7 @@ follows:
 
       The code lengths of code length symbols are between 0 and
       5 and they are represented with 2 - 4 bits according to
-      the static prefix code above. A code length of 0 means
+      the variable length code above. A code length of 0 means
       the corresponding code length symbol is not used.
 
       If HSKIP is 2 or 3, a respective number of leading code
