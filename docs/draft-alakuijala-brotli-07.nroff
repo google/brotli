@@ -217,7 +217,7 @@ In other words, if one were to print out the compressed data as
 a sequence of bytes, starting with the first byte at the
 *right* margin and proceeding to the *left*, with the most-
 significant bit of each byte on the left as usual, one would be
-able to parse the result from right-to-left, with fixed-width
+able to parse the result from right to left, with fixed-width
 elements in the correct MSB-to-LSB order and prefix codes in
 bit-reversed order (i.e., with the first bit of the code in the
 relative LSB position).
@@ -570,9 +570,9 @@ Step 3 produces the following code values:
 .KE
 .fi
 
-The above prefix code contains codes that are parsed from left-to-right
+The above prefix code contains codes that are parsed from left to right
 (with MSB on the left). All subsequent prefix codes in this
-specification will have codes that are parsed from right-to-left
+specification will have codes that are parsed from right to left
 (with MSB on the right) as they actually appear in the compressed data.
 
 .ti 0
@@ -714,7 +714,7 @@ code lengths.
 
 The bit lengths of the prefix code over the code length alphabet
 are compressed with the following static prefix code (as it appears
-in the compressed data, where the bits are parsed from right-to-left):
+in the compressed data, where the bits are parsed from right to left):
 
 .nf
 .KS
@@ -1399,7 +1399,7 @@ The stream header has only the following one field:
    1-7 bits: WBITS, a value in the range 10 - 24, encoded with
              the following variable length code (as it appears in
              the compressed data, where the bits are parsed from
-             right-to-left):
+             right to left):
 
                    Value    Bit Pattern
                    -----    -----------
@@ -1447,11 +1447,19 @@ the following:
            of the compressed stream filled with zeros (if the
            fill bits are not zero, then the stream should be
            rejected as invalid)
-   2 bits: MNIBBLES - 4, # of nibbles to represent the uncompressed
-           length. If MNIBBLES is 7, then MNIBBLES is set to 0 and
-           the meta-block is empty, i.e. it does not generate any
-           uncompressed data. In this case, the rest of the
-           meta-block has the following format:
+   2 bits: MNIBBLES, # of nibbles to represent the uncompressed
+           length, encoded with the following fixed length code:
+
+                 Value    Bit Pattern
+                 -----    -----------
+                     0             11
+                     4             00
+                     5             01
+                     6             10
+
+           If MNIBBLES is 0, the meta-block is empty, i.e. it does
+           not generate any uncompressed data. In this case, the
+           rest of the meta-block has the following format:
 
               1 bit:  reserved, must be zero
 
@@ -1467,7 +1475,7 @@ the following:
                       as invalid)
 
               0 - 7 bits: fill bits until the next byte boundary,
-                          must be all zeros
+                      must be all zeros
 
               MSKIPLEN bytes of metadata, not part of the
                       uncompressed data or the sliding window
@@ -1488,7 +1496,7 @@ the following:
    1-11 bits: NBLTYPESL, # of literal block types, encoded with
            the following variable length code (as it appears in
            the compressed data, where the bits are parsed from
-           right-to-left, so 0110111 has the value 12):
+           right to left, so 0110111 has the value 12):
 
                     Value    Bit Pattern
                     -----    -----------
