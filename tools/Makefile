@@ -23,3 +23,5 @@ clean :
 	rm -f $(OBJS) $(EXE_OBJS) $(EXECUTABLES)
 	$(MAKE) -C $(BROTLI)/dec clean
 	$(MAKE) -C $(BROTLI)/enc clean
+
+.PHONY: all deps clean
