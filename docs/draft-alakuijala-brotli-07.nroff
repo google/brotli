@@ -570,11 +570,6 @@ Step 3 produces the following code values:
 .KE
 .fi
 
-The above prefix code contains codes that are parsed from left to right
-(with MSB on the left). All subsequent prefix codes in this
-specification will have codes that are parsed from right to left
-(with MSB on the right) as they actually appear in the compressed data.
-
 .ti 0
 3.3. Alphabet sizes
 
