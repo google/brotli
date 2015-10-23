@@ -389,7 +389,7 @@ bool BrotliCompressor::WriteMetaBlockInternal(const bool is_last,
       static const int kSampleRate = 13;
       static const double kMinEntropy = 7.92;
       const double bit_cost_threshold = bytes * kMinEntropy / kSampleRate;
-      for (int i = last_flush_pos_; i < input_pos_; i += kSampleRate) {
+      for (size_t i = last_flush_pos_; i < input_pos_; i += kSampleRate) {
         ++literal_histo[data[i & mask]];
       }
       if (BitsEntropy(literal_histo, 256) > bit_cost_threshold) {
