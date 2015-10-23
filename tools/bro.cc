@@ -182,7 +182,9 @@ int64_t FileSize(char *path) {
     return -1;
   }
   int64_t retval = ftell(f);
-  fclose(f);
+  if (fclose(f) != 0) {
+    return -1;
+  }
   return retval;
 }
 
@@ -242,9 +244,13 @@ int main(int argc, char** argv) {
     if (duration < 1e-9) {
       duration = 1e-9;
     }
-    int64_t uncompressed_bytes = repeat *
-        FileSize(decompress ? output_path : input_path);
-    double uncompressed_bytes_in_MB = uncompressed_bytes / (1024.0 * 1024.0);
+    int64_t uncompressed_size = FileSize(decompress ? output_path : input_path);
+    if (uncompressed_size == -1) {
+      fprintf(stderr, "failed to determine uncompressed file size\n");
+      exit(1);
+    }
+    double uncompressed_bytes_in_MB =
+        (repeat * uncompressed_size) / (1024.0 * 1024.0);
     if (decompress) {
       printf("Brotli decompression speed: ");
     } else {
