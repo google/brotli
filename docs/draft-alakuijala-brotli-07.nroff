@@ -1008,9 +1008,10 @@ lengths and distances, respectively, is encoded in the meta-block
 header, and it must equal to the largest block type plus one in that
 block category. In other words, the set of literal, insert-and-copy
 length and distance block types must be [0..NBLTYPESL-1],
-[0..NBLTYPESI-1], and [0..NBLTYPESD-1], respectively. From this it
-follows that the alphabet size of literal, insert-and-copy length and
-distance block type codes is NBLTYPES + 2, NBLTYPESI + 2 and
+[0..NBLTYPESI-1], and [0..NBLTYPESD-1], respectively. If a block type
+has a value outside its respective range, the stream should be rejected as
+invalid. From this it follows that the alphabet size of literal, insert-and-copy
+length and distance block type codes is NBLTYPES + 2, NBLTYPESI + 2 and
 NBLTYPESD + 2, respectively.
 
 Each block count in the compressed data is represented with a pair
