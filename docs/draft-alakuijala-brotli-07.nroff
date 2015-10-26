@@ -865,6 +865,9 @@ Given a distance symbol "dcode" (>= 16 + NDIRECT), and extra bits
    distance = ((offset + dextra) << NPOSTFIX) + lcode + NDIRECT + 1
 .fi
 
+If a decoded distance has a zero or negative value, the stream should
+be rejected as invalid.
+
 .ti 0
 5. Encoding of literal insertion lengths and copy lengths
 
