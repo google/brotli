@@ -77,7 +77,7 @@ Table of Contents
       3.4.  Simple prefix codes . . . . . . . . . . . . . . . . . . . 12
       3.5.  Complex prefix codes  . . . . . . . . . . . . . . . . . . 13
    4.  Encoding of distances  . . . . . . . . . . . . . . . . . . . . 16
-   5.  Encoding of literal insertion lengths and copy lengths . . . . 17
+   5.  Encoding of literal insertion lengths and copy lengths . . . . 18
    6.  Encoding of block switch commands  . . . . . . . . . . . . . . 20
    7.  Context modeling . . . . . . . . . . . . . . . . . . . . . . . 21
       7.1.  Context modes and context ID lookup for literals  . . . . 21
@@ -925,6 +925,9 @@ Internet-Draft                   Brotli                     October 2015
    symbol. Similarly, distances that represent static dictionary words
    (see Section 8.) are not pushed to the ring buffer of last distances.
 
+   If a special distance symbol resolves to a zero or negative value,
+   the stream should be rejected as invalid.
+
    The next NDIRECT distance symbols, from 16 to 15 + NDIRECT, represent
    distances from 1 to NDIRECT. Neither the distance special symbols,
    nor the NDIRECT direct distance symbols are followed by any extra
@@ -945,9 +948,6 @@ Internet-Draft                   Brotli                     October 2015
       hcode = (dcode - NDIRECT - 16) >> NPOSTFIX
       lcode = (dcode - NDIRECT - 16) & POSTFIX_MASK
       offset = ((2 + (hcode & 1)) << ndistbits) - 4;
-      distance = ((offset + dextra) << NPOSTFIX) + lcode + NDIRECT + 1
-
-5. Encoding of literal insertion lengths and copy lengths
 
 
 
@@ -955,6 +955,10 @@ Alakuijala & Szabadka     Expires April 6, 2016                [Page 17]
 
 Internet-Draft                   Brotli                     October 2015
 
+
+      distance = ((offset + dextra) << NPOSTFIX) + lcode + NDIRECT + 1
+
+5. Encoding of literal insertion lengths and copy lengths
 
    As described in Section 2, the literal insertion lengths and backward
    copy lengths are encoded using a single prefix code. This section
@@ -998,10 +1002,6 @@ Internet-Draft                   Brotli                     October 2015
 
    The symbols of the copy length code alphabet, along with the number
    of copy extra bits and the range of copy lengths are as follows:
-
-
-
-
 
 
 
