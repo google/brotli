@@ -842,6 +842,9 @@ distance that was not represented by a 0 distance symbol. Similarly,
 distances that represent static dictionary words (see Section 8.) are
 not pushed to the ring buffer of last distances.
 
+If a special distance symbol resolves to a zero or negative value, the
+stream should be rejected as invalid.
+
 The next NDIRECT distance symbols, from 16 to 15 + NDIRECT, represent
 distances from 1 to NDIRECT. Neither the distance special symbols, nor
 the NDIRECT direct distance symbols are followed by any extra bits.
@@ -864,9 +867,6 @@ Given a distance symbol "dcode" (>= 16 + NDIRECT), and extra bits
    offset = ((2 + (hcode & 1)) << ndistbits) - 4;
    distance = ((offset + dextra) << NPOSTFIX) + lcode + NDIRECT + 1
 .fi
-
-If a decoded distance has a zero or negative value, the stream should
-be rejected as invalid.
 
 .ti 0
 5. Encoding of literal insertion lengths and copy lengths
