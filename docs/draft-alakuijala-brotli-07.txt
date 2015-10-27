@@ -1105,7 +1105,7 @@ Internet-Draft                   Brotli                     October 2015
    length and distance block types must be [0..NBLTYPESL-1],
    [0..NBLTYPESI-1], and [0..NBLTYPESD-1], respectively. From this it
    follows that the alphabet size of literal, insert-and-copy length and
-   distance block type codes is NBLTYPES + 2, NBLTYPESI + 2 and
+   distance block type codes is NBLTYPESL + 2, NBLTYPESI + 2 and
    NBLTYPESD + 2, respectively.
 
    Each block count in the compressed data is represented with a pair
