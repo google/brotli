@@ -47,7 +47,7 @@ bool SortHuffmanTree(const HuffmanTree &v0, const HuffmanTree &v1) {
 void SetDepth(const HuffmanTree &p,
               HuffmanTree *pool,
               uint8_t *depth,
-              int level) {
+              uint8_t level) {
   if (p.index_left_ >= 0) {
     ++level;
     SetDepth(pool[p.index_left_], pool, depth, level);
@@ -89,11 +89,11 @@ void CreateHuffmanTree(const int *data,
     for (int i = length - 1; i >= 0; --i) {
       if (data[i]) {
         const int count = std::max(data[i], count_limit);
-        tree.push_back(HuffmanTree(count, -1, i));
+        tree.push_back(HuffmanTree(count, -1, static_cast<int16_t>(i)));
       }
     }
 
-    const int n = tree.size();
+    const int n = static_cast<int>(tree.size());
     if (n == 1) {
       depth[tree[0].index_right_or_value_] = 1;      // Only one element.
       break;
@@ -132,11 +132,11 @@ void CreateHuffmanTree(const int *data,
       }
 
       // The sentinel node becomes the parent node.
-      int j_end = tree.size() - 1;
+      int j_end = static_cast<int>(tree.size()) - 1;
       tree[j_end].total_count_ =
           tree[left].total_count_ + tree[right].total_count_;
-      tree[j_end].index_left_ = left;
-      tree[j_end].index_right_or_value_ = right;
+      tree[j_end].index_left_ = static_cast<int16_t>(left);
+      tree[j_end].index_right_or_value_ = static_cast<int16_t>(right);
 
       // Add back the last sentinel node.
       tree.push_back(sentinel);
@@ -155,7 +155,7 @@ void CreateHuffmanTree(const int *data,
 void Reverse(std::vector<uint8_t>* v, int start, int end) {
   --end;
   while (start < end) {
-    int tmp = (*v)[start];
+    uint8_t tmp = (*v)[start];
     (*v)[start] = (*v)[end];
     (*v)[end] = tmp;
     ++start;
@@ -164,8 +164,8 @@ void Reverse(std::vector<uint8_t>* v, int start, int end) {
 }
 
 void WriteHuffmanTreeRepetitions(
-    const int previous_value,
-    const int value,
+    const uint8_t previous_value,
+    const uint8_t value,
     int repetitions,
     std::vector<uint8_t> *tree,
     std::vector<uint8_t> *extra_bits_data) {
@@ -186,15 +186,15 @@ void WriteHuffmanTreeRepetitions(
     }
   } else {
     repetitions -= 3;
-    int start = tree->size();
+    int start = static_cast<int>(tree->size());
     while (repetitions >= 0) {
       tree->push_back(16);
       extra_bits_data->push_back(repetitions & 0x3);
       repetitions >>= 2;
       --repetitions;
     }
-    Reverse(tree, start, tree->size());
-    Reverse(extra_bits_data, start, tree->size());
+    Reverse(tree, start, static_cast<int>(tree->size()));
+    Reverse(extra_bits_data, start, static_cast<int>(tree->size()));
   }
 }
 
@@ -214,15 +214,15 @@ void WriteHuffmanTreeRepetitionsZeros(
     }
   } else {
     repetitions -= 3;
-    int start = tree->size();
+    int start = static_cast<int>(tree->size());
     while (repetitions >= 0) {
       tree->push_back(17);
       extra_bits_data->push_back(repetitions & 0x7);
       repetitions >>= 3;
       --repetitions;
     }
-    Reverse(tree, start, tree->size());
-    Reverse(extra_bits_data, start, tree->size());
+    Reverse(tree, start, static_cast<int>(tree->size()));
+    Reverse(extra_bits_data, start, static_cast<int>(tree->size()));
   }
 }
 
@@ -371,10 +371,10 @@ static void DecideOverRleUse(const uint8_t* depth, const int length,
   int total_reps_non_zero = 0;
   int count_reps_zero = 0;
   int count_reps_non_zero = 0;
-  for (uint32_t i = 0; i < length;) {
+  for (int i = 0; i < length;) {
     const int value = depth[i];
     int reps = 1;
-    for (uint32_t k = i + 1; k < length && depth[k] == value; ++k) {
+    for (int k = i + 1; k < length && depth[k] == value; ++k) {
       ++reps;
     }
     if (reps >= 3 && value == 0) {
@@ -397,11 +397,11 @@ void WriteHuffmanTree(const uint8_t* depth,
                       uint32_t length,
                       std::vector<uint8_t> *tree,
                       std::vector<uint8_t> *extra_bits_data) {
-  int previous_value = 8;
+  uint8_t previous_value = 8;
 
   // Throw away trailing zeros.
-  int new_length = length;
-  for (int i = 0; i < length; ++i) {
+  uint32_t new_length = length;
+  for (uint32_t i = 0; i < length; ++i) {
     if (depth[length - i - 1] == 0) {
       --new_length;
     } else {
@@ -421,7 +421,7 @@ void WriteHuffmanTree(const uint8_t* depth,
 
   // Actual rle coding.
   for (uint32_t i = 0; i < new_length;) {
-    const int value = depth[i];
+    const uint8_t value = depth[i];
     int reps = 1;
     if ((value != 0 && use_rle_for_non_zero) ||
         (value == 0 && use_rle_for_zero)) {
@@ -450,11 +450,11 @@ uint16_t ReverseBits(int num_bits, uint16_t bits) {
   size_t retval = kLut[bits & 0xf];
   for (int i = 4; i < num_bits; i += 4) {
     retval <<= 4;
-    bits >>= 4;
+    bits = static_cast<uint16_t>(bits >> 4);
     retval |= kLut[bits & 0xf];
   }
   retval >>= (-num_bits & 0x3);
-  return retval;
+  return static_cast<uint16_t>(retval);
 }
 
 }  // namespace
@@ -476,7 +476,7 @@ void ConvertBitDepthsToSymbols(const uint8_t *depth, int len, uint16_t *bits) {
     int code = 0;
     for (int bits = 1; bits < kMaxBits; ++bits) {
       code = (code + bl_count[bits - 1]) << 1;
-      next_code[bits] = code;
+      next_code[bits] = static_cast<uint16_t>(code);
     }
   }
   for (int i = 0; i < len; ++i) {

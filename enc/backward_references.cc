@@ -38,14 +38,14 @@ class ZopfliCostModel {
                        const uint8_t* ringbuffer,
                        size_t ringbuffer_mask,
                        const Command* commands,
-                       int num_commands,
+                       size_t num_commands,
                        int last_insert_len) {
     std::vector<int> histogram_literal(256, 0);
     std::vector<int> histogram_cmd(kNumCommandPrefixes, 0);
     std::vector<int> histogram_dist(kNumDistancePrefixes, 0);
 
     size_t pos = position - last_insert_len;
-    for (int i = 0; i < num_commands; i++) {
+    for (size_t i = 0; i < num_commands; i++) {
       int inslength = commands[i].insert_len_;
       int copylength = commands[i].copy_len_;
       int distcode = commands[i].dist_prefix_;
@@ -72,7 +72,7 @@ class ZopfliCostModel {
 
     literal_costs_.resize(num_bytes + 1);
     literal_costs_[0] = 0.0;
-    for (int i = 0; i < num_bytes; ++i) {
+    for (size_t i = 0; i < num_bytes; ++i) {
       literal_costs_[i + 1] = literal_costs_[i] +
           cost_literal[ringbuffer[(position + i) & ringbuffer_mask]];
     }
@@ -87,7 +87,7 @@ class ZopfliCostModel {
                                 ringbuffer, &literal_cost[0]);
     literal_costs_.resize(num_bytes + 1);
     literal_costs_[0] = 0.0;
-    for (int i = 0; i < num_bytes; ++i) {
+    for (size_t i = 0; i < num_bytes; ++i) {
       literal_costs_[i + 1] = literal_costs_[i] + literal_cost[i];
     }
     cost_cmd_.resize(kNumCommandPrefixes);
@@ -103,23 +103,21 @@ class ZopfliCostModel {
 
   double GetCommandCost(
       int dist_code, int length_code, int insert_length) const {
-    int inscode = GetInsertLengthCode(insert_length);
-    int copycode = GetCopyLengthCode(length_code);
-    uint16_t cmdcode = CombineLengthCodes(inscode, copycode, dist_code);
-    uint64_t insnumextra = insextra[inscode];
-    uint64_t copynumextra = copyextra[copycode];
+    uint16_t inscode = GetInsertLengthCode(insert_length);
+    uint16_t copycode = GetCopyLengthCode(length_code);
+    uint16_t cmdcode = CombineLengthCodes(inscode, copycode, dist_code == 0);
     uint16_t dist_symbol;
     uint32_t distextra;
     PrefixEncodeCopyDistance(dist_code, 0, 0, &dist_symbol, &distextra);
     uint32_t distnumextra = distextra >> 24;
 
-    double result = insnumextra + copynumextra + distnumextra;
+    double result = insextra[inscode] + copyextra[copycode] + distnumextra;
     result += cost_cmd_[cmdcode];
     if (cmdcode >= 128) result += cost_dist_[dist_symbol];
     return result;
   }
 
-  double GetLiteralCosts(int from, int to) const {
+  double GetLiteralCosts(size_t from, size_t to) const {
     return literal_costs_[to] - literal_costs_[from];
   }
 
@@ -231,7 +229,7 @@ inline void UpdateZopfliNode(ZopfliNode* nodes, size_t pos, size_t start_pos,
   next.length_code = len_code;
   next.distance = dist;
   next.distance_code = dist_code;
-  next.insert_length = pos - start_pos;
+  next.insert_length = static_cast<int>(pos - start_pos);
   next.cost = cost;
   SetDistanceCache(dist, dist_code, max_dist, dist_cache,
                    &next.distance_cache[0]);
@@ -264,7 +262,7 @@ class StartPosQueue {
     ++idx_;
   }
 
-  int size() const { return std::min<int>(idx_, mask_ + 1); }
+  int size() const { return std::min(idx_, mask_ + 1); }
 
   size_t GetStartPos(int k) const {
     return q_[(idx_ - k - 1) & mask_].first;
@@ -318,7 +316,7 @@ void ZopfliIterate(size_t num_bytes,
                    int* dist_cache,
                    int* last_insert_len,
                    Command* commands,
-                   int* num_commands,
+                   size_t* num_commands,
                    int* num_literals) {
   const Command * const orig_commands = commands;
 
@@ -334,8 +332,8 @@ void ZopfliIterate(size_t num_bytes,
   for (size_t i = 0; i + 3 < num_bytes; i++) {
     size_t cur_ix = position + i;
     size_t cur_ix_masked = cur_ix & ringbuffer_mask;
-    size_t max_distance = std::min(cur_ix, max_backward_limit);
-    int max_length = num_bytes - i;
+    int max_distance = static_cast<int>(std::min(cur_ix, max_backward_limit));
+    int max_length = static_cast<int>(num_bytes - i);
 
     queue.Push(i, nodes[i].cost - model.GetLiteralCosts(0, i));
 
@@ -344,7 +342,7 @@ void ZopfliIterate(size_t num_bytes,
 
     // Go over the command starting positions in order of increasing cost
     // difference.
-    for (size_t k = 0; k < 5 && k < queue.size(); ++k) {
+    for (int k = 0; k < 5 && k < queue.size(); ++k) {
       const size_t start = queue.GetStartPos(k);
       const double start_costdiff =
           nodes[start].cost - model.GetLiteralCosts(0, start);
@@ -371,12 +369,13 @@ void ZopfliIterate(size_t num_bytes,
             ringbuffer[prev_ix + best_len]) {
           continue;
         }
-        const size_t len =
+        const int len =
             FindMatchLengthWithLimit(&ringbuffer[prev_ix],
                                      &ringbuffer[cur_ix_masked],
                                      max_length);
         for (int l = best_len + 1; l <= len; ++l) {
-          double cmd_cost = model.GetCommandCost(j, l, i - start);
+          const int inslen = static_cast<int>(i - start);
+          double cmd_cost = model.GetCommandCost(j, l, inslen);
           double cost = start_costdiff + cmd_cost + model.GetLiteralCosts(0, i);
           if (cost < nodes[i + l].cost) {
             UpdateZopfliNode(&nodes[0], i, start, l, l, backward, j,
@@ -409,8 +408,8 @@ void ZopfliIterate(size_t num_bytes,
         }
         for (; len <= max_len; ++len) {
           int len_code = is_dictionary_match ? match.length_code() : len;
-          double cmd_cost =
-              model.GetCommandCost(dist_code, len_code, i - start);
+          const int inslen = static_cast<int>(i - start);
+          double cmd_cost = model.GetCommandCost(dist_code, len_code, inslen);
           double cost = start_costdiff + cmd_cost + model.GetLiteralCosts(0, i);
           if (cost < nodes[i + len].cost) {
             UpdateZopfliNode(&nodes[0], i, start, len, len_code, dist,
@@ -457,7 +456,8 @@ void ZopfliIterate(size_t num_bytes,
     }
     int distance = next.distance;
     int len_code = next.length_code;
-    size_t max_distance = std::min(position + pos, max_backward_limit);
+    int max_distance =
+        static_cast<int>(std::min(position + pos, max_backward_limit));
     bool is_dictionary = (distance > max_distance);
     int dist_code = next.distance_code;
 
@@ -475,7 +475,7 @@ void ZopfliIterate(size_t num_bytes,
     insert_length = 0;
     pos += copy_length;
   }
-  *last_insert_len += num_bytes - pos;
+  *last_insert_len += static_cast<int>(num_bytes - pos);
   *num_commands += (commands - orig_commands);
 }
 
@@ -490,18 +490,18 @@ void CreateBackwardReferences(size_t num_bytes,
                               int* dist_cache,
                               int* last_insert_len,
                               Command* commands,
-                              int* num_commands,
+                              size_t* num_commands,
                               int* num_literals) {
   if (num_bytes >= 3 && position >= 3) {
     // Prepare the hashes for three last bytes of the last write.
     // These could not be calculated before, since they require knowledge
     // of both the previous and the current block.
     hasher->Store(&ringbuffer[(position - 3) & ringbuffer_mask],
-                  position - 3);
+                  static_cast<uint32_t>(position - 3));
     hasher->Store(&ringbuffer[(position - 2) & ringbuffer_mask],
-                  position - 2);
+                  static_cast<uint32_t>(position - 2));
     hasher->Store(&ringbuffer[(position - 1) & ringbuffer_mask],
-                  position - 1);
+                  static_cast<uint32_t>(position - 1));
   }
   const Command * const orig_commands = commands;
   int insert_length = *last_insert_len;
@@ -510,22 +510,23 @@ void CreateBackwardReferences(size_t num_bytes,
   const size_t i_end = i + num_bytes;
 
   // For speed up heuristics for random data.
-  const int random_heuristics_window_size = quality < 9 ? 64 : 512;
-  int apply_random_heuristics = i + random_heuristics_window_size;
+  const size_t random_heuristics_window_size = quality < 9 ? 64 : 512;
+  size_t apply_random_heuristics = i + random_heuristics_window_size;
 
   // Minimum score to accept a backward reference.
   const int kMinScore = 4.0;
 
   while (i + Hasher::kHashTypeLength - 1 < i_end) {
-    int max_length = i_end - i;
-    size_t max_distance = std::min(i + i_diff, max_backward_limit);
+    int max_length = static_cast<int>(i_end - i);
+    int max_distance =
+        static_cast<int>(std::min(i + i_diff, max_backward_limit));
     int best_len = 0;
     int best_len_code = 0;
     int best_dist = 0;
     double best_score = kMinScore;
     bool match_found = hasher->FindLongestMatch(
         ringbuffer, ringbuffer_mask,
-        dist_cache, i + i_diff, max_length, max_distance,
+        dist_cache, static_cast<uint32_t>(i + i_diff), max_length, max_distance,
         &best_len, &best_len_code, &best_dist, &best_score);
     if (match_found) {
       // Found a match. Let's look for something even better ahead.
@@ -536,11 +537,13 @@ void CreateBackwardReferences(size_t num_bytes,
         int best_len_code_2 = 0;
         int best_dist_2 = 0;
         double best_score_2 = kMinScore;
-        max_distance = std::min(i + i_diff + 1, max_backward_limit);
-        hasher->Store(ringbuffer + i, i + i_diff);
+        max_distance =
+            static_cast<int>(std::min(i + i_diff + 1, max_backward_limit));
+        hasher->Store(ringbuffer + i, static_cast<uint32_t>(i + i_diff));
         match_found = hasher->FindLongestMatch(
             ringbuffer, ringbuffer_mask,
-            dist_cache, i + i_diff + 1, max_length, max_distance,
+            dist_cache, static_cast<uint32_t>(i + i_diff + 1),
+            max_length, max_distance,
             &best_len_2, &best_len_code_2, &best_dist_2, &best_score_2);
         double cost_diff_lazy = 7.0;
         if (match_found && best_score_2 >= best_score + cost_diff_lazy) {
@@ -560,7 +563,7 @@ void CreateBackwardReferences(size_t num_bytes,
       }
       apply_random_heuristics =
           i + 2 * best_len + random_heuristics_window_size;
-      max_distance = std::min(i + i_diff, max_backward_limit);
+      max_distance = static_cast<int>(std::min(i + i_diff, max_backward_limit));
       // The first 16 codes are special shortcodes, and the minimum offset is 1.
       int distance_code =
           ComputeDistanceCode(best_dist, max_distance, quality, dist_cache);
@@ -577,12 +580,13 @@ void CreateBackwardReferences(size_t num_bytes,
       // Put the hash keys into the table, if there are enough
       // bytes left.
       for (int j = 1; j < best_len; ++j) {
-        hasher->Store(&ringbuffer[i + j], i + i_diff + j);
+        hasher->Store(&ringbuffer[i + j],
+                      static_cast<uint32_t>(i + i_diff + j));
       }
       i += best_len;
     } else {
       ++insert_length;
-      hasher->Store(ringbuffer + i, i + i_diff);
+      hasher->Store(ringbuffer + i, static_cast<uint32_t>(i + i_diff));
       ++i;
       // If we have not seen matches for a long time, we can skip some
       // match lookups. Unsuccessful match lookups are very very expensive
@@ -597,24 +601,24 @@ void CreateBackwardReferences(size_t num_bytes,
           // turn out to be useful in the future, too, so we store less of
           // them to not to flood out the hash table of good compressible
           // data.
-          int i_jump = std::min(i + 16, i_end - 4);
+          size_t i_jump = std::min(i + 16, i_end - 4);
           for (; i < i_jump; i += 4) {
-            hasher->Store(ringbuffer + i, i + i_diff);
+            hasher->Store(ringbuffer + i, static_cast<uint32_t>(i + i_diff));
             insert_length += 4;
           }
         } else {
-          int i_jump = std::min(i + 8, i_end - 3);
+          size_t i_jump = std::min(i + 8, i_end - 3);
           for (; i < i_jump; i += 2) {
-            hasher->Store(ringbuffer + i, i + i_diff);
+            hasher->Store(ringbuffer + i, static_cast<uint32_t>(i + i_diff));
             insert_length += 2;
           }
         }
       }
     }
   }
-  insert_length += (i_end - i);
+  insert_length += static_cast<int>(i_end - i);
   *last_insert_len = insert_length;
-  *num_commands += (commands - orig_commands);
+  *num_commands += commands - orig_commands;
 }
 
 void CreateBackwardReferences(size_t num_bytes,
@@ -628,7 +632,7 @@ void CreateBackwardReferences(size_t num_bytes,
                               int* dist_cache,
                               int* last_insert_len,
                               Command* commands,
-                              int* num_commands,
+                              size_t* num_commands,
                               int* num_literals) {
   bool zopflify = quality > 9;
   if (zopflify) {
@@ -638,36 +642,37 @@ void CreateBackwardReferences(size_t num_bytes,
       // These could not be calculated before, since they require knowledge
       // of both the previous and the current block.
       hasher->Store(&ringbuffer[(position - 3) & ringbuffer_mask],
-                    position - 3);
+                    static_cast<uint32_t>(position - 3));
       hasher->Store(&ringbuffer[(position - 2) & ringbuffer_mask],
-                    position - 2);
+                    static_cast<uint32_t>(position - 2));
       hasher->Store(&ringbuffer[(position - 1) & ringbuffer_mask],
-                    position - 1);
+                    static_cast<uint32_t>(position - 1));
     }
     std::vector<int> num_matches(num_bytes);
     std::vector<BackwardMatch> matches(3 * num_bytes);
     size_t cur_match_pos = 0;
     for (size_t i = 0; i + 3 < num_bytes; ++i) {
-      size_t max_distance = std::min(position + i, max_backward_limit);
-      int max_length = num_bytes - i;
+      int max_distance =
+          static_cast<int>(std::min(position + i, max_backward_limit));
+      int max_length = static_cast<int>(num_bytes - i);
       // Ensure that we have at least kMaxZopfliLen free slots.
       if (matches.size() < cur_match_pos + kMaxZopfliLen) {
         matches.resize(cur_match_pos + kMaxZopfliLen);
       }
       hasher->FindAllMatches(
           ringbuffer, ringbuffer_mask,
-          position + i, max_length, max_distance,
+          static_cast<uint32_t>(position + i), max_length, max_distance,
           &num_matches[i], &matches[cur_match_pos]);
       hasher->Store(&ringbuffer[(position + i) & ringbuffer_mask],
-                    position + i);
+                    static_cast<uint32_t>(position + i));
       cur_match_pos += num_matches[i];
       if (num_matches[i] == 1) {
         const int match_len = matches[cur_match_pos - 1].length();
         if (match_len > kMaxZopfliLen) {
           for (int j = 1; j < match_len; ++j) {
             ++i;
-            hasher->Store(
-                &ringbuffer[(position + i) & ringbuffer_mask], position + i);
+            hasher->Store(&ringbuffer[(position + i) & ringbuffer_mask],
+                          static_cast<uint32_t>(position + i));
             num_matches[i] = 0;
           }
         }
@@ -678,7 +683,7 @@ void CreateBackwardReferences(size_t num_bytes,
     int orig_dist_cache[4] = {
       dist_cache[0], dist_cache[1], dist_cache[2], dist_cache[3]
     };
-    int orig_num_commands = *num_commands;
+    size_t orig_num_commands = *num_commands;
     static const int kIterations = 2;
     for (int i = 0; i < kIterations; i++) {
       ZopfliCostModel model;

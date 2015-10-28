@@ -40,7 +40,7 @@ void CreateBackwardReferences(size_t num_bytes,
                               int* dist_cache,
                               int* last_insert_len,
                               Command* commands,
-                              int* num_commands,
+                              size_t* num_commands,
                               int* num_literals);
 
 }  // namespace brotli

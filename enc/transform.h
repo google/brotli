@@ -44,7 +44,7 @@ enum WordTransformType {
   kOmitFirst6     = 17,
   kOmitFirst7     = 18,
   kOmitFirst8     = 19,
-  kOmitFirst9     = 20,
+  kOmitFirst9     = 20
 };
 
 struct Transform {
@@ -177,7 +177,8 @@ static const Transform kTransforms[] = {
      {        " ", kUppercaseFirst, "='"         },
 };
 
-static const int kNumTransforms = sizeof(kTransforms) / sizeof(kTransforms[0]);
+static const size_t kNumTransforms =
+    sizeof(kTransforms) / sizeof(kTransforms[0]);
 
 static const int kOmitFirstNTransforms[10] = {
   0, 3, 11, 26, 34, 39, 40, 55, 0, 54

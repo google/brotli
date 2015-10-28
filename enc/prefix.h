@@ -63,7 +63,7 @@ inline void PrefixEncodeCopyDistance(int distance_code,
                                      uint16_t* code,
                                      uint32_t* extra_bits) {
   if (distance_code < kNumDistanceShortCodes + num_direct_codes) {
-    *code = distance_code;
+    *code = static_cast<uint16_t>(distance_code);
     *extra_bits = 0;
     return;
   }
@@ -75,8 +75,9 @@ inline void PrefixEncodeCopyDistance(int distance_code,
   int prefix = (distance_code >> bucket) & 1;
   int offset = (2 + prefix) << bucket;
   int nbits = bucket - postfix_bits;
-  *code = kNumDistanceShortCodes + num_direct_codes +
-      ((2 * (nbits - 1) + prefix) << postfix_bits) + postfix;
+  *code = static_cast<uint16_t>(
+      (kNumDistanceShortCodes + num_direct_codes +
+       ((2 * (nbits - 1) + prefix) << postfix_bits) + postfix));
   *extra_bits = (nbits << 24) | ((distance_code - offset) >> postfix_bits);
 }
 

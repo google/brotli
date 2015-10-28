@@ -170,11 +170,12 @@ static inline uint8_t Context(uint8_t p1, uint8_t p2, int mode) {
     case CONTEXT_LSB6:
       return p1 & 0x3f;
     case CONTEXT_MSB6:
-      return p1 >> 2;
+      return static_cast<uint8_t>(p1 >> 2);
     case CONTEXT_UTF8:
       return kUTF8ContextLookup[p1] | kUTF8ContextLookup[p2 + 256];
     case CONTEXT_SIGNED:
-      return (kSigned3BitContextLookup[p1] << 3) + kSigned3BitContextLookup[p2];
+      return static_cast<uint8_t>((kSigned3BitContextLookup[p1] << 3) +
+                                  kSigned3BitContextLookup[p2]);
     default:
       return 0;
   }

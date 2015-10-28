@@ -39,14 +39,14 @@ namespace brotli {
 
 namespace {
 
-void RecomputeDistancePrefixes(Command* cmds, int num_commands,
+void RecomputeDistancePrefixes(Command* cmds, size_t num_commands,
                                int num_direct_distance_codes,
                                int distance_postfix_bits) {
   if (num_direct_distance_codes == 0 &&
       distance_postfix_bits == 0) {
     return;
   }
-  for (int i = 0; i < num_commands; ++i) {
+  for (size_t i = 0; i < num_commands; ++i) {
     Command* cmd = &cmds[i];
     if (cmd->copy_len_ > 0 && cmd->cmd_prefix_ >= 128) {
       PrefixEncodeCopyDistance(cmd->DistanceCode(),
@@ -100,7 +100,7 @@ bool WriteMetaBlockParallel(const BrotliParams& params,
 
   // Compute backward references.
   int last_insert_len = 0;
-  int num_commands = 0;
+  size_t num_commands = 0;
   int num_literals = 0;
   int max_backward_distance = (1 << params.lgwin) - 16;
   int dist_cache[4] = { -4, -4, -4, -4 };
@@ -167,7 +167,7 @@ bool WriteMetaBlockParallel(const BrotliParams& params,
       first_byte_bits = 4;
     }
   }
-  storage[0] = first_byte;
+  storage[0] = static_cast<uint8_t>(first_byte);
   int storage_ix = first_byte_bits;
 
   // Store the meta-block to the temporary output.
@@ -195,7 +195,7 @@ bool WriteMetaBlockParallel(const BrotliParams& params,
   // meta-block.
   size_t output_size = storage_ix >> 3;
   if (input_size + 4 < output_size) {
-    storage[0] = first_byte;
+    storage[0] = static_cast<uint8_t>(first_byte);
     storage_ix = first_byte_bits;
     if (!StoreUncompressedMetaBlock(is_last, &input[0], input_pos, mask,
                                     input_size,
@@ -253,7 +253,7 @@ int BrotliCompressBufferParallel(BrotliParams params,
   // Compress block-by-block independently.
   for (size_t pos = 0; pos < input_size; ) {
     size_t input_block_size = std::min(max_input_block_size, input_size - pos);
-    size_t out_size = 1.2 * input_block_size + 1024;
+    size_t out_size = input_block_size + (input_block_size >> 3) + 1024;
     std::vector<uint8_t> out(out_size);
     if (!WriteMetaBlockParallel(params,
                                 input_block_size,
@@ -273,7 +273,7 @@ int BrotliCompressBufferParallel(BrotliParams params,
 
   // Piece together the output.
   size_t out_pos = 0;
-  for (int i = 0; i < compressed_pieces.size(); ++i) {
+  for (size_t i = 0; i < compressed_pieces.size(); ++i) {
     const std::vector<uint8_t>& out = compressed_pieces[i];
     if (out_pos + out.size() > *encoded_size) {
       return false;

@@ -51,7 +51,7 @@ void RecomputeDistancePrefixes(Command* cmds,
   if (num_direct_distance_codes == 0 && distance_postfix_bits == 0) {
     return;
   }
-  for (int i = 0; i < num_commands; ++i) {
+  for (size_t i = 0; i < num_commands; ++i) {
     Command* cmd = &cmds[i];
     if (cmd->copy_len_ > 0 && cmd->cmd_prefix_ >= 128) {
       PrefixEncodeCopyDistance(cmd->DistanceCode(),
@@ -124,10 +124,10 @@ BrotliCompressor::BrotliCompressor(BrotliParams params)
     last_byte_ = 1;
     last_byte_bits_ = 7;
   } else if (params_.lgwin > 17) {
-    last_byte_ = ((params_.lgwin - 17) << 1) | 1;
+    last_byte_ = static_cast<uint8_t>(((params_.lgwin - 17) << 1) | 1);
     last_byte_bits_ = 4;
   } else {
-    last_byte_ = ((params_.lgwin - 8) << 4) | 1;
+    last_byte_ = static_cast<uint8_t>(((params_.lgwin - 8) << 4) | 1);
     last_byte_bits_ = 7;
   }
 
@@ -251,7 +251,7 @@ bool BrotliCompressor::WriteBrotliData(const bool is_last,
                            &num_commands_,
                            &num_literals_);
 
-  int max_length = std::min<int>(mask + 1, 1 << kMaxInputBlockBits);
+  size_t max_length = std::min<size_t>(mask + 1, 1u << kMaxInputBlockBits);
   if (!is_last && !force_flush &&
       (params_.quality >= kMinQualityForBlockSplit ||
        (num_literals_ + num_commands_ < kMaxNumDelayedSymbols)) &&
@@ -384,11 +384,12 @@ bool BrotliCompressor::WriteMetaBlockInternal(const bool is_last,
 
   bool uncompressed = false;
   if (num_commands_ < (bytes >> 8) + 2) {
-    if (num_literals_ > 0.99 * bytes) {
+    if (num_literals_ > 0.99 * static_cast<double>(bytes)) {
       int literal_histo[256] = { 0 };
       static const int kSampleRate = 13;
       static const double kMinEntropy = 7.92;
-      const double bit_cost_threshold = bytes * kMinEntropy / kSampleRate;
+      const double bit_cost_threshold =
+          static_cast<double>(bytes) * kMinEntropy / kSampleRate;
       for (size_t i = last_flush_pos_; i < input_pos_; i += kSampleRate) {
         ++literal_histo[data[i & mask]];
       }
@@ -483,7 +484,7 @@ bool BrotliCompressor::WriteMetaBlockInternal(const bool is_last,
         return false;
       }
     }
-    if (bytes + 4 < (storage_ix >> 3)) {
+    if (bytes + 4 < static_cast<size_t>(storage_ix >> 3)) {
       // Restore the distance cache and last byte.
       memcpy(dist_cache_, saved_dist_cache_, sizeof(dist_cache_));
       storage[0] = last_byte_;
@@ -545,9 +546,11 @@ bool BrotliCompressor::WriteMetadata(const size_t input_size,
   if (input_size == 0) {
     WriteBits(2, 0, &storage_ix, encoded_buffer);
     *encoded_size = (storage_ix + 7) >> 3;
+  } else if (input_size > (1 << 24)) {
+    return false;
   } else {
-    size_t nbits = Log2Floor(input_size - 1) + 1;
-    size_t nbytes = (nbits + 7) / 8;
+    int nbits = Log2Floor(static_cast<uint32_t>(input_size) - 1) + 1;
+    int nbytes = (nbits + 7) / 8;
     WriteBits(2, nbytes, &storage_ix, encoded_buffer);
     WriteBits(8 * nbytes, input_size - 1, &storage_ix, encoded_buffer);
     size_t hdr_size = (storage_ix + 7) >> 3;

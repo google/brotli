@@ -22,7 +22,7 @@ namespace brotli {
 
 namespace {
 
-int ParseAsUTF8(int* symbol, const uint8_t* input, int size) {
+int ParseAsUTF8(int* symbol, const uint8_t* input, size_t size) {
   // ASCII
   if ((input[0] & 0x80) == 0) {
     *symbol = input[0];
@@ -31,7 +31,7 @@ int ParseAsUTF8(int* symbol, const uint8_t* input, int size) {
     }
   }
   // 2-byte UTF8
-  if (size > 1 &&
+  if (size > 1u &&
       (input[0] & 0xe0) == 0xc0 &&
       (input[1] & 0xc0) == 0x80) {
     *symbol = (((input[0] & 0x1f) << 6) |
@@ -41,7 +41,7 @@ int ParseAsUTF8(int* symbol, const uint8_t* input, int size) {
     }
   }
   // 3-byte UFT8
-  if (size > 2 &&
+  if (size > 2u &&
       (input[0] & 0xf0) == 0xe0 &&
       (input[1] & 0xc0) == 0x80 &&
       (input[2] & 0xc0) == 0x80) {
@@ -53,7 +53,7 @@ int ParseAsUTF8(int* symbol, const uint8_t* input, int size) {
     }
   }
   // 4-byte UFT8
-  if (size > 3 &&
+  if (size > 3u &&
       (input[0] & 0xf8) == 0xf0 &&
       (input[1] & 0xc0) == 0x80 &&
       (input[2] & 0xc0) == 0x80 &&
@@ -84,7 +84,7 @@ bool IsMostlyUTF8(const uint8_t* data, const size_t pos, const size_t mask,
     i += bytes_read;
     if (symbol < 0x110000) size_utf8 += bytes_read;
   }
-  return size_utf8 > min_fraction * length;
+  return size_utf8 > min_fraction * static_cast<double>(length);
 }
 
 }  // namespace brotli

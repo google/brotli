@@ -51,7 +51,7 @@ struct Histogram {
   }
   template<typename DataType>
   void Add(const DataType *p, size_t n) {
-    total_count_ += n;
+    total_count_ += static_cast<int>(n);
     n += 1;
     while(--n) ++data_[*p++];
   }

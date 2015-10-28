@@ -16,6 +16,7 @@
 
 #include "./block_splitter.h"
 
+#include <assert.h>
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -53,7 +54,7 @@ void CopyLiteralsToByteArray(const Command* cmds,
                              std::vector<uint8_t>* literals) {
   // Count how many we have.
   size_t total_length = 0;
-  for (int i = 0; i < num_commands; ++i) {
+  for (size_t i = 0; i < num_commands; ++i) {
     total_length += cmds[i].insert_len_;
   }
   if (total_length == 0) {
@@ -66,7 +67,7 @@ void CopyLiteralsToByteArray(const Command* cmds,
   // Loop again, and copy this time.
   size_t pos = 0;
   size_t from_pos = offset & mask;
-  for (int i = 0; i < num_commands && pos < total_length; ++i) {
+  for (size_t i = 0; i < num_commands && pos < total_length; ++i) {
     size_t insert_len = cmds[i].insert_len_;
     if (from_pos + insert_len > mask) {
       size_t head_size = mask + 1 - from_pos;
@@ -87,7 +88,7 @@ void CopyCommandsToByteArray(const Command* cmds,
                              const size_t num_commands,
                              std::vector<uint16_t>* insert_and_copy_codes,
                              std::vector<uint16_t>* distance_prefixes) {
-  for (int i = 0; i < num_commands; ++i) {
+  for (size_t i = 0; i < num_commands; ++i) {
     const Command& cmd = cmds[i];
     insert_and_copy_codes->push_back(cmd.cmd_prefix_);
     if (cmd.copy_len_ > 0 && cmd.cmd_prefix_ >= 128) {
@@ -110,14 +111,14 @@ void InitialEntropyCodes(const DataType* data, size_t length,
                          int max_histograms,
                          size_t stride,
                          std::vector<HistogramType>* vec) {
-  int total_histograms = length / literals_per_histogram + 1;
+  int total_histograms = static_cast<int>(length) / literals_per_histogram + 1;
   if (total_histograms > max_histograms) {
     total_histograms = max_histograms;
   }
   unsigned int seed = 7;
-  int block_length = length / total_histograms;
+  size_t block_length = length / total_histograms;
   for (int i = 0; i < total_histograms; ++i) {
-    int pos = length * i / total_histograms;
+    size_t pos = length * i / total_histograms;
     if (i != 0) {
       pos += MyRand(&seed) % block_length;
     }
@@ -150,19 +151,19 @@ template<typename HistogramType, typename DataType>
 void RefineEntropyCodes(const DataType* data, size_t length,
                         size_t stride,
                         std::vector<HistogramType>* vec) {
-  int iters =
+  size_t iters =
       kIterMulForRefining * length / stride + kMinItersForRefining;
   unsigned int seed = 7;
   iters = ((iters + vec->size() - 1) / vec->size()) * vec->size();
-  for (int iter = 0; iter < iters; ++iter) {
+  for (size_t iter = 0; iter < iters; ++iter) {
     HistogramType sample;
     RandomSample(&seed, data, length, stride, &sample);
-    int ix = iter % vec->size();
+    size_t ix = iter % vec->size();
     (*vec)[ix].AddHistogram(sample);
   }
 }
 
-inline static float BitCost(int count) {
+inline static double BitCost(int count) {
   return count == 0 ? -2 : FastLog2(count);
 }
 
@@ -172,12 +173,13 @@ void FindBlocks(const DataType* data, const size_t length,
                 const std::vector<Histogram<kSize> > &vec,
                 uint8_t *block_id) {
   if (vec.size() <= 1) {
-    for (int i = 0; i < length; ++i) {
+    for (size_t i = 0; i < length; ++i) {
       block_id[i] = 0;
     }
     return;
   }
-  int vecsize = vec.size();
+  int vecsize = static_cast<int>(vec.size());
+  assert(vecsize <= 256);
   double* insert_cost = new double[kSize * vecsize];
   memset(insert_cost, 0, sizeof(insert_cost[0]) * kSize * vecsize);
   for (int j = 0; j < vecsize; ++j) {
@@ -199,7 +201,7 @@ void FindBlocks(const DataType* data, const size_t length,
   // reaches block switch cost, it means that when we trace back from the last
   // position, we need to switch here.
   for (size_t byte_ix = 0; byte_ix < length; ++byte_ix) {
-    int ix = byte_ix * vecsize;
+    size_t ix = byte_ix * vecsize;
     int insert_cost_ix = data[byte_ix] * vecsize;
     double min_cost = 1e99;
     for (int k = 0; k < vecsize; ++k) {
@@ -207,7 +209,7 @@ void FindBlocks(const DataType* data, const size_t length,
       cost[k] += insert_cost[insert_cost_ix + k];
       if (cost[k] < min_cost) {
         min_cost = cost[k];
-        block_id[byte_ix] = k;
+        block_id[byte_ix] = static_cast<uint8_t>(k);
       }
     }
     double block_switch_cost = block_switch_bitcost;
@@ -224,9 +226,9 @@ void FindBlocks(const DataType* data, const size_t length,
     }
   }
   // Now trace back from the last position and switch at the marked places.
-  int byte_ix = length - 1;
-  int ix = byte_ix * vecsize;
-  int cur_id = block_id[byte_ix];
+  size_t byte_ix = length - 1;
+  size_t ix = byte_ix * vecsize;
+  uint8_t cur_id = block_id[byte_ix];
   while (byte_ix > 0) {
     --byte_ix;
     ix -= vecsize;
@@ -243,13 +245,13 @@ void FindBlocks(const DataType* data, const size_t length,
 int RemapBlockIds(uint8_t* block_ids, const size_t length) {
   std::map<uint8_t, uint8_t> new_id;
   int next_id = 0;
-  for (int i = 0; i < length; ++i) {
+  for (size_t i = 0; i < length; ++i) {
     if (new_id.find(block_ids[i]) == new_id.end()) {
-      new_id[block_ids[i]] = next_id;
+      new_id[block_ids[i]] = static_cast<uint8_t>(next_id);
       ++next_id;
     }
   }
-  for (int i = 0; i < length; ++i) {
+  for (size_t i = 0; i < length; ++i) {
     block_ids[i] = new_id[block_ids[i]];
   }
   return next_id;
@@ -260,9 +262,10 @@ void BuildBlockHistograms(const DataType* data, const size_t length,
                           uint8_t* block_ids,
                           std::vector<HistogramType>* histograms) {
   int num_types = RemapBlockIds(block_ids, length);
+  assert(num_types <= 256);
   histograms->clear();
   histograms->resize(num_types);
-  for (int i = 0; i < length; ++i) {
+  for (size_t i = 0; i < length; ++i) {
     (*histograms)[block_ids[i]].Add(data[i]);
   }
 }
@@ -274,7 +277,7 @@ void ClusterBlocks(const DataType* data, const size_t length,
   std::vector<int> block_index(length);
   int cur_idx = 0;
   HistogramType cur_histogram;
-  for (int i = 0; i < length; ++i) {
+  for (size_t i = 0; i < length; ++i) {
     bool block_boundary = (i + 1 == length || block_ids[i] != block_ids[i + 1]);
     block_index[i] = cur_idx;
     cur_histogram.Add(data[i]);
@@ -288,12 +291,12 @@ void ClusterBlocks(const DataType* data, const size_t length,
   std::vector<int> histogram_symbols;
   // Block ids need to fit in one byte.
   static const int kMaxNumberOfBlockTypes = 256;
-  ClusterHistograms(histograms, 1, histograms.size(),
+  ClusterHistograms(histograms, 1, static_cast<int>(histograms.size()),
                     kMaxNumberOfBlockTypes,
                     &clustered_histograms,
                     &histogram_symbols);
   for (int i = 0; i < length; ++i) {
-    block_ids[i] = histogram_symbols[block_index[i]];
+    block_ids[i] = static_cast<uint8_t>(histogram_symbols[block_index[i]]);
   }
 }
 
@@ -301,7 +304,7 @@ void BuildBlockSplit(const std::vector<uint8_t>& block_ids, BlockSplit* split) {
   int cur_id = block_ids[0];
   int cur_length = 1;
   split->num_types = -1;
-  for (int i = 1; i < block_ids.size(); ++i) {
+  for (size_t i = 1; i < block_ids.size(); ++i) {
     if (block_ids[i] != cur_id) {
       split->types.push_back(cur_id);
       split->lengths.push_back(cur_length);
@@ -330,7 +333,7 @@ void SplitByteVector(const std::vector<DataType>& data,
   } else if (data.size() < kMinLengthForBlockSplitting) {
     split->num_types = 1;
     split->types.push_back(0);
-    split->lengths.push_back(data.size());
+    split->lengths.push_back(static_cast<int>(data.size()));
     return;
   }
   std::vector<HistogramType> histograms;
@@ -401,7 +404,7 @@ void SplitBlockByTotalLength(const Command* all_commands,
   int length_limit = input_size / num_blocks + 1;
   int total_length = 0;
   std::vector<Command> cur_block;
-  for (int i = 0; i < num_commands; ++i) {
+  for (size_t i = 0; i < num_commands; ++i) {
     const Command& cmd = all_commands[i];
     int cmd_length = cmd.insert_len_ + cmd.copy_len_;
     if (total_length > length_limit) {
