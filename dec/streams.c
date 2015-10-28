@@ -99,7 +99,7 @@ int BrotliNullOutputFunction(void* data , const uint8_t* buf, size_t count) {
   return (int)count;
 }
 
-BrotliOutput BrotliNullOutput() {
+BrotliOutput BrotliNullOutput(void) {
   BrotliOutput out;
   out.cb_ = BrotliNullOutputFunction;
   out.data_ = NULL;

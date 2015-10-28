@@ -762,8 +762,8 @@ static void DecodeBlockTypeWithContext(BrotliState* s,
   s->context_lookup2 = &kContextLookup[kContextLookupOffsets[context_mode + 1]];
 }
 
-BrotliResult WriteRingBuffer(BrotliOutput output,
-                             BrotliState* s) {
+static BrotliResult WriteRingBuffer(BrotliOutput output,
+                                    BrotliState* s) {
   int num_written;
   if (s->meta_block_remaining_len < 0) {
     return BROTLI_FAILURE();
@@ -784,9 +784,8 @@ BrotliResult WriteRingBuffer(BrotliOutput output,
   return BROTLI_RESULT_SUCCESS;
 }
 
-BrotliResult BROTLI_NOINLINE CopyUncompressedBlockToOutput(BrotliOutput output,
-                                                           int pos,
-                                                           BrotliState* s) {
+static BrotliResult BROTLI_NOINLINE CopyUncompressedBlockToOutput(
+    BrotliOutput output, int pos, BrotliState* s) {
   BrotliResult result;
   int num_read;
   int nbytes;
@@ -918,8 +917,8 @@ int BrotliDecompressedSize(size_t encoded_size,
    processed. When this method is called, metablock size and flags MUST be
    decoded.
 */
-int BROTLI_NOINLINE BrotliAllocateRingBuffer(BrotliState* s,
-    BrotliBitReader* br) {
+static int BROTLI_NOINLINE BrotliAllocateRingBuffer(BrotliState* s,
+                                                    BrotliBitReader* br) {
   static const int kRingBufferWriteAheadSlack = BROTLI_READ_SIZE;
   int is_last = s->is_last_metablock;
   s->ringbuffer_size = 1 << s->window_bits;

@@ -506,7 +506,7 @@ void CreateBackwardReferences(size_t num_bytes,
   const Command * const orig_commands = commands;
   int insert_length = *last_insert_len;
   size_t i = position & ringbuffer_mask;
-  const int i_diff = position - i;
+  const size_t i_diff = position - i;
   const size_t i_end = i + num_bytes;
 
   // For speed up heuristics for random data.

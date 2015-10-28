@@ -842,6 +842,9 @@ distance that was not represented by a 0 distance symbol. Similarly,
 distances that represent static dictionary words (see Section 8.) are
 not pushed to the ring buffer of last distances.
 
+If a special distance symbol resolves to a zero or negative value, the
+stream should be rejected as invalid.
+
 The next NDIRECT distance symbols, from 16 to 15 + NDIRECT, represent
 distances from 1 to NDIRECT. Neither the distance special symbols, nor
 the NDIRECT direct distance symbols are followed by any extra bits.
@@ -1010,7 +1013,7 @@ block category. In other words, the set of literal, insert-and-copy
 length and distance block types must be [0..NBLTYPESL-1],
 [0..NBLTYPESI-1], and [0..NBLTYPESD-1], respectively. From this it
 follows that the alphabet size of literal, insert-and-copy length and
-distance block type codes is NBLTYPES + 2, NBLTYPESI + 2 and
+distance block type codes is NBLTYPESL + 2, NBLTYPESI + 2 and
 NBLTYPESD + 2, respectively.
 
 Each block count in the compressed data is represented with a pair

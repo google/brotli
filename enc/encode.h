@@ -84,7 +84,8 @@ class BrotliCompressor {
   // Encodes the data in input_buffer as a meta-block and writes it to
   // encoded_buffer (*encoded_size should be set to the size of
   // encoded_buffer) and sets *encoded_size to the number of bytes that
-  // was written. Returns 0 if there was an error and 1 otherwise.
+  // was written. The input_size must be <= input_block_size().
+  // Returns 0 if there was an error and 1 otherwise.
   bool WriteMetaBlock(const size_t input_size,
                       const uint8_t* input_buffer,
                       const bool is_last,
