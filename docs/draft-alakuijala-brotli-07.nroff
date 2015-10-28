@@ -1681,7 +1681,7 @@ The decoding algorithm that produces the uncompressed data is as follows:
             initialize second-to-last and last block types to 0 and 1
          else
             set block type, BTYPE_i to 0
-            set block count, BLEN_i to 268435456
+            set block count, BLEN_i to -1
       read NPOSTFIX and NDIRECT
       read array of literal context modes, CMODE[]
       read NTREESL
@@ -1728,11 +1728,12 @@ The decoding algorithm that produces the uncompressed data is as follows:
             compute context ID, CIDD from CLEN
             read distance code using HTREED[CMAPD[4 * BTYPE_D + CIDD]]
             compute distance by distance short code substitution
-         move backwards distance bytes in the uncompressed data and
-            copy CLEN bytes from this position to the uncompressed
-            stream, or look up the static dictionary word, transform
-            the word as directed, and copy the result to the
-            uncompressed stream
+         if distance is less than or equal to the history size
+            move backwards distance bytes in the uncompressed data and
+            copy CLEN bytes from this position to uncompressed stream
+         else
+            look up the static dictionary word, transform the word as
+            directed, and copy the result to the uncompressed stream
       while number of uncompressed bytes for this meta-block < MLEN
    while not ISLAST
 .fi
