@@ -51,7 +51,7 @@ struct BrotliParams {
     // Compression mode for UTF-8 format text input.
     MODE_TEXT = 1,
     // Compression mode used in WOFF 2.0.
-    MODE_FONT = 2,
+    MODE_FONT = 2
   };
   Mode mode;
 
@@ -154,7 +154,7 @@ class BrotliCompressor {
   RingBuffer* ringbuffer_;
   size_t cmd_alloc_size_;
   Command* commands_;
-  int num_commands_;
+  size_t num_commands_;
   int num_literals_;
   int last_insert_len_;
   size_t last_flush_pos_;
@@ -165,7 +165,7 @@ class BrotliCompressor {
   uint8_t last_byte_bits_;
   uint8_t prev_byte_;
   uint8_t prev_byte2_;
-  int storage_size_;
+  size_t storage_size_;
   uint8_t* storage_;
 };
 

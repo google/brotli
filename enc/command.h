@@ -32,60 +32,63 @@ static int copybase[] =  { 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 14, 18, 22, 30, 38,
 static int copyextra[] = { 0, 0, 0, 0, 0, 0, 0, 0,  1,  1,  2,  2,  3,  3,  4,
     4,   5,   5,   6,   7,   8,     9,   10,    24 };
 
-static inline int GetInsertLengthCode(int insertlen) {
+static inline uint16_t GetInsertLengthCode(int insertlen) {
   if (insertlen < 6) {
-    return insertlen;
+    return static_cast<uint16_t>(insertlen);
   } else if (insertlen < 130) {
     insertlen -= 2;
     int nbits = Log2FloorNonZero(insertlen) - 1;
-    return (nbits << 1) + (insertlen >> nbits) + 2;
+    return static_cast<uint16_t>((nbits << 1) + (insertlen >> nbits) + 2);
   } else if (insertlen < 2114) {
-    return Log2FloorNonZero(insertlen - 66) + 10;
+    return static_cast<uint16_t>(Log2FloorNonZero(insertlen - 66) + 10);
   } else if (insertlen < 6210) {
-    return 21;
+    return 21u;
   } else if (insertlen < 22594) {
-    return 22;
+    return 22u;
   } else {
-    return 23;
+    return 23u;
   }
 }
 
-static inline int GetCopyLengthCode(int copylen) {
+static inline uint16_t GetCopyLengthCode(int copylen) {
   if (copylen < 10) {
-    return copylen - 2;
+    return static_cast<uint16_t>(copylen - 2);
   } else if (copylen < 134) {
     copylen -= 6;
     int nbits = Log2FloorNonZero(copylen) - 1;
-    return (nbits << 1) + (copylen >> nbits) + 4;
+    return static_cast<uint16_t>((nbits << 1) + (copylen >> nbits) + 4);
   } else if (copylen < 2118) {
-    return Log2FloorNonZero(copylen - 70) + 12;
+    return static_cast<uint16_t>(Log2FloorNonZero(copylen - 70) + 12);
   } else {
-    return 23;
+    return 23u;
   }
 }
 
-static inline int CombineLengthCodes(
-    int inscode, int copycode, int distancecode) {
-  int bits64 = (copycode & 0x7u) | ((inscode & 0x7u) << 3);
-  if (distancecode == 0 && inscode < 8 && copycode < 16) {
+static inline uint16_t CombineLengthCodes(
+    uint16_t inscode, uint16_t copycode, bool use_last_distance) {
+  uint16_t bits64 =
+      static_cast<uint16_t>((copycode & 0x7u) | ((inscode & 0x7u) << 3));
+  if (use_last_distance && inscode < 8 && copycode < 16) {
     return (copycode < 8) ? bits64 : (bits64 | 64);
   } else {
     // "To convert an insert-and-copy length code to an insert length code and
     // a copy length code, the following table can be used"
-    static const int cells[9] = { 2, 3, 6, 4, 5, 8, 7, 9, 10 };
-    return (cells[(copycode >> 3) + 3 * (inscode >> 3)] << 6) | bits64;
+    static const uint16_t cells[9] = { 128u, 192u, 384u, 256u, 320u, 512u,
+                                       448u, 576u, 640u };
+    return cells[(copycode >> 3) + 3 * (inscode >> 3)] | bits64;
   }
 }
 
-static inline void GetLengthCode(int insertlen, int copylen, int distancecode,
+static inline void GetLengthCode(int insertlen, int copylen,
+                                 bool use_last_distance,
                                  uint16_t* code, uint64_t* extra) {
-  int inscode = GetInsertLengthCode(insertlen);
-  int copycode = GetCopyLengthCode(copylen);
+  uint16_t inscode = GetInsertLengthCode(insertlen);
+  uint16_t copycode = GetCopyLengthCode(copylen);
   uint64_t insnumextra = insextra[inscode];
   uint64_t numextra = insnumextra + copyextra[copycode];
   uint64_t insextraval = insertlen - insbase[inscode];
   uint64_t copyextraval = copylen - copybase[copycode];
-  *code = CombineLengthCodes(inscode, copycode, distancecode);
+  *code = CombineLengthCodes(inscode, copycode, use_last_distance);
   *extra = (numextra << 48) | (copyextraval << insnumextra) | insextraval;
 }
 
@@ -97,13 +100,13 @@ struct Command {
     // npostfix and ndirect were 0, they are only recomputed later after the
     // clustering if needed.
     PrefixEncodeCopyDistance(distance_code, 0, 0, &dist_prefix_, &dist_extra_);
-    GetLengthCode(insertlen, copylen_code, dist_prefix_,
+    GetLengthCode(insertlen, copylen_code, dist_prefix_ == 0,
                   &cmd_prefix_, &cmd_extra_);
   }
 
   Command(int insertlen)
       : insert_len_(insertlen), copy_len_(0), dist_prefix_(16), dist_extra_(0) {
-    GetLengthCode(insertlen, 4, dist_prefix_, &cmd_prefix_, &cmd_extra_);
+    GetLengthCode(insertlen, 4, dist_prefix_ == 0, &cmd_prefix_, &cmd_extra_);
   }
 
   int DistanceCode() const {

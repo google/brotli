@@ -155,14 +155,14 @@ class HashLongestMatchQuickly {
                                const size_t ring_buffer_mask,
                                const int* __restrict distance_cache,
                                const uint32_t cur_ix,
-                               const uint32_t max_length,
+                               const int max_length,
                                const uint32_t max_backward,
                                int * __restrict best_len_out,
                                int * __restrict best_len_code_out,
                                int * __restrict best_distance_out,
                                double* __restrict best_score_out) {
     const int best_len_in = *best_len_out;
-    const int cur_ix_masked = cur_ix & ring_buffer_mask;
+    const size_t cur_ix_masked = cur_ix & ring_buffer_mask;
     int compare_char = ring_buffer[cur_ix_masked + best_len_in];
     double best_score = *best_score_out;
     int best_len = best_len_in;
@@ -170,7 +170,7 @@ class HashLongestMatchQuickly {
     uint32_t prev_ix = cur_ix - cached_backward;
     bool match_found = false;
     if (prev_ix < cur_ix) {
-      prev_ix &= ring_buffer_mask;
+      prev_ix &= static_cast<uint32_t>(ring_buffer_mask);
       if (compare_char == ring_buffer[prev_ix + best_len]) {
         int len = FindMatchLengthWithLimit(&ring_buffer[prev_ix],
                                            &ring_buffer[cur_ix_masked],
@@ -196,7 +196,7 @@ class HashLongestMatchQuickly {
       // Only one to look for, don't bother to prepare for a loop.
       prev_ix = buckets_[key];
       uint32_t backward = cur_ix - prev_ix;
-      prev_ix &= ring_buffer_mask;
+      prev_ix &= static_cast<uint32_t>(ring_buffer_mask);
       if (compare_char != ring_buffer[prev_ix + best_len_in]) {
         return false;
       }
@@ -218,7 +218,7 @@ class HashLongestMatchQuickly {
       prev_ix = *bucket++;
       for (int i = 0; i < kBucketSweep; ++i, prev_ix = *bucket++) {
         const uint32_t backward = cur_ix - prev_ix;
-        prev_ix &= ring_buffer_mask;
+        prev_ix &= static_cast<uint32_t>(ring_buffer_mask);
         if (compare_char != ring_buffer[prev_ix + best_len]) {
           continue;
         }
@@ -262,7 +262,7 @@ class HashLongestMatchQuickly {
             const int word_id =
                 transform_id * (1 << kBrotliDictionarySizeBitsByLength[len]) +
                 dist;
-            const size_t backward = max_backward + word_id + 1;
+            const int backward = max_backward + word_id + 1;
             const double score = BackwardReferenceScore(matchlen, backward);
             if (best_score < score) {
               ++num_dict_matches_;
@@ -292,7 +292,7 @@ class HashLongestMatchQuickly {
     uint64_t h = (BROTLI_UNALIGNED_LOAD64(data) << 24) * kHashMul32;
     // The higher bits contain more mixture from the multiplication,
     // so we take our results from there.
-    return h >> (64 - kBucketBits);
+    return static_cast<uint32_t>(h >> (64 - kBucketBits));
   }
 
  private:
@@ -348,7 +348,7 @@ class HashLongestMatch {
                         const size_t ring_buffer_mask,
                         const int* __restrict distance_cache,
                         const uint32_t cur_ix,
-                        uint32_t max_length,
+                        const int max_length,
                         const uint32_t max_backward,
                         int * __restrict best_len_out,
                         int * __restrict best_len_code_out,
@@ -372,14 +372,14 @@ class HashLongestMatch {
       if (PREDICT_FALSE(backward > max_backward)) {
         continue;
       }
-      prev_ix &= ring_buffer_mask;
+      prev_ix &= static_cast<uint32_t>(ring_buffer_mask);
 
       if (cur_ix_masked + best_len > ring_buffer_mask ||
           prev_ix + best_len > ring_buffer_mask ||
           data[cur_ix_masked + best_len] != data[prev_ix + best_len]) {
         continue;
       }
-      const size_t len =
+      const int len =
           FindMatchLengthWithLimit(&data[prev_ix], &data[cur_ix_masked],
                                    max_length);
       if (len >= 3 || (len == 2 && i < 2)) {
@@ -407,13 +407,13 @@ class HashLongestMatch {
       if (PREDICT_FALSE(backward == 0 || backward > max_backward)) {
         break;
       }
-      prev_ix &= ring_buffer_mask;
+      prev_ix &= static_cast<uint32_t>(ring_buffer_mask);
       if (cur_ix_masked + best_len > ring_buffer_mask ||
           prev_ix + best_len > ring_buffer_mask ||
           data[cur_ix_masked + best_len] != data[prev_ix + best_len]) {
         continue;
       }
-      const size_t len =
+      const int len =
           FindMatchLengthWithLimit(&data[prev_ix], &data[cur_ix_masked],
                                    max_length);
       if (len >= 4) {
@@ -450,7 +450,7 @@ class HashLongestMatch {
               const int word_id =
                   transform_id * (1 << kBrotliDictionarySizeBitsByLength[len]) +
                   dist;
-              const size_t backward = max_backward + word_id + 1;
+              const int backward = max_backward + word_id + 1;
               double score = BackwardReferenceScore(matchlen, backward);
               if (best_score < score) {
                 ++num_dict_matches_;
@@ -482,7 +482,7 @@ class HashLongestMatch {
   void FindAllMatches(const uint8_t* data,
                       const size_t ring_buffer_mask,
                       const uint32_t cur_ix,
-                      uint32_t max_length,
+                      const int max_length,
                       const uint32_t max_backward,
                       int* num_matches,
                       BackwardMatch* matches) const {
@@ -502,7 +502,7 @@ class HashLongestMatch {
           data[cur_ix_masked + 1] != data[prev_ix + 1]) {
         continue;
       }
-      const size_t len =
+      const int len =
           FindMatchLengthWithLimit(&data[prev_ix], &data[cur_ix_masked],
                                    max_length);
       if (len > best_len) {
@@ -522,13 +522,13 @@ class HashLongestMatch {
       if (PREDICT_FALSE(backward == 0 || backward > max_backward)) {
         break;
       }
-      prev_ix &= ring_buffer_mask;
+      prev_ix &= static_cast<uint32_t>(ring_buffer_mask);
       if (cur_ix_masked + best_len > ring_buffer_mask ||
           prev_ix + best_len > ring_buffer_mask ||
           data[cur_ix_masked + best_len] != data[prev_ix + best_len]) {
         continue;
       }
-      const size_t len =
+      const int len =
           FindMatchLengthWithLimit(&data[prev_ix], &data[cur_ix_masked],
                                    max_length);
       if (len > best_len) {
@@ -552,7 +552,7 @@ class HashLongestMatch {
         }
       }
     }
-    *num_matches += matches - orig_matches;
+    *num_matches += static_cast<int>(matches - orig_matches);
   }
 
   enum { kHashLength = 4 };

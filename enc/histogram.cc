@@ -44,7 +44,7 @@ void BuildHistograms(
   BlockSplitIterator literal_it(literal_split);
   BlockSplitIterator insert_and_copy_it(insert_and_copy_split);
   BlockSplitIterator dist_it(dist_split);
-  for (int i = 0; i < num_commands; ++i) {
+  for (size_t i = 0; i < num_commands; ++i) {
     const Command &cmd = cmds[i];
     insert_and_copy_it.Next();
     (*insert_and_copy_histograms)[insert_and_copy_it.type_].Add(
