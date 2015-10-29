@@ -1387,6 +1387,11 @@ Note that the OmitFirst8 elementary transform is not used in the list
 of transformations. The strings in Appendix B. are in C string format
 with respect to escape (backslash) characters.
 
+The maximum number of additional bytes that a transform may add to a
+base word is 13. Since the largest base word is 24 bytes long, a buffer
+of 38 bytes is sufficient to store any transformed words
+(counting a terminating zero byte).
+
 .ti 0
 9. Compressed data format
 
