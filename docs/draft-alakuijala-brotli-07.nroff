@@ -5703,6 +5703,11 @@ sequences that represent the 121 transforms are then concatenated to a single
 sequence of bytes. The length of that sequence is 648 bytes, and the zlib CRC
 is 0x3d965f81.
 
+The maximum number of additional bytes that a transform may add to a base word
+is 13 bytes, based on the prefix and suffix values found in transform ID 73.
+Since the largest base word is 24 bytes in length, a buffer of (24 + 13) bytes
+is sufficient to store any transformed words (not counting a terminating zero).
+
 .nf
        ID       Prefix     Transform            Suffix
        --       ------     ---------            ------
