@@ -876,9 +876,10 @@ not pushed to the ring buffer of last distances.
 If a special distance symbol resolves to a zero or negative value, the
 stream should be rejected as invalid.
 
-The next NDIRECT distance symbols, from 16 to 15 + NDIRECT, represent
-distances from 1 to NDIRECT. Neither the distance special symbols, nor
-the NDIRECT direct distance symbols are followed by any extra bits.
+If NDIRECT is greater than zero, then next NDIRECT distance symbols,
+from 16 to 15 + NDIRECT, represent distances from 1 to NDIRECT.
+Neither the distance special symbols, nor the NDIRECT direct distance
+symbols are followed by any extra bits.
 
 Distance symbols 16 + NDIRECT and greater all have extra bits, where the
 number of extra bits for a distance symbol "dcode" is given by the
