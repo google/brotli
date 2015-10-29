@@ -1328,14 +1328,13 @@ to a duplicated string in the uncompressed data produced so far has a maximum
 backward distance value, which is the minimum of the window size and
 the number of uncompressed bytes produced. However, decoding a distance
 from the compressed stream, as described in Section 4., can produce
-distances that are greater than this maximum allowed value. The
-difference between these distances and the first invalid distance
-value is treated as reference to a word in the static dictionary
-given in Appendix A. The copy length for a static dictionary reference
+distances that are greater than this maximum allowed value. In this case,
+the distance is treated as a reference to a word in the static dictionary.
+The copy length for a static dictionary reference
 must be between 4 and 24. The static dictionary has three parts:
 
 .nf
-   * DICT[0..DICTSIZE], an array of bytes
+   * DICT[0..DICTSIZE], an array of bytes, given in Appendix A.
    * DOFFSET[0..24], an array of byte offset values for each length
    * NDBITS[0..24], an array of bit-depth values for each length
 .fi
@@ -1377,7 +1376,7 @@ follows:
 
 The string copied to the uncompressed stream is computed by applying the
 transformation to the base dictionary word. If transform_id is
-greater than 120 or length is smaller than 4 or greater than 24, then
+greater than 120, or the length is smaller than 4 or greater than 24, then
 the compressed stream should be rejected as invalid.
 
 Each word transformation has the following form:
