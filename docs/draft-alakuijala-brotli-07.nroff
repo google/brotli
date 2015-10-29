@@ -1086,10 +1086,10 @@ implicit zero.
 7. Context modeling
 
 As described in Section 2., the prefix tree used to encode a literal
-byte or a distance code depends on the context ID and the block type.
+byte or a distance code depends on the block type and the context ID.
 This section specifies how to compute the context ID for a particular
 literal and distance code, and how to encode the context map that
-maps a <context ID, block type> pair to the index of a prefix
+maps a <block type, context ID> pair to the index of a prefix
 code in the array of literal and distance prefix codes.
 
 .ti 0
@@ -1224,9 +1224,7 @@ context map is an integer between 0 and 255, indicating the index
 of the prefix code to be used when encoding the next literal or
 distance.
 
-The context maps are conceptually two-dimensional matrices, mapping
-a block type and a context ID to the index of the prefix code.
-However, in reality, the context maps are encoded as
+The context maps are two-dimensional matrices, encoded as
 one-dimensional arrays:
 
 .nf
@@ -1287,7 +1285,8 @@ for literal and distance context maps):
 .fi
 
 Note that RLEMAX may be larger than the value necessary to represent
-the longest sequence of zero values.
+the longest sequence of zero values. Also, the NTREES value is encoded
+right before the context map as described in Section 9.2.
 
 We define the inverse move-to-front transform used in this specification
 by the following C language function:
@@ -1311,14 +1310,8 @@ by the following C language function:
    }
 .fi
 
-Let max(v) be the largest value in the input array, v. Prior to calling
-the inverse move-to-front transform, we can be assured that max(v) will
-be less than NTREES since the prefix code above can only fill the map
-with values 0..(NTREES - 1). Also, the inverse move-to-front transform
-is guaranteed to produce new values in the array, v, that are less than
-or equal to the original max(v). Thus, we can conclude that calling
-InverseMoveToFrontTransform will not produce an invalid index to a
-literal or distance prefix code.
+Note that the inverse move-to-front transform will not produce values
+outside the [0..NTREES-1] interval.
 
 .ti 0
 8. Static dictionary
