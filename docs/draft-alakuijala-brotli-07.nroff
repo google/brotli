@@ -1000,12 +1000,14 @@ and a copy length code, the following table can be used:
 
 First, look up the cell with the 64 value range containing the
 insert-and-copy length code, this gives the insert length code and
-the copy length code ranges, both 8 values long. Counting from the
-LSB of the insert-and-copy length code, the copy length code within
-its range is determined by bits 0-2, and the insert length code within
-its range is determined by bits 3-5. Given the insert length and copy
-length codes, the actual insert and copy lengths can be obtained by
-reading the number of extra bits given by the tables above.
+the copy length code ranges, both 8 values long.
+The copy length code within its range is determined by bits 0-2
+(counted from the LSB) of the insert-and-copy length code.
+The insert length code within its range is determined by bits 3-5
+(counted from the LSB) of the insert-and-copy length code.
+Given the insert length and copy length codes, the actual insert
+and copy lengths can be obtained by reading the number of extra
+bits given by the tables above.
 
 If the insert-and-copy length code is between 0 and 127, the distance
 code of the command is set to zero (the last distance reused).
