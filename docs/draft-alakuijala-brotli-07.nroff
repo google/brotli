@@ -1062,8 +1062,9 @@ code in the array of literal and distance prefix codes.
 
 The context for encoding the next literal is defined by the last
 two bytes in the stream (p1, p2, where p1 is the most recent
-byte), regardless if these bytes are produced by backward
-references or by literal insertions. At the start of the stream
+byte), regardless of whether these bytes are produced by
+uncompressed meta-blocks, backward references, static dictionary
+references, or by literal insertions. At the start of the stream
 p1 and p2 are initialized to zero.
 
 There are four methods, called context modes, to compute the
@@ -1158,6 +1159,10 @@ uncompressed byte the context IDs can be computed as follows:
    For UTF8  :  Context ID = Lut0[p1] | Lut1[p2]
    For Signed:  Context ID = (Lut2[p1] << 3) | Lut2[p2]
 .fi
+
+From the lookup tables defined above and the operations to compute the
+context IDs, we can see that context IDs for literals are in the range
+of 0..63.
 
 The context modes LSB6, MSB6, UTF8, and Signed are denoted by
 integers 0, 1, 2, 3.
