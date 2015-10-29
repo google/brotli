@@ -1053,10 +1053,10 @@ implicit zero.
 7. Context modeling
 
 As described in Section 2, the prefix tree used to encode a literal
-byte or a distance code depends on the context ID and the block type.
+byte or a distance code depends on the block type and the context ID.
 This section specifies how to compute the context ID for a particular
 literal and distance code, and how to encode the context map that
-maps a <context ID, block type> pair to the index of a prefix
+maps a <block type, context ID> pair to the index of a prefix
 code in the array of literal and distance prefix codes.
 
 .ti 0
@@ -1190,15 +1190,21 @@ context map is an integer between 0 and 255, indicating the index
 of the prefix code to be used when encoding the next literal or
 distance.
 
-The context map is encoded as a one-dimensional array,
-CMAPL[0..(64 * NBLTYPESL - 1)] and CMAPD[0..(4 * NBLTYPESD - 1)].
+The context maps are two-dimensional matrices, encoded as
+one-dimensional arrays:
+
+.nf
+   CMAPL[0..(64 * NBLTYPESL - 1)]
+   CMAPD[0..(4 * NBLTYPESD - 1)]
+.fi
 
 The index of the prefix code for encoding a literal or distance
-code with context ID, CIDx, and block type, BTYPE_x, is:
+code with block type, BTYPE_x, and context ID, CIDx, is:
 
+.nf
    index of literal prefix code = CMAPL[64 * BTYPE_L + CIDL]
-
    index of distance prefix code = CMAPD[4 * BTYPE_D + CIDD]
+.fi
 
 The values of the context map are encoded with the combination
 of run length encoding for zero values and prefix coding. Let
@@ -1245,11 +1251,11 @@ for literal and distance context maps):
 .fi
 
 Note that RLEMAX may be larger than the value necessary to represent
-the longest sequence of zero values.
+the longest sequence of zero values. Also, the NTREES value is encoded
+right before the context map as described in Section 9.2.
 
-For the encoding of NTREES see Section 9.2. We define the
-inverse move-to-front transform used in this specification by the
-following C language function:
+We define the inverse move-to-front transform used in this specification
+by the following C language function:
 
 .nf
    void InverseMoveToFrontTransform(uint8_t* v, int v_len) {
@@ -1269,6 +1275,9 @@ following C language function:
       }
    }
 .fi
+
+Note that the inverse move-to-front transform will not produce values
+outside the [0..NTREES-1] interval.
 
 .ti 0
 8. Static dictionary
