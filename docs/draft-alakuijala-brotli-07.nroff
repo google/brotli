@@ -617,8 +617,9 @@ for the various prefix codes and the sections where they are defined.
 
 The first two bits of the compressed representation of each
 prefix code distinguishes between simple and complex prefix
-codes. If this value is 1, then a simple prefix code follows.
-Otherwise the value indicates the number of leading zeros.
+codes. If this value is 1, then a simple prefix code follows
+as described in this section. Otherwise, a complex prefix code
+follows as described in section 3.5.
 
 A simple prefix code can have only up to four symbols with
 non-zero code length. The format of the simple prefix code is as
@@ -626,7 +627,7 @@ follows:
 
 .nf
    2 bits: value of 1 indicates a simple prefix code
-   2 bits: NSYM - 1, where NSYM = # of symbols coded
+   2 bits: NSYM - 1, # of symbols coded
 
    NSYM symbols, each encoded using ALPHABET_BITS bits
 
@@ -637,9 +638,10 @@ The value of ALPHABET_BITS depends on the alphabet of the prefix
 code: it is the smallest number of bits that can represent all
 symbols in the alphabet. E.g. for the alphabet of literal bytes,
 ALPHABET_BITS is 8. The value of each of the NSYM symbols above is
-the value of the ALPHABETS_BITS width integer value. (If the integer
-value is greater than or equal to the alphabet size, then the stream
-should be rejected as invalid.)
+the value of the ALPHABETS_BITS width integer value. If the integer
+value is greater than or equal to the alphabet size, or the value
+is identical to a previous value, then the stream should be rejected
+as invalid.
 
 Note that the NSYM symbols may not be presented in sorted order. Prefix codes
 of the same bit length must be assigned to the symbols in sorted order.
@@ -756,9 +758,15 @@ We can now define the format of the complex prefix code as follows:
 
       If there are at least two non-zero code lengths, any
       trailing zero code lengths are omitted, i.e. the last
-      code length in the sequence must be non-zero. In this
-      case the sum of (32 >> code length) over all the non-zero
-      code lengths must equal to 32.
+      code length in the sequence must be non-zero. Thus,
+      it is possible to have far less than 18 code lengths.
+
+      From the perspective of the decoder, we can stop reading
+      code lengths once the sum of (32 >> code length) over all
+      the preceding non-zero code lengths equals 32. If the sum
+      is not equal to 32 (and assuming there are at least two
+      non-zero code lengths), then the stream should be
+      rejected as invalid.
 
       If the lengths have been read for the entire code length
       alphabet and there was only one non-zero code length,
@@ -778,13 +786,18 @@ We can now define the format of the complex prefix code as follows:
    Sequence of code lengths symbols, encoded using the code
       length prefix code. Any trailing 0 or 17 must be
       omitted, i.e. the last encoded code length symbol must be
-      between 1 and 16. The sum of (32768 >> code length) over
-      all the non-zero code lengths in the alphabet, including
-      those encoded using repeat code(s) of 16, must equal to
-      32768. If the number of times to repeat the previous length
-      or repeat a zero length would result in more lengths in
-      total than the number of symbols in the alphabet, then the
-      stream should be rejected as invalid.
+      between 1 and 16. The maximum number of symbols to read
+      is the size of the alphabet.
+
+      From the perspective of the decoder, we can stop reading
+      code lengths once the sum of (32768 >> code length) over
+      all the preceding non-zero code lengths, including those
+      encoded using repeat codes(s) of 16, in the alphabet
+      equals 32768. If the sum does not equal 32768, or if the
+      number of times to repeat the previous length or repeat a
+      zero length would result in more lengths in total than
+      the number of symbols in the alphabet, then the stream
+      should be rejected as invalid.
 .fi
 
 .ti 0
