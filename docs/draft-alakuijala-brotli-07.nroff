@@ -845,9 +845,10 @@ not pushed to the ring buffer of last distances.
 If a special distance symbol resolves to a zero or negative value, the
 stream should be rejected as invalid.
 
-The next NDIRECT distance symbols, from 16 to 15 + NDIRECT, represent
-distances from 1 to NDIRECT. Neither the distance special symbols, nor
-the NDIRECT direct distance symbols are followed by any extra bits.
+If NDIRECT is greater than zero, then the next NDIRECT distance symbols,
+from 16 to 15 + NDIRECT, represent distances from 1 to NDIRECT.
+Neither the special distance symbols, nor the NDIRECT direct distance
+symbols are followed by any extra bits.
 
 Distance symbols 16 + NDIRECT and greater all have extra bits, where the
 number of extra bits for a distance symbol "dcode" is given by the
@@ -964,13 +965,14 @@ and a copy length code, the following table can be used:
 
 First, look up the cell with the 64 value range containing the
 insert-and-copy length code, this gives the insert length code and
-the copy length code ranges, both 8 values long. The copy length
-code within its range is determined by the lowest 3 bits of the
-insert-and-copy length code, and the insert length code within its
-range is determined by bits 3-5 (counted from the LSB) of the insert-
-and-copy length code. Given the insert length and copy length codes,
-the actual insert and copy lengths can be obtained by reading the
-number of extra bits given by the tables above.
+the copy length code ranges, both 8 values long.
+The copy length code within its range is determined by bits 0-2
+(counted from the LSB) of the insert-and-copy length code.
+The insert length code within its range is determined by bits 3-5
+(counted from the LSB) of the insert-and-copy length code.
+Given the insert length and copy length codes, the actual insert
+and copy lengths can be obtained by reading the number of extra
+bits given by the tables above.
 
 If the insert-and-copy length code is between 0 and 127, the distance
 code of the command is set to zero (the last distance reused).
@@ -1051,10 +1053,10 @@ implicit zero.
 7. Context modeling
 
 As described in Section 2, the prefix tree used to encode a literal
-byte or a distance code depends on the context ID and the block type.
+byte or a distance code depends on the block type and the context ID.
 This section specifies how to compute the context ID for a particular
 literal and distance code, and how to encode the context map that
-maps a <context ID, block type> pair to the index of a prefix
+maps a <block type, context ID> pair to the index of a prefix
 code in the array of literal and distance prefix codes.
 
 .ti 0
@@ -1188,15 +1190,21 @@ context map is an integer between 0 and 255, indicating the index
 of the prefix code to be used when encoding the next literal or
 distance.
 
-The context map is encoded as a one-dimensional array,
-CMAPL[0..(64 * NBLTYPESL - 1)] and CMAPD[0..(4 * NBLTYPESD - 1)].
+The context maps are two-dimensional matrices, encoded as
+one-dimensional arrays:
+
+.nf
+   CMAPL[0..(64 * NBLTYPESL - 1)]
+   CMAPD[0..(4 * NBLTYPESD - 1)]
+.fi
 
 The index of the prefix code for encoding a literal or distance
-code with context ID, CIDx, and block type, BTYPE_x, is:
+code with block type, BTYPE_x, and context ID, CIDx, is:
 
+.nf
    index of literal prefix code = CMAPL[64 * BTYPE_L + CIDL]
-
    index of distance prefix code = CMAPD[4 * BTYPE_D + CIDD]
+.fi
 
 The values of the context map are encoded with the combination
 of run length encoding for zero values and prefix coding. Let
@@ -1243,11 +1251,11 @@ for literal and distance context maps):
 .fi
 
 Note that RLEMAX may be larger than the value necessary to represent
-the longest sequence of zero values.
+the longest sequence of zero values. Also, the NTREES value is encoded
+right before the context map as described in Section 9.2.
 
-For the encoding of NTREES see Section 9.2. We define the
-inverse move-to-front transform used in this specification by the
-following C language function:
+We define the inverse move-to-front transform used in this specification
+by the following C language function:
 
 .nf
    void InverseMoveToFrontTransform(uint8_t* v, int v_len) {
@@ -1268,6 +1276,9 @@ following C language function:
    }
 .fi
 
+Note that the inverse move-to-front transform will not produce values
+outside the [0..NTREES-1] interval.
+
 .ti 0
 8. Static dictionary
 
@@ -1275,10 +1286,9 @@ At any given point during decoding the compressed data, a reference
 to a duplicated string in the uncompressed data produced so far has a maximum
 backward distance value, which is the minimum of the window size and
 the number of uncompressed bytes produced. However, decoding a distance
-from the compressed stream, as described in section 4, can produce
-distances that are greater than this maximum allowed value. The
-difference between these distances and the first invalid distance
-value is treated as reference to a word in the static dictionary
+from the compressed stream, as described in Section 4., can produce
+distances that are greater than this maximum allowed value. In this case,
+the distance is treated as a reference to a word in the static dictionary
 given in Appendix A. The copy length for a static dictionary reference
 must be between 4 and 24. The static dictionary has three parts:
 
@@ -1323,7 +1333,7 @@ follows:
 
 The string copied to the uncompressed stream is computed by applying the
 transformation to the base dictionary word. If transform_id is
-greater than 120 or length is smaller than 4 or greater than 24, then
+greater than 120, or the length is smaller than 4 or greater than 24, then
 the compressed stream should be rejected as invalid.
 
 Each word transformation has the following form:
@@ -1385,6 +1395,11 @@ prefix, elementary transform and suffix components of each of them.
 Note that the OmitFirst8 elementary transform is not used in the list
 of transformations. The strings in Appendix B. are in C string format
 with respect to escape (backslash) characters.
+
+The maximum number of additional bytes that a transform may add to a
+base word is 13. Since the largest base word is 24 bytes long, a buffer
+of 38 bytes is sufficient to store any transformed words
+(counting a terminating zero byte).
 
 .ti 0
 9. Compressed data format
