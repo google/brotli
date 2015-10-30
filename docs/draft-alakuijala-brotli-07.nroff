@@ -639,7 +639,7 @@ follows:
 
 .nf
    2 bits: value of 1 indicates a simple prefix code
-   2 bits: NSYM - 1, # of symbols coded
+   2 bits: NSYM - 1, where NSYM = # of symbols coded
 
    NSYM symbols, each encoded using ALPHABET_BITS bits
 
@@ -770,15 +770,9 @@ We can now define the format of the complex prefix code as follows:
 
       If there are at least two non-zero code lengths, any
       trailing zero code lengths are omitted, i.e. the last
-      code length in the sequence must be non-zero. Thus,
-      it is possible to have far less than 18 code lengths.
-
-      From the perspective of the decoder, we can stop reading
-      code lengths once the sum of (32 >> code length) over all
-      the preceding non-zero code lengths equals 32. If the sum
-      is not equal to 32 (and assuming there are at least two
-      non-zero code lengths), then the stream should be
-      rejected as invalid.
+      code length in the sequence must be non-zero. In this
+      case, the sum of (32 >> code length) over all the non-zero
+      code lengths must equal to 32.
 
       If the lengths have been read for the entire code length
       alphabet and there was only one non-zero code length,
@@ -795,21 +789,16 @@ We can now define the format of the complex prefix code as follows:
       length is taken to be 8 before any code length code
       lengths are read.
 
-   Sequence of code lengths symbols, encoded using the code
-      length prefix code. Any trailing 0 or 17 must be
+   Sequence of at most alphabet size code length symbols, encoded
+      using the code length prefix code. Any trailing 0 or 17 must be
       omitted, i.e. the last encoded code length symbol must be
-      between 1 and 16. The maximum number of symbols to read
-      is the size of the alphabet.
-
-      From the perspective of the decoder, we can stop reading
-      code lengths once the sum of (32768 >> code length) over
-      all the preceding non-zero code lengths, including those
-      encoded using repeat codes(s) of 16, in the alphabet
-      equals 32768. If the sum does not equal 32768, or if the
-      number of times to repeat the previous length or repeat a
-      zero length would result in more lengths in total than
-      the number of symbols in the alphabet, then the stream
-      should be rejected as invalid.
+      between 1 and 16. The sum of (32768 >> code length) over
+      all the non-zero code lengths in the alphabet, including
+      those encoded using repeat code(s) of 16, must equal to
+      32768. If the number of times to repeat the previous length
+      or repeat a zero length would result in more lengths in
+      total than the number of symbols in the alphabet, then the
+      stream should be rejected as invalid.
 .fi
 
 .ti 0
