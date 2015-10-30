@@ -1779,7 +1779,7 @@ The decoding algorithm that produces the uncompressed data is as follows:
             if distance code is not zero, and distance is not a
             static dictionary reference, push distance to the ring
             buffer of last distances
-         if distance is less the max allowed distance plus one
+         if distance is less than the max allowed distance plus one
             move backwards distance bytes in the uncompressed data,
             and copy CLEN bytes from this position to
             the uncompressed stream
