@@ -1761,7 +1761,8 @@ The decoding algorithm that produces the uncompressed data is as follows:
                save previous block type
             read block count using HTREE_BLEN_I and set BLEN_I
          decrement BLEN_I
-         read insert and copy length, ILEN, CLEN using HTREEI[BTYPE_I]
+         read insert-and-copy length symbol using HTREEI[BTYPE_I]
+         compute insert length, ILEN, and copy length, CLEN
          loop for ILEN
             if BLEN_L is zero
                read block type using HTREE_BTYPE_L and set BTYPE_L
@@ -1770,7 +1771,7 @@ The decoding algorithm that produces the uncompressed data is as follows:
             decrement BLEN_L
             look up context mode CMODE[BTYPE_L]
             compute context ID, CIDL from last two uncompressed bytes
-            read literal using HTREEL[CMAPL[64 * BTYPE_L + CIDL]]
+            read literal using HTREEL[CMAPL[64*BTYPE_L + CIDL]]
             write literal to uncompressed stream
          if number of uncompressed bytes produced in the loop for
             this meta-block is MLEN, then break from loop (in this
@@ -1784,12 +1785,12 @@ The decoding algorithm that produces the uncompressed data is as follows:
                read block count using HTREE_BLEN_D and set BLEN_D
             decrement BLEN_D
             compute context ID, CIDD from CLEN
-            read distance code using HTREED[CMAPD[4 * BTYPE_D + CIDD]]
+            read distance code using HTREED[CMAPD[4*BTYPE_D + CIDD]]
             compute distance by distance short code substitution
-            if distance code is not zero,
-               and distance is not a static dictionary reference,
-               push distance to the ring buffer of last distances
-         if distance is less than or equal to the max allowed distance
+            if distance code is not zero, and distance is not a
+            static dictionary reference, push distance to the ring
+            buffer of last distances
+         if distance is less the max allowed distance plus one
             move backwards distance bytes in the uncompressed data,
             and copy CLEN bytes from this position to
             the uncompressed stream
