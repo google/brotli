@@ -1024,8 +1024,9 @@ meta-block header.
 
 Since the first block type of each block category is 0, the block
 type of the first block-switch command is not encoded in
-the compressed data. Instead, only the block count for each category
-that has more than one type is encoded in the meta-block header.
+the compressed data. If a block category has only one block type,
+the block count of the first block-switch command is also omitted from
+the compressed data, otherwise it is encoded in the meta-block header.
 
 Since the end of the meta-block is detected by the number of uncompressed
 bytes produced, the block counts for any of the three categories need not
