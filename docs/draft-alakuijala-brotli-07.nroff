@@ -1488,14 +1488,14 @@ meta-block is the last one. The format of the meta-block header is
 the following:
 
 .nf
-   1 bit:  ISLAST, set to 1 if this is the last meta-block;
-           at the end of this meta-block, any remaining bits in
-           the last byte of the compressed stream are filled with
-           zeros (if the fill bits are not zero, then the stream
-           should be rejected as invalid)
+   1 bit:  ISLAST, set to 1 if this is the last meta-block
    1 bit:  ISLASTEMPTY, if set to 1, the meta-block is empty;
            this field is only present if ISLAST bit is set -- if
-           it is 1, then the meta-block ends at that bit
+           it is 1, then the meta-block and the brotli stream ends
+           at that bit, with any remaining bits in the last byte
+           of the compressed stream filled with zeros (if the
+           fill bits are not zero, then the stream should be
+           rejected as invalid)
    2 bits: MNIBBLES, # of nibbles to represent the uncompressed
            length, encoded with the following fixed-length code:
 
@@ -1535,15 +1535,12 @@ the following:
            nibble is all zeros, then the stream should be
            rejected as invalid)
 
-   1 bit:  ISUNCOMPRESSED, if set to 1, the meta-block contains
-           uncompressed data; this field is only present if ISLAST
-           bit is set -- if it is 1, then the rest of the
-           meta-block has the following format:
-
-              0 - 7 bits: fill bits until the next byte boundary,
-                      must be all zeros
-
-              MLEN bytes of uncompressed data
+   1 bit:  ISUNCOMPRESSED, if set to 1, any bits of compressed
+           data up to the next byte boundary are ignored, and
+           the rest of the meta-block contains MLEN bytes of
+           literal data; this field is only present if the
+           ISLAST bit is not set (if the ignored bits are not
+           all zeros, the stream should be rejected as invalid)
 
    1-11 bits: NBLTYPESL, # of literal block types, encoded with
            the following variable length code (as it appears in
