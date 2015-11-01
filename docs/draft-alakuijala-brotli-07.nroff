@@ -1777,8 +1777,8 @@ The decoding algorithm that produces the uncompressed data is as follows:
             read distance code using HTREED[CMAPD[4*BTYPE_D + CIDD]]
             compute distance by distance short code substitution
             if distance code is not zero, and distance is not a
-            static dictionary reference, push distance to the ring
-            buffer of last distances
+               static dictionary reference, push distance to the ring
+               buffer of last distances
          if distance is less than the max allowed distance plus one
             move backwards distance bytes in the uncompressed data,
             and copy CLEN bytes from this position to
@@ -1824,11 +1824,11 @@ registration below:
 
 .nf
 .KS
-   +----------+----------------------------------------+---------------+
-   | Name     | Description                            | Reference     |
-   +----------+----------------------------------------+---------------+
-   | br       | Brotli Compressed Data Format          | RFCXXXX       |
-   +----------+----------------------------------------+---------------+
+   +-------+-------------------------------------+------------+
+   | Name  | Description                         | Reference  |
+   +-------+-------------------------------------+------------+
+   | br    | Brotli Compressed Data Format       | RFCXXXX    |
+   +-------+-------------------------------------+------------+
 .KE
 .fi
 
