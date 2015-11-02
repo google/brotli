@@ -88,6 +88,7 @@ INSERT_TOC_HERE
 
 The purpose of this specification is to define a lossless
 compressed data format that:
+
 .nf
    * Is independent of CPU type, operating system, file system,
      and character set, and hence can be used for interchange;
@@ -98,11 +99,12 @@ compressed data format that:
      such as Unix filters;
    * Compresses data with a compression ratio comparable to the
      best currently available general-purpose compression methods,
-     and in particular considerably better than the gzip program;
+     and in particular, considerably better than the gzip program;
    * Decompresses much faster than current LZMA implementations.
 .fi
 
 The data format defined by this specification does not attempt to:
+
 .nf
    * Allow random access to compressed data;
    * Compress specialized data (e.g., raster graphics) as well
@@ -153,7 +155,7 @@ here.
 
 Byte: 8 bits stored or transmitted as a unit (same as an octet).
 For this specification, a byte is exactly 8 bits, even on machines
-which store a character on a number of bits different from eight.
+that store a character on a number of bits different from eight.
 See below for the numbering of bits within a byte.
 
 String: a sequence of arbitrary bytes.
@@ -261,6 +263,7 @@ only literals and no pointer to a string to duplicate.
 Each command in the compressed data is represented using three categories
 of prefix codes:
 
+.nf
    1) One set of prefix codes are for the literal sequence lengths
       (also referred to as literal insertion lengths) and backward
       copy lengths (that is, a single code word represents two lengths,
@@ -269,6 +272,7 @@ of prefix codes:
    2) One set of prefix codes are for literals.
 
    3) One set of prefix codes are for distances.
+.fi
 
 The prefix code descriptions for each meta-block appear in a compact
 form just before the compressed data in the meta-block header.
@@ -278,7 +282,9 @@ The number of extra bits is determined by the code.
 
 One meta-block command then appears as a sequence of prefix codes:
 
+.nf
    Insert-and-copy length, literal, literal, ..., literal, distance
+.fi
 
 where the insert-and-copy defines an insertion length and a copy length.
 The insertion length determines the number of literals that immediately
@@ -286,7 +292,9 @@ follow. The distance defines how far back to go for the copy and the
 copy length determines the number of bytes to copy. The resulting
 uncompressed data is the sequence of bytes:
 
+.nf
    literal, literal, ..., literal, copy, copy, ..., copy
+.fi
 
 where the number of literal bytes and copy bytes are determined by the
 insert-and-copy length code. (The number of bytes copied for a static
@@ -316,7 +324,9 @@ element.
 
 Consider the following example:
 
+.nf
    (IaC0, L0, L1, L2, D0)(IaC1, D1)(IaC2, L3, L4, D2)(IaC3, L5, D3)
+.fi
 
 The meta-block here has four commands, contained in parentheses for clarity,
 where each of the three categories of
@@ -325,11 +335,13 @@ Here we separate out each category as its own sequence to show an example of blo
 types assigned to those elements. Each square-bracketed group is a block that
 uses the same block type:
 
+.nf
    [IaC0, IaC1][IaC2, IaC3]  <-- insert-and-copy: block types 0 and 1
 
    [L0, L1][L2, L3, L4][L5]  <-- literals: block types 0, 1, and 0
 
    [D0][D1, D2, D3]          <-- distances: block types 0 and 1
+.fi
 
 The subsequent blocks within each block category must have different
 block types, but we see that block types can be reused later in the meta-block.
@@ -344,8 +356,10 @@ block types and a separate prefix code for block counts for
 each block category. For the above example the physical layout of the
 meta-block is then:
 
+.nf
    IaC0 L0 L1 LBlockSwitch(1, 3) L2 D0 IaC1 DBlockSwitch(1, 3) D1
    IaCBlockSwitch(1, 2) IaC2 L3 L4 D2 IaC3 LBlockSwitch(0, 1) L5 D3
+.fi
 
 where xBlockSwitch(t, n) switches to block type t for a count of n elements.
 Note that in this example DBlockSwitch(1, 3) immediately precedes the
@@ -403,7 +417,7 @@ An uncompressed meta-block cannot be the last meta-block.
 A meta-block may also be empty, which generates no uncompressed data at all.
 An empty meta-block may contain metadata information as bytes starting on byte
 boundaries, which are not part of either the sliding window or the uncompressed
-data. Thus, these metadata bytes can not be used to create matching strings in
+data. Thus, these metadata bytes cannot be used to create matching strings in
 subsequent meta-blocks and are not used as context bytes for literals.
 
 .ti 0
@@ -485,7 +499,7 @@ assuming that the order of the alphabet is ABCD:
 .KE
 .fi
 
-I.e., 0 precedes 10 which precedes 11x, and 110 and 111 are
+I.e., 0 precedes 10, which precedes 11x, and 110 and 111 are
 lexicographically consecutive.
 
 Given this rule, we can define the canonical prefix code for an
@@ -616,7 +630,7 @@ for the various prefix codes and the sections where they are defined.
 3.4. Simple prefix codes
 
 The first two bits of the compressed representation of each
-prefix code distinguishes between simple and complex prefix
+prefix code distinguish between simple and complex prefix
 codes. If this value is 1, then a simple prefix code follows
 as described in this section. Otherwise, a complex prefix code
 follows as described in Section 3.5.
@@ -672,7 +686,7 @@ follows:
 3.5. Complex prefix codes
 
 A complex prefix code is a canonical prefix code, defined by the
-sequence of code lengths, as discussed in Paragraph 3.2, above.
+sequence of code lengths, as discussed in Section 3.2., above.
 For even greater compactness, the code length sequences themselves
 are compressed using a prefix code. The alphabet for code lengths
 is as follows:
@@ -705,7 +719,7 @@ previous repeat count, which becomes the new repeat count. The same is true for
 a 17 following a 17. A sequence of three or more 16 codes in a row or three of
 more 17 codes in a row is possible, modifying the count each time. Only the
 final repeat count is used. The modification only applies if the same code
-follows. A 16 repeat does not modify an immediately preceding 17 count, nor
+follows. A 16 repeat does not modify an immediately preceding 17 count nor
 vice versa.
 
 A code length of 0 indicates that the corresponding symbol in the
@@ -792,7 +806,7 @@ We can now define the format of the complex prefix code as follows:
 .ti 0
 4. Encoding of distances
 
-As described in Section 2, one component of a compressed meta-block
+As described in Section 2., one component of a compressed meta-block
 is a sequence of backward distances. In this section we provide the
 details to the encoding of distances.
 
@@ -811,7 +825,9 @@ the number of direct distance codes, denoted by NDIRECT (0..120). Both of
 these parameters are encoded in the meta-block header. We will also
 use the following derived parameter:
 
+.nf
    POSTFIX_MASK = (1 << NPOSTFIX) - 1
+.fi
 
 The first 16 distance symbols are special symbols that reference
 past distances as follows:
@@ -860,7 +876,9 @@ Distance symbols 16 + NDIRECT and greater all have extra bits, where the
 number of extra bits for a distance symbol "dcode" is given by the
 following formula:
 
+.nf
    ndistbits = 1 + ((dcode - NDIRECT - 16) >> (NPOSTFIX + 1))
+.fi
 
 The maximum number of extra bits is 24, therefore the size of the
 distance symbol alphabet is (16 + NDIRECT + (48 << NPOSTFIX)).
@@ -878,14 +896,16 @@ Given a distance symbol "dcode" (>= 16 + NDIRECT), and extra bits
 .ti 0
 5. Encoding of literal insertion lengths and copy lengths
 
-As described in Section 2, the literal insertion lengths and backward
+As described in Section 2., the literal insertion lengths and backward
 copy lengths are encoded using a single prefix code. This section
 provides the details to this encoding.
 
 Each <insertion length, copy length> pair in the compressed data part
 of a meta-block is represented with the following triplet:
 
+.nf
    <insert-and-copy length code, insert extra bits, copy extra bits>
+.fi
 
 The insert-and-copy length code, the insert extra bits, and the copy
 extra bits are encoded back-to-back, the insert-and-copy length code
@@ -903,7 +923,7 @@ distance are omitted from the compressed data stream.
 We describe the insert-and-copy length code alphabet in terms of the
 (not directly used) insert length code and copy length code
 alphabets. The symbols of the insert length code alphabet, along with
-the number of insert extra bits and the range of the insert lengths
+the number of insert extra bits, and the range of the insert lengths
 are as follows:
 
 .nf
@@ -923,7 +943,7 @@ are as follows:
 .fi
 
 The symbols of the copy length code alphabet, along with the number
-of copy extra bits and the range of copy lengths are as follows:
+of copy extra bits, and the range of copy lengths are as follows:
 
 .nf
 .KS
@@ -986,7 +1006,7 @@ code of the command is set to zero (the last distance reused).
 .ti 0
 6. Encoding of block switch commands
 
-As described in Section 2, a block-switch command is a pair
+As described in Section 2., a block-switch command is a pair
 <block type, block count>. These are encoded in the compressed data
 part of the meta-block, right before the start of each new block of a
 particular block category.
@@ -1006,8 +1026,9 @@ meta-block header.
 
 Since the first block type of each block category is 0, the block
 type of the first block-switch command is not encoded in
-the compressed data. Instead the block count for each category
-that has more than one type is encoded in the meta-block header.
+the compressed data. If a block category has only one block type,
+the block count of the first block-switch command is also omitted from
+the compressed data, otherwise it is encoded in the meta-block header.
 
 Since the end of the meta-block is detected by the number of uncompressed
 bytes produced, the block counts for any of the three categories need not
@@ -1031,7 +1052,7 @@ a prefix code over the block count code alphabet, while the extra
 bits value is encoded as a fixed-width integer value. The number of
 extra bits can be 0 - 24, and it is dependent on the block count
 code. The symbols of the block count code alphabet, along with the
-number of extra bits and the range of block counts are as follows:
+number of extra bits, and the range of block counts are as follows:
 
 .nf
 .KS
@@ -1052,13 +1073,13 @@ number of extra bits and the range of block counts are as follows:
 
 The first block-switch command of each block category is special in
 the sense that it is encoded in the meta-block header, and as
-described earlier the block type code is omitted, since it is an
+described earlier, the block type code is omitted since it is an
 implicit zero.
 
 .ti 0
 7. Context modeling
 
-As described in Section 2, the prefix tree used to encode a literal
+As described in Section 2., the prefix tree used to encode a literal
 byte or a distance code depends on the block type and the context ID.
 This section specifies how to compute the context ID for a particular
 literal and distance code, and how to encode the context map that
@@ -1077,6 +1098,7 @@ p1 and p2 are initialized to zero.
 
 There are four methods, called context modes, to compute the
 Context ID:
+
 .nf
    * LSB6, where the Context ID is the value of six
      least-significant bits of p1,
@@ -1147,8 +1169,8 @@ using the following lookup tables Lut0, Lut1, and Lut2.
       6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 7
 .fi
 
-The lengths and zlib CRC-32 (ITU-T Recommendation V.42) check values of each
-of these tables as a sequence of bytes are as follows:
+The lengths and the zlib CRC-32 (ITU-T Recommendation V.42) check values
+of each of these tables as a sequence of bytes are as follows:
 
 .nf
    Table    Length    CRC-32
@@ -1159,7 +1181,7 @@ of these tables as a sequence of bytes are as follows:
 .fi
 
 Given p1 is the last uncompressed byte and p2 is the second-to-last
-uncompressed byte the context IDs can be computed as follows:
+uncompressed byte, the context IDs can be computed as follows:
 
 .nf
    For LSB6:    Context ID = p1 & 0x3f
@@ -1175,7 +1197,7 @@ of 0..63.
 The context modes LSB6, MSB6, UTF8, and Signed are denoted by
 integers 0, 1, 2, 3.
 
-The context mode is defined for each literal block type and they
+A context mode is defined for each literal block type and they
 are stored in a consecutive array of bits in the meta-block
 header, always two bits per block type.
 
@@ -1322,7 +1344,9 @@ DOFFSET and DICTSIZE are defined by the following recursion:
 The offset of a word within the DICT array for a given length and
 index is:
 
+.nf
    offset(length, index) = DOFFSET[length] + index * length
+.fi
 
 Each static dictionary word has 121 different forms, given by
 applying a word transformation to a base word in the DICT array. The
@@ -1344,7 +1368,9 @@ the compressed stream should be rejected as invalid.
 
 Each word transformation has the following form:
 
+.nf
    transform_i(word) = prefix_i + T_i(word) + suffix_i
+.fi
 
 where the _i subscript denotes the transform_id above. Each T_i
 is one of the following 21 elementary transforms:
@@ -1354,7 +1380,7 @@ is one of the following 21 elementary transforms:
    OmitFirst1, ..., OmitFirst9, OmitLast1, ..., OmitLast9
 .fi
 
-The form of these elementary transforms are as follows:
+The form of these elementary transforms is as follows:
 
 .nf
    Identity(word) = word
@@ -1451,7 +1477,9 @@ The size of the sliding window, which is the maximum value of any
 non-dictionary reference backward distance, is given by the
 following formula:
 
+.nf
    window size = (1 << WBITS) - 16
+.fi
 
 .ti 0
 9.2. Format of the meta-block header
@@ -1571,21 +1599,21 @@ the following:
 
    4 bits: four most-significant bits of NDIRECT, to get the
            actual value of the parameter NDIRECT, left-shift
-           this four bit number by NPOSTFIX bits
+           this four-bit number by NPOSTFIX bits
 
    NBLTYPESL x 2 bits: context mode for each literal block type
 
    1-11 bits: NTREESL, # of literal prefix trees, encoded
               with the same variable length code as NBLTYPESL
 
-      Literal context map, encoded as described in Paragraph 7.3,
+      Literal context map, encoded as described in Section 7.3.,
          appears only if NTREESL >= 2, otherwise the context map
          has only zero values
 
    1-11 bits: NTREESD, # of distance prefix trees, encoded
               with the same variable length code as NBLTYPESD
 
-      Distance context map, encoded as described in Paragraph 7.3,
+      Distance context map, encoded as described in Section 7.3.,
          appears only if NTREESD >= 2, otherwise the context map
          has only zero values
 
@@ -1611,7 +1639,7 @@ commands. Each command has the following format:
          block count, appears only if NBLTYPESI >= 2 and the
          previous insert-and-copy block count is zero
 
-      Insert-and-copy length, encoded as in section 5, using the
+      Insert-and-copy length, encoded as in Section 5., using the
          insert-and-copy length prefix code with the current
          insert-and-copy block type index
 
@@ -1629,7 +1657,7 @@ commands. Each command has the following format:
             literal prefix code with the index determined by the
             previous two bytes of the uncompressed data, the
             current literal block type, and the context map, as
-            described in Paragraph 7.3.
+            described in Section 7.3.
 
       Block type code for next distance block type, appears
          only if NBLTYPESD >= 2 and the previous distance
@@ -1639,7 +1667,7 @@ commands. Each command has the following format:
          block count, appears only if NBLTYPESD >= 2 and the
          previous distance block count is zero
 
-      Distance code, encoded as in section 4, using the distance
+      Distance code, encoded as in Section 4., using the distance
          prefix code with the current distance block type index,
          appears only if the distance code is not an implicit 0,
          as indicated by the insert-and-copy length code
@@ -1700,7 +1728,7 @@ The decoding algorithm that produces the uncompressed data is as follows:
             initialize second-to-last and last block types to 0 and 1
          else
             set block type, BTYPE_i to 0
-            set block count, BLEN_i to 268435456
+            set block count, BLEN_i to 16777216
       read NPOSTFIX and NDIRECT
       read array of literal context modes, CMODE[]
       read NTREESL
@@ -1722,7 +1750,8 @@ The decoding algorithm that produces the uncompressed data is as follows:
                save previous block type
             read block count using HTREE_BLEN_I and set BLEN_I
          decrement BLEN_I
-         read insert and copy length, ILEN, CLEN using HTREEI[BTYPE_I]
+         read insert-and-copy length symbol using HTREEI[BTYPE_I]
+         compute insert length, ILEN, and copy length, CLEN
          loop for ILEN
             if BLEN_L is zero
                read block type using HTREE_BTYPE_L and set BTYPE_L
@@ -1731,7 +1760,7 @@ The decoding algorithm that produces the uncompressed data is as follows:
             decrement BLEN_L
             look up context mode CMODE[BTYPE_L]
             compute context ID, CIDL from last two uncompressed bytes
-            read literal using HTREEL[CMAPL[64 * BTYPE_L + CIDL]]
+            read literal using HTREEL[CMAPL[64*BTYPE_L + CIDL]]
             write literal to uncompressed stream
          if number of uncompressed bytes produced in the loop for
             this meta-block is MLEN, then break from loop (in this
@@ -1745,13 +1774,18 @@ The decoding algorithm that produces the uncompressed data is as follows:
                read block count using HTREE_BLEN_D and set BLEN_D
             decrement BLEN_D
             compute context ID, CIDD from CLEN
-            read distance code using HTREED[CMAPD[4 * BTYPE_D + CIDD]]
+            read distance code using HTREED[CMAPD[4*BTYPE_D + CIDD]]
             compute distance by distance short code substitution
-         move backwards distance bytes in the uncompressed data and
-            copy CLEN bytes from this position to the uncompressed
-            stream, or look up the static dictionary word, transform
-            the word as directed, and copy the result to the
-            uncompressed stream
+            if distance code is not zero,
+               and distance is not a static dictionary reference,
+               push distance to the ring buffer of last distances
+         if distance is less than the max allowed distance plus one
+            move backwards distance bytes in the uncompressed data,
+            and copy CLEN bytes from this position to
+            the uncompressed stream
+         else
+            look up the static dictionary word, transform the word as
+            directed, and copy the result to the uncompressed stream
       while number of uncompressed bytes for this meta-block < MLEN
    while not ISLAST
 .fi
@@ -1790,11 +1824,11 @@ registration below:
 
 .nf
 .KS
-   +----------+----------------------------------------+---------------+
-   | Name     | Description                            | Reference     |
-   +----------+----------------------------------------+---------------+
-   | br       | Brotli Compressed Data Format          | RFCXXXX       |
-   +----------+----------------------------------------+---------------+
+   +-------+-------------------------------------+------------+
+   | Name  | Description                         | Reference  |
+   +-------+-------------------------------------+------------+
+   | br    | Brotli Compressed Data Format       | RFCXXXX    |
+   +-------+-------------------------------------+------------+
 .KE
 .fi
 
@@ -1834,7 +1868,7 @@ https://github.com/google/brotli
 15. Acknowledgments
 
 The authors would like to thank Mark Adler for providing helpful review
-comments, validating the specification by writing an independent decompressor
+comments, validating the specification by writing an independent decompressor,
 and suggesting improvements to the format and the text of the specification.
 
 .ti 0
