@@ -1775,6 +1775,7 @@ The decoding algorithm that produces the uncompressed data is as follows:
             decrement BLEN_D
             compute context ID, CIDD from CLEN
             read distance code using HTREED[CMAPD[4*BTYPE_D + CIDD]]
+            compute distance by distance short code substitution
             if distance code is not zero,
                and distance is not a static dictionary reference,
                push distance to the ring buffer of last distances
