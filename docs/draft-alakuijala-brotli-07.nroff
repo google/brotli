@@ -160,11 +160,11 @@ String: a sequence of arbitrary bytes.
 
 Bytes stored within a computer do not have a "bit order", since
 they are always treated as a unit. However, a byte considered as
-an integer between 0 and 255 does have a most- and least-
-significant bit, and since we write numbers with the most-
-significant digit on the left, we also write bytes with the most-
-significant bit on the left. In the diagrams below, we number the
-bits of a byte so that bit 0 is the least-significant bit, i.e.,
+an integer between 0 and 255 does have a most- and
+least-significant bit, and since we write numbers with the
+most-significant digit on the left, we also write bytes with the
+most-significant bit on the left. In the diagrams below, we number
+the bits of a byte so that bit 0 is the least-significant bit, i.e.,
 the bits are numbered:
 
 .nf
@@ -209,15 +209,15 @@ compressed byte sequence:
      starting with the least-significant bit of the data
      element. These are referred to here as integer values
      and are considered unsigned.
-   * Prefix codes are packed starting with the most-
-     significant bit of the code.
+   * Prefix codes are packed starting with the most-significant
+     bit of the code.
 .fi
 
 In other words, if one were to print out the compressed data as
 a sequence of bytes, starting with the first byte at the
-*right* margin and proceeding to the *left*, with the most-
-significant bit of each byte on the left as usual, one would be
-able to parse the result from right to left, with fixed-width
+*right* margin and proceeding to the *left*, with the
+most-significant bit of each byte on the left as usual, one would
+be able to parse the result from right to left, with fixed-width
 elements in the correct MSB-to-LSB order and prefix codes in
 bit-reversed order (i.e., with the first bit of the code in the
 relative LSB position).
@@ -225,8 +225,8 @@ relative LSB position).
 .ti 0
 2. Compressed representation overview
 
-A compressed data set consists of a header and a series of meta-
-blocks. Each meta-block decompresses to a sequence of 0
+A compressed data set consists of a header and a series of
+meta-blocks. Each meta-block decompresses to a sequence of 0
 to 16,777,216 (16 MiB) uncompressed bytes. The final uncompressed data is
 the concatenation of the uncompressed sequences from each meta-block.
 
@@ -259,30 +259,37 @@ duplicated is two, but the last command in the meta-block is permitted to have
 only literals and no pointer to a string to duplicate.
 
 Each command in the compressed data is represented using three categories
-of prefix codes: one set of prefix codes are for the literal sequence
-lengths (also referred to as literal insertion lengths) and backward
-copy lengths (that is, a single code word represents two lengths,
-one of the literal sequence and one of the backward copy), a separate
-set of prefix codes are for literals, and a third set of prefix codes are for
-distances. The prefix code descriptions for each meta-block appear in a compact
-form just before the compressed data in the meta-block header. The insert and
-copy length and distance prefix codes may be followed by extra bits that are
-added to the base values determined by the codes. The number of extra bits is
-determined by the code.
+of prefix codes:
+
+   1) One set of prefix codes are for the literal sequence lengths
+      (also referred to as literal insertion lengths) and backward
+      copy lengths (that is, a single code word represents two lengths,
+      one of the literal sequence and one of the backward copy).
+
+   2) One set of prefix codes are for literals.
+
+   3) One set of prefix codes are for distances.
+
+The prefix code descriptions for each meta-block appear in a compact
+form just before the compressed data in the meta-block header.
+The insert-and-copy length and distance prefix codes may be followed by
+extra bits that are added to the base values determined by the codes.
+The number of extra bits is determined by the code.
 
 One meta-block command then appears as a sequence of prefix codes:
 
-   Insert and copy length, literal, literal, ..., literal, distance
+   Insert-and-copy length, literal, literal, ..., literal, distance
 
-where the insert and copy defines the number of literals that immediately
-follow and the copy length, and the distance defines how far back to go
-for the copy, used in combination with the copy length. The resulting
+where the insert-and-copy defines an insertion length and a copy length.
+The insertion length determines the number of literals that immediately
+follow. The distance defines how far back to go for the copy and the
+copy length determines the number of bytes to copy. The resulting
 uncompressed data is the sequence of bytes:
 
    literal, literal, ..., literal, copy, copy, ..., copy
 
 where the number of literal bytes and copy bytes are determined by the
-insert and copy length code. (The number of bytes copied for a static
+insert-and-copy length code. (The number of bytes copied for a static
 dictionary entry can vary from the copy length.)
 
 The last command in the meta-block may end with the last literal if the
@@ -301,14 +308,13 @@ a new block type and block count is read from the stream immediately
 preceding the next element of that category, which will use the new
 block type.
 
-The insert and copy block type directly determines which prefix code to
-use for the next insert and copy element. For the literal and distance
+The insert-and-copy block type directly determines which prefix code to
+use for the next insert-and-copy element. For the literal and distance
 elements, the respective block type is used in combination with other
 context information to determine which prefix code to use for the next
 element.
 
-Consider the following
-example:
+Consider the following example:
 
    (IaC0, L0, L1, L2, D0)(IaC1, D1)(IaC2, L3, L4, D2)(IaC3, L5, D3)
 
@@ -341,7 +347,7 @@ meta-block is then:
    IaC0 L0 L1 LBlockSwitch(1, 3) L2 D0 IaC1 DBlockSwitch(1, 3) D1
    IaCBlockSwitch(1, 2) IaC2 L3 L4 D2 IaC3 LBlockSwitch(0, 1) L5 D3
 
-where *BlockSwitch(t, n) switches to block type t for a count of n elements.
+where xBlockSwitch(t, n) switches to block type t for a count of n elements.
 Note that in this example DBlockSwitch(1, 3) immediately precedes the
 next required distance D1. It does not follow the last distance of
 the previous block, D0. Whenever an element of a category is needed,
@@ -349,14 +355,14 @@ and the block count for that category has reached zero, then a new
 block type and count is read from the stream just before reading that next
 element.
 
-The block switch commands for the first blocks of each category are not part
+The block-switch commands for the first blocks of each category are not part
 of the meta-block compressed data. Instead the first block type
 is defined to be 0, and the first block count for each category is
 encoded in the meta-block header. The prefix codes for the block types and counts, a total of
 six prefix codes over the three categories, are defined in a compact form in the meta-block
 header.
 
-Each category of value (insert-and-copy lengths, literals and distances)
+Each category of value (insert-and-copy lengths, literals, and distances)
 can be encoded with any prefix code from a collection of prefix
 codes belonging to the same category appearing in the meta-block header. The
 particular prefix code used can depend on two factors: the block
@@ -366,10 +372,9 @@ the uncompressed data, and in the case of distances, the context is the copy
 length from the same command. For insert-and-copy lengths, no context
 is used and the prefix code depends only on the block type. In the case
 of literals and distances, the context is mapped to a context ID in
-the range 0..63 for literals and 0..3 for distances and the matrix
-of the prefix code indices for each block type and context ID,
-called the context map, is encoded in a compact form in the meta-
-block header.
+the range 0..63 for literals and 0..3 for distances. The matrix
+of the prefix code indexes for each block type and context ID,
+called the context map, is encoded in a compact form in the meta-block header.
 
 For example, the prefix code to use to decode L2 depends on the
 block type (1), and the literal context ID determined by the two uncompressed
@@ -379,8 +384,8 @@ type (0), and the distance context ID determined by the copy length decoded
 from IaC0. The prefix code to use to decode IaC3 depends only on the block
 type (1).
 
-In addition to the parts listed above (prefix code for insert-
-and-copy lengths, literals, distances, block types and block counts
+In addition to the parts listed above (prefix code for insert-and-copy
+lengths, literals, distances, block types and block counts,
 and the context map), the meta-block header contains the number of
 uncompressed bytes coded in the meta-block and two additional parameters used in
 the representation of match distances: the number of postfix bits and
@@ -515,7 +520,7 @@ initially in tree[I].Len; the codes are produced in tree[I].Code.
       value.
 
 .KS
-         for (n = 0;  n <= max_code; n++) {
+         for (n = 0; n <= max_code; n++) {
             len = tree[n].Len;
             if (len != 0) {
                tree[n].Code = next_code[len];
@@ -577,7 +582,7 @@ Prefix codes are used for different purposes in the brotli
 format, and each purpose has a different alphabet size. For
 literal codes the alphabet size is 256. For insert-and-copy
 length codes the alphabet size is 704. For block count codes,
-the alphabet size is 26. For distance codes, block type codes and
+the alphabet size is 26. For distance codes, block type codes, and
 the prefix codes used in compressing the context map, the
 alphabet size is dynamic and is based on parameters defined in
 later sections. The following table summarizes the alphabet sizes
@@ -585,25 +590,25 @@ for the various prefix codes and the sections where they are defined.
 
 .nf
 .KS
-   +-----------------+------------------------+-------------+
-   | Prefix code     | Alphabet size          | Definition  |
-   +-----------------+------------------------+-------------+
-   | literal         | 256                    |             |
-   +-----------------+------------------------+-------------+
-   | distance        | 16 + NDIRECT +         | Section 4.  |
-   |                 | (48 << NPOSTFIX)       |             |
-   +-----------------+------------------------+-------------+
-   | insert-and-copy | 704                    | Section 5.  |
-   | length          |                        |             |
-   +-----------------+------------------------+-------------+
-   | block count     | 26                     | Section 6.  |
-   +-----------------+------------------------+-------------+
-   | block type      | NBLTYPESx + 2,         | Section 6.  |
-   |                 | (where x is I, L or D) |             |
-   +-----------------+------------------------+-------------+
-   | context map     | NTREESx + RLEMAXx      | Section 7.  |
-   |                 | (where x is L or D)    |             |
-   +-----------------+------------------------+-------------+
+   +-----------------+-------------------------+------------+
+   | Prefix code     | Alphabet size           | Definition |
+   +-----------------+-------------------------+------------+
+   | literal         | 256                     |            |
+   +-----------------+-------------------------+------------+
+   | distance        | 16 + NDIRECT +          | Section 4. |
+   |                 | (48 << NPOSTFIX)        |            |
+   +-----------------+-------------------------+------------+
+   | insert-and-copy | 704                     | Section 5. |
+   | length          |                         |            |
+   +-----------------+-------------------------+------------+
+   | block count     | 26                      | Section 6. |
+   +-----------------+-------------------------+------------+
+   | block type      | NBLTYPESx + 2,          | Section 6. |
+   |                 | (where x is I, L, or D) |            |
+   +-----------------+-------------------------+------------+
+   | context map     | NTREESx + RLEMAXx       | Section 7. |
+   |                 | (where x is L or D)     |            |
+   +-----------------+-------------------------+------------+
 .KE
 .fi
 
@@ -612,11 +617,12 @@ for the various prefix codes and the sections where they are defined.
 
 The first two bits of the compressed representation of each
 prefix code distinguishes between simple and complex prefix
-codes. If this value is 1, then a simple prefix code follows.
-Otherwise the value indicates the number of leading zeros.
+codes. If this value is 1, then a simple prefix code follows
+as described in this section. Otherwise, a complex prefix code
+follows as described in Section 3.5.
 
-A simple prefix code can have only up to four symbols with non-
-zero code length. The format of the simple prefix code is as
+A simple prefix code can have only up to four symbols with
+non-zero code length. The format of the simple prefix code is as
 follows:
 
 .nf
@@ -632,9 +638,10 @@ The value of ALPHABET_BITS depends on the alphabet of the prefix
 code: it is the smallest number of bits that can represent all
 symbols in the alphabet. E.g. for the alphabet of literal bytes,
 ALPHABET_BITS is 8. The value of each of the NSYM symbols above is
-the value of the ALPHABETS_BITS width integer value. (If the integer
-value is greater than or equal to the alphabet size, then the stream
-should be rejected as invalid.)
+the value of the ALPHABETS_BITS width integer value. If the integer
+value is greater than or equal to the alphabet size, or the value
+is identical to a previous value, then the stream should be rejected
+as invalid.
 
 Note that the NSYM symbols may not be presented in sorted order. Prefix codes
 of the same bit length must be assigned to the symbols in sorted order.
@@ -657,7 +664,7 @@ follows:
      prefix code.
 
    * if NSYM = 4, the code lengths (in order of symbols decoded)
-     depend on the tree-select bit: 2, 2, 2, 2, (tree-select bit 0)
+     depend on the tree-select bit: 2, 2, 2, 2 (tree-select bit 0),
      or 1, 2, 3, 3 (tree-select bit 1).
 .fi
 
@@ -724,11 +731,10 @@ in the compressed data, where the bits are parsed from right to left):
 .KE
 .fi
 
-We can now define the format of the complex prefix code as
-follows:
+We can now define the format of the complex prefix code as follows:
 
 .nf
-   2 bits: HSKIP, values of 0, 2 or 3 represent the respective
+   2 bits: HSKIP, values of 0, 2, or 3 represent the respective
            number of skipped code lengths. The skipped lengths
            are taken to be zero. (An HSKIP of 1 indicates a
            Simple prefix code.)
@@ -742,7 +748,7 @@ follows:
       is for symbol 4.
 
       The code lengths of code length symbols are between 0 and
-      5 and they are represented with 2 - 4 bits according to
+      5, and they are represented with 2 - 4 bits according to
       the variable length code above. A code length of 0 means
       the corresponding code length symbol is not used.
 
@@ -753,7 +759,7 @@ follows:
       If there are at least two non-zero code lengths, any
       trailing zero code lengths are omitted, i.e. the last
       code length in the sequence must be non-zero. In this
-      case the sum of (32 >> code length) over all the non-zero
+      case, the sum of (32 >> code length) over all the non-zero
       code lengths must equal to 32.
 
       If the lengths have been read for the entire code length
@@ -771,8 +777,8 @@ follows:
       length is taken to be 8 before any code length code
       lengths are read.
 
-   Sequence of code lengths symbols, encoded using the code
-      length prefix code. Any trailing 0 or 17 must be
+   Sequence of at most alphabet size code lengths symbols, encoded
+      using the code length prefix code. Any trailing 0 or 17 must be
       omitted, i.e. the last encoded code length symbol must be
       between 1 and 16. The sum of (32768 >> code length) over
       all the non-zero code lengths in the alphabet, including
@@ -805,7 +811,7 @@ the number of direct distance codes, denoted by NDIRECT (0..120). Both of
 these parameters are encoded in the meta-block header. We will also
 use the following derived parameter:
 
-   POSTFIX_MASK = ((1 << NPOSTFIX) - 1)
+   POSTFIX_MASK = (1 << NPOSTFIX) - 1
 
 The first 16 distance symbols are special symbols that reference
 past distances as follows:
@@ -830,10 +836,10 @@ past distances as follows:
 .fi
 
 The ring buffer of four last distances is initialized by the values
-16, 15, 11 and 4 (i.e. the fourth-to-last is set to 16, the third-to-last
-to 15, the second-to-last to 11 and the last distance to 4) at the
-beginning of the *stream* (as opposed to the beginning of the meta-
-block) and it is not reset at meta-block boundaries. When a distance
+16, 15, 11, and 4 (i.e. the fourth-to-last is set to 16, the third-to-last
+to 15, the second-to-last to 11, and the last distance to 4) at the
+beginning of the *stream* (as opposed to the beginning of the meta-block)
+and it is not reset at meta-block boundaries. When a distance
 symbol 0 appears, the distance it represents (i.e. the last distance
 in the sequence of distances) is not pushed to the ring buffer of
 last distances, in other words, the expression "(second, third,
@@ -865,7 +871,7 @@ Given a distance symbol "dcode" (>= 16 + NDIRECT), and extra bits
 .nf
    hcode = (dcode - NDIRECT - 16) >> NPOSTFIX
    lcode = (dcode - NDIRECT - 16) & POSTFIX_MASK
-   offset = ((2 + (hcode & 1)) << ndistbits) - 4;
+   offset = ((2 + (hcode & 1)) << ndistbits) - 4
    distance = ((offset + dextra) << NPOSTFIX) + lcode + NDIRECT + 1
 .fi
 
@@ -881,7 +887,7 @@ of a meta-block is represented with the following triplet:
 
    <insert-and-copy length code, insert extra bits, copy extra bits>
 
-The insert-and-copy length code, the insert extra bits and the copy
+The insert-and-copy length code, the insert extra bits, and the copy
 extra bits are encoded back-to-back, the insert-and-copy length code
 is encoded using a prefix code over the insert-and-copy length code
 alphabet, while the extra bits values are encoded as fixed-width
@@ -999,7 +1005,7 @@ are initialized to 1 and 0, respectively, at the end of the
 meta-block header.
 
 Since the first block type of each block category is 0, the block
-type of the first block switch command is not encoded in
+type of the first block-switch command is not encoded in
 the compressed data. Instead the block count for each category
 that has more than one type is encoded in the meta-block header.
 
@@ -1009,13 +1015,13 @@ count down to exactly zero at the end of the meta-block.
 
 The number of different block types in each block category, denoted
 by NBLTYPESL, NBLTYPESI, and NBLTYPESD for literals, insert-and-copy
-lengths and distances, respectively, is encoded in the meta-block
+lengths, and distances, respectively, is encoded in the meta-block
 header, and it must equal to the largest block type plus one in that
 block category. In other words, the set of literal, insert-and-copy
-length and distance block types must be [0..NBLTYPESL-1],
+length, and distance block types must be [0..NBLTYPESL-1],
 [0..NBLTYPESI-1], and [0..NBLTYPESD-1], respectively. From this it
-follows that the alphabet size of literal, insert-and-copy length and
-distance block type codes is NBLTYPESL + 2, NBLTYPESI + 2 and
+follows that the alphabet size of literal, insert-and-copy length, and
+distance block type codes is NBLTYPESL + 2, NBLTYPESI + 2, and
 NBLTYPESD + 2, respectively.
 
 Each block count in the compressed data is represented with a pair
@@ -1044,7 +1050,7 @@ number of extra bits and the range of block counts are as follows:
 .KE
 .fi
 
-The first block switch command of each block category is special in
+The first block-switch command of each block category is special in
 the sense that it is encoded in the meta-block header, and as
 described earlier the block type code is omitted, since it is an
 implicit zero.
@@ -1072,10 +1078,10 @@ p1 and p2 are initialized to zero.
 There are four methods, called context modes, to compute the
 Context ID:
 .nf
-   * LSB6, where the Context ID is the value of six least
-     significant bits of p1,
-   * MSB6, where the Context ID is the value of six most
-     significant bits of p1,
+   * LSB6, where the Context ID is the value of six
+     least-significant bits of p1,
+   * MSB6, where the Context ID is the value of six
+     most-significant bits of p1,
    * UTF8, where the Context ID is a complex function of p1, p2,
      optimized for text compression, and
    * Signed, where Context ID is a complex function of p1, p2,
@@ -1156,9 +1162,9 @@ Given p1 is the last uncompressed byte and p2 is the second-to-last
 uncompressed byte the context IDs can be computed as follows:
 
 .nf
-   For LSB6  :  Context ID = p1 & 0x3f
-   For MSB6  :  Context ID = p1 >> 2
-   For UTF8  :  Context ID = Lut0[p1] | Lut1[p2]
+   For LSB6:    Context ID = p1 & 0x3f
+   For MSB6:    Context ID = p1 >> 2
+   For UTF8:    Context ID = Lut0[p1] | Lut1[p2]
    For Signed:  Context ID = (Lut2[p1] << 3) | Lut2[p2]
 .fi
 
@@ -1466,7 +1472,7 @@ the following:
            fill bits are not zero, then the stream should be
            rejected as invalid)
    2 bits: MNIBBLES, # of nibbles to represent the uncompressed
-           length, encoded with the following fixed length code:
+           length, encoded with the following fixed-length code:
 
                  Value    Bit Pattern
                  -----    -----------
@@ -1528,56 +1534,56 @@ the following:
                     65-128    xxxxxx1101
                    129-256   xxxxxxx1111
 
-      Prefix code over the block type code alphabet for literal
-         block types, appears only if NBLTYPESL >= 2
+      Prefix code over the block type code alphabet for
+         literal block types, appears only if NBLTYPESL >= 2
 
-      Prefix code over the block count code alphabet for literal
-         block counts, appears only if NBLTYPESL >= 2
+      Prefix code over the block count code alphabet for
+         literal block counts, appears only if NBLTYPESL >= 2
 
-      Block count code + Extra bits for first literal block
-         count, appears only if NBLTYPESL >= 2
+      Block count code + extra bits for first literal
+         block count, appears only if NBLTYPESL >= 2
 
    1-11 bits: NBLTYPESI, # of insert-and-copy block types, encoded
               with the same variable length code as above
 
-      Prefix code over the block type code alphabet for insert-
-         and-copy block types, only if NBLTYPESI >= 2
-
-      Prefix code over the block count code alphabet for insert-
-         and-copy block counts, only if NBLTYPESI >= 2
-
-      Block count code + Extra bits for first insert-and-copy
-         block count, only if NBLTYPESI >= 2
-
-   1-11 bits: NBLTYPESD, # of distance block types, encoded with
-              the same variable length code as above
-
-      Prefix code over the block type code alphabet for distance
-         block types, appears only if NBLTYPESD >= 2
+      Prefix code over the block type code alphabet for
+         insert-and-copy block types, appears only if NBLTYPESI >= 2
 
       Prefix code over the block count code alphabet for
-         distance block counts, only if NBLTYPESD >= 2
+         insert-and-copy block counts, appears only if NBLTYPESI >= 2
 
-      Block count code + Extra bits for first distance block
-         count, only if NBLTYPESD >= 2
+      Block count code + extra bits for first insert-and-copy
+         block count, appears only if NBLTYPESI >= 2
+
+   1-11 bits: NBLTYPESD, # of distance block types, encoded
+              with the same variable length code as above
+
+      Prefix code over the block type code alphabet for
+         distance block types, appears only if NBLTYPESD >= 2
+
+      Prefix code over the block count code alphabet for
+         distance block counts, appears only if NBLTYPESD >= 2
+
+      Block count code + extra bits for first distance
+         block count, appears only if NBLTYPESD >= 2
 
    2 bits: NPOSTFIX, parameter used in the distance coding
 
-   4 bits: four most significant bits of NDIRECT, to get the
+   4 bits: four most-significant bits of NDIRECT, to get the
            actual value of the parameter NDIRECT, left-shift
            this four bit number by NPOSTFIX bits
 
    NBLTYPESL x 2 bits: context mode for each literal block type
 
-   1-11 bits: NTREESL, # of literal prefix trees, encoded with
-              the same variable length code as NBLTYPESL
+   1-11 bits: NTREESL, # of literal prefix trees, encoded
+              with the same variable length code as NBLTYPESL
 
       Literal context map, encoded as described in Paragraph 7.3,
          appears only if NTREESL >= 2, otherwise the context map
          has only zero values
 
-   1-11 bits: NTREESD, # of distance prefix trees, encoded with
-              the same variable length code as NBLTYPESD
+   1-11 bits: NTREESD, # of distance prefix trees, encoded
+              with the same variable length code as NBLTYPESD
 
       Distance context map, encoded as described in Paragraph 7.3,
          appears only if NTREESD >= 2, otherwise the context map
@@ -1601,7 +1607,7 @@ commands. Each command has the following format:
          only if NBLTYPESI >= 2 and the previous insert-and-copy
          block count is zero
 
-      Block count code + Extra bits for next insert-and-copy
+      Block count code + extra bits for next insert-and-copy
          block count, appears only if NBLTYPESI >= 2 and the
          previous insert-and-copy block count is zero
 
@@ -1612,11 +1618,11 @@ commands. Each command has the following format:
       Insert length number of literals, with the following format:
 
          Block type code for next literal block type, appears
-            only if NBLTYPESL >= 2 and the previous literal
+            only if NBLTYPESI >= 2 and the previous literal
             block count is zero
 
-         Block count code + Extra bits for next literal block
-            count, appears only if NBLTYPESL >= 2 and the
+         Block count code + extra bits for next literal
+            block count, appears only if NBLTYPESI >= 2 and the
             previous literal block count is zero
 
          Next byte of the uncompressed data, encoded with the
@@ -1625,13 +1631,13 @@ commands. Each command has the following format:
             current literal block type, and the context map, as
             described in Paragraph 7.3.
 
-      Block type code for next distance block type, appears only
-         if NBLTYPESD >= 2 and the previous distance block count
-         is zero
+      Block type code for next distance block type, appears
+         only if NBLTYPESD >= 2 and the previous distance
+         block count is zero
 
-      Block count code + Extra bits for next distance block
-         length, appears only if NBLTYPESD >= 2 and the previous
-         distance block count is zero
+      Block count code + extra bits for next distance
+         block count, appears only if NBLTYPESD >= 2 and the
+         previous distance block count is zero
 
       Distance code, encoded as in section 4, using the distance
          prefix code with the current distance block type index,
@@ -1773,7 +1779,7 @@ specification, where non-conformant compressed data sequences should be discarde
 A possible attack against a system containing a decompressor
 implementation (e.g. a web browser) is to exploit a buffer
 overflow caused by an invalid compressed data. Therefore decompressor
-implementations should perform bound-checking for each memory access
+implementations should perform bounds-checking for each memory access
 that result from values decoded from the compressed stream.
 
 .ti 0
@@ -5678,8 +5684,8 @@ length is 122,784 bytes and the zlib CRC-32 of the byte sequence is
       9ce0a58de0a49ee0a4bee0a4aae0a4a8e0a495e0a4bee0a4b0e0a58de0a4b0e0
       a4b5e0a4bee0a488e0a4b8e0a495e0a58de0a4b0e0a4bfe0a4afe0a4a4e0a4be
 
-   The number of words for each length is given by the following bit-
-   depth array:
+   The number of words for each length is given by the following
+   bit-depth array:
 
       NDBITS :=  0,  0,  0,  0, 10, 10, 11, 11, 10, 10,
                 10, 10, 10,  9,  9,  8,  7,  7,  8,  7,
