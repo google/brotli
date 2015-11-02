@@ -617,8 +617,9 @@ for the various prefix codes and the sections where they are defined.
 
 The first two bits of the compressed representation of each
 prefix code distinguishes between simple and complex prefix
-codes. If this value is 1, then a simple prefix code follows.
-Otherwise the value indicates the number of leading zeros.
+codes. If this value is 1, then a simple prefix code follows
+as described in this section. Otherwise, a complex prefix code
+follows as described in Section 3.5.
 
 A simple prefix code can have only up to four symbols with
 non-zero code length. The format of the simple prefix code is as
@@ -637,9 +638,10 @@ The value of ALPHABET_BITS depends on the alphabet of the prefix
 code: it is the smallest number of bits that can represent all
 symbols in the alphabet. E.g. for the alphabet of literal bytes,
 ALPHABET_BITS is 8. The value of each of the NSYM symbols above is
-the value of the ALPHABETS_BITS width integer value. (If the integer
-value is greater than or equal to the alphabet size, then the stream
-should be rejected as invalid.)
+the value of the ALPHABETS_BITS width integer value. If the integer
+value is greater than or equal to the alphabet size, or the value
+is identical to a previous value, then the stream should be rejected
+as invalid.
 
 Note that the NSYM symbols may not be presented in sorted order. Prefix codes
 of the same bit length must be assigned to the symbols in sorted order.
@@ -757,7 +759,7 @@ We can now define the format of the complex prefix code as follows:
       If there are at least two non-zero code lengths, any
       trailing zero code lengths are omitted, i.e. the last
       code length in the sequence must be non-zero. In this
-      case the sum of (32 >> code length) over all the non-zero
+      case, the sum of (32 >> code length) over all the non-zero
       code lengths must equal to 32.
 
       If the lengths have been read for the entire code length
@@ -775,8 +777,8 @@ We can now define the format of the complex prefix code as follows:
       length is taken to be 8 before any code length code
       lengths are read.
 
-   Sequence of code lengths symbols, encoded using the code
-      length prefix code. Any trailing 0 or 17 must be
+   Sequence of at most alphabet size code lengths symbols, encoded
+      using the code length prefix code. Any trailing 0 or 17 must be
       omitted, i.e. the last encoded code length symbol must be
       between 1 and 16. The sum of (32768 >> code length) over
       all the non-zero code lengths in the alphabet, including
