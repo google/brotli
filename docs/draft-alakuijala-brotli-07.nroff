@@ -283,7 +283,7 @@ One meta-block command then appears as a sequence of prefix codes:
 where the insert-and-copy defines an insertion length and a copy length.
 The insertion length determines the number of literals that immediately
 follow. The distance defines how far back to go for the copy and the
-copy length determine the number of bytes to copy. The resulting
+copy length determines the number of bytes to copy. The resulting
 uncompressed data is the sequence of bytes:
 
    literal, literal, ..., literal, copy, copy, ..., copy
