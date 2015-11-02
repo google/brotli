@@ -1540,7 +1540,7 @@ the following:
       Prefix code over the block count code alphabet for
          literal block counts, appears only if NBLTYPESL >= 2
 
-      Block count code + Extra bits for first literal
+      Block count code + extra bits for first literal
          block count, appears only if NBLTYPESL >= 2
 
    1-11 bits: NBLTYPESI, # of insert-and-copy block types, encoded
@@ -1552,7 +1552,7 @@ the following:
       Prefix code over the block count code alphabet for
          insert-and-copy block counts, appears only if NBLTYPESI >= 2
 
-      Block count code + Extra bits for first insert-and-copy
+      Block count code + extra bits for first insert-and-copy
          block count, appears only if NBLTYPESI >= 2
 
    1-11 bits: NBLTYPESD, # of distance block types, encoded
@@ -1564,7 +1564,7 @@ the following:
       Prefix code over the block count code alphabet for
          distance block counts, appears only if NBLTYPESD >= 2
 
-      Block count code + Extra bits for first distance
+      Block count code + extra bits for first distance
          block count, appears only if NBLTYPESD >= 2
 
    2 bits: NPOSTFIX, parameter used in the distance coding
