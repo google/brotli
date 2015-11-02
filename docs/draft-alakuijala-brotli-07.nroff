@@ -1528,38 +1528,38 @@ the following:
                     65-128    xxxxxx1101
                    129-256   xxxxxxx1111
 
-      Prefix code over the block type code alphabet for literal
-         block types, appears only if NBLTYPESL >= 2
+      Prefix code over the block type code alphabet for
+         literal block types, appears only if NBLTYPESL >= 2
 
-      Prefix code over the block count code alphabet for literal
-         block counts, appears only if NBLTYPESL >= 2
+      Prefix code over the block count code alphabet for
+         literal block counts, appears only if NBLTYPESL >= 2
 
-      Block count code + Extra bits for first literal block
-         count, appears only if NBLTYPESL >= 2
+      Block count code + Extra bits for first literal
+         block count, appears only if NBLTYPESL >= 2
 
    1-11 bits: NBLTYPESI, # of insert-and-copy block types, encoded
               with the same variable length code as above
 
-      Prefix code over the block type code alphabet for insert-
-         and-copy block types, only if NBLTYPESI >= 2
-
-      Prefix code over the block count code alphabet for insert-
-         and-copy block counts, only if NBLTYPESI >= 2
-
-      Block count code + Extra bits for first insert-and-copy
-         block count, only if NBLTYPESI >= 2
-
-   1-11 bits: NBLTYPESD, # of distance block types, encoded with
-              the same variable length code as above
-
-      Prefix code over the block type code alphabet for distance
-         block types, appears only if NBLTYPESD >= 2
+      Prefix code over the block type code alphabet for
+         insert-and-copy block types, appears only if NBLTYPESI >= 2
 
       Prefix code over the block count code alphabet for
-         distance block counts, only if NBLTYPESD >= 2
+         insert-and-copy block counts, appears only if NBLTYPESI >= 2
 
-      Block count code + Extra bits for first distance block
-         count, only if NBLTYPESD >= 2
+      Block count code + Extra bits for first insert-and-copy
+         block count, appears only if NBLTYPESI >= 2
+
+   1-11 bits: NBLTYPESD, # of distance block types, encoded
+              with the same variable length code as above
+
+      Prefix code over the block type code alphabet for
+         distance block types, appears only if NBLTYPESD >= 2
+
+      Prefix code over the block count code alphabet for
+         distance block counts, appears only if NBLTYPESD >= 2
+
+      Block count code + Extra bits for first distance
+         block count, appears only if NBLTYPESD >= 2
 
    2 bits: NPOSTFIX, parameter used in the distance coding
 
@@ -1569,15 +1569,15 @@ the following:
 
    NBLTYPESL x 2 bits: context mode for each literal block type
 
-   1-11 bits: NTREESL, # of literal prefix trees, encoded with
-              the same variable length code as NBLTYPESL
+   1-11 bits: NTREESL, # of literal prefix trees, encoded
+              with the same variable length code as NBLTYPESL
 
       Literal context map, encoded as described in Paragraph 7.3,
          appears only if NTREESL >= 2, otherwise the context map
          has only zero values
 
-   1-11 bits: NTREESD, # of distance prefix trees, encoded with
-              the same variable length code as NBLTYPESD
+   1-11 bits: NTREESD, # of distance prefix trees, encoded
+              with the same variable length code as NBLTYPESD
 
       Distance context map, encoded as described in Paragraph 7.3,
          appears only if NTREESD >= 2, otherwise the context map
@@ -1601,7 +1601,7 @@ commands. Each command has the following format:
          only if NBLTYPESI >= 2 and the previous insert-and-copy
          block count is zero
 
-      Block count code + Extra bits for next insert-and-copy
+      Block count code + extra bits for next insert-and-copy
          block count, appears only if NBLTYPESI >= 2 and the
          previous insert-and-copy block count is zero
 
@@ -1612,11 +1612,11 @@ commands. Each command has the following format:
       Insert length number of literals, with the following format:
 
          Block type code for next literal block type, appears
-            only if NBLTYPESL >= 2 and the previous literal
+            only if NBLTYPESI >= 2 and the previous literal
             block count is zero
 
-         Block count code + Extra bits for next literal block
-            count, appears only if NBLTYPESL >= 2 and the
+         Block count code + extra bits for next literal
+            block count, appears only if NBLTYPESI >= 2 and the
             previous literal block count is zero
 
          Next byte of the uncompressed data, encoded with the
@@ -1625,13 +1625,13 @@ commands. Each command has the following format:
             current literal block type, and the context map, as
             described in Paragraph 7.3.
 
-      Block type code for next distance block type, appears only
-         if NBLTYPESD >= 2 and the previous distance block count
-         is zero
+      Block type code for next distance block type, appears
+         only if NBLTYPESD >= 2 and the previous distance
+         block count is zero
 
-      Block count code + Extra bits for next distance block
-         length, appears only if NBLTYPESD >= 2 and the previous
-         distance block count is zero
+      Block count code + extra bits for next distance
+         block count, appears only if NBLTYPESD >= 2 and the
+         previous distance block count is zero
 
       Distance code, encoded as in section 4, using the distance
          prefix code with the current distance block type index,
