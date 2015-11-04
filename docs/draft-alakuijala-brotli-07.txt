@@ -1981,10 +1981,10 @@ Internet-Draft                   Brotli                     October 2015
 
 15. Acknowledgments
 
-   The authors would like to thank Mark Adler for providing helpful
-   review comments, validating the specification by writing an
-   independent decompressor, and suggesting improvements to the format
-   and the text of the specification.
+   The authors would like to thank Mark Adler, Thomas Pickert, and Joe
+   Tsai for providing helpful review comments, validating the
+   specification by writing an independent decompressor, and suggesting
+   improvements to the format and the text of the specification.
 
 Appendix A. Static dictionary data
 
