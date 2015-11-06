@@ -23,7 +23,7 @@
 /* Represents the range of values belonging to a prefix code: */
 /* [offset, offset + 2^nbits) */
 struct PrefixCodeRange {
-  int16_t offset;
+  uint16_t offset;
   uint8_t nbits;
 };
 
