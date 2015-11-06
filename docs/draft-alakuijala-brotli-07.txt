@@ -1855,7 +1855,7 @@ Internet-Draft                   Brotli                     October 2015
          else
             fill CMAPD[] with zeros
          read array of prefix codes for literals, HTREEL[]
-         read array of prefix codes for insert-and-copy, HTREEI[]
+         read array of prefix codes for insert-and-copy lengths, HTREEI[]
          read array of prefix codes for distances, HTREED[]
          do
             if BLEN_I is zero
