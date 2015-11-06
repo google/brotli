@@ -62,9 +62,6 @@ int BrotliDecompressedSize(size_t encoded_size,
 
 /* Decompresses the data in encoded_buffer into decoded_buffer, and sets */
 /* *decoded_size to the decompressed length. */
-/* Returns 0 if there was either a bit stream error or memory allocation */
-/* error, and 1 otherwise. */
-/* If decoded size is zero, returns 1 and keeps decoded_buffer unchanged. */
 BrotliResult BrotliDecompressBuffer(size_t encoded_size,
                                     const uint8_t* encoded_buffer,
                                     size_t* decoded_size,
@@ -72,6 +69,7 @@ BrotliResult BrotliDecompressBuffer(size_t encoded_size,
 
 /* Same as above, but uses the specified input and output callbacks instead */
 /* of reading from and writing to pre-allocated memory buffers. */
+/* DEPRECATED */
 BrotliResult BrotliDecompress(BrotliInput input, BrotliOutput output);
 
 /* Same as above, but supports the caller to call the decoder repeatedly with
@@ -99,6 +97,7 @@ BrotliResult BrotliDecompress(BrotliInput input, BrotliOutput output);
    it returning a smaller value than the amount of bytes to write always results
    in an error.
 */
+/* DEPRECATED */
 BrotliResult BrotliDecompressStreaming(BrotliInput input, BrotliOutput output,
                                        int finish, BrotliState* s);
 
@@ -129,6 +128,7 @@ BrotliResult BrotliDecompressStreaming(BrotliInput input, BrotliOutput output,
    *available_out yourself before a next call, e.g. to point to a new larger
    buffer.
 */
+/* DEPRECATED */
 BrotliResult BrotliDecompressBufferStreaming(size_t* available_in,
                                              const uint8_t** next_in,
                                              int finish,
@@ -136,6 +136,13 @@ BrotliResult BrotliDecompressBufferStreaming(size_t* available_in,
                                              uint8_t** next_out,
                                              size_t* total_out,
                                              BrotliState* s);
+
+BrotliResult BrotliDecompressStream(size_t* available_in,
+                                    const uint8_t** next_in,
+                                    size_t* available_out,
+                                    uint8_t** next_out,
+                                    size_t* total_out,
+                                    BrotliState* s);
 
 /* Fills the new state with a dictionary for LZ77, warming up the ringbuffer,
    e.g. for custom static dictionaries for data formats.
@@ -150,10 +157,6 @@ BrotliResult BrotliDecompressBufferStreaming(size_t* available_in,
 void BrotliSetCustomDictionary(
     size_t size, const uint8_t* dict, BrotliState* s);
 
-
-/* Escalate internal functions visibility; for testing purposes only. */
-void InverseMoveToFrontTransformForTesting(
-    uint8_t* v, uint32_t l, BrotliState* s);
 
 #if defined(__cplusplus) || defined(c_plusplus)
 } /* extern "C" */
