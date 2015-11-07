@@ -1276,7 +1276,7 @@ static BrotliResult ReadContextModes(BrotliState* s) {
   BrotliBitReader* br = &s->br;
   int i = s->loop_counter;
 
-  while (i < s->num_block_types[0]) {
+  while (i < (int)s->num_block_types[0]) {
     uint32_t bits;
     if (!BrotliSafeReadBits(br, 2, &bits)) {
       s->loop_counter = i;
