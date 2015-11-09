@@ -39,6 +39,7 @@ struct BrotliParams {
         quality(11),
         lgwin(22),
         lgblock(0),
+        n_threads(1),
         enable_dictionary(true),
         enable_transforms(false),
         greedy_block_split(false),
@@ -63,6 +64,8 @@ struct BrotliParams {
   // Base 2 logarithm of the maximum input block size. Range is 16 to 24.
   // If set to 0, the value will be set based on the quality.
   int lgblock;
+  // Number of threads used for parallel compression.
+  int n_threads;
 
   // These settings are deprecated and will be ignored.
   // All speed vs. size compromises are controlled by the quality param.
