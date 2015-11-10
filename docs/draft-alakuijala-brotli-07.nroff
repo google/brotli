@@ -265,9 +265,10 @@ of prefix codes:
 
 .nf
    1) One set of prefix codes are for the literal sequence lengths
-      (also referred to as literal insertion lengths) and backward
-      copy lengths (that is, a single code word represents two lengths,
-      one of the literal sequence and one of the backward copy).
+      (also referred to as literal insertion lengths) and
+      backward copy lengths. That is, a single code word represents
+      two lengths, one of the literal sequence and one of the
+      backward copy.
 
    2) One set of prefix codes are for literals.
 
