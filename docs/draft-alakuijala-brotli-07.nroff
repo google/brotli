@@ -1646,11 +1646,11 @@ commands. Each command has the following format:
       Insert length number of literals, with the following format:
 
          Block type code for next literal block type, appears
-            only if NBLTYPESI >= 2 and the previous literal
+            only if NBLTYPESL >= 2 and the previous literal
             block count is zero
 
          Block count code + extra bits for next literal
-            block count, appears only if NBLTYPESI >= 2 and the
+            block count, appears only if NBLTYPESL >= 2 and the
             previous literal block count is zero
 
          Next byte of the uncompressed data, encoded with the
@@ -1741,9 +1741,9 @@ The decoding algorithm that produces the uncompressed data is as follows:
          read distance context map, CMAPD[]
       else
          fill CMAPD[] with zeros
-      read array of prefix codes for literals, HTREEL[]
-      read array of prefix codes for insert-and-copy, HTREEI[]
-      read array of prefix codes for distances, HTREED[]
+      read array of literal prefix codes, HTREEL[]
+      read array of insert-and-copy length prefix codes, HTREEI[]
+      read array of distance prefix codes, HTREED[]
       do
          if BLEN_I is zero
             read block type using HTREE_BTYPE_I and set BTYPE_I
@@ -1867,9 +1867,10 @@ https://github.com/google/brotli
 .ti 0
 15. Acknowledgments
 
-The authors would like to thank Mark Adler for providing helpful review
-comments, validating the specification by writing an independent decompressor,
-and suggesting improvements to the format and the text of the specification.
+The authors would like to thank Mark Adler, Thomas Pickert, and Joe Tsai
+for providing helpful review comments, validating the specification by
+writing an independent decompressor, and suggesting improvements to the
+format and the text of the specification.
 
 .ti 0
 Appendix A. Static dictionary data

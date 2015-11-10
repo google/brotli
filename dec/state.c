@@ -24,6 +24,7 @@ extern "C" {
 #endif
 
 void BrotliStateInit(BrotliState* s) {
+  BrotliInitBitReader(&s->br);
   s->state = BROTLI_STATE_UNINITED;
   s->substate_metablock_header = BROTLI_STATE_METABLOCK_HEADER_NONE;
   s->substate_tree_group = BROTLI_STATE_TREE_GROUP_NONE;
@@ -31,9 +32,13 @@ void BrotliStateInit(BrotliState* s) {
   s->substate_uncompressed = BROTLI_STATE_UNCOMPRESSED_NONE;
   s->substate_huffman = BROTLI_STATE_HUFFMAN_NONE;
   s->substate_decode_uint8 = BROTLI_STATE_DECODE_UINT8_NONE;
+  s->substate_read_block_length = BROTLI_STATE_READ_BLOCK_LENGTH_NONE;
 
+  s->buffer_length = 0;
   s->loop_counter = 0;
   s->pos = 0;
+  s->rb_roundtrips = 0;
+  s->partial_pos_out = 0;
 
   s->block_type_trees = NULL;
   s->block_len_trees = NULL;
@@ -44,6 +49,8 @@ void BrotliStateInit(BrotliState* s) {
   s->dist_context_map = NULL;
   s->context_map_slice = NULL;
   s->dist_context_map_slice = NULL;
+
+  s->sub_loop_counter = 0;
 
   s->literal_hgroup.codes = NULL;
   s->literal_hgroup.htrees = NULL;
@@ -71,13 +78,20 @@ void BrotliStateInit(BrotliState* s) {
   s->symbol_lists = &s->symbols_lists_array[BROTLI_HUFFMAN_MAX_CODE_LENGTH + 1];
 
   s->mtf_upper_bound = 255;
+
+  s->legacy_input_buffer = 0;
+  s->legacy_output_buffer = 0;
+  s->legacy_input_len = 0;
+  s->legacy_output_len = 0;
+  s->legacy_input_pos = 0;
+  s->legacy_output_pos = 0;
 }
 
 void BrotliStateMetablockBegin(BrotliState* s) {
   s->meta_block_remaining_len = 0;
-  s->block_length[0] = 1 << 28;
-  s->block_length[1] = 1 << 28;
-  s->block_length[2] = 1 << 28;
+  s->block_length[0] = 1U << 28;
+  s->block_length[1] = 1U << 28;
+  s->block_length[2] = 1U << 28;
   s->num_block_types[0] = 1;
   s->num_block_types[1] = 1;
   s->num_block_types[2] = 1;
@@ -113,26 +127,26 @@ void BrotliStateCleanupAfterMetablock(BrotliState* s) {
   BrotliHuffmanTreeGroupRelease(&s->literal_hgroup);
   BrotliHuffmanTreeGroupRelease(&s->insert_copy_hgroup);
   BrotliHuffmanTreeGroupRelease(&s->distance_hgroup);
-  s->literal_hgroup.codes = NULL;
-  s->literal_hgroup.htrees = NULL;
-  s->insert_copy_hgroup.codes = NULL;
-  s->insert_copy_hgroup.htrees = NULL;
-  s->distance_hgroup.codes = NULL;
-  s->distance_hgroup.htrees = NULL;
 }
 
 void BrotliStateCleanup(BrotliState* s) {
-  BROTLI_FREE(s->context_modes);
-  BROTLI_FREE(s->context_map);
-  BROTLI_FREE(s->dist_context_map);
-
-  BrotliHuffmanTreeGroupRelease(&s->literal_hgroup);
-  BrotliHuffmanTreeGroupRelease(&s->insert_copy_hgroup);
-  BrotliHuffmanTreeGroupRelease(&s->distance_hgroup);
+  BrotliStateCleanupAfterMetablock(s);
 
   BROTLI_FREE(s->ringbuffer);
   BROTLI_FREE(s->block_type_trees);
+  BROTLI_FREE(s->legacy_input_buffer);
+  BROTLI_FREE(s->legacy_output_buffer);
 }
+
+int BrotliStateIsStreamStart(const BrotliState* s) {
+  return (s->state == BROTLI_STATE_UNINITED &&
+      BrotliGetAvailableBits(&s->br) == 0);
+}
+
+int BrotliStateIsStreamEnd(const BrotliState* s) {
+  return s->state == BROTLI_STATE_DONE;
+}
+
 
 #if defined(__cplusplus) || defined(c_plusplus)
 } /* extern "C" */
