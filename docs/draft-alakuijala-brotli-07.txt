@@ -1854,9 +1854,9 @@ Internet-Draft                   Brotli                     October 2015
 
          else
             fill CMAPD[] with zeros
-         read array of literals prefix codes, HTREEL[]
-         read array of insert-and-copy lengths prefix codes, HTREEI[]
-         read array of distances prefix codes, HTREED[]
+         read array of literal prefix codes, HTREEL[]
+         read array of insert-and-copy length prefix codes, HTREEI[]
+         read array of distance prefix codes, HTREED[]
          do
             if BLEN_I is zero
                read block type using HTREE_BTYPE_I and set BTYPE_I
