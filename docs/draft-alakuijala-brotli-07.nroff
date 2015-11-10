@@ -1741,9 +1741,9 @@ The decoding algorithm that produces the uncompressed data is as follows:
          read distance context map, CMAPD[]
       else
          fill CMAPD[] with zeros
-      read array of prefix codes for literals, HTREEL[]
-      read array of prefix codes for insert-and-copy lengths, HTREEI[]
-      read array of prefix codes for distances, HTREED[]
+      read array of literals prefix codes, HTREEL[]
+      read array of insert-and-copy lengths prefix codes, HTREEI[]
+      read array of distances prefix codes, HTREED[]
       do
          if BLEN_I is zero
             read block type using HTREE_BTYPE_I and set BTYPE_I
