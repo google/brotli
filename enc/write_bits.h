@@ -49,7 +49,7 @@ inline void WriteBits(int n_bits,
 #ifdef BIT_WRITER_DEBUG
   printf("WriteBits  %2d  0x%016llx  %10d\n", n_bits, bits, *pos);
 #endif
-  assert(bits < 1UL << n_bits);
+  assert((bits >> n_bits) == 0);
 #ifdef IS_LITTLE_ENDIAN
   // This branch of the code can write up to 56 bits at a time,
   // 7 bits are lost by being perhaps already in *p and at least
