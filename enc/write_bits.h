@@ -66,12 +66,12 @@ inline void WriteBits(int n_bits,
   uint8_t *array_pos = &array[*pos >> 3];
   const int bits_reserved_in_first_byte = (*pos & 7);
   bits <<= bits_reserved_in_first_byte;
-  *array_pos++ |= bits;
+  *array_pos++ |= static_cast<uint8_t>(bits);
   for (int bits_left_to_write = n_bits - 8 + bits_reserved_in_first_byte;
        bits_left_to_write >= 1;
        bits_left_to_write -= 8) {
     bits >>= 8;
-    *array_pos++ = bits;
+    *array_pos++ = static_cast<uint8_t>(bits);
   }
   *array_pos = 0;
   *pos += n_bits;

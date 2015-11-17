@@ -510,7 +510,7 @@ class HashLongestMatch {
         if (len > kMaxZopfliLen) {
           matches = orig_matches;
         }
-        *matches++ = BackwardMatch(backward, len);
+        *matches++ = BackwardMatch(static_cast<int>(backward), len);
       }
     }
     const uint32_t key = HashBytes(&data[cur_ix_masked]);

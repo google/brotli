@@ -32,11 +32,12 @@ class RingBuffer {
  public:
   RingBuffer(int window_bits, int tail_bits)
       : window_bits_(window_bits),
-        mask_((1 << window_bits) - 1),
-        tail_size_(1 << tail_bits),
+        size_((size_t(1) << window_bits)),
+        mask_((size_t(1) << window_bits) - 1),
+        tail_size_(size_t(1) << tail_bits),
         pos_(0) {
     static const int kSlackForEightByteHashingEverywhere = 7;
-    const size_t buflen = (1 << window_bits_) + tail_size_;
+    const size_t buflen = size_ + tail_size_;
     buffer_ = new uint8_t[buflen + kSlackForEightByteHashingEverywhere];
     for (int i = 0; i < kSlackForEightByteHashingEverywhere; ++i) {
       buffer_[buflen + i] = 0;
@@ -52,17 +53,17 @@ class RingBuffer {
     // The length of the writes is limited so that we do not need to worry
     // about a write
     WriteTail(bytes, n);
-    if (PREDICT_TRUE(masked_pos + n <= (1U << window_bits_))) {
+    if (PREDICT_TRUE(masked_pos + n <= size_)) {
       // A single write fits.
       memcpy(&buffer_[masked_pos], bytes, n);
     } else {
       // Split into two writes.
       // Copy into the end of the buffer, including the tail buffer.
       memcpy(&buffer_[masked_pos], bytes,
-             std::min(n, ((1 << window_bits_) + tail_size_) - masked_pos));
+             std::min(n, (size_ + tail_size_) - masked_pos));
       // Copy into the beginning of the buffer
-      memcpy(&buffer_[0], bytes + ((1 << window_bits_) - masked_pos),
-             n - ((1 << window_bits_) - masked_pos));
+      memcpy(&buffer_[0], bytes + (size_ - masked_pos),
+             n - (size_ - masked_pos));
     }
     pos_ += n;
   }
@@ -85,13 +86,14 @@ class RingBuffer {
     const size_t masked_pos = pos_ & mask_;
     if (PREDICT_FALSE(masked_pos < tail_size_)) {
       // Just fill the tail buffer with the beginning data.
-      const size_t p = (1 << window_bits_) + masked_pos;
+      const size_t p = size_ + masked_pos;
       memcpy(&buffer_[p], bytes, std::min(n, tail_size_ - masked_pos));
     }
   }
 
   // Size of the ringbuffer is (1 << window_bits) + tail_size_.
   const int window_bits_;
+  const size_t size_;
   const size_t mask_;
   const size_t tail_size_;
 
