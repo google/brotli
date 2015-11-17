@@ -79,7 +79,7 @@ class BrotliCompressor {
   ~BrotliCompressor();
 
   // The maximum input size that can be processed at once.
-  size_t input_block_size() const { return 1 << params_.lgblock; }
+  size_t input_block_size() const { return size_t(1) << params_.lgblock; }
 
   // Encodes the data in input_buffer as a meta-block and writes it to
   // encoded_buffer (*encoded_size should be set to the size of

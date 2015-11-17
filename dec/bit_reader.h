@@ -18,6 +18,7 @@
 #ifndef BROTLI_DEC_BIT_READER_H_
 #define BROTLI_DEC_BIT_READER_H_
 
+#include <stdio.h>
 #include <string.h>
 #include "./port.h"
 #include "./types.h"

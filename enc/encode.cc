@@ -546,8 +546,6 @@ bool BrotliCompressor::WriteMetadata(const size_t input_size,
   if (input_size == 0) {
     WriteBits(2, 0, &storage_ix, encoded_buffer);
     *encoded_size = (storage_ix + 7) >> 3;
-  } else if (input_size > (1 << 24)) {
-    return false;
   } else {
     int nbits = Log2Floor(static_cast<uint32_t>(input_size) - 1) + 1;
     int nbytes = (nbits + 7) / 8;
