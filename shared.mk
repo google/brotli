@@ -6,7 +6,7 @@ CXX ?= g++
 EMCC = emcc
 EMCCFLAGS = -O1 -W -Wall
 
-COMMON_FLAGS = -fno-omit-frame-pointer -no-canonical-prefixes -O2
+COMMON_FLAGS = -fno-omit-frame-pointer -no-canonical-prefixes -O2 -fPIC
 
 ifeq ($(OS), Darwin)
   CPPFLAGS += -DOS_MACOSX
