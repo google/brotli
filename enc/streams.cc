@@ -119,5 +119,4 @@ bool BrotliFileOut::Write(const void* buf, size_t n) {
   return true;
 }
 
-
 }  // namespace brotli

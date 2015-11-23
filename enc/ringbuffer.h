@@ -31,8 +31,7 @@ namespace brotli {
 class RingBuffer {
  public:
   RingBuffer(int window_bits, int tail_bits)
-      : window_bits_(window_bits),
-        size_((size_t(1) << window_bits)),
+      : size_((size_t(1) << window_bits)),
         mask_((size_t(1) << window_bits) - 1),
         tail_size_(size_t(1) << tail_bits),
         pos_(0) {
@@ -92,7 +91,6 @@ class RingBuffer {
   }
 
   // Size of the ringbuffer is (1 << window_bits) + tail_size_.
-  const int window_bits_;
   const size_t size_;
   const size_t mask_;
   const size_t tail_size_;

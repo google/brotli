@@ -17,6 +17,7 @@
 #ifndef BROTLI_ENC_PORT_H_
 #define BROTLI_ENC_PORT_H_
 
+#include <assert.h>
 #include <string.h>
 #include "./types.h"
 
@@ -147,6 +148,12 @@ inline void BROTLI_UNALIGNED_STORE64(void *p, uint64_t v) {
   memcpy(p, &v, sizeof v);
 }
 
+#endif
+
+#ifdef BROTLI_ENCODE_DEBUG
+#define BROTLI_DCHECK(x) assert(x)
+#else
+#define BROTLI_DCHECK(x)
 #endif
 
 #endif  // BROTLI_ENC_PORT_H_

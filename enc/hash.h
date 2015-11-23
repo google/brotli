@@ -369,7 +369,7 @@ class HashLongestMatch {
       if (prev_ix >= cur_ix) {
         continue;
       }
-      if (PREDICT_FALSE(backward > max_backward)) {
+      if (PREDICT_FALSE(backward > (int)max_backward)) {
         continue;
       }
       prev_ix &= static_cast<uint32_t>(ring_buffer_mask);
