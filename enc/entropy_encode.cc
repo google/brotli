@@ -22,6 +22,7 @@
 #include <cstdlib>
 
 #include "./histogram.h"
+#include "./port.h"
 #include "./types.h"
 
 namespace brotli {
@@ -141,6 +142,7 @@ void CreateHuffmanTree(const int *data,
       // Add back the last sentinel node.
       tree.push_back(sentinel);
     }
+    BROTLI_DCHECK(tree.size() == 2 * n + 1);
     SetDepth(tree[2 * n - 1], &tree[0], depth, 0);
 
     // We need to pack the Huffman tree in tree_limit bits.

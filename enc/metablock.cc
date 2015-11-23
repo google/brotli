@@ -64,7 +64,7 @@ void BuildMetaBlock(const uint8_t* ringbuffer,
                   &distance_histograms);
 
   // Histogram ids need to fit in one byte.
-  static const int kMaxNumberOfHistograms = 256;
+  static const size_t kMaxNumberOfHistograms = 256;
 
   mb->literal_histograms = literal_histograms;
   ClusterHistograms(literal_histograms,

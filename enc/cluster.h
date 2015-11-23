@@ -30,6 +30,7 @@
 #include "./entropy_encode.h"
 #include "./fast_log.h"
 #include "./histogram.h"
+#include "./port.h"
 #include "./types.h"
 
 namespace brotli {
@@ -111,22 +112,25 @@ void HistogramCombine(HistogramType* out,
                       int* cluster_size,
                       int* symbols,
                       int symbols_size,
-                      int max_clusters) {
+                      size_t max_clusters) {
   double cost_diff_threshold = 0.0;
-  int min_cluster_size = 1;
+  size_t min_cluster_size = 1;
   std::set<int> all_symbols;
   std::vector<int> clusters;
   for (int i = 0; i < symbols_size; ++i) {
     if (all_symbols.find(symbols[i]) == all_symbols.end()) {
       all_symbols.insert(symbols[i]);
+      if (!clusters.empty()) {
+        BROTLI_DCHECK(clusters.back() < symbols[i]);
+      }
       clusters.push_back(symbols[i]);
     }
   }
 
   // We maintain a heap of histogram pairs, ordered by the bit cost reduction.
   std::vector<HistogramPair> pairs;
-  for (int idx1 = 0; idx1 < clusters.size(); ++idx1) {
-    for (int idx2 = idx1 + 1; idx2 < clusters.size(); ++idx2) {
+  for (size_t idx1 = 0; idx1 < clusters.size(); ++idx1) {
+    for (size_t idx2 = idx1 + 1; idx2 < clusters.size(); ++idx2) {
       CompareAndPushToHeap(out, cluster_size, clusters[idx1], clusters[idx2],
                            &pairs);
     }
@@ -149,14 +153,14 @@ void HistogramCombine(HistogramType* out,
         symbols[i] = best_idx1;
       }
     }
-    for (int i = 0; i + 1 < clusters.size(); ++i) {
+    for (size_t i = 0; i + 1 < clusters.size(); ++i) {
       if (clusters[i] >= best_idx2) {
         clusters[i] = clusters[i + 1];
       }
     }
     clusters.pop_back();
     // Invalidate pairs intersecting the just combined best pair.
-    for (int i = 0; i < pairs.size(); ++i) {
+    for (size_t i = 0; i < pairs.size(); ++i) {
       HistogramPair& p = pairs[i];
       if (p.idx1 == best_idx1 || p.idx2 == best_idx1 ||
           p.idx1 == best_idx2 || p.idx2 == best_idx2) {
@@ -169,7 +173,7 @@ void HistogramCombine(HistogramType* out,
       pairs.pop_back();
     }
     // Push new pairs formed with the combined histogram to the heap.
-    for (int i = 0; i < clusters.size(); ++i) {
+    for (size_t i = 0; i < clusters.size(); ++i) {
       CompareAndPushToHeap(out, cluster_size, best_idx1, clusters[i], &pairs);
     }
   }
@@ -232,7 +236,7 @@ void HistogramReindex(std::vector<HistogramType>* out,
   std::vector<HistogramType> tmp(*out);
   std::map<int, int> new_index;
   int next_index = 0;
-  for (int i = 0; i < symbols->size(); ++i) {
+  for (size_t i = 0; i < symbols->size(); ++i) {
     if (new_index.find((*symbols)[i]) == new_index.end()) {
       new_index[(*symbols)[i]] = next_index;
       (*out)[next_index] = tmp[(*symbols)[i]];
@@ -240,7 +244,7 @@ void HistogramReindex(std::vector<HistogramType>* out,
     }
   }
   out->resize(next_index);
-  for (int i = 0; i < symbols->size(); ++i) {
+  for (size_t i = 0; i < symbols->size(); ++i) {
     (*symbols)[i] = new_index[(*symbols)[i]];
   }
 }
@@ -251,10 +255,11 @@ void HistogramReindex(std::vector<HistogramType>* out,
 template<typename HistogramType>
 void ClusterHistograms(const std::vector<HistogramType>& in,
                        int num_contexts, int num_blocks,
-                       int max_histograms,
+                       size_t max_histograms,
                        std::vector<HistogramType>* out,
                        std::vector<int>* histogram_symbols) {
   const int in_size = num_contexts * num_blocks;
+  BROTLI_DCHECK(in_size == in.size());
   std::vector<int> cluster_size(in_size, 1);
   out->resize(in_size);
   histogram_symbols->resize(in_size);

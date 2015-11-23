@@ -124,7 +124,6 @@ class BrotliFileOut : public BrotliOut {
   FILE* f_;
 };
 
-
 }  // namespace brotli
 
 #endif  // BROTLI_ENC_STREAMS_H_

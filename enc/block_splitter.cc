@@ -290,12 +290,12 @@ void ClusterBlocks(const DataType* data, const size_t length,
   std::vector<HistogramType> clustered_histograms;
   std::vector<int> histogram_symbols;
   // Block ids need to fit in one byte.
-  static const int kMaxNumberOfBlockTypes = 256;
+  static const size_t kMaxNumberOfBlockTypes = 256;
   ClusterHistograms(histograms, 1, static_cast<int>(histograms.size()),
                     kMaxNumberOfBlockTypes,
                     &clustered_histograms,
                     &histogram_symbols);
-  for (int i = 0; i < length; ++i) {
+  for (size_t i = 0; i < length; ++i) {
     block_ids[i] = static_cast<uint8_t>(histogram_symbols[block_index[i]]);
   }
 }
