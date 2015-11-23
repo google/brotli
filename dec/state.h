@@ -106,6 +106,10 @@ struct BrotliStateStruct {
   BrotliRunningState state;
   BrotliBitReader br;
 
+  brotli_alloc_func alloc_func;
+  brotli_free_func free_func;
+  void* memory_manager_opaque;
+
   /* Temporary storage for remaining input. */
   union {
     uint64_t u64;
@@ -234,10 +238,16 @@ struct BrotliStateStruct {
 typedef struct BrotliStateStruct BrotliState;
 
 void BrotliStateInit(BrotliState* s);
+void BrotliStateInitWithCustomAllocators(BrotliState* s,
+                                         brotli_alloc_func alloc_func,
+                                         brotli_free_func free_func,
+                                         void* opaque);
 void BrotliStateCleanup(BrotliState* s);
 void BrotliStateMetablockBegin(BrotliState* s);
 void BrotliStateCleanupAfterMetablock(BrotliState* s);
-
+void BrotliHuffmanTreeGroupInit(BrotliState* s, HuffmanTreeGroup* group,
+                                uint32_t alphabet_size, uint32_t ntrees);
+void BrotliHuffmanTreeGroupRelease(BrotliState* s, HuffmanTreeGroup* group);
 
 /* Returns 1, if s is in a state where we have not read any input bytes yet,
    and 0 otherwise */

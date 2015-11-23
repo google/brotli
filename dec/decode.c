@@ -73,6 +73,34 @@ static const uint8_t kCodeLengthPrefixValue[16] = {
 
 #define NUM_DISTANCE_SHORT_CODES 16
 
+BrotliState* BrotliCreateState(
+    brotli_alloc_func alloc_func, brotli_free_func free_func, void* opaque) {
+  BrotliState* state = 0;
+  if (!alloc_func && !free_func) {
+    state = (BrotliState*)malloc(sizeof(BrotliState));
+  } else if (alloc_func && free_func) {
+    state = (BrotliState*)alloc_func(opaque, sizeof(BrotliState));
+  }
+  if (state == 0) {
+    (void)BROTLI_FAILURE();
+    return 0;
+  }
+  BrotliStateInitWithCustomAllocators(state, alloc_func, free_func, opaque);
+  return state;
+}
+
+/* Deinitializes and frees BrotliState instance. */
+void BrotliDestroyState(BrotliState* state) {
+  if (!state) {
+    return;
+  } else {
+    brotli_free_func free_func = state->free_func;
+    void* opaque = state->memory_manager_opaque;
+    BrotliStateCleanup(state);
+    free_func(opaque, state);
+  }
+}
+
 /* Decodes a number in the range [9..24], by reading 1 - 7 bits.
    Precondition: bit-reader accumulator has at least 7 bits. */
 static uint32_t DecodeWindowBits(BrotliBitReader* br) {
@@ -907,7 +935,7 @@ static BrotliResult DecodeContextMap(uint32_t context_map_size,
       s->context_index = 0;
       BROTLI_LOG_UINT(context_map_size);
       BROTLI_LOG_UINT(*num_htrees);
-      *context_map_arg = (uint8_t*)malloc((size_t)context_map_size);
+      *context_map_arg = (uint8_t*)BROTLI_ALLOC(s, (size_t)context_map_size);
       if (*context_map_arg == 0) {
         return BROTLI_FAILURE();
       }
@@ -1006,7 +1034,7 @@ rleCode:
 
 /* Decodes a command or literal and updates block type ringbuffer.
    Reads 3..54 bits. */
-static int BROTLI_INLINE DecodeBlockTypeAndLength(int safe,
+static BROTLI_INLINE int DecodeBlockTypeAndLength(int safe,
     BrotliState* s, int tree_type) {
   uint32_t max_block_type = s->num_block_types[tree_type];
   int tree_offset = tree_type * BROTLI_HUFFMAN_MAX_TABLE_SIZE;
@@ -1048,7 +1076,7 @@ static int BROTLI_INLINE DecodeBlockTypeAndLength(int safe,
 
 /* Decodes the block type and updates the state for literal context.
    Reads 3..54 bits. */
-static int BROTLI_INLINE DecodeLiteralBlockSwitchInternal(int safe,
+static BROTLI_INLINE int DecodeLiteralBlockSwitchInternal(int safe,
     BrotliState* s) {
   uint8_t context_mode;
   uint32_t context_offset;
@@ -1075,7 +1103,7 @@ static int BROTLI_NOINLINE SafeDecodeLiteralBlockSwitch(BrotliState* s) {
 
 /* Block switch for insert/copy length.
    Reads 3..54 bits. */
-static int BROTLI_INLINE DecodeCommandBlockSwitchInternal(int safe,
+static BROTLI_INLINE int DecodeCommandBlockSwitchInternal(int safe,
     BrotliState* s) {
   if (!DecodeBlockTypeAndLength(safe, s, 1)) {
     return 0;
@@ -1093,7 +1121,7 @@ static int BROTLI_NOINLINE SafeDecodeCommandBlockSwitch(BrotliState* s) {
 
 /* Block switch for distance codes.
    Reads 3..54 bits. */
-static int BROTLI_INLINE DecodeDistanceBlockSwitchInternal(int safe,
+static BROTLI_INLINE int DecodeDistanceBlockSwitchInternal(int safe,
     BrotliState* s) {
   if (!DecodeBlockTypeAndLength(safe, s, 2)) {
     return 0;
@@ -1255,7 +1283,7 @@ static int BROTLI_NOINLINE BrotliAllocateRingBuffer(BrotliState* s,
   }
 
   s->ringbuffer_mask = s->ringbuffer_size - 1;
-  s->ringbuffer = (uint8_t*)malloc((size_t)(s->ringbuffer_size +
+  s->ringbuffer = (uint8_t*)BROTLI_ALLOC(s, (size_t)(s->ringbuffer_size +
       kRingBufferWriteAheadSlack + kBrotliMaxDictionaryWordLength));
   if (s->ringbuffer == 0) {
     return 0;
@@ -1289,7 +1317,7 @@ static BrotliResult ReadContextModes(BrotliState* s) {
   return BROTLI_RESULT_SUCCESS;
 }
 
-static void BROTLI_INLINE TakeDistanceFromRingBuffer(BrotliState* s) {
+static BROTLI_INLINE void TakeDistanceFromRingBuffer(BrotliState* s) {
   if (s->distance_code == 0) {
     --s->dist_rb_idx;
     s->distance_code = s->dist_rb[s->dist_rb_idx & 3];
@@ -1329,7 +1357,7 @@ static BROTLI_INLINE int SafeReadBits(
 }
 
 /* Precondition: s->distance_code < 0 */
-static int BROTLI_INLINE ReadDistanceInternal(int safe,
+static BROTLI_INLINE int ReadDistanceInternal(int safe,
     BrotliState* s, BrotliBitReader* br) {
   int distval;
   BrotliBitReaderState memento;
@@ -1386,15 +1414,15 @@ static int BROTLI_INLINE ReadDistanceInternal(int safe,
   return 1;
 }
 
-static void BROTLI_INLINE ReadDistance(BrotliState* s, BrotliBitReader* br) {
+static BROTLI_INLINE void ReadDistance(BrotliState* s, BrotliBitReader* br) {
   ReadDistanceInternal(0, s, br);
 }
 
-static int BROTLI_INLINE SafeReadDistance(BrotliState* s, BrotliBitReader* br) {
+static BROTLI_INLINE int SafeReadDistance(BrotliState* s, BrotliBitReader* br) {
   return ReadDistanceInternal(1, s, br);
 }
 
-static int BROTLI_INLINE ReadCommandInternal(int safe,
+static BROTLI_INLINE int ReadCommandInternal(int safe,
     BrotliState* s, BrotliBitReader* br, int* insert_length) {
   uint32_t cmd_code;
   uint32_t insert_len_extra = 0;
@@ -1432,12 +1460,12 @@ static int BROTLI_INLINE ReadCommandInternal(int safe,
   return 1;
 }
 
-static void BROTLI_INLINE ReadCommand(BrotliState* s, BrotliBitReader* br,
+static BROTLI_INLINE void ReadCommand(BrotliState* s, BrotliBitReader* br,
     int* insert_length) {
   ReadCommandInternal(0, s, br, insert_length);
 }
 
-static int BROTLI_INLINE SafeReadCommand(BrotliState* s, BrotliBitReader* br,
+static BROTLI_INLINE int SafeReadCommand(BrotliState* s, BrotliBitReader* br,
     int* insert_length) {
   return ReadCommandInternal(1, s, br, insert_length);
 }
@@ -1833,10 +1861,10 @@ BrotliResult BrotliDecompressStreaming(BrotliInput input, BrotliOutput output,
   size_t total_out;
 
   if (s->legacy_input_buffer == 0) {
-    s->legacy_input_buffer = (uint8_t*)malloc(kBufferSize);
+    s->legacy_input_buffer = (uint8_t*)BROTLI_ALLOC(s, kBufferSize);
   }
   if (s->legacy_output_buffer == 0) {
-    s->legacy_output_buffer = (uint8_t*)malloc(kBufferSize);
+    s->legacy_output_buffer = (uint8_t*)BROTLI_ALLOC(s, kBufferSize);
   }
   if (s->legacy_input_buffer == 0 || s->legacy_output_buffer == 0) {
     return BROTLI_FAILURE();
@@ -2010,7 +2038,7 @@ BrotliResult BrotliDecompressStream(size_t* available_in,
             s->max_backward_distance - s->custom_dict_size;
 
         /* Allocate memory for both block_type_trees and block_len_trees. */
-        s->block_type_trees = (HuffmanCode*)malloc(
+        s->block_type_trees = (HuffmanCode*)BROTLI_ALLOC(s,
             6 * BROTLI_HUFFMAN_MAX_TABLE_SIZE * sizeof(HuffmanCode));
         if (s->block_type_trees == 0) {
           result = BROTLI_FAILURE();
@@ -2145,7 +2173,8 @@ BrotliResult BrotliDecompressStream(size_t* available_in,
         BROTLI_LOG_UINT(s->num_direct_distance_codes);
         BROTLI_LOG_UINT(s->distance_postfix_bits);
         s->distance_postfix_mask = (int)BitMask(s->distance_postfix_bits);
-        s->context_modes = (uint8_t*)malloc((size_t)s->num_block_types[0]);
+        s->context_modes =
+            (uint8_t*)BROTLI_ALLOC(s, (size_t)s->num_block_types[0]);
         if (s->context_modes == 0) {
           result = BROTLI_FAILURE();
           break;
@@ -2188,13 +2217,13 @@ BrotliResult BrotliDecompressStream(size_t* available_in,
           if (result != BROTLI_RESULT_SUCCESS) {
             break;
           }
-          BrotliHuffmanTreeGroupInit(
-              &s->literal_hgroup, kNumLiteralCodes, s->num_literal_htrees);
-          BrotliHuffmanTreeGroupInit(
-              &s->insert_copy_hgroup, kNumInsertAndCopyCodes,
+          BrotliHuffmanTreeGroupInit(s, &s->literal_hgroup, kNumLiteralCodes,
+                                     s->num_literal_htrees);
+          BrotliHuffmanTreeGroupInit(s, &s->insert_copy_hgroup,
+                                     kNumInsertAndCopyCodes,
               s->num_block_types[1]);
-          BrotliHuffmanTreeGroupInit(
-              &s->distance_hgroup, num_distance_codes, s->num_dist_htrees);
+          BrotliHuffmanTreeGroupInit(s, &s->distance_hgroup, num_distance_codes,
+                                     s->num_dist_htrees);
           if (s->literal_hgroup.codes == 0 ||
               s->insert_copy_hgroup.codes == 0 ||
               s->distance_hgroup.codes == 0) {
