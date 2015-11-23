@@ -237,8 +237,10 @@ static BROTLI_INLINE unsigned BrotliRBit(unsigned input) {
 #define BROTLI_HAS_UBFX 0
 #endif
 
-#define BROTLI_FREE(X) { \
-  free(X); \
+#define BROTLI_ALLOC(S, L) S->alloc_func(S->memory_manager_opaque, L)
+
+#define BROTLI_FREE(S, X) { \
+  S->free_func(S->memory_manager_opaque, X); \
   X = NULL; \
 }
 

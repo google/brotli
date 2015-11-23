@@ -70,10 +70,6 @@ typedef struct {
   uint16_t num_htrees;
 } HuffmanTreeGroup;
 
-void BrotliHuffmanTreeGroupInit(HuffmanTreeGroup* group,
-                                uint32_t alphabet_size, uint32_t ntrees);
-void BrotliHuffmanTreeGroupRelease(HuffmanTreeGroup* group);
-
 #if defined(__cplusplus) || defined(c_plusplus)
 }    /* extern "C" */
 #endif

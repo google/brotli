@@ -51,6 +51,16 @@ static inline BrotliResult BrotliFailure(const char *f, int l, const char *fn) {
 }
 #endif
 
+/* Creates the instance of BrotliState and initializes it. alloc_func and
+   free_func MUST be both zero or both non-zero. In the case they are both zero,
+   default memory allocators are used. opaque parameter is passed to alloc_func
+   and free_func when they are called. */
+BrotliState* BrotliCreateState(
+    brotli_alloc_func alloc_func, brotli_free_func free_func, void* opaque);
+
+/* Deinitializes and frees BrotliState instance. */
+void BrotliDestroyState(BrotliState* state);
+
 /* Sets *decoded_size to the decompressed size of the given encoded stream. */
 /* This function only works if the encoded buffer has a single meta block, */
 /* or if it has two meta-blocks, where the first is uncompressed and the */
