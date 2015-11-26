@@ -19,14 +19,13 @@
 #include <stdio.h>
 #include <sys/stat.h>
 #include <sys/types.h>
-#include <time.h>
 #include <unistd.h>
 
+#include <ctime>
 #include <string>
 
 #include "../dec/decode.h"
 #include "../enc/encode.h"
-#include "../enc/streams.h"
 
 
 static bool ParseQuality(const char* s, int* quality) {
@@ -188,6 +187,57 @@ int64_t FileSize(char *path) {
   return retval;
 }
 
+static const size_t kFileBufferSize = 65536;
+
+void Decompresss(FILE* fin, FILE* fout) {
+  uint8_t* input = new uint8_t[kFileBufferSize];
+  uint8_t* output = new uint8_t[kFileBufferSize];
+  size_t total_out;
+  size_t available_in;
+  const uint8_t* next_in;
+  size_t available_out = kFileBufferSize;
+  uint8_t* next_out = output;
+  BrotliResult result = BROTLI_RESULT_NEEDS_MORE_INPUT;
+  BrotliState s;
+  BrotliStateInit(&s);
+  while (1) {
+    if (result == BROTLI_RESULT_NEEDS_MORE_INPUT) {
+      if (feof(fin)) {
+        break;
+      }
+      available_in = fread(input, 1, kFileBufferSize, fin);
+      next_in = input;
+      if (ferror(fin)) {
+        break;
+      }
+    } else if (result == BROTLI_RESULT_NEEDS_MORE_OUTPUT) {
+      fwrite(output, 1, kFileBufferSize, fout);
+      if (ferror(fout)) {
+        break;
+      }
+      available_out = kFileBufferSize;
+      next_out = output;
+    } else {
+      break; /* Error of success. */
+    }
+    result = BrotliDecompressStream(&available_in, &next_in,
+        &available_out, &next_out, &total_out, &s);
+  }
+  if (next_out != output) {
+    fwrite(output, 1, next_out - output, fout);
+  }
+  BrotliStateCleanup(&s);
+  delete[] input;
+  delete[] output;
+  if ((result == BROTLI_RESULT_NEEDS_MORE_OUTPUT) || ferror(fout)) {
+    fprintf(stderr, "failed to write output\n");
+    exit(1);
+  } else if (result != BROTLI_RESULT_SUCCESS) { /* Error or needs more input. */
+    fprintf(stderr, "corrupt input\n");
+    exit(1);
+  }
+}
+
 int main(int argc, char** argv) {
   char *input_path = 0;
   char *output_path = 0;
@@ -204,12 +254,7 @@ int main(int argc, char** argv) {
     FILE* fin = OpenInputFile(input_path);
     FILE* fout = OpenOutputFile(output_path, force);
     if (decompress) {
-      BrotliInput in = BrotliFileInput(fin);
-      BrotliOutput out = BrotliFileOutput(fout);
-      if (!BrotliDecompress(in, out)) {
-        fprintf(stderr, "corrupt input\n");
-        exit(1);
-      }
+      Decompresss(fin, fout);
     } else {
       brotli::BrotliParams params;
       params.lgwin = lgwin;
