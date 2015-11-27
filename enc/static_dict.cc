@@ -1,3 +1,10 @@
+/* Copyright 2013 Google Inc. All Rights Reserved.
+
+   Distributed under MIT license, or public domain if desired and
+   recognized in your jurisdiction.
+   See file LICENSE for detail or copy at https://opensource.org/licenses/MIT
+*/
+
 #include "./static_dict.h"
 
 #include <algorithm>
