@@ -11,8 +11,7 @@ The specification of the Brotli Compressed Data Format is defined in the
 following internet draft:
 http://www.ietf.org/id/draft-alakuijala-brotli
 
-Brotli is open-sourced under the Apache License, Version 2.0, see the LICENSE
-file.
+Brotli is open-sourced under the MIT License, see the LICENSE file.
 
 Brotli mailing list:
 https://groups.google.com/forum/#!forum/brotli
