@@ -21,9 +21,9 @@ static int mode_convertor(PyObject *o, BrotliParams::Mode *mode) {
   }
 
   *mode = (BrotliParams::Mode) PyInt_AsLong(o);
-  if (*mode != BrotliParams::Mode::MODE_GENERIC &&
-      *mode != BrotliParams::Mode::MODE_TEXT &&
-      *mode != BrotliParams::Mode::MODE_FONT) {
+  if (*mode != BrotliParams::MODE_GENERIC &&
+      *mode != BrotliParams::MODE_TEXT &&
+      *mode != BrotliParams::MODE_FONT) {
     PyErr_SetString(BrotliError, "Invalid mode");
     return 0;
   }
@@ -240,9 +240,9 @@ PyMODINIT_FUNC INIT_BROTLI(void) {
     PyModule_AddObject(m, "error", BrotliError);
   }
 
-  PyModule_AddIntConstant(m, "MODE_GENERIC", (int) BrotliParams::Mode::MODE_GENERIC);
-  PyModule_AddIntConstant(m, "MODE_TEXT", (int) BrotliParams::Mode::MODE_TEXT);
-  PyModule_AddIntConstant(m, "MODE_FONT", (int) BrotliParams::Mode::MODE_FONT);
+  PyModule_AddIntConstant(m, "MODE_GENERIC", (int) BrotliParams::MODE_GENERIC);
+  PyModule_AddIntConstant(m, "MODE_TEXT", (int) BrotliParams::MODE_TEXT);
+  PyModule_AddIntConstant(m, "MODE_FONT", (int) BrotliParams::MODE_FONT);
 
   PyModule_AddStringConstant(m, "__version__", BROTLI_VERSION);
 
