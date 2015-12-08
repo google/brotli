@@ -538,20 +538,24 @@ bool BrotliCompressor::WriteMetadata(const size_t input_size,
   if (input_size > (1 << 24) || input_size + 6 > *encoded_size) {
     return false;
   }
+  uint64_t hdr_buffer_data[2];
+  uint8_t* hdr_buffer = reinterpret_cast<uint8_t*>(&hdr_buffer_data[0]);
   int storage_ix = last_byte_bits_;
-  encoded_buffer[0] = last_byte_;
-  WriteBits(1, 0, &storage_ix, encoded_buffer);
-  WriteBits(2, 3, &storage_ix, encoded_buffer);
-  WriteBits(1, 0, &storage_ix, encoded_buffer);
+  hdr_buffer[0] = last_byte_;
+  WriteBits(1, 0, &storage_ix, hdr_buffer);
+  WriteBits(2, 3, &storage_ix, hdr_buffer);
+  WriteBits(1, 0, &storage_ix, hdr_buffer);
   if (input_size == 0) {
-    WriteBits(2, 0, &storage_ix, encoded_buffer);
+    WriteBits(2, 0, &storage_ix, hdr_buffer);
     *encoded_size = (storage_ix + 7) >> 3;
+    memcpy(encoded_buffer, hdr_buffer, *encoded_size);
   } else {
     int nbits = Log2Floor(static_cast<uint32_t>(input_size) - 1) + 1;
     int nbytes = (nbits + 7) / 8;
-    WriteBits(2, nbytes, &storage_ix, encoded_buffer);
-    WriteBits(8 * nbytes, input_size - 1, &storage_ix, encoded_buffer);
+    WriteBits(2, nbytes, &storage_ix, hdr_buffer);
+    WriteBits(8 * nbytes, input_size - 1, &storage_ix, hdr_buffer);
     size_t hdr_size = (storage_ix + 7) >> 3;
+    memcpy(encoded_buffer, hdr_buffer, hdr_size);
     memcpy(&encoded_buffer[hdr_size], input_buffer, input_size);
     *encoded_size = hdr_size + input_size;
   }
