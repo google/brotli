@@ -70,12 +70,8 @@ class BuildExt(build_ext):
 
         objects = []
         for lang, sources in (("c", c_sources), ("c++", cxx_sources)):
-            if lang == "c++": 
-                if platform.system() == "Darwin":
-                    extra_args.extend(["-stdlib=libc++", "-mmacosx-version-min=10.7"])
-                if self.compiler.compiler_type in ["unix", "cygwin", "mingw32"]:
-                    extra_args.append("-std=c++0x")
-                elif self.compiler.compiler_type == "msvc":
+            if lang == "c++":
+                if self.compiler.compiler_type == "msvc":
                     extra_args.append("/EHsc")
 
             macros = ext.define_macros[:]
