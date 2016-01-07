@@ -22,19 +22,24 @@ inline uint32_t Hash(const uint8_t *data) {
   return h >> (32 - kDictNumBits);
 }
 
-inline void AddMatch(int distance, int len, int len_code, int* matches) {
-  matches[len] = std::min(matches[len], (distance << 5) + len_code);
+inline void AddMatch(size_t distance, size_t len, size_t len_code,
+                     uint32_t* matches) {
+  uint32_t match = static_cast<uint32_t>((distance << 5) + len_code);
+  matches[len] = std::min(matches[len], match);
 }
 
-inline int DictMatchLength(const uint8_t* data, int id, int len, int maxlen) {
-  const int offset = kBrotliDictionaryOffsetsByLength[len] + len * id;
+inline size_t DictMatchLength(const uint8_t* data,
+                              size_t id,
+                              size_t len,
+                              size_t maxlen) {
+  const size_t offset = kBrotliDictionaryOffsetsByLength[len] + len * id;
   return FindMatchLengthWithLimit(&kBrotliDictionary[offset], data,
                                   std::min(len, maxlen));
 }
 
-inline bool IsMatch(DictWord w, const uint8_t* data, int max_length) {
+inline bool IsMatch(DictWord w, const uint8_t* data, size_t max_length) {
   if (w.len > max_length) return false;
-  const int offset = kBrotliDictionaryOffsetsByLength[w.len] + w.len * w.idx;
+  const size_t offset = kBrotliDictionaryOffsetsByLength[w.len] + w.len * w.idx;
   const uint8_t* dict = &kBrotliDictionary[offset];
   if (w.transform == 0) {
     // Match against base dictionary word.
@@ -44,12 +49,12 @@ inline bool IsMatch(DictWord w, const uint8_t* data, int max_length) {
     // Note that there are only ASCII uppercase words in the lookup table.
     return (dict[0] >= 'a' && dict[0] <= 'z' &&
             (dict[0] ^ 32) == data[0] &&
-            FindMatchLengthWithLimit(&dict[1], &data[1], w.len - 1) ==
-            w.len - 1);
+            FindMatchLengthWithLimit(&dict[1], &data[1], w.len - 1u) ==
+            w.len - 1u);
   } else {
     // Match against uppercase all transform.
     // Note that there are only ASCII uppercase words in the lookup table.
-    for (int i = 0; i < w.len; ++i) {
+    for (size_t i = 0; i < w.len; ++i) {
       if (dict[i] >= 'a' && dict[i] <= 'z') {
         if ((dict[i] ^ 32) != data[i]) return false;
       } else {
@@ -61,22 +66,22 @@ inline bool IsMatch(DictWord w, const uint8_t* data, int max_length) {
 }
 
 bool FindAllStaticDictionaryMatches(const uint8_t* data,
-                                    int min_length,
-                                    int max_length,
-                                    int* matches) {
+                                    size_t min_length,
+                                    size_t max_length,
+                                    uint32_t* matches) {
   bool found_match = false;
-  uint32_t key = Hash(data);
-  uint32_t bucket = kStaticDictionaryBuckets[key];
+  size_t key = Hash(data);
+  size_t bucket = kStaticDictionaryBuckets[key];
   if (bucket != 0) {
-    int num = bucket & 0xff;
-    int offset = bucket >> 8;
-    for (int i = 0; i < num; ++i) {
+    size_t num = bucket & 0xff;
+    size_t offset = bucket >> 8;
+    for (size_t i = 0; i < num; ++i) {
       const DictWord w = kStaticDictionaryWords[offset + i];
-      const int l = w.len;
-      const int n = 1 << kBrotliDictionarySizeBitsByLength[l];
-      const int id = w.idx;
+      const size_t l = w.len;
+      const size_t n = 1u << kBrotliDictionarySizeBitsByLength[l];
+      const size_t id = w.idx;
       if (w.transform == 0) {
-        const int matchlen = DictMatchLength(data, id, l, max_length);
+        const size_t matchlen = DictMatchLength(data, id, l, max_length);
         // Transform "" + kIdentity + ""
         if (matchlen == l) {
           AddMatch(id, l, l, matches);
@@ -93,9 +98,10 @@ bool FindAllStaticDictionaryMatches(const uint8_t* data,
           found_match = true;
         }
         // Transform "" + kOmitLastN + "" (N = 2 .. 9)
-        int minlen = std::max<int>(min_length, l - 9);
-        int maxlen = std::min<int>(matchlen, l - 2);
-        for (int len = minlen; len <= maxlen; ++len) {
+        size_t minlen = min_length;
+        if (l > 9) minlen = std::max(minlen, l - 9);
+        size_t maxlen = std::min(matchlen, l - 2);
+        for (size_t len = minlen; len <= maxlen; ++len) {
           AddMatch(id + kOmitLastNTransforms[l - len] * n, len, l, matches);
           found_match = true;
         }
@@ -250,8 +256,9 @@ bool FindAllStaticDictionaryMatches(const uint8_t* data,
           }
         }
       } else {
-        // Set t=0 for kUppercaseFirst and t=1 for kUppercaseAll transform.
-        const int t = w.transform - 10;
+        // Set t=false for kUppercaseFirst and
+        //     t=true otherwise (kUppercaseAll) transform.
+        const bool t = w.transform != kUppercaseFirst;
         if (!IsMatch(w, data, max_length)) {
           continue;
         }
@@ -299,13 +306,13 @@ bool FindAllStaticDictionaryMatches(const uint8_t* data,
     bool is_space = (data[0] == ' ');
     key = Hash(&data[1]);
     bucket = kStaticDictionaryBuckets[key];
-    int num = bucket & 0xff;
-    int offset = bucket >> 8;
-    for (int i = 0; i < num; ++i) {
+    size_t num = bucket & 0xff;
+    size_t offset = bucket >> 8;
+    for (size_t i = 0; i < num; ++i) {
       const DictWord w = kStaticDictionaryWords[offset + i];
-      const int l = w.len;
-      const int n = 1 << kBrotliDictionarySizeBitsByLength[l];
-      const int id = w.idx;
+      const size_t l = w.len;
+      const size_t n = 1u << kBrotliDictionarySizeBitsByLength[l];
+      const size_t id = w.idx;
       if (w.transform == 0) {
         if (!IsMatch(w, &data[1], max_length - 1)) {
           continue;
@@ -342,8 +349,9 @@ bool FindAllStaticDictionaryMatches(const uint8_t* data,
           }
         }
       } else if (is_space) {
-        // Set t=0 for kUppercaseFirst and t=1 for kUppercaseAll transform.
-        const int t = w.transform - 10;
+        // Set t=false for kUppercaseFirst and
+        //     t=true otherwise (kUppercaseAll) transform.
+        const bool t = w.transform != kUppercaseFirst;
         if (!IsMatch(w, &data[1], max_length - 1)) {
           continue;
         }
@@ -358,7 +366,7 @@ bool FindAllStaticDictionaryMatches(const uint8_t* data,
         if (s[0] == ' ') {
           AddMatch(id + (t ? 83 : 15) * n, l + 2, l, matches);
         } else if (s[0] == ',') {
-          if (t == 0) {
+          if (!t) {
             AddMatch(id + 109 * n, l + 2, l, matches);
         }
           if (s[1] == ' ') {
@@ -386,19 +394,19 @@ bool FindAllStaticDictionaryMatches(const uint8_t* data,
         (data[0] == 0xc2 && data[1] == 0xa0)) {
       key = Hash(&data[2]);
       bucket = kStaticDictionaryBuckets[key];
-      int num = bucket & 0xff;
-      int offset = bucket >> 8;
-      for (int i = 0; i < num; ++i) {
+      size_t num = bucket & 0xff;
+      size_t offset = bucket >> 8;
+      for (size_t i = 0; i < num; ++i) {
         const DictWord w = kStaticDictionaryWords[offset + i];
-        const int l = w.len;
-        const int n = 1 << kBrotliDictionarySizeBitsByLength[l];
-        const int id = w.idx;
+        const size_t l = w.len;
+        const size_t n = 1u << kBrotliDictionarySizeBitsByLength[l];
+        const size_t id = w.idx;
         if (w.transform == 0 && IsMatch(w, &data[2], max_length - 2)) {
           if (data[0] == 0xc2) {
             AddMatch(id + 102 * n, l + 2, l, matches);
             found_match = true;
           } else if (l + 2 < max_length && data[l + 2] == ' ') {
-            int t = data[0] == 'e' ? 18 : (data[0] == 's' ? 7 : 13);
+            size_t t = data[0] == 'e' ? 18 : (data[0] == 's' ? 7 : 13);
             AddMatch(id + t * n, l + 3, l, matches);
             found_match = true;
           }
@@ -414,13 +422,13 @@ bool FindAllStaticDictionaryMatches(const uint8_t* data,
          data[3] == 'm' && data[4] == '/')) {
       key = Hash(&data[5]);
       bucket = kStaticDictionaryBuckets[key];
-      int num = bucket & 0xff;
-      int offset = bucket >> 8;
-      for (int i = 0; i < num; ++i) {
+      size_t num = bucket & 0xff;
+      size_t offset = bucket >> 8;
+      for (size_t i = 0; i < num; ++i) {
         const DictWord w = kStaticDictionaryWords[offset + i];
-        const int l = w.len;
-        const int n = 1 << kBrotliDictionarySizeBitsByLength[l];
-        const int id = w.idx;
+        const size_t l = w.len;
+        const size_t n = 1u << kBrotliDictionarySizeBitsByLength[l];
+        const size_t id = w.idx;
         if (w.transform == 0 && IsMatch(w, &data[5], max_length - 5)) {
           AddMatch(id + (data[0] == ' ' ? 41 : 72) * n, l + 5, l, matches);
           found_match = true;

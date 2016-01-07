@@ -14,7 +14,7 @@ namespace brotli {
 
 namespace {
 
-int ParseAsUTF8(int* symbol, const uint8_t* input, size_t size) {
+size_t ParseAsUTF8(int* symbol, const uint8_t* input, size_t size) {
   // ASCII
   if ((input[0] & 0x80) == 0) {
     *symbol = input[0];
@@ -72,7 +72,8 @@ bool IsMostlyUTF8(const uint8_t* data, const size_t pos, const size_t mask,
   size_t i = 0;
   while (i < length) {
     int symbol;
-    int bytes_read = ParseAsUTF8(&symbol, &data[(pos + i) & mask], length - i);
+    size_t bytes_read = ParseAsUTF8(
+        &symbol, &data[(pos + i) & mask], length - i);
     i += bytes_read;
     if (symbol < 0x110000) size_utf8 += bytes_read;
   }

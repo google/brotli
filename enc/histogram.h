@@ -9,10 +9,10 @@
 #ifndef BROTLI_ENC_HISTOGRAM_H_
 #define BROTLI_ENC_HISTOGRAM_H_
 
-#include <string.h>
+#include <cstring>
 #include <limits>
 #include <vector>
-#include <utility>
+#include "./context.h"
 #include "./command.h"
 #include "./fast_log.h"
 #include "./prefix.h"
@@ -33,29 +33,29 @@ struct Histogram {
     total_count_ = 0;
     bit_cost_ = std::numeric_limits<double>::infinity();
   }
-  void Add(int val) {
+  void Add(size_t val) {
     ++data_[val];
     ++total_count_;
   }
-  void Remove(int val) {
+  void Remove(size_t val) {
     --data_[val];
     --total_count_;
   }
   template<typename DataType>
   void Add(const DataType *p, size_t n) {
-    total_count_ += static_cast<int>(n);
+    total_count_ += n;
     n += 1;
     while(--n) ++data_[*p++];
   }
   void AddHistogram(const Histogram& v) {
     total_count_ += v.total_count_;
-    for (int i = 0; i < kDataSize; ++i) {
+    for (size_t i = 0; i < kDataSize; ++i) {
       data_[i] += v.data_[i];
     }
   }
 
-  int data_[kDataSize];
-  int total_count_;
+  uint32_t data_[kDataSize];
+  size_t total_count_;
   double bit_cost_;
 };
 
@@ -70,8 +70,8 @@ typedef Histogram<272> HistogramContextMap;
 // Block type histogram, 256 block types + 2 special symbols.
 typedef Histogram<258> HistogramBlockType;
 
-static const int kLiteralContextBits = 6;
-static const int kDistanceContextBits = 2;
+static const size_t kLiteralContextBits = 6;
+static const size_t kDistanceContextBits = 2;
 
 void BuildHistograms(
     const Command* cmds,
@@ -84,7 +84,7 @@ void BuildHistograms(
     size_t mask,
     uint8_t prev_byte,
     uint8_t prev_byte2,
-    const std::vector<int>& context_modes,
+    const std::vector<ContextType>& context_modes,
     std::vector<HistogramLiteral>* literal_histograms,
     std::vector<HistogramCommand>* insert_and_copy_histograms,
     std::vector<HistogramDistance>* copy_dist_histograms);

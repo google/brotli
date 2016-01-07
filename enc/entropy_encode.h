@@ -17,6 +17,26 @@
 
 namespace brotli {
 
+// A node of a Huffman tree.
+struct HuffmanTree {
+  HuffmanTree(uint32_t count, int16_t left, int16_t right)
+      : total_count_(count),
+        index_left_(left),
+        index_right_or_value_(right) {
+  }
+  uint32_t total_count_;
+  int16_t index_left_;
+  int16_t index_right_or_value_;
+};
+
+// Sort the root nodes, least popular first.
+inline bool SortHuffmanTree(const HuffmanTree &v0, const HuffmanTree &v1) {
+  return v0.total_count_ < v1.total_count_;
+}
+
+void SetDepth(const HuffmanTree &p, HuffmanTree *pool,
+              uint8_t *depth, uint8_t level);
+
 // This function will create a Huffman tree.
 //
 // The (data,length) contains the population counts.
@@ -26,8 +46,8 @@ namespace brotli {
 // the symbol.
 //
 // See http://en.wikipedia.org/wiki/Huffman_coding
-void CreateHuffmanTree(const int *data,
-                       const int length,
+void CreateHuffmanTree(const uint32_t *data,
+                       const size_t length,
                        const int tree_limit,
                        uint8_t *depth);
 
@@ -37,18 +57,20 @@ void CreateHuffmanTree(const int *data,
 //
 // length contains the size of the histogram.
 // counts contains the population counts.
-int OptimizeHuffmanCountsForRle(int length, int* counts);
+bool OptimizeHuffmanCountsForRle(size_t length, uint32_t* counts);
 
 // Write a Huffman tree from bit depths into the bitstream representation
 // of a Huffman tree. The generated Huffman tree is to be compressed once
 // more using a Huffman tree
 void WriteHuffmanTree(const uint8_t* depth,
-                      uint32_t num,
+                      size_t num,
                       std::vector<uint8_t> *tree,
                       std::vector<uint8_t> *extra_bits_data);
 
 // Get the actual bit values for a tree of bit depths.
-void ConvertBitDepthsToSymbols(const uint8_t *depth, int len, uint16_t *bits);
+void ConvertBitDepthsToSymbols(const uint8_t *depth,
+                               size_t len,
+                               uint16_t *bits);
 
 template<int kSize>
 struct EntropyCode {

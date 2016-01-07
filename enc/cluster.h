@@ -10,11 +10,8 @@
 #define BROTLI_ENC_CLUSTER_H_
 
 #include <math.h>
-#include <stdio.h>
 #include <algorithm>
-#include <complex>
 #include <map>
-#include <set>
 #include <utility>
 #include <vector>
 
@@ -28,41 +25,39 @@
 namespace brotli {
 
 struct HistogramPair {
-  int idx1;
-  int idx2;
-  bool valid;
+  uint32_t idx1;
+  uint32_t idx2;
   double cost_combo;
   double cost_diff;
 };
 
-struct HistogramPairComparator {
-  bool operator()(const HistogramPair& p1, const HistogramPair& p2) const {
-    if (p1.cost_diff != p2.cost_diff) {
-      return p1.cost_diff > p2.cost_diff;
-    }
-    return abs(p1.idx1 - p1.idx2) > abs(p2.idx1 - p2.idx2);
+inline bool operator<(const HistogramPair& p1, const HistogramPair& p2) {
+  if (p1.cost_diff != p2.cost_diff) {
+    return p1.cost_diff > p2.cost_diff;
   }
-};
+  return (p1.idx2 - p1.idx1) > (p2.idx2 - p2.idx1);
+}
 
 // Returns entropy reduction of the context map when we combine two clusters.
-inline double ClusterCostDiff(int size_a, int size_b) {
-  int size_c = size_a + size_b;
-  return size_a * FastLog2(size_a) + size_b * FastLog2(size_b) -
-      size_c * FastLog2(size_c);
+inline double ClusterCostDiff(size_t size_a, size_t size_b) {
+  size_t size_c = size_a + size_b;
+  return static_cast<double>(size_a) * FastLog2(size_a) +
+      static_cast<double>(size_b) * FastLog2(size_b) -
+      static_cast<double>(size_c) * FastLog2(size_c);
 }
 
 // Computes the bit cost reduction by combining out[idx1] and out[idx2] and if
-// it is below a threshold, stores the pair (idx1, idx2) in the *pairs heap.
+// it is below a threshold, stores the pair (idx1, idx2) in the *pairs queue.
 template<typename HistogramType>
-void CompareAndPushToHeap(const HistogramType* out,
-                          const int* cluster_size,
-                          int idx1, int idx2,
-                          std::vector<HistogramPair>* pairs) {
+void CompareAndPushToQueue(const HistogramType* out,
+                           const uint32_t* cluster_size,
+                           uint32_t idx1, uint32_t idx2,
+                           std::vector<HistogramPair>* pairs) {
   if (idx1 == idx2) {
     return;
   }
   if (idx2 < idx1) {
-    int t = idx2;
+    uint32_t t = idx2;
     idx2 = idx1;
     idx1 = t;
   }
@@ -70,7 +65,6 @@ void CompareAndPushToHeap(const HistogramType* out,
   HistogramPair p;
   p.idx1 = idx1;
   p.idx2 = idx2;
-  p.valid = true;
   p.cost_diff = 0.5 * ClusterCostDiff(cluster_size[idx1], cluster_size[idx2]);
   p.cost_diff -= out[idx1].bit_cost_;
   p.cost_diff -= out[idx2].bit_cost_;
@@ -94,37 +88,38 @@ void CompareAndPushToHeap(const HistogramType* out,
   }
   if (store_pair) {
     p.cost_diff += p.cost_combo;
-    pairs->push_back(p);
-    std::push_heap(pairs->begin(), pairs->end(), HistogramPairComparator());
+    if (!pairs->empty() && (pairs->front() < p)) {
+      // Replace the top of the queue if needed.
+      pairs->push_back(pairs->front());
+      pairs->front() = p;
+    } else {
+      pairs->push_back(p);
+    }
   }
 }
 
 template<typename HistogramType>
 void HistogramCombine(HistogramType* out,
-                      int* cluster_size,
-                      int* symbols,
-                      int symbols_size,
+                      uint32_t* cluster_size,
+                      uint32_t* symbols,
+                      size_t symbols_size,
                       size_t max_clusters) {
   double cost_diff_threshold = 0.0;
   size_t min_cluster_size = 1;
-  std::set<int> all_symbols;
-  std::vector<int> clusters;
-  for (int i = 0; i < symbols_size; ++i) {
-    if (all_symbols.find(symbols[i]) == all_symbols.end()) {
-      all_symbols.insert(symbols[i]);
-      if (!clusters.empty()) {
-        BROTLI_DCHECK(clusters.back() < symbols[i]);
-      }
-      clusters.push_back(symbols[i]);
-    }
-  }
+
+  // Uniquify the list of symbols.
+  std::vector<uint32_t> clusters(symbols, symbols + symbols_size);
+  std::sort(clusters.begin(), clusters.end());
+  std::vector<uint32_t>::iterator last =
+      std::unique(clusters.begin(), clusters.end());
+  clusters.resize(static_cast<size_t>(last - clusters.begin()));
 
   // We maintain a heap of histogram pairs, ordered by the bit cost reduction.
   std::vector<HistogramPair> pairs;
   for (size_t idx1 = 0; idx1 < clusters.size(); ++idx1) {
     for (size_t idx2 = idx1 + 1; idx2 < clusters.size(); ++idx2) {
-      CompareAndPushToHeap(out, cluster_size, clusters[idx1], clusters[idx2],
-                           &pairs);
+      CompareAndPushToQueue(out, cluster_size, clusters[idx1], clusters[idx2],
+                            &pairs);
     }
   }
 
@@ -135,38 +130,48 @@ void HistogramCombine(HistogramType* out,
       continue;
     }
     // Take the best pair from the top of heap.
-    int best_idx1 = pairs[0].idx1;
-    int best_idx2 = pairs[0].idx2;
+    uint32_t best_idx1 = pairs[0].idx1;
+    uint32_t best_idx2 = pairs[0].idx2;
     out[best_idx1].AddHistogram(out[best_idx2]);
     out[best_idx1].bit_cost_ = pairs[0].cost_combo;
     cluster_size[best_idx1] += cluster_size[best_idx2];
-    for (int i = 0; i < symbols_size; ++i) {
+    for (size_t i = 0; i < symbols_size; ++i) {
       if (symbols[i] == best_idx2) {
         symbols[i] = best_idx1;
       }
     }
-    for (size_t i = 0; i + 1 < clusters.size(); ++i) {
-      if (clusters[i] >= best_idx2) {
-        clusters[i] = clusters[i + 1];
+    for (std::vector<uint32_t>::iterator cluster = clusters.begin();
+         cluster != clusters.end(); ++cluster) {
+      if (*cluster >= best_idx2) {
+        clusters.erase(cluster);
+        break;
       }
     }
-    clusters.pop_back();
-    // Invalidate pairs intersecting the just combined best pair.
+
+    // Remove pairs intersecting the just combined best pair.
+    size_t copy_to_idx = 0;
     for (size_t i = 0; i < pairs.size(); ++i) {
       HistogramPair& p = pairs[i];
       if (p.idx1 == best_idx1 || p.idx2 == best_idx1 ||
           p.idx1 == best_idx2 || p.idx2 == best_idx2) {
-        p.valid = false;
+        // Remove invalid pair from the queue.
+        continue;
       }
+      if (pairs.front() < p) {
+        // Replace the top of the queue if needed.
+        HistogramPair front = pairs.front();
+        pairs.front() = p;
+        pairs[copy_to_idx] = front;
+      } else {
+        pairs[copy_to_idx] = p;
+      }
+      ++copy_to_idx;
     }
-    // Pop invalid pairs from the top of the heap.
-    while (!pairs.empty() && !pairs[0].valid) {
-      std::pop_heap(pairs.begin(), pairs.end(), HistogramPairComparator());
-      pairs.pop_back();
-    }
+    pairs.resize(copy_to_idx);
+
     // Push new pairs formed with the combined histogram to the heap.
     for (size_t i = 0; i < clusters.size(); ++i) {
-      CompareAndPushToHeap(out, cluster_size, best_idx1, clusters[i], &pairs);
+      CompareAndPushToQueue(out, cluster_size, best_idx1, clusters[i], &pairs);
     }
   }
 }
@@ -189,16 +194,19 @@ double HistogramBitCostDistance(const HistogramType& histogram,
 // Find the best 'out' histogram for each of the 'in' histograms.
 // Note: we assume that out[]->bit_cost_ is already up-to-date.
 template<typename HistogramType>
-void HistogramRemap(const HistogramType* in, int in_size,
-                    HistogramType* out, int* symbols) {
-  std::set<int> all_symbols;
-  for (int i = 0; i < in_size; ++i) {
-    all_symbols.insert(symbols[i]);
-  }
-  for (int i = 0; i < in_size; ++i) {
-    int best_out = i == 0 ? symbols[0] : symbols[i - 1];
+void HistogramRemap(const HistogramType* in, size_t in_size,
+                    HistogramType* out, uint32_t* symbols) {
+  // Uniquify the list of symbols.
+  std::vector<uint32_t> all_symbols(symbols, symbols + in_size);
+  std::sort(all_symbols.begin(), all_symbols.end());
+  std::vector<uint32_t>::iterator last =
+      std::unique(all_symbols.begin(), all_symbols.end());
+  all_symbols.resize(static_cast<size_t>(last - all_symbols.begin()));
+
+  for (size_t i = 0; i < in_size; ++i) {
+    uint32_t best_out = i == 0 ? symbols[0] : symbols[i - 1];
     double best_bits = HistogramBitCostDistance(in[i], out[best_out]);
-    for (std::set<int>::const_iterator k = all_symbols.begin();
+    for (std::vector<uint32_t>::const_iterator k = all_symbols.begin();
          k != all_symbols.end(); ++k) {
       const double cur_bits = HistogramBitCostDistance(in[i], out[*k]);
       if (cur_bits < best_bits) {
@@ -211,11 +219,11 @@ void HistogramRemap(const HistogramType* in, int in_size,
 
 
   // Recompute each out based on raw and symbols.
-  for (std::set<int>::const_iterator k = all_symbols.begin();
+  for (std::vector<uint32_t>::const_iterator k = all_symbols.begin();
        k != all_symbols.end(); ++k) {
     out[*k].Clear();
   }
-  for (int i = 0; i < in_size; ++i) {
+  for (size_t i = 0; i < in_size; ++i) {
     out[symbols[i]].AddHistogram(in[i]);
   }
 }
@@ -224,10 +232,10 @@ void HistogramRemap(const HistogramType* in, int in_size,
 // increasing order.
 template<typename HistogramType>
 void HistogramReindex(std::vector<HistogramType>* out,
-                      std::vector<int>* symbols) {
+                      std::vector<uint32_t>* symbols) {
   std::vector<HistogramType> tmp(*out);
-  std::map<int, int> new_index;
-  int next_index = 0;
+  std::map<uint32_t, uint32_t> new_index;
+  uint32_t next_index = 0;
   for (size_t i = 0; i < symbols->size(); ++i) {
     if (new_index.find((*symbols)[i]) == new_index.end()) {
       new_index[(*symbols)[i]] = next_index;
@@ -246,25 +254,25 @@ void HistogramReindex(std::vector<HistogramType>* out,
 // indicate which of the 'out' histograms is the best approximation.
 template<typename HistogramType>
 void ClusterHistograms(const std::vector<HistogramType>& in,
-                       int num_contexts, int num_blocks,
+                       size_t num_contexts, size_t num_blocks,
                        size_t max_histograms,
                        std::vector<HistogramType>* out,
-                       std::vector<int>* histogram_symbols) {
-  const int in_size = num_contexts * num_blocks;
-  BROTLI_DCHECK(in_size == in.size());
-  std::vector<int> cluster_size(in_size, 1);
+                       std::vector<uint32_t>* histogram_symbols) {
+  const size_t in_size = num_contexts * num_blocks;
+  assert(in_size == in.size());
+  std::vector<uint32_t> cluster_size(in_size, 1);
   out->resize(in_size);
   histogram_symbols->resize(in_size);
-  for (int i = 0; i < in_size; ++i) {
+  for (size_t i = 0; i < in_size; ++i) {
     (*out)[i] = in[i];
     (*out)[i].bit_cost_ = PopulationCost(in[i]);
-    (*histogram_symbols)[i] = i;
+    (*histogram_symbols)[i] = static_cast<uint32_t>(i);
   }
 
 
-  const int max_input_histograms = 64;
-  for (int i = 0; i < in_size; i += max_input_histograms) {
-    int num_to_combine = std::min(in_size - i, max_input_histograms);
+  const size_t max_input_histograms = 64;
+  for (size_t i = 0; i < in_size; i += max_input_histograms) {
+    size_t num_to_combine = std::min(in_size - i, max_input_histograms);
     HistogramCombine(&(*out)[0], &cluster_size[0],
                      &(*histogram_symbols)[i], num_to_combine,
                      max_histograms);

@@ -28,7 +28,7 @@ void BuildHistograms(
     size_t mask,
     uint8_t prev_byte,
     uint8_t prev_byte2,
-    const std::vector<int>& context_modes,
+    const std::vector<ContextType>& context_modes,
     std::vector<HistogramLiteral>* literal_histograms,
     std::vector<HistogramCommand>* insert_and_copy_histograms,
     std::vector<HistogramDistance>* copy_dist_histograms) {
@@ -41,9 +41,9 @@ void BuildHistograms(
     insert_and_copy_it.Next();
     (*insert_and_copy_histograms)[insert_and_copy_it.type_].Add(
         cmd.cmd_prefix_);
-    for (int j = 0; j < cmd.insert_len_; ++j) {
+    for (size_t j = cmd.insert_len_; j != 0; --j) {
       literal_it.Next();
-      int context = (literal_it.type_ << kLiteralContextBits) +
+      size_t context = (literal_it.type_ << kLiteralContextBits) +
           Context(prev_byte, prev_byte2, context_modes[literal_it.type_]);
       (*literal_histograms)[context].Add(ringbuffer[pos & mask]);
       prev_byte2 = prev_byte;
@@ -56,7 +56,7 @@ void BuildHistograms(
       prev_byte = ringbuffer[(pos - 1) & mask];
       if (cmd.cmd_prefix_ >= 128) {
         dist_it.Next();
-        int context = (dist_it.type_ << kDistanceContextBits) +
+        size_t context = (dist_it.type_ << kDistanceContextBits) +
             cmd.DistanceContext();
         (*copy_dist_histograms)[context].Add(cmd.dist_prefix_);
       }

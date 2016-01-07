@@ -13,8 +13,8 @@
 
 namespace brotli {
 
-static const int kMaxDictionaryMatchLen = 37;
-static const int kInvalidMatch = 0xfffffff;
+static const size_t kMaxDictionaryMatchLen = 37;
+static const uint32_t kInvalidMatch = 0xfffffff;
 
 // Matches data against static dictionary words, and for each length l,
 // for which a match is found, updates matches[l] to be the minimum possible
@@ -23,9 +23,9 @@ static const int kInvalidMatch = 0xfffffff;
 //   matches array is at least kMaxDictionaryMatchLen + 1 long
 //   all elements are initialized to kInvalidMatch
 bool FindAllStaticDictionaryMatches(const uint8_t* data,
-                                    int min_length,
-                                    int max_length,
-                                    int* matches);
+                                    size_t min_length,
+                                    size_t max_length,
+                                    uint32_t* matches);
 
 }  // namespace brotli
 
