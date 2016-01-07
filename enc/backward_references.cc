@@ -491,6 +491,14 @@ void CreateBackwardReferences(size_t num_bytes,
                               Command* commands,
                               size_t* num_commands,
                               size_t* num_literals) {
+  // Choose which init method is faster.
+  // memset is about 100 times faster than hasher->InitForData().
+  const size_t kMaxBytesForPartialHashInit = Hasher::kHashMapSize >> 7;
+  if (position == 0 && is_last && num_bytes <= kMaxBytesForPartialHashInit) {
+    hasher->InitForData(ringbuffer, num_bytes);
+  } else {
+    hasher->Init();
+  }
   if (num_bytes >= 3 && position >= 3) {
     // Prepare the hashes for three last bytes of the last write.
     // These could not be calculated before, since they require knowledge
@@ -636,6 +644,7 @@ void CreateBackwardReferences(size_t num_bytes,
   bool zopflify = quality > 9;
   if (zopflify) {
     Hashers::H9* hasher = hashers->hash_h9;
+    hasher->Init();
     if (num_bytes >= 3 && position >= 3) {
       // Prepare the hashes for three last bytes of the last write.
       // These could not be calculated before, since they require knowledge
