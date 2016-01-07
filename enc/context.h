@@ -157,7 +157,7 @@ enum ContextType {
   CONTEXT_SIGNED       = 3
 };
 
-static inline uint8_t Context(uint8_t p1, uint8_t p2, int mode) {
+static inline uint8_t Context(uint8_t p1, uint8_t p2, ContextType mode) {
   switch (mode) {
     case CONTEXT_LSB6:
       return p1 & 0x3f;

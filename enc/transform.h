@@ -172,15 +172,11 @@ static const Transform kTransforms[] = {
 static const size_t kNumTransforms =
     sizeof(kTransforms) / sizeof(kTransforms[0]);
 
-static const int kOmitFirstNTransforms[10] = {
-  0, 3, 11, 26, 34, 39, 40, 55, 0, 54
-};
-
-static const int kOmitLastNTransforms[10] = {
+static const size_t kOmitLastNTransforms[10] = {
   0, 12, 27, 23, 42, 63, 56, 48, 59, 64,
 };
 
-static int ToUpperCase(uint8_t *p, int len) {
+static size_t ToUpperCase(uint8_t *p, size_t len) {
   if (len == 1 || p[0] < 0xc0) {
     if (p[0] >= 'a' && p[0] <= 'z') {
       p[0] ^= 32;
@@ -198,41 +194,50 @@ static int ToUpperCase(uint8_t *p, int len) {
   return 3;
 }
 
-inline std::string ApplyTransform(
-    const Transform& t, const uint8_t* word, int len) {
-  std::string ret(t.prefix);
-  if (t.word_transform <= kOmitLast9) {
-    len -= t.word_transform;
+inline std::string TransformWord(
+    WordTransformType transform_type, const uint8_t* word, size_t len) {
+  if (transform_type <= kOmitLast9) {
+    if (len <= transform_type) {
+      return std::string();
+    }
+    return std::string(word, word + len - transform_type);
   }
-  if (len > 0) {
-    if (t.word_transform >= kOmitFirst1) {
-      const int skip = t.word_transform - (kOmitFirst1 - 1);
-      if (len > skip) {
-        ret += std::string(word + skip, word + len);
-      }
-    } else {
-      ret += std::string(word, word + len);
-      uint8_t *uppercase = reinterpret_cast<uint8_t*>(&ret[ret.size() - len]);
-      if (t.word_transform == kUppercaseFirst) {
-        ToUpperCase(uppercase, len);
-      } else if (t.word_transform == kUppercaseAll) {
-        while (len > 0) {
-          int step = ToUpperCase(uppercase, len);
-          uppercase += step;
-          len -= step;
-        }
-      }
+
+  if (transform_type >= kOmitFirst1) {
+    const size_t skip = transform_type - (kOmitFirst1 - 1);
+    if (len <= skip) {
+      return std::string();
+    }
+    return std::string(word + skip, word + len);
+  }
+
+  std::string ret = std::string(word, word + len);
+  uint8_t *uppercase = reinterpret_cast<uint8_t*>(&ret[0]);
+  if (transform_type == kUppercaseFirst) {
+    ToUpperCase(uppercase, len);
+  } else if (transform_type == kUppercaseAll) {
+    size_t position = 0;
+    while (position < len) {
+      size_t step = ToUpperCase(uppercase, len - position);
+      uppercase += step;
+      position += step;
     }
   }
-  ret += std::string(t.suffix);
   return ret;
 }
 
-inline std::string GetTransformedDictionaryWord(int len_code, int word_id) {
-  int num_words = 1 << kBrotliDictionarySizeBitsByLength[len_code];
-  int offset = kBrotliDictionaryOffsetsByLength[len_code];
-  int t = word_id / num_words;
-  int word_idx = word_id % num_words;
+inline std::string ApplyTransform(
+    const Transform& t, const uint8_t* word, size_t len) {
+  return std::string(t.prefix) +
+      TransformWord(t.word_transform, word, len) + std::string(t.suffix);
+}
+
+inline std::string GetTransformedDictionaryWord(size_t len_code,
+                                                size_t word_id) {
+  size_t num_words = 1u << kBrotliDictionarySizeBitsByLength[len_code];
+  size_t offset = kBrotliDictionaryOffsetsByLength[len_code];
+  size_t t = word_id / num_words;
+  size_t word_idx = word_id % num_words;
   offset += len_code * word_idx;
   const uint8_t* word = &kBrotliDictionary[offset];
   return ApplyTransform(kTransforms[t], word, len_code);

@@ -115,9 +115,9 @@ class BrotliCompressor {
   // the new output meta-block, or to zero if no new output meta-block was
   // created (in this case the processed input data is buffered internally).
   // If *out_size is positive, *output points to the start of the output data.
-  // Returns false if the size of the input data is larger than
-  // input_block_size() or if there was an error during writing the output.
   // If is_last or force_flush is true, an output meta-block is always created.
+  // Returns false if the size of the input data is larger than
+  // input_block_size() or if there is no new input data and is_last is false.
   bool WriteBrotliData(const bool is_last, const bool force_flush,
                        size_t* out_size, uint8_t** output);
 
@@ -134,23 +134,23 @@ class BrotliCompressor {
  private:
   uint8_t* GetBrotliStorage(size_t size);
 
-  bool WriteMetaBlockInternal(const bool is_last,
+  void WriteMetaBlockInternal(const bool is_last,
                               size_t* out_size,
                               uint8_t** output);
 
   BrotliParams params_;
-  int max_backward_distance_;
+  size_t max_backward_distance_;
   Hashers* hashers_;
   int hash_type_;
-  size_t input_pos_;
+  uint64_t input_pos_;
   RingBuffer* ringbuffer_;
   size_t cmd_alloc_size_;
   Command* commands_;
   size_t num_commands_;
-  int num_literals_;
-  int last_insert_len_;
-  size_t last_flush_pos_;
-  size_t last_processed_pos_;
+  size_t num_literals_;
+  size_t last_insert_len_;
+  uint64_t last_flush_pos_;
+  uint64_t last_processed_pos_;
   int dist_cache_[4];
   int saved_dist_cache_[4];
   uint8_t last_byte_;

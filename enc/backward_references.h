@@ -9,8 +9,6 @@
 #ifndef BROTLI_ENC_BACKWARD_REFERENCES_H_
 #define BROTLI_ENC_BACKWARD_REFERENCES_H_
 
-#include <vector>
-
 #include "./hash.h"
 #include "./command.h"
 #include "./types.h"
@@ -23,6 +21,7 @@ namespace brotli {
 // by this call.
 void CreateBackwardReferences(size_t num_bytes,
                               size_t position,
+                              bool is_last,
                               const uint8_t* ringbuffer,
                               size_t ringbuffer_mask,
                               const size_t max_backward_limit,
@@ -30,10 +29,10 @@ void CreateBackwardReferences(size_t num_bytes,
                               Hashers* hashers,
                               int hash_type,
                               int* dist_cache,
-                              int* last_insert_len,
+                              size_t* last_insert_len,
                               Command* commands,
                               size_t* num_commands,
-                              int* num_literals);
+                              size_t* num_literals);
 
 }  // namespace brotli
 

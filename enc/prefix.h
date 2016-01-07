@@ -15,18 +15,18 @@
 
 namespace brotli {
 
-static const int kNumInsertLenPrefixes = 24;
-static const int kNumCopyLenPrefixes = 24;
-static const int kNumCommandPrefixes = 704;
-static const int kNumBlockLenPrefixes = 26;
-static const int kNumDistanceShortCodes = 16;
-static const int kNumDistancePrefixes = 520;
+static const uint32_t kNumInsertLenPrefixes = 24;
+static const uint32_t kNumCopyLenPrefixes = 24;
+static const uint32_t kNumCommandPrefixes = 704;
+static const uint32_t kNumBlockLenPrefixes = 26;
+static const uint32_t kNumDistanceShortCodes = 16;
+static const uint32_t kNumDistancePrefixes = 520;
 
 // Represents the range of values belonging to a prefix code:
 // [offset, offset + 2^nbits)
 struct PrefixCodeRange {
-  int offset;
-  int nbits;
+  uint32_t offset;
+  uint32_t nbits;
 };
 
 static const PrefixCodeRange kBlockLengthPrefixCode[kNumBlockLenPrefixes] = {
@@ -39,8 +39,8 @@ static const PrefixCodeRange kBlockLengthPrefixCode[kNumBlockLenPrefixes] = {
   {8433, 13}, {16625, 24}
 };
 
-inline void GetBlockLengthPrefixCode(int len,
-                                     int* code, int* n_extra, int* extra) {
+inline void GetBlockLengthPrefixCode(uint32_t len, uint32_t* code,
+                                     uint32_t* n_extra, uint32_t* extra) {
   *code = 0;
   while (*code < 25 && len >= kBlockLengthPrefixCode[*code + 1].offset) {
     ++(*code);
@@ -49,9 +49,9 @@ inline void GetBlockLengthPrefixCode(int len,
   *extra = len - kBlockLengthPrefixCode[*code].offset;
 }
 
-inline void PrefixEncodeCopyDistance(int distance_code,
-                                     int num_direct_codes,
-                                     int postfix_bits,
+inline void PrefixEncodeCopyDistance(size_t distance_code,
+                                     size_t num_direct_codes,
+                                     size_t postfix_bits,
                                      uint16_t* code,
                                      uint32_t* extra_bits) {
   if (distance_code < kNumDistanceShortCodes + num_direct_codes) {
@@ -59,18 +59,19 @@ inline void PrefixEncodeCopyDistance(int distance_code,
     *extra_bits = 0;
     return;
   }
-  distance_code -= kNumDistanceShortCodes + num_direct_codes;
-  distance_code += (1 << (postfix_bits + 2));
-  int bucket = Log2Floor(distance_code) - 1;
-  int postfix_mask = (1 << postfix_bits) - 1;
-  int postfix = distance_code & postfix_mask;
-  int prefix = (distance_code >> bucket) & 1;
-  int offset = (2 + prefix) << bucket;
-  int nbits = bucket - postfix_bits;
+  distance_code -= kNumDistanceShortCodes + num_direct_codes;  /* >= 0 */
+  distance_code += (1 << (postfix_bits + 2));  /* > 0 */
+  size_t bucket = Log2FloorNonZero(distance_code) - 1;
+  size_t postfix_mask = (1 << postfix_bits) - 1;
+  size_t postfix = distance_code & postfix_mask;
+  size_t prefix = (distance_code >> bucket) & 1;
+  size_t offset = (2 + prefix) << bucket;
+  size_t nbits = bucket - postfix_bits;
   *code = static_cast<uint16_t>(
       (kNumDistanceShortCodes + num_direct_codes +
        ((2 * (nbits - 1) + prefix) << postfix_bits) + postfix));
-  *extra_bits = (nbits << 24) | ((distance_code - offset) >> postfix_bits);
+  *extra_bits = static_cast<uint32_t>(
+      (nbits << 24) | ((distance_code - offset) >> postfix_bits));
 }
 
 }  // namespace brotli
