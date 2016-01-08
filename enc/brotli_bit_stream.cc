@@ -18,6 +18,7 @@
 #include "./bit_cost.h"
 #include "./context.h"
 #include "./entropy_encode.h"
+#include "./entropy_encode_static.h"
 #include "./fast_log.h"
 #include "./prefix.h"
 #include "./write_bits.h"
@@ -300,6 +301,167 @@ void BuildAndStoreHuffmanTree(const uint32_t *histogram,
     StoreSimpleHuffmanTree(depth, s4, count, max_bits, storage_ix, storage);
   } else {
     StoreHuffmanTree(depth, length, storage_ix, storage);
+  }
+}
+
+void BuildAndStoreHuffmanTreeFast(const uint32_t *histogram,
+                                  const size_t histogram_total,
+                                  const size_t max_bits,
+                                  uint8_t* depth,
+                                  uint16_t* bits,
+                                  size_t* storage_ix,
+                                  uint8_t* storage) {
+  size_t count = 0;
+  size_t symbols[4] = { 0 };
+  size_t length = 0;
+  size_t total = histogram_total;
+  while (total != 0) {
+    if (histogram[length]) {
+      if (count < 4) {
+        symbols[count] = length;
+      }
+      ++count;
+      total -= histogram[length];
+    }
+    ++length;
+  }
+
+  if (count <= 1) {
+    WriteBits(4, 1, storage_ix, storage);
+    WriteBits(max_bits, symbols[0], storage_ix, storage);
+    return;
+  }
+
+  const size_t max_tree_size = 2 * length + 1;
+  HuffmanTree* const tree =
+      static_cast<HuffmanTree*>(malloc(max_tree_size * sizeof(HuffmanTree)));
+  for (uint32_t count_limit = 1; ; count_limit *= 2) {
+    HuffmanTree* node = tree;
+    for (size_t i = length; i != 0;) {
+      --i;
+      if (histogram[i]) {
+        if (PREDICT_TRUE(histogram[i] >= count_limit)) {
+          *node = HuffmanTree(histogram[i], -1, static_cast<int16_t>(i));
+        } else {
+          *node = HuffmanTree(count_limit, -1, static_cast<int16_t>(i));
+        }
+        ++node;
+      }
+    }
+    const int n = static_cast<int>(node - tree);
+    std::sort(tree, node, SortHuffmanTree);
+    // The nodes are:
+    // [0, n): the sorted leaf nodes that we start with.
+    // [n]: we add a sentinel here.
+    // [n + 1, 2n): new parent nodes are added here, starting from
+    //              (n+1). These are naturally in ascending order.
+    // [2n]: we add a sentinel at the end as well.
+    // There will be (2n+1) elements at the end.
+    const HuffmanTree sentinel(std::numeric_limits<int>::max(), -1, -1);
+    *node++ = sentinel;
+    *node++ = sentinel;
+
+    int i = 0;      // Points to the next leaf node.
+    int j = n + 1;  // Points to the next non-leaf node.
+    for (int k = n - 1; k > 0; --k) {
+      int left, right;
+      if (tree[i].total_count_ <= tree[j].total_count_) {
+        left = i;
+        ++i;
+      } else {
+        left = j;
+        ++j;
+      }
+      if (tree[i].total_count_ <= tree[j].total_count_) {
+        right = i;
+        ++i;
+      } else {
+        right = j;
+        ++j;
+      }
+      // The sentinel node becomes the parent node.
+      node[-1].total_count_ =
+          tree[left].total_count_ + tree[right].total_count_;
+      node[-1].index_left_ = static_cast<int16_t>(left);
+      node[-1].index_right_or_value_ = static_cast<int16_t>(right);
+      // Add back the last sentinel node.
+      *node++ = sentinel;
+    }
+    SetDepth(tree[2 * n - 1], &tree[0], depth, 0);
+    // We need to pack the Huffman tree in 14 bits.
+    // If this was not successful, add fake entities to the lowest values
+    // and retry.
+    if (PREDICT_TRUE(*std::max_element(&depth[0], &depth[length]) <= 14)) {
+      break;
+    }
+  }
+  free(tree);
+  ConvertBitDepthsToSymbols(depth, length, bits);
+  if (count <= 4) {
+    // value of 1 indicates a simple Huffman code
+    WriteBits(2, 1, storage_ix, storage);
+    WriteBits(2, count - 1, storage_ix, storage);  // NSYM - 1
+
+    // Sort
+    for (size_t i = 0; i < count; i++) {
+      for (size_t j = i + 1; j < count; j++) {
+        if (depth[symbols[j]] < depth[symbols[i]]) {
+          std::swap(symbols[j], symbols[i]);
+        }
+      }
+    }
+
+    if (count == 2) {
+      WriteBits(max_bits, symbols[0], storage_ix, storage);
+      WriteBits(max_bits, symbols[1], storage_ix, storage);
+    } else if (count == 3) {
+      WriteBits(max_bits, symbols[0], storage_ix, storage);
+      WriteBits(max_bits, symbols[1], storage_ix, storage);
+      WriteBits(max_bits, symbols[2], storage_ix, storage);
+    } else {
+      WriteBits(max_bits, symbols[0], storage_ix, storage);
+      WriteBits(max_bits, symbols[1], storage_ix, storage);
+      WriteBits(max_bits, symbols[2], storage_ix, storage);
+      WriteBits(max_bits, symbols[3], storage_ix, storage);
+      // tree-select
+      WriteBits(1, depth[symbols[0]] == 1 ? 1 : 0, storage_ix, storage);
+    }
+  } else {
+    // Complex Huffman Tree
+    StoreStaticCodeLengthCode(storage_ix, storage);
+
+    // Actual rle coding.
+    uint8_t previous_value = 8;
+    for (size_t i = 0; i < length;) {
+      const uint8_t value = depth[i];
+      size_t reps = 1;
+      for (size_t k = i + 1; k < length && depth[k] == value; ++k) {
+        ++reps;
+      }
+      i += reps;
+      if (value == 0) {
+        WriteBits(kZeroRepsDepth[reps], kZeroRepsBits[reps],
+                  storage_ix, storage);
+      } else {
+        if (previous_value != value) {
+          WriteBits(kCodeLengthDepth[value], kCodeLengthBits[value],
+                    storage_ix, storage);
+          --reps;
+        }
+        if (reps < 3) {
+          while (reps != 0) {
+            reps--;
+            WriteBits(kCodeLengthDepth[value], kCodeLengthBits[value],
+                      storage_ix, storage);
+          }
+        } else {
+          reps -= 3;
+          WriteBits(kNonZeroRepsDepth[reps], kNonZeroRepsBits[reps],
+                    storage_ix, storage);
+        }
+        previous_value = value;
+      }
+    }
   }
 }
 
@@ -833,6 +995,83 @@ void StoreMetaBlockTrivial(const uint8_t* input,
                             &cmd_depth[0], &cmd_bits[0],
                             &dist_depth[0], &dist_bits[0],
                             storage_ix, storage);
+  if (is_last) {
+    JumpToByteBoundary(storage_ix, storage);
+  }
+}
+
+void StoreMetaBlockFast(const uint8_t* input,
+                        size_t start_pos,
+                        size_t length,
+                        size_t mask,
+                        bool is_last,
+                        const brotli::Command *commands,
+                        size_t n_commands,
+                        size_t *storage_ix,
+                        uint8_t *storage) {
+  StoreCompressedMetaBlockHeader(is_last, length, storage_ix, storage);
+
+  WriteBits(13, 0, storage_ix, storage);
+
+  if (n_commands <= 128) {
+    uint32_t histogram[256] = { 0 };
+    size_t pos = start_pos;
+    size_t num_literals = 0;
+    for (size_t i = 0; i < n_commands; ++i) {
+      const Command cmd = commands[i];
+      for (size_t j = cmd.insert_len_; j != 0; --j) {
+        ++histogram[input[pos & mask]];
+        ++pos;
+      }
+      num_literals += cmd.insert_len_;
+      pos += cmd.copy_len_;
+    }
+    uint8_t lit_depth[256] = { 0 };
+    uint16_t lit_bits[256] = { 0 };
+    BuildAndStoreHuffmanTreeFast(histogram, num_literals,
+                                 /* max_bits = */ 8,
+                                 lit_depth, lit_bits,
+                                 storage_ix, storage);
+    StoreStaticCommandHuffmanTree(storage_ix, storage);
+    StoreStaticDistanceHuffmanTree(storage_ix, storage);
+    StoreDataWithHuffmanCodes(input, start_pos, mask, commands,
+                              n_commands, &lit_depth[0], &lit_bits[0],
+                              kStaticCommandCodeDepth,
+                              kStaticCommandCodeBits,
+                              kStaticDistanceCodeDepth,
+                              kStaticDistanceCodeBits,
+                              storage_ix, storage);
+  } else {
+    HistogramLiteral lit_histo;
+    HistogramCommand cmd_histo;
+    HistogramDistance dist_histo;
+    BuildHistograms(input, start_pos, mask, commands, n_commands,
+                    &lit_histo, &cmd_histo, &dist_histo);
+    std::vector<uint8_t> lit_depth(256);
+    std::vector<uint16_t> lit_bits(256);
+    std::vector<uint8_t> cmd_depth(kNumCommandPrefixes);
+    std::vector<uint16_t> cmd_bits(kNumCommandPrefixes);
+    std::vector<uint8_t> dist_depth(64);
+    std::vector<uint16_t> dist_bits(64);
+    BuildAndStoreHuffmanTreeFast(&lit_histo.data_[0], lit_histo.total_count_,
+                                 /* max_bits = */ 8,
+                                 &lit_depth[0], &lit_bits[0],
+                                 storage_ix, storage);
+    BuildAndStoreHuffmanTreeFast(&cmd_histo.data_[0], cmd_histo.total_count_,
+                                 /* max_bits = */ 10,
+                                 &cmd_depth[0], &cmd_bits[0],
+                                 storage_ix, storage);
+    BuildAndStoreHuffmanTreeFast(&dist_histo.data_[0], dist_histo.total_count_,
+                                 /* max_bits = */ 6,
+                                 &dist_depth[0], &dist_bits[0],
+                                 storage_ix, storage);
+    StoreDataWithHuffmanCodes(input, start_pos, mask, commands,
+                              n_commands, &lit_depth[0], &lit_bits[0],
+                              &cmd_depth[0], &cmd_bits[0],
+                              &dist_depth[0], &dist_bits[0],
+                              storage_ix, storage);
+  }
+
   if (is_last) {
     JumpToByteBoundary(storage_ix, storage);
   }
