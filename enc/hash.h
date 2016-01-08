@@ -123,14 +123,28 @@ class HashLongestMatchQuickly {
     Reset();
   }
   void Reset() {
-    // It is not strictly necessary to fill this buffer here, but
-    // not filling will make the results of the compression stochastic
-    // (but correct). This is because random data would cause the
-    // system to find accidentally good backward references here and there.
-    memset(&buckets_[0], 0, sizeof(buckets_));
+    need_init_ = true;
     num_dict_lookups_ = 0;
     num_dict_matches_ = 0;
   }
+  void Init() {
+    if (need_init_) {
+      // It is not strictly necessary to fill this buffer here, but
+      // not filling will make the results of the compression stochastic
+      // (but correct). This is because random data would cause the
+      // system to find accidentally good backward references here and there.
+      memset(&buckets_[0], 0, sizeof(buckets_));
+      need_init_ = false;
+    }
+  }
+  void InitForData(const uint8_t* data, size_t num) {
+    for (size_t i = 0; i < num; ++i) {
+      const uint32_t key = HashBytes(&data[i]);
+      memset(&buckets_[key], 0, kBucketSweep * sizeof(buckets_[0]));
+      need_init_ = false;
+    }
+  }
+
   // Look at 4 bytes at data.
   // Compute a hash from these, and store the value somewhere within
   // [ix .. ix+3].
@@ -293,9 +307,13 @@ class HashLongestMatchQuickly {
     return static_cast<uint32_t>(h >> (64 - kBucketBits));
   }
 
+  enum { kHashMapSize = 4 << kBucketBits };
+
  private:
   static const uint32_t kBucketSize = 1 << kBucketBits;
   uint32_t buckets_[kBucketSize + kBucketSweep];
+  // True if buckets_ array needs to be initialized.
+  bool need_init_;
   size_t num_dict_lookups_;
   size_t num_dict_matches_;
 };
@@ -319,9 +337,24 @@ class HashLongestMatch {
   }
 
   void Reset() {
-    memset(&num_[0], 0, sizeof(num_));
+    need_init_ = true;
     num_dict_lookups_ = 0;
     num_dict_matches_ = 0;
+  }
+
+  void Init() {
+    if (need_init_) {
+      memset(&num_[0], 0, sizeof(num_));
+      need_init_ = false;
+    }
+  }
+
+  void InitForData(const uint8_t* data, size_t num) {
+    for (size_t i = 0; i < num; ++i) {
+      const uint32_t key = HashBytes(&data[i]);
+      num_[key] = 0;
+      need_init_ = false;
+    }
   }
 
   // Look at 3 bytes at data.
@@ -570,6 +603,8 @@ class HashLongestMatch {
     return h >> (32 - kBucketBits);
   }
 
+  enum { kHashMapSize = 2 << kBucketBits };
+
  private:
   // Number of hash buckets.
   static const uint32_t kBucketSize = 1 << kBucketBits;
@@ -586,6 +621,8 @@ class HashLongestMatch {
 
   // Buckets containing kBlockSize of backward references.
   uint32_t buckets_[kBucketSize][kBlockSize];
+  // True if num_ array needs to be initialized.
+  bool need_init_;
 
   size_t num_dict_lookups_;
   size_t num_dict_matches_;
@@ -637,6 +674,7 @@ struct Hashers {
 
   template<typename Hasher>
   void WarmupHash(const size_t size, const uint8_t* dict, Hasher* hasher) {
+    hasher->Init();
     for (size_t i = 0; i + Hasher::kHashTypeLength - 1 < size; i++) {
       hasher->Store(&dict[i], static_cast<uint32_t>(i));
     }
