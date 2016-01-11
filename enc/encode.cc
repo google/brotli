@@ -20,6 +20,8 @@
 #include "./context.h"
 #include "./metablock.h"
 #include "./transform.h"
+#include "./compress_fragment.h"
+#include "./compress_fragment_two_pass.h"
 #include "./entropy_encode.h"
 #include "./fast_log.h"
 #include "./hash.h"
@@ -33,9 +35,11 @@ namespace brotli {
 static const int kMinQualityForBlockSplit = 4;
 static const int kMinQualityForContextModeling = 5;
 static const int kMinQualityForOptimizeHistograms = 4;
-// For quality 1 there is no block splitting, so we buffer at most this much
+// For quality 2 there is no block splitting, so we buffer at most this much
 // literals and commands.
 static const int kMaxNumDelayedSymbols = 0x2fff;
+
+#define COPY_ARRAY(dst, src) memcpy(dst, src, sizeof(src));
 
 void RecomputeDistancePrefixes(Command* cmds,
                                size_t num_commands,
@@ -75,6 +79,44 @@ uint8_t* BrotliCompressor::GetBrotliStorage(size_t size) {
   return storage_;
 }
 
+size_t MaxHashTableSize(int quality) {
+  return quality == 0 ? 1 << 15 : 1 << 17;
+}
+
+size_t HashTableSize(size_t max_table_size, size_t input_size) {
+  size_t htsize = 256;
+  while (htsize < max_table_size && htsize < input_size) {
+    htsize <<= 1;
+  }
+  return htsize;
+}
+
+int* BrotliCompressor::GetHashTable(int quality,
+                                    size_t input_size,
+                                    size_t* table_size) {
+  // Use smaller hash table when input.size() is smaller, since we
+  // fill the table, incurring O(hash table size) overhead for
+  // compression, and if the input is short, we won't need that
+  // many hash table entries anyway.
+  const size_t max_table_size = MaxHashTableSize(quality);
+  assert(max_table_size >= 256);
+  size_t htsize = HashTableSize(max_table_size, input_size);
+
+  int* table;
+  if (htsize <= sizeof(small_table_) / sizeof(small_table_[0])) {
+    table = small_table_;
+  } else {
+    if (large_table_ == NULL) {
+      large_table_ = new int[max_table_size];
+    }
+    table = large_table_;
+  }
+
+  *table_size = htsize;
+  memset(table, 0, htsize * sizeof(*table));
+  return table;
+}
+
 void EncodeWindowBits(int lgwin, uint8_t* last_byte, uint8_t* last_byte_bits) {
   if (lgwin == 16) {
     *last_byte = 0;
@@ -91,6 +133,52 @@ void EncodeWindowBits(int lgwin, uint8_t* last_byte, uint8_t* last_byte_bits) {
   }
 }
 
+// Initializes the command and distance prefix codes for the first block.
+void InitCommandPrefixCodes(uint8_t cmd_depths[128],
+                            uint16_t cmd_bits[128],
+                            uint8_t cmd_code[512],
+                            size_t* cmd_code_numbits) {
+  static const uint8_t kDefaultCommandDepths[128] = {
+    0, 4, 4, 5, 6, 6, 7, 7, 7, 7, 7, 8, 8, 8, 8, 8,
+    0, 0, 0, 4, 4, 4, 4, 4, 5, 5, 6, 6, 6, 6, 7, 7,
+    7, 7, 10, 10, 10, 10, 10, 10, 0, 4, 4, 5, 5, 5, 6, 6,
+    7, 8, 8, 9, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10,
+    5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    6, 6, 6, 6, 6, 6, 5, 5, 5, 5, 5, 5, 4, 4, 4, 4,
+    4, 4, 4, 5, 5, 5, 5, 5, 5, 6, 6, 7, 7, 7, 8, 10,
+    12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12,
+  };
+  static const uint16_t kDefaultCommandBits[128] = {
+    0,   0,   8,   9,   3,  35,   7,   71,
+    39, 103,  23,  47, 175, 111, 239,   31,
+    0,   0,   0,   4,  12,   2,  10,    6,
+    13,  29,  11,  43,  27,  59,  87,   55,
+    15,  79, 319, 831, 191, 703, 447,  959,
+    0,  14,   1,  25,   5,  21,  19,   51,
+    119, 159,  95, 223, 479, 991,  63,  575,
+    127, 639, 383, 895, 255, 767, 511, 1023,
+    14, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    27, 59, 7, 39, 23, 55, 30, 1, 17, 9, 25, 5, 0, 8, 4, 12,
+    2, 10, 6, 21, 13, 29, 3, 19, 11, 15, 47, 31, 95, 63, 127, 255,
+    767, 2815, 1791, 3839, 511, 2559, 1535, 3583, 1023, 3071, 2047, 4095,
+  };
+  COPY_ARRAY(cmd_depths, kDefaultCommandDepths);
+  COPY_ARRAY(cmd_bits, kDefaultCommandBits);
+
+  // Initialize the pre-compressed form of the command and distance prefix
+  // codes.
+  static const uint8_t kDefaultCommandCode[] = {
+    0xff, 0x77, 0xd5, 0xbf, 0xe7, 0xde, 0xea, 0x9e, 0x51, 0x5d, 0xde, 0xc6,
+    0x70, 0x57, 0xbc, 0x58, 0x58, 0x58, 0xd8, 0xd8, 0x58, 0xd5, 0xcb, 0x8c,
+    0xea, 0xe0, 0xc3, 0x87, 0x1f, 0x83, 0xc1, 0x60, 0x1c, 0x67, 0xb2, 0xaa,
+    0x06, 0x83, 0xc1, 0x60, 0x30, 0x18, 0xcc, 0xa1, 0xce, 0x88, 0x54, 0x94,
+    0x46, 0xe1, 0xb0, 0xd0, 0x4e, 0xb2, 0xf7, 0x04, 0x00,
+  };
+  static const int kDefaultCommandCodeNumBits = 448;
+  COPY_ARRAY(cmd_code, kDefaultCommandCode);
+  *cmd_code_numbits = kDefaultCommandCodeNumBits;
+}
+
 BrotliCompressor::BrotliCompressor(BrotliParams params)
     : params_(params),
       hashers_(new Hashers()),
@@ -103,16 +191,23 @@ BrotliCompressor::BrotliCompressor(BrotliParams params)
       prev_byte_(0),
       prev_byte2_(0),
       storage_size_(0),
-      storage_(0) {
+      storage_(0),
+      large_table_(NULL),
+      command_buf_(NULL),
+      literal_buf_(NULL) {
   // Sanitize params.
-  params_.quality = std::max(1, params_.quality);
+  params_.quality = std::max(0, params_.quality);
   if (params_.lgwin < kMinWindowBits) {
     params_.lgwin = kMinWindowBits;
   } else if (params_.lgwin > kMaxWindowBits) {
     params_.lgwin = kMaxWindowBits;
   }
-  if (params_.lgblock == 0) {
-    params_.lgblock = params_.quality < kMinQualityForBlockSplit ? 14 : 16;
+  if (params_.quality <= 1) {
+    params_.lgblock = params_.lgwin;
+  } else if (params_.quality < kMinQualityForBlockSplit) {
+    params_.lgblock = 14;
+  } else if (params_.lgblock == 0) {
+    params_.lgblock = 16;
     if (params_.quality >= 9 && params_.lgwin > params_.lgblock) {
       params_.lgblock = std::min(21, params_.lgwin);
     }
@@ -147,6 +242,14 @@ BrotliCompressor::BrotliCompressor(BrotliParams params)
   // emitting an uncompressed block.
   memcpy(saved_dist_cache_, dist_cache_, sizeof(dist_cache_));
 
+  if (params_.quality == 0) {
+    InitCommandPrefixCodes(cmd_depths_, cmd_bits_,
+                           cmd_code_, &cmd_code_numbits_);
+  } else if (params_.quality == 1) {
+    command_buf_ = new uint32_t[kCompressFragmentTwoPassBlockSize];
+    literal_buf_ = new uint8_t[kCompressFragmentTwoPassBlockSize];
+  }
+
   // Initialize hashers.
   hash_type_ = std::min(9, params_.quality);
   hashers_->Init(hash_type_);
@@ -157,6 +260,9 @@ BrotliCompressor::~BrotliCompressor() {
   free(commands_);
   delete ringbuffer_;
   delete hashers_;
+  delete[] large_table_;
+  delete[] command_buf_;
+  delete[] literal_buf_;
 }
 
 void BrotliCompressor::CopyInputToRingBuffer(const size_t input_size,
@@ -236,6 +342,37 @@ bool BrotliCompressor::WriteBrotliData(const bool is_last,
     return false;
   }
   const uint32_t bytes = static_cast<uint32_t>(delta);
+
+  if (params_.quality <= 1) {
+    const size_t max_out_size = 2 * bytes + 500;
+    uint8_t* storage = GetBrotliStorage(max_out_size);
+    storage[0] = last_byte_;
+    size_t storage_ix = last_byte_bits_;
+    size_t table_size;
+    int* table = GetHashTable(params_.quality, bytes, &table_size);
+    if (params_.quality == 0) {
+      BrotliCompressFragmentFast(
+          &data[WrapPosition(last_processed_pos_) & mask],
+          bytes, is_last,
+          table, table_size,
+          cmd_depths_, cmd_bits_,
+          &cmd_code_numbits_, cmd_code_,
+          &storage_ix, storage);
+    } else {
+      BrotliCompressFragmentTwoPass(
+          &data[WrapPosition(last_processed_pos_) & mask],
+          bytes, is_last,
+          command_buf_, literal_buf_,
+          table, table_size,
+          &storage_ix, storage);
+    }
+    last_byte_ = storage[storage_ix >> 3];
+    last_byte_bits_ = storage_ix & 7u;
+    last_processed_pos_ = input_pos_;
+    *output = &storage[0];
+    *out_size = storage_ix >> 3;
+    return true;
+  }
 
   // Theoretical max number of commands is 1 per 2 bytes.
   size_t newsize = num_commands_ + bytes / 2 + 1;
@@ -439,7 +576,7 @@ void BrotliCompressor::WriteMetaBlockInternal(const bool is_last,
                                 num_direct_distance_codes,
                                 distance_postfix_bits);
     }
-    if (params_.quality == 1) {
+    if (params_.quality == 2) {
       StoreMetaBlockFast(data, WrapPosition(last_flush_pos_),
                          bytes, mask, is_last,
                          commands_, num_commands_,
@@ -659,9 +796,130 @@ int BrotliCompress(BrotliParams params, BrotliIn* in, BrotliOut* out) {
   return BrotliCompressWithCustomDictionary(0, 0, params, in, out);
 }
 
+// Reads the provided input in 'block_size' blocks. Only the last read can be
+// smaller than 'block_size'.
+class BrotliBlockReader {
+ public:
+  explicit BrotliBlockReader(size_t block_size)
+      : block_size_(block_size), buf_(NULL) {}
+  ~BrotliBlockReader() { delete[] buf_; }
+
+  const uint8_t* Read(BrotliIn* in, size_t* bytes_read, bool* is_last) {
+    *bytes_read = 0;
+    const uint8_t* data = BrotliInReadAndCheckEnd(block_size_, in,
+                                                  bytes_read, is_last);
+    if (data == NULL || *bytes_read == block_size_ || *is_last) {
+      // If we could get the whole block in one read, or it is the last block,
+      // we just return the pointer to the data without copying.
+      return data;
+    }
+    // If the data comes in smaller chunks, we need to copy it into an internal
+    // buffer until we get a whole block or reach the last chunk.
+    if (buf_ == NULL) {
+      buf_ = new uint8_t[block_size_];
+    }
+    memcpy(buf_, data, *bytes_read);
+    do {
+      size_t cur_bytes_read = 0;
+      data = BrotliInReadAndCheckEnd(block_size_ - *bytes_read, in,
+                                     &cur_bytes_read, is_last);
+      if (data == NULL) {
+        return *is_last ? buf_ : NULL;
+      }
+      memcpy(&buf_[*bytes_read], data, cur_bytes_read);
+      *bytes_read += cur_bytes_read;
+    } while (*bytes_read < block_size_ && !*is_last);
+    return buf_;
+  }
+
+ private:
+  const size_t block_size_;
+  uint8_t* buf_;
+};
+
 int BrotliCompressWithCustomDictionary(size_t dictsize, const uint8_t* dict,
                                        BrotliParams params,
                                        BrotliIn* in, BrotliOut* out) {
+  if (params.quality <= 1) {
+    const int quality = std::max(0, params.quality);
+    const int lgwin = std::min(kMaxWindowBits,
+                               std::max(kMinWindowBits, params.lgwin));
+    uint8_t* storage = NULL;
+    int* table = NULL;
+    uint32_t* command_buf = NULL;
+    uint8_t* literal_buf = NULL;
+    uint8_t cmd_depths[128];
+    uint16_t cmd_bits[128];
+    uint8_t cmd_code[512];
+    size_t cmd_code_numbits;
+    if (quality == 0) {
+      InitCommandPrefixCodes(cmd_depths, cmd_bits, cmd_code, &cmd_code_numbits);
+    }
+    uint8_t last_byte;
+    uint8_t last_byte_bits;
+    EncodeWindowBits(lgwin, &last_byte, &last_byte_bits);
+    BrotliBlockReader r(1u << lgwin);
+    int ok = 1;
+    bool is_last = false;
+    while (ok && !is_last) {
+      // Read next block of input.
+      size_t bytes;
+      const uint8_t* data = r.Read(in, &bytes, &is_last);
+      if (data == NULL) {
+        if (!is_last) {
+          ok = 0;
+          break;
+        }
+        assert(bytes == 0);
+      }
+      // Set up output storage.
+      const size_t max_out_size = 2 * bytes + 500;
+      if (storage == NULL) {
+        storage = new uint8_t[max_out_size];
+      }
+      storage[0] = last_byte;
+      size_t storage_ix = last_byte_bits;
+      // Set up hash table.
+      size_t htsize = HashTableSize(MaxHashTableSize(quality), bytes);
+      if (table == NULL) {
+        table = new int[htsize];
+      }
+      memset(table, 0, htsize * sizeof(table[0]));
+      // Set up command and literal buffers for two pass mode.
+      if (quality == 1 && command_buf == NULL) {
+        size_t buf_size = std::min(bytes, kCompressFragmentTwoPassBlockSize);
+        command_buf = new uint32_t[buf_size];
+        literal_buf = new uint8_t[buf_size];
+      }
+      // Do the actual compression.
+      if (quality == 0) {
+        BrotliCompressFragmentFast(data, bytes, is_last, table, htsize,
+                                   cmd_depths, cmd_bits,
+                                   &cmd_code_numbits, cmd_code,
+                                   &storage_ix, storage);
+      } else {
+        BrotliCompressFragmentTwoPass(data, bytes, is_last,
+                                      command_buf, literal_buf,
+                                      table, htsize,
+                                      &storage_ix, storage);
+      }
+      // Save last bytes to stitch it together with the next output block.
+      last_byte = storage[storage_ix >> 3];
+      last_byte_bits = storage_ix & 7u;
+      // Write output block.
+      size_t out_bytes = storage_ix >> 3;
+      if (out_bytes > 0 && !out->Write(storage, out_bytes)) {
+        ok = 0;
+        break;
+      }
+    }
+    delete[] storage;
+    delete[] table;
+    delete[] command_buf;
+    delete[] literal_buf;
+    return ok;
+  }
+
   size_t in_bytes = 0;
   size_t out_bytes = 0;
   uint8_t* output;
