@@ -134,6 +134,12 @@ class BrotliCompressor {
  private:
   uint8_t* GetBrotliStorage(size_t size);
 
+  // Allocates and clears a hash table using memory in "*this",
+  // stores the number of buckets in "*table_size" and returns a pointer to
+  // the base of the hash table.
+  int* GetHashTable(int quality,
+                    size_t input_size, size_t* table_size);
+
   void WriteMetaBlockInternal(const bool is_last,
                               size_t* out_size,
                               uint8_t** output);
@@ -159,6 +165,26 @@ class BrotliCompressor {
   uint8_t prev_byte2_;
   size_t storage_size_;
   uint8_t* storage_;
+  // Hash table for quality 0 mode.
+  int small_table_[1 << 10];  // 2KB
+  int* large_table_;          // Allocated only when needed
+  // Command and distance prefix codes (each 64 symbols, stored back-to-back)
+  // used for the next block in quality 0. The command prefix code is over a
+  // smaller alphabet with the following 64 symbols:
+  //    0 - 15: insert length code 0, copy length code 0 - 15, same distance
+  //   16 - 39: insert length code 0, copy length code 0 - 23
+  //   40 - 63: insert length code 0 - 23, copy length code 0
+  // Note that symbols 16 and 40 represent the same code in the full alphabet,
+  // but we do not use either of them in quality 0.
+  uint8_t cmd_depths_[128];
+  uint16_t cmd_bits_[128];
+  // The compressed form of the command and distance prefix codes for the next
+  // block in quality 0.
+  uint8_t cmd_code_[512];
+  size_t cmd_code_numbits_;
+  // Command and literal buffers for quality 1.
+  uint32_t* command_buf_;
+  uint8_t* literal_buf_;
 };
 
 // Compresses the data in input_buffer into encoded_buffer, and sets

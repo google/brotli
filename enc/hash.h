@@ -144,7 +144,6 @@ class HashLongestMatchQuickly {
       need_init_ = false;
     }
   }
-
   // Look at 4 bytes at data.
   // Compute a hash from these, and store the value somewhere within
   // [ix .. ix+3].
@@ -621,6 +620,7 @@ class HashLongestMatch {
 
   // Buckets containing kBlockSize of backward references.
   uint32_t buckets_[kBucketSize][kBlockSize];
+
   // True if num_ array needs to be initialized.
   bool need_init_;
 
@@ -632,9 +632,8 @@ struct Hashers {
   // For kBucketSweep == 1, enabling the dictionary lookup makes compression
   // a little faster (0.5% - 1%) and it compresses 0.15% better on small text
   // and html inputs.
-  typedef HashLongestMatchQuickly<16, 1, true> H1;
-  typedef HashLongestMatchQuickly<16, 2, false> H2;
-  typedef HashLongestMatchQuickly<16, 4, false> H3;
+  typedef HashLongestMatchQuickly<16, 1, true> H2;
+  typedef HashLongestMatchQuickly<16, 2, false> H3;
   typedef HashLongestMatchQuickly<17, 4, true> H4;
   typedef HashLongestMatch<14, 4, 4> H5;
   typedef HashLongestMatch<14, 5, 4> H6;
@@ -642,11 +641,10 @@ struct Hashers {
   typedef HashLongestMatch<15, 7, 10> H8;
   typedef HashLongestMatch<15, 8, 16> H9;
 
-  Hashers() : hash_h1(0), hash_h2(0), hash_h3(0), hash_h4(0), hash_h5(0),
+  Hashers() : hash_h2(0), hash_h3(0), hash_h4(0), hash_h5(0),
               hash_h6(0), hash_h7(0), hash_h8(0), hash_h9(0) {}
 
   ~Hashers() {
-    delete hash_h1;
     delete hash_h2;
     delete hash_h3;
     delete hash_h4;
@@ -659,7 +657,6 @@ struct Hashers {
 
   void Init(int type) {
     switch (type) {
-      case 1: hash_h1 = new H1; break;
       case 2: hash_h2 = new H2; break;
       case 3: hash_h3 = new H3; break;
       case 4: hash_h4 = new H4; break;
@@ -684,7 +681,6 @@ struct Hashers {
   void PrependCustomDictionary(
       int type, const size_t size, const uint8_t* dict) {
     switch (type) {
-      case 1: WarmupHash(size, dict, hash_h1); break;
       case 2: WarmupHash(size, dict, hash_h2); break;
       case 3: WarmupHash(size, dict, hash_h3); break;
       case 4: WarmupHash(size, dict, hash_h4); break;
@@ -698,7 +694,6 @@ struct Hashers {
   }
 
 
-  H1* hash_h1;
   H2* hash_h2;
   H3* hash_h3;
   H4* hash_h4;

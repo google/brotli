@@ -715,13 +715,6 @@ void CreateBackwardReferences(size_t num_bytes,
   }
 
   switch (hash_type) {
-    case 1:
-      CreateBackwardReferences<Hashers::H1>(
-          num_bytes, position, is_last, ringbuffer, ringbuffer_mask,
-          max_backward_limit, quality, hashers->hash_h1, dist_cache,
-          last_insert_len, commands, num_commands, num_literals);
-      break;
-
     case 2:
       CreateBackwardReferences<Hashers::H2>(
           num_bytes, position, is_last, ringbuffer, ringbuffer_mask,
