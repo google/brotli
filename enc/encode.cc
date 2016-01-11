@@ -439,7 +439,13 @@ void BrotliCompressor::WriteMetaBlockInternal(const bool is_last,
                                 num_direct_distance_codes,
                                 distance_postfix_bits);
     }
-    if (params_.quality < kMinQualityForBlockSplit) {
+    if (params_.quality == 1) {
+      StoreMetaBlockFast(data, WrapPosition(last_flush_pos_),
+                         bytes, mask, is_last,
+                         commands_, num_commands_,
+                         &storage_ix,
+                         &storage[0]);
+    } else if (params_.quality < kMinQualityForBlockSplit) {
       StoreMetaBlockTrivial(data, WrapPosition(last_flush_pos_),
                             bytes, mask, is_last,
                             commands_, num_commands_,

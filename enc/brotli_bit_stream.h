@@ -68,6 +68,14 @@ void BuildAndStoreHuffmanTree(const uint32_t *histogram,
                               size_t* storage_ix,
                               uint8_t* storage);
 
+void BuildAndStoreHuffmanTreeFast(const uint32_t *histogram,
+                                  const size_t histogram_total,
+                                  const size_t max_bits,
+                                  uint8_t* depth,
+                                  uint16_t* bits,
+                                  size_t* storage_ix,
+                                  uint8_t* storage);
+
 // Encodes the given context map to the bit stream. The number of different
 // histogram ids is given by num_clusters.
 void EncodeContextMap(const std::vector<uint32_t>& context_map,
@@ -133,6 +141,20 @@ void StoreMetaBlockTrivial(const uint8_t* input,
                            size_t n_commands,
                            size_t *storage_ix,
                            uint8_t *storage);
+
+// Same as above, but uses static prefix codes for histograms with a only a few
+// symbols, and uses static code length prefix codes for all other histograms.
+// REQUIRES: length > 0
+// REQUIRES: length <= (1 << 24)
+void StoreMetaBlockFast(const uint8_t* input,
+                        size_t start_pos,
+                        size_t length,
+                        size_t mask,
+                        bool is_last,
+                        const brotli::Command *commands,
+                        size_t n_commands,
+                        size_t *storage_ix,
+                        uint8_t *storage);
 
 // This is for storing uncompressed blocks (simple raw storage of
 // bytes-as-bytes).
