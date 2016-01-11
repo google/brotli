@@ -12,6 +12,8 @@
 
 #include "./compress_fragment_two_pass.h"
 
+#include <algorithm>
+
 #include "./brotli_bit_stream.h"
 #include "./bit_cost.h"
 #include "./entropy_encode.h"

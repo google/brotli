@@ -14,6 +14,7 @@
 
 #include "./compress_fragment.h"
 
+#include <algorithm>
 #include <cstring>
 
 #include "./brotli_bit_stream.h"
