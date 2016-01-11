@@ -209,7 +209,7 @@ void Decompresss(FILE* fin, FILE* fout) {
       available_out = kFileBufferSize;
       next_out = output;
     } else {
-      break; /* Error of success. */
+      break; /* Error or success. */
     }
     result = BrotliDecompressStream(&available_in, &next_in,
         &available_out, &next_out, &total_out, &s);
