@@ -117,7 +117,7 @@ class BrotliCompressor {
   // If *out_size is positive, *output points to the start of the output data.
   // If is_last or force_flush is true, an output meta-block is always created.
   // Returns false if the size of the input data is larger than
-  // input_block_size() or if there is no new input data and is_last is false.
+  // input_block_size().
   bool WriteBrotliData(const bool is_last, const bool force_flush,
                        size_t* out_size, uint8_t** output);
 
