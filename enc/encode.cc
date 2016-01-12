@@ -338,12 +338,18 @@ bool BrotliCompressor::WriteBrotliData(const bool is_last,
   const uint8_t* data = ringbuffer_->start();
   const uint32_t mask = ringbuffer_->mask();
 
-  if (delta > input_block_size() || (delta == 0 && !is_last)) {
+  if (delta > input_block_size()) {
     return false;
   }
   const uint32_t bytes = static_cast<uint32_t>(delta);
 
   if (params_.quality <= 1) {
+    if (delta == 0 && !is_last) {
+      // We have no new input data and we don't have to finish the stream, so
+      // nothing to do.
+      *out_size = 0;
+      return true;
+    }
     const size_t max_out_size = 2 * bytes + 500;
     uint8_t* storage = GetBrotliStorage(max_out_size);
     storage[0] = last_byte_;
@@ -379,7 +385,7 @@ bool BrotliCompressor::WriteBrotliData(const bool is_last,
   if (newsize > cmd_alloc_size_) {
     // Reserve a bit more memory to allow merging with a next block
     // without realloc: that would impact speed.
-    newsize += bytes / 4;
+    newsize += (bytes / 4) + 16;
     cmd_alloc_size_ = newsize;
     commands_ =
         static_cast<Command*>(realloc(commands_, sizeof(Command) * newsize));
@@ -522,6 +528,12 @@ void DecideOverLiteralContextModeling(const uint8_t* input,
 void BrotliCompressor::WriteMetaBlockInternal(const bool is_last,
                                               size_t* out_size,
                                               uint8_t** output) {
+  if (!is_last && input_pos_ == last_flush_pos_) {
+    // We have no new input data and we don't have to finish the stream, so
+    // nothing to do.
+    *out_size = 0;
+    return;
+  }
   assert(input_pos_ >= last_flush_pos_);
   assert(input_pos_ > last_flush_pos_ || is_last);
   assert(input_pos_ - last_flush_pos_ <= 1u << 24);
