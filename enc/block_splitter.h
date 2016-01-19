@@ -9,9 +9,7 @@
 #ifndef BROTLI_ENC_BLOCK_SPLITTER_H_
 #define BROTLI_ENC_BLOCK_SPLITTER_H_
 
-#include <string.h>
 #include <vector>
-#include <utility>
 
 #include "./command.h"
 #include "./metablock.h"
@@ -37,9 +35,9 @@ struct BlockSplitIterator {
   }
 
   const BlockSplit& split_;
-  int idx_;
-  int type_;
-  int length_;
+  size_t idx_;
+  size_t type_;
+  size_t length_;
 };
 
 void CopyLiteralsToByteArray(const Command* cmds,
@@ -57,12 +55,6 @@ void SplitBlock(const Command* cmds,
                 BlockSplit* literal_split,
                 BlockSplit* insert_and_copy_split,
                 BlockSplit* dist_split);
-
-void SplitBlockByTotalLength(const Command* all_commands,
-                             const size_t num_commands,
-                             int input_size,
-                             int target_length,
-                             std::vector<std::vector<Command> >* blocks);
 
 }  // namespace brotli
 

@@ -34,9 +34,9 @@ namespace brotli {
 //
 // For n bits, we take the last 5 bits, OR that with high bits in BYTE-0,
 // and locate the rest in BYTE+1, BYTE+2, etc.
-inline void WriteBits(int n_bits,
+inline void WriteBits(size_t n_bits,
                       uint64_t bits,
-                      int * __restrict pos,
+                      size_t * __restrict pos,
                       uint8_t * __restrict array) {
 #ifdef BIT_WRITER_DEBUG
   printf("WriteBits  %2d  0x%016llx  %10d\n", n_bits, bits, *pos);
@@ -57,11 +57,11 @@ inline void WriteBits(int n_bits,
 #else
   // implicit & 0xff is assumed for uint8_t arithmetics
   uint8_t *array_pos = &array[*pos >> 3];
-  const int bits_reserved_in_first_byte = (*pos & 7);
+  const size_t bits_reserved_in_first_byte = (*pos & 7);
   bits <<= bits_reserved_in_first_byte;
   *array_pos++ |= static_cast<uint8_t>(bits);
-  for (int bits_left_to_write = n_bits - 8 + bits_reserved_in_first_byte;
-       bits_left_to_write >= 1;
+  for (size_t bits_left_to_write = n_bits + bits_reserved_in_first_byte;
+       bits_left_to_write >= 9;
        bits_left_to_write -= 8) {
     bits >>= 8;
     *array_pos++ = static_cast<uint8_t>(bits);
@@ -71,7 +71,7 @@ inline void WriteBits(int n_bits,
 #endif
 }
 
-inline void WriteBitsPrepareStorage(int pos, uint8_t *array) {
+inline void WriteBitsPrepareStorage(size_t pos, uint8_t *array) {
 #ifdef BIT_WRITER_DEBUG
   printf("WriteBitsPrepareStorage            %10d\n", pos);
 #endif

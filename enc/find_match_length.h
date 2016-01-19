@@ -18,10 +18,10 @@ namespace brotli {
 // Separate implementation for little-endian 64-bit targets, for speed.
 #if defined(__GNUC__) && defined(_LP64) && defined(IS_LITTLE_ENDIAN)
 
-static inline int FindMatchLengthWithLimit(const uint8_t* s1,
-                                           const uint8_t* s2,
-                                           size_t limit) {
-  int matched = 0;
+static inline size_t FindMatchLengthWithLimit(const uint8_t* s1,
+                                              const uint8_t* s2,
+                                              size_t limit) {
+  size_t matched = 0;
   size_t limit2 = (limit >> 3) + 1;  // + 1 is for pre-decrement in while
   while (PREDICT_TRUE(--limit2)) {
     if (PREDICT_FALSE(BROTLI_UNALIGNED_LOAD64(s2) ==
@@ -31,7 +31,7 @@ static inline int FindMatchLengthWithLimit(const uint8_t* s1,
     } else {
       uint64_t x =
           BROTLI_UNALIGNED_LOAD64(s2) ^ BROTLI_UNALIGNED_LOAD64(s1 + matched);
-      int matching_bits =  __builtin_ctzll(x);
+      size_t matching_bits = static_cast<size_t>(__builtin_ctzll(x));
       matched += matching_bits >> 3;
       return matched;
     }
@@ -48,10 +48,10 @@ static inline int FindMatchLengthWithLimit(const uint8_t* s1,
   return matched;
 }
 #else
-static inline int FindMatchLengthWithLimit(const uint8_t* s1,
-                                           const uint8_t* s2,
-                                           size_t limit) {
-  int matched = 0;
+static inline size_t FindMatchLengthWithLimit(const uint8_t* s1,
+                                             const uint8_t* s2,
+                                             size_t limit) {
+  size_t matched = 0;
   const uint8_t* s2_limit = s2 + limit;
   const uint8_t* s2_ptr = s2;
   // Find out how long the match is. We loop over the data 32 bits at a

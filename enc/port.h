@@ -22,10 +22,9 @@
 /* Let's try and follow the Linux convention */
 #define __BYTE_ORDER  BYTE_ORDER
 #define __LITTLE_ENDIAN LITTLE_ENDIAN
-#define __BIG_ENDIAN BIG_ENDIAN
 #endif
 
-// define the macros IS_LITTLE_ENDIAN or IS_BIG_ENDIAN
+// define the macro IS_LITTLE_ENDIAN
 // using the above endian definitions from endian.h if
 // endian.h was included
 #ifdef __BYTE_ORDER
@@ -33,18 +32,16 @@
 #define IS_LITTLE_ENDIAN
 #endif
 
-#if __BYTE_ORDER == __BIG_ENDIAN
-#define IS_BIG_ENDIAN
-#endif
-
 #else
 
 #if defined(__LITTLE_ENDIAN__)
 #define IS_LITTLE_ENDIAN
-#elif defined(__BIG_ENDIAN__)
-#define IS_BIG_ENDIAN
 #endif
 #endif  // __BYTE_ORDER
+
+#if defined(__BYTE_ORDER__) && (__BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__)
+#define IS_LITTLE_ENDIAN
+#endif
 
 // Enable little-endian optimization for x64 architecture on Windows.
 #if (defined(_WIN32) || defined(_WIN64)) && defined(_M_X64)
@@ -69,8 +66,8 @@
 // On some platforms, like ARM, the copy functions can be more efficient
 // then a load and a store.
 
-#if defined(ARCH_PIII) || defined(ARCH_ATHLON) || \
-  defined(ARCH_K8) || defined(_ARCH_PPC)
+#if defined(ARCH_PIII) || \
+  defined(ARCH_ATHLON) || defined(ARCH_K8) || defined(_ARCH_PPC)
 
 // x86 and x86-64 can perform unaligned loads/stores directly;
 // modern PowerPC hardware can also do unaligned integer loads and stores;
@@ -140,12 +137,6 @@ inline void BROTLI_UNALIGNED_STORE64(void *p, uint64_t v) {
   memcpy(p, &v, sizeof v);
 }
 
-#endif
-
-#ifdef BROTLI_ENCODE_DEBUG
-#define BROTLI_DCHECK(x) assert(x)
-#else
-#define BROTLI_DCHECK(x)
 #endif
 
 #endif  // BROTLI_ENC_PORT_H_

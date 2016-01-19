@@ -17,29 +17,29 @@
 
 namespace brotli {
 
-static int UTF8Position(int last, int c, int clamp) {
+static size_t UTF8Position(size_t last, size_t c, size_t clamp) {
   if (c < 128) {
     return 0;  // Next one is the 'Byte 1' again.
-  } else if (c >= 192) {
-    return std::min(1, clamp);  // Next one is the 'Byte 2' of utf-8 encoding.
+  } else if (c >= 192) {  // Next one is the 'Byte 2' of utf-8 encoding.
+    return std::min<size_t>(1, clamp);
   } else {
     // Let's decide over the last byte if this ends the sequence.
     if (last < 0xe0) {
       return 0;  // Completed two or three byte coding.
-    } else {
-      return std::min(2, clamp);  // Next one is the 'Byte 3' of utf-8 encoding.
+    } else {  // Next one is the 'Byte 3' of utf-8 encoding.
+      return std::min<size_t>(2, clamp);
     }
   }
 }
 
-static int DecideMultiByteStatsLevel(size_t pos, size_t len, size_t mask,
-                                     const uint8_t *data) {
-  int counts[3] = { 0 };
-  int max_utf8 = 1;  // should be 2, but 1 compresses better.
-  int last_c = 0;
-  int utf8_pos = 0;
+static size_t DecideMultiByteStatsLevel(size_t pos, size_t len, size_t mask,
+                                        const uint8_t *data) {
+  size_t counts[3] = { 0 };
+  size_t max_utf8 = 1;  // should be 2, but 1 compresses better.
+  size_t last_c = 0;
+  size_t utf8_pos = 0;
   for (size_t i = 0; i < len; ++i) {
-    int c = data[(pos + i) & mask];
+    size_t c = data[(pos + i) & mask];
     utf8_pos = UTF8Position(last_c, c, 2);
     ++counts[utf8_pos];
     last_c = c;
@@ -58,17 +58,17 @@ void EstimateBitCostsForLiteralsUTF8(size_t pos, size_t len, size_t mask,
 
   // max_utf8 is 0 (normal ascii single byte modeling),
   // 1 (for 2-byte utf-8 modeling), or 2 (for 3-byte utf-8 modeling).
-  const int max_utf8 = DecideMultiByteStatsLevel(pos, len, mask, data);
-  int histogram[3][256] = { { 0 } };
-  int window_half = 495;
-  int in_window = std::min(window_half, static_cast<int>(len));
-  int in_window_utf8[3] = { 0 };
+  const size_t max_utf8 = DecideMultiByteStatsLevel(pos, len, mask, data);
+  size_t histogram[3][256] = { { 0 } };
+  size_t window_half = 495;
+  size_t in_window = std::min(window_half, len);
+  size_t in_window_utf8[3] = { 0 };
 
   // Bootstrap histograms.
-  int last_c = 0;
-  int utf8_pos = 0;
-  for (int i = 0; i < in_window; ++i) {
-    int c = data[(pos + i) & mask];
+  size_t last_c = 0;
+  size_t utf8_pos = 0;
+  for (size_t i = 0; i < in_window; ++i) {
+    size_t c = data[(pos + i) & mask];
     ++histogram[utf8_pos][c];
     ++in_window_utf8[utf8_pos];
     utf8_pos = UTF8Position(last_c, c, max_utf8);
@@ -76,30 +76,30 @@ void EstimateBitCostsForLiteralsUTF8(size_t pos, size_t len, size_t mask,
   }
 
   // Compute bit costs with sliding window.
-  for (int i = 0; i < static_cast<int>(len); ++i) {
-    if (i - window_half >= 0) {
+  for (size_t i = 0; i < len; ++i) {
+    if (i >= window_half) {
       // Remove a byte in the past.
-      int c = (i - window_half - 1) < 0 ?
+      size_t c = i < window_half + 1 ?
           0 : data[(pos + i - window_half - 1) & mask];
-      int last_c = (i - window_half - 2) < 0 ?
+      size_t last_c = i < window_half + 2 ?
           0 : data[(pos + i - window_half - 2) & mask];
-      int utf8_pos2 = UTF8Position(last_c, c, max_utf8);
+      size_t utf8_pos2 = UTF8Position(last_c, c, max_utf8);
       --histogram[utf8_pos2][data[(pos + i - window_half) & mask]];
       --in_window_utf8[utf8_pos2];
     }
-    if (i + window_half < static_cast<int>(len)) {
+    if (i + window_half < len) {
       // Add a byte in the future.
-      int c = data[(pos + i + window_half - 1) & mask];
-      int last_c = data[(pos + i + window_half - 2) & mask];
-      int utf8_pos2 = UTF8Position(last_c, c, max_utf8);
+      size_t c = data[(pos + i + window_half - 1) & mask];
+      size_t last_c = data[(pos + i + window_half - 2) & mask];
+      size_t utf8_pos2 = UTF8Position(last_c, c, max_utf8);
       ++histogram[utf8_pos2][data[(pos + i + window_half) & mask]];
       ++in_window_utf8[utf8_pos2];
     }
-    int c = i < 1 ? 0 : data[(pos + i - 1) & mask];
-    int last_c = i < 2 ? 0 : data[(pos + i - 2) & mask];
-    int utf8_pos = UTF8Position(last_c, c, max_utf8);
+    size_t c = i < 1 ? 0 : data[(pos + i - 1) & mask];
+    size_t last_c = i < 2 ? 0 : data[(pos + i - 2) & mask];
+    size_t utf8_pos = UTF8Position(last_c, c, max_utf8);
     size_t masked_pos = (pos + i) & mask;
-    int histo = histogram[utf8_pos][data[masked_pos]];
+    size_t histo = histogram[utf8_pos][data[masked_pos]];
     if (histo == 0) {
       histo = 1;
     }
@@ -114,7 +114,7 @@ void EstimateBitCostsForLiteralsUTF8(size_t pos, size_t len, size_t mask,
     // rapidly in the beginning of the file, perhaps because the beginning
     // of the data is a statistical "anomaly".
     if (i < 2000) {
-      lit_cost += 0.7 - ((2000 - i) / 2000.0 * 0.35);
+      lit_cost += 0.7 - (static_cast<double>(2000 - i) / 2000.0 * 0.35);
     }
     cost[i] = static_cast<float>(lit_cost);
   }
@@ -126,28 +126,28 @@ void EstimateBitCostsForLiterals(size_t pos, size_t len, size_t mask,
     EstimateBitCostsForLiteralsUTF8(pos, len, mask, data, cost);
     return;
   }
-  int histogram[256] = { 0 };
-  int window_half = 2000;
-  int in_window = std::min(window_half, static_cast<int>(len));
+  size_t histogram[256] = { 0 };
+  size_t window_half = 2000;
+  size_t in_window = std::min(window_half, len);
 
   // Bootstrap histogram.
-  for (int i = 0; i < in_window; ++i) {
+  for (size_t i = 0; i < in_window; ++i) {
     ++histogram[data[(pos + i) & mask]];
   }
 
   // Compute bit costs with sliding window.
-  for (int i = 0; i < static_cast<int>(len); ++i) {
-    if (i - window_half >= 0) {
+  for (size_t i = 0; i < len; ++i) {
+    if (i >= window_half) {
       // Remove a byte in the past.
       --histogram[data[(pos + i - window_half) & mask]];
       --in_window;
     }
-    if (i + window_half < static_cast<int>(len)) {
+    if (i + window_half < len) {
       // Add a byte in the future.
       ++histogram[data[(pos + i + window_half) & mask]];
       ++in_window;
     }
-    int histo = histogram[data[(pos + i) & mask]];
+    size_t histo = histogram[data[(pos + i) & mask]];
     if (histo == 0) {
       histo = 1;
     }

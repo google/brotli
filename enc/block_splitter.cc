@@ -10,11 +10,9 @@
 
 #include <assert.h>
 #include <math.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 
 #include <algorithm>
+#include <cstring>
 #include <map>
 
 #include "./cluster.h"
@@ -24,19 +22,19 @@
 
 namespace brotli {
 
-static const int kMaxLiteralHistograms = 100;
-static const int kMaxCommandHistograms = 50;
+static const size_t kMaxLiteralHistograms = 100;
+static const size_t kMaxCommandHistograms = 50;
 static const double kLiteralBlockSwitchCost = 28.1;
 static const double kCommandBlockSwitchCost = 13.5;
 static const double kDistanceBlockSwitchCost = 14.6;
-static const int kLiteralStrideLength = 70;
-static const int kCommandStrideLength = 40;
-static const int kSymbolsPerLiteralHistogram = 544;
-static const int kSymbolsPerCommandHistogram = 530;
-static const int kSymbolsPerDistanceHistogram = 544;
-static const int kMinLengthForBlockSplitting = 128;
-static const int kIterMulForRefining = 2;
-static const int kMinItersForRefining = 100;
+static const size_t kLiteralStrideLength = 70;
+static const size_t kCommandStrideLength = 40;
+static const size_t kSymbolsPerLiteralHistogram = 544;
+static const size_t kSymbolsPerCommandHistogram = 530;
+static const size_t kSymbolsPerDistanceHistogram = 544;
+static const size_t kMinLengthForBlockSplitting = 128;
+static const size_t kIterMulForRefining = 2;
+static const size_t kMinItersForRefining = 100;
 
 void CopyLiteralsToByteArray(const Command* cmds,
                              const size_t num_commands,
@@ -99,17 +97,17 @@ inline static unsigned int MyRand(unsigned int* seed) {
 
 template<typename HistogramType, typename DataType>
 void InitialEntropyCodes(const DataType* data, size_t length,
-                         int literals_per_histogram,
-                         int max_histograms,
+                         size_t literals_per_histogram,
+                         size_t max_histograms,
                          size_t stride,
                          std::vector<HistogramType>* vec) {
-  int total_histograms = static_cast<int>(length) / literals_per_histogram + 1;
+  size_t total_histograms = length / literals_per_histogram + 1;
   if (total_histograms > max_histograms) {
     total_histograms = max_histograms;
   }
   unsigned int seed = 7;
   size_t block_length = length / total_histograms;
-  for (int i = 0; i < total_histograms; ++i) {
+  for (size_t i = 0; i < total_histograms; ++i) {
     size_t pos = length * i / total_histograms;
     if (i != 0) {
       pos += MyRand(&seed) % block_length;
@@ -155,8 +153,8 @@ void RefineEntropyCodes(const DataType* data, size_t length,
   }
 }
 
-inline static double BitCost(int count) {
-  return count == 0 ? -2 : FastLog2(count);
+inline static double BitCost(size_t count) {
+  return count == 0 ? -2.0 : FastLog2(count);
 }
 
 template<typename DataType, int kSize>
@@ -170,15 +168,16 @@ void FindBlocks(const DataType* data, const size_t length,
     }
     return;
   }
-  int vecsize = static_cast<int>(vec.size());
+  size_t vecsize = vec.size();
   assert(vecsize <= 256);
   double* insert_cost = new double[kSize * vecsize];
   memset(insert_cost, 0, sizeof(insert_cost[0]) * kSize * vecsize);
-  for (int j = 0; j < vecsize; ++j) {
-    insert_cost[j] = FastLog2(vec[j].total_count_);
+  for (size_t j = 0; j < vecsize; ++j) {
+    insert_cost[j] = FastLog2(static_cast<uint32_t>(vec[j].total_count_));
   }
-  for (int i = kSize - 1; i >= 0; --i) {
-    for (int j = 0; j < vecsize; ++j) {
+  for (size_t i = kSize; i != 0;) {
+    --i;
+    for (size_t j = 0; j < vecsize; ++j) {
       insert_cost[i * vecsize + j] = insert_cost[j] - BitCost(vec[j].data_[i]);
     }
   }
@@ -194,9 +193,9 @@ void FindBlocks(const DataType* data, const size_t length,
   // position, we need to switch here.
   for (size_t byte_ix = 0; byte_ix < length; ++byte_ix) {
     size_t ix = byte_ix * vecsize;
-    int insert_cost_ix = data[byte_ix] * vecsize;
+    size_t insert_cost_ix = data[byte_ix] * vecsize;
     double min_cost = 1e99;
-    for (int k = 0; k < vecsize; ++k) {
+    for (size_t k = 0; k < vecsize; ++k) {
       // We are coding the symbol in data[byte_ix] with entropy code k.
       cost[k] += insert_cost[insert_cost_ix + k];
       if (cost[k] < min_cost) {
@@ -207,9 +206,9 @@ void FindBlocks(const DataType* data, const size_t length,
     double block_switch_cost = block_switch_bitcost;
     // More blocks for the beginning.
     if (byte_ix < 2000) {
-      block_switch_cost *= 0.77 + 0.07 * byte_ix / 2000;
+      block_switch_cost *= 0.77 + 0.07 * static_cast<double>(byte_ix) / 2000;
     }
-    for (int k = 0; k < vecsize; ++k) {
+    for (size_t k = 0; k < vecsize; ++k) {
       cost[k] -= min_cost;
       if (cost[k] >= block_switch_cost) {
         cost[k] = block_switch_cost;
@@ -234,9 +233,9 @@ void FindBlocks(const DataType* data, const size_t length,
   delete[] switch_signal;
 }
 
-int RemapBlockIds(uint8_t* block_ids, const size_t length) {
+size_t RemapBlockIds(uint8_t* block_ids, const size_t length) {
   std::map<uint8_t, uint8_t> new_id;
-  int next_id = 0;
+  size_t next_id = 0;
   for (size_t i = 0; i < length; ++i) {
     if (new_id.find(block_ids[i]) == new_id.end()) {
       new_id[block_ids[i]] = static_cast<uint8_t>(next_id);
@@ -253,7 +252,7 @@ template<typename HistogramType, typename DataType>
 void BuildBlockHistograms(const DataType* data, const size_t length,
                           uint8_t* block_ids,
                           std::vector<HistogramType>* histograms) {
-  int num_types = RemapBlockIds(block_ids, length);
+  size_t num_types = RemapBlockIds(block_ids, length);
   assert(num_types <= 256);
   histograms->clear();
   histograms->resize(num_types);
@@ -266,8 +265,8 @@ template<typename HistogramType, typename DataType>
 void ClusterBlocks(const DataType* data, const size_t length,
                    uint8_t* block_ids) {
   std::vector<HistogramType> histograms;
-  std::vector<int> block_index(length);
-  int cur_idx = 0;
+  std::vector<uint32_t> block_index(length);
+  uint32_t cur_idx = 0;
   HistogramType cur_histogram;
   for (size_t i = 0; i < length; ++i) {
     bool block_boundary = (i + 1 == length || block_ids[i] != block_ids[i + 1]);
@@ -280,10 +279,10 @@ void ClusterBlocks(const DataType* data, const size_t length,
     }
   }
   std::vector<HistogramType> clustered_histograms;
-  std::vector<int> histogram_symbols;
+  std::vector<uint32_t> histogram_symbols;
   // Block ids need to fit in one byte.
   static const size_t kMaxNumberOfBlockTypes = 256;
-  ClusterHistograms(histograms, 1, static_cast<int>(histograms.size()),
+  ClusterHistograms(histograms, 1, histograms.size(),
                     kMaxNumberOfBlockTypes,
                     &clustered_histograms,
                     &histogram_symbols);
@@ -293,30 +292,30 @@ void ClusterBlocks(const DataType* data, const size_t length,
 }
 
 void BuildBlockSplit(const std::vector<uint8_t>& block_ids, BlockSplit* split) {
-  int cur_id = block_ids[0];
-  int cur_length = 1;
-  split->num_types = -1;
+  uint8_t cur_id = block_ids[0];
+  uint8_t max_type = cur_id;
+  uint32_t cur_length = 1;
   for (size_t i = 1; i < block_ids.size(); ++i) {
-    if (block_ids[i] != cur_id) {
+    uint8_t next_id = block_ids[i];
+    if (next_id != cur_id) {
       split->types.push_back(cur_id);
       split->lengths.push_back(cur_length);
-      split->num_types = std::max(split->num_types, cur_id);
-      cur_id = block_ids[i];
+      max_type = std::max(max_type, next_id);
+      cur_id = next_id;
       cur_length = 0;
     }
     ++cur_length;
   }
   split->types.push_back(cur_id);
   split->lengths.push_back(cur_length);
-  split->num_types = std::max(split->num_types, cur_id);
-  ++split->num_types;
+  split->num_types = static_cast<size_t>(max_type) + 1;
 }
 
 template<typename HistogramType, typename DataType>
 void SplitByteVector(const std::vector<DataType>& data,
-                     const int literals_per_histogram,
-                     const int max_histograms,
-                     const int sampling_stride_length,
+                     const size_t literals_per_histogram,
+                     const size_t max_histograms,
+                     const size_t sampling_stride_length,
                      const double block_switch_cost,
                      BlockSplit* split) {
   if (data.empty()) {
@@ -325,7 +324,7 @@ void SplitByteVector(const std::vector<DataType>& data,
   } else if (data.size() < kMinLengthForBlockSplitting) {
     split->num_types = 1;
     split->types.push_back(0);
-    split->lengths.push_back(static_cast<int>(data.size()));
+    split->lengths.push_back(static_cast<uint32_t>(data.size()));
     return;
   }
   std::vector<HistogramType> histograms;
@@ -340,7 +339,7 @@ void SplitByteVector(const std::vector<DataType>& data,
                      &histograms);
   // Find a good path through literals with the good entropy codes.
   std::vector<uint8_t> block_ids(data.size());
-  for (int i = 0; i < 10; ++i) {
+  for (size_t i = 0; i < 10; ++i) {
     FindBlocks(&data[0], data.size(),
                block_switch_cost,
                histograms,
@@ -385,29 +384,6 @@ void SplitBlock(const Command* cmds,
       kSymbolsPerDistanceHistogram, kMaxCommandHistograms,
       kCommandStrideLength, kDistanceBlockSwitchCost,
       dist_split);
-}
-
-void SplitBlockByTotalLength(const Command* all_commands,
-                             const size_t num_commands,
-                             int input_size,
-                             int target_length,
-                             std::vector<std::vector<Command> >* blocks) {
-  int num_blocks = input_size / target_length + 1;
-  int length_limit = input_size / num_blocks + 1;
-  int total_length = 0;
-  std::vector<Command> cur_block;
-  for (size_t i = 0; i < num_commands; ++i) {
-    const Command& cmd = all_commands[i];
-    int cmd_length = cmd.insert_len_ + cmd.copy_len_;
-    if (total_length > length_limit) {
-      blocks->push_back(cur_block);
-      cur_block.clear();
-      total_length = 0;
-    }
-    cur_block.push_back(cmd);
-    total_length += cmd_length;
-  }
-  blocks->push_back(cur_block);
 }
 
 }  // namespace brotli

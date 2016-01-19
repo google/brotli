@@ -115,9 +115,9 @@ class BrotliCompressor {
   // the new output meta-block, or to zero if no new output meta-block was
   // created (in this case the processed input data is buffered internally).
   // If *out_size is positive, *output points to the start of the output data.
-  // Returns false if the size of the input data is larger than
-  // input_block_size() or if there was an error during writing the output.
   // If is_last or force_flush is true, an output meta-block is always created.
+  // Returns false if the size of the input data is larger than
+  // input_block_size().
   bool WriteBrotliData(const bool is_last, const bool force_flush,
                        size_t* out_size, uint8_t** output);
 
@@ -134,23 +134,29 @@ class BrotliCompressor {
  private:
   uint8_t* GetBrotliStorage(size_t size);
 
-  bool WriteMetaBlockInternal(const bool is_last,
+  // Allocates and clears a hash table using memory in "*this",
+  // stores the number of buckets in "*table_size" and returns a pointer to
+  // the base of the hash table.
+  int* GetHashTable(int quality,
+                    size_t input_size, size_t* table_size);
+
+  void WriteMetaBlockInternal(const bool is_last,
                               size_t* out_size,
                               uint8_t** output);
 
   BrotliParams params_;
-  int max_backward_distance_;
+  size_t max_backward_distance_;
   Hashers* hashers_;
   int hash_type_;
-  size_t input_pos_;
+  uint64_t input_pos_;
   RingBuffer* ringbuffer_;
   size_t cmd_alloc_size_;
   Command* commands_;
   size_t num_commands_;
-  int num_literals_;
-  int last_insert_len_;
-  size_t last_flush_pos_;
-  size_t last_processed_pos_;
+  size_t num_literals_;
+  size_t last_insert_len_;
+  uint64_t last_flush_pos_;
+  uint64_t last_processed_pos_;
   int dist_cache_[4];
   int saved_dist_cache_[4];
   uint8_t last_byte_;
@@ -159,6 +165,26 @@ class BrotliCompressor {
   uint8_t prev_byte2_;
   size_t storage_size_;
   uint8_t* storage_;
+  // Hash table for quality 0 mode.
+  int small_table_[1 << 10];  // 2KB
+  int* large_table_;          // Allocated only when needed
+  // Command and distance prefix codes (each 64 symbols, stored back-to-back)
+  // used for the next block in quality 0. The command prefix code is over a
+  // smaller alphabet with the following 64 symbols:
+  //    0 - 15: insert length code 0, copy length code 0 - 15, same distance
+  //   16 - 39: insert length code 0, copy length code 0 - 23
+  //   40 - 63: insert length code 0 - 23, copy length code 0
+  // Note that symbols 16 and 40 represent the same code in the full alphabet,
+  // but we do not use either of them in quality 0.
+  uint8_t cmd_depths_[128];
+  uint16_t cmd_bits_[128];
+  // The compressed form of the command and distance prefix codes for the next
+  // block in quality 0.
+  uint8_t cmd_code_[512];
+  size_t cmd_code_numbits_;
+  // Command and literal buffers for quality 1.
+  uint32_t* command_buf_;
+  uint8_t* literal_buf_;
 };
 
 // Compresses the data in input_buffer into encoded_buffer, and sets
