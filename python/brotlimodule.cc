@@ -191,7 +191,7 @@ static PyObject* brotli_decompress(PyObject *self, PyObject *args) {
                                     &total_out, &state);
     size_t used_out = kBufferSize - available_out;
     if (used_out != 0)
-      output->insert(output->end(), buffer, buffer + used_out);
+      output.insert(output.end(), buffer, buffer + used_out);
   }
   ok = result == BROTLI_RESULT_SUCCESS;
   if (ok) {
