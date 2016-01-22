@@ -9,8 +9,8 @@
 #ifndef BROTLI_DEC_BIT_READER_H_
 #define BROTLI_DEC_BIT_READER_H_
 
-#include <stdio.h>
-#include <string.h>
+#include <string.h>  /* memcpy */
+
 #include "./port.h"
 #include "./types.h"
 
@@ -283,7 +283,11 @@ static BROTLI_INLINE void BrotliBitReaderUnload(BrotliBitReader* br) {
   uint32_t unused_bits = unused_bytes << 3;
   br->avail_in += unused_bytes;
   br->next_in -= unused_bytes;
-  br->val_ <<= unused_bits;
+  if (unused_bits == sizeof(br->val_) << 3) {
+    br->val_ = 0;
+  } else {
+    br->val_ <<= unused_bits;
+  }
   br->bit_pos_ += unused_bits;
 }
 
@@ -349,9 +353,7 @@ static BROTLI_INLINE int BrotliJumpToByteBoundary(BrotliBitReader* br) {
 static BROTLI_INLINE int BrotliPeekByte(BrotliBitReader* br, size_t offset) {
   uint32_t available_bits = BrotliGetAvailableBits(br);
   size_t bytes_left = available_bits >> 3;
-  if (available_bits & 7) {
-    return -1;
-  }
+  BROTLI_DCHECK((available_bits & 7) == 0);
   if (offset < bytes_left) {
     return (BrotliGetBitsUnmasked(br) >> (unsigned)(offset << 3)) & 0xFF;
   }
