@@ -150,12 +150,6 @@ static PyObject* brotli_compress(PyObject *self, PyObject *args, PyObject *keywd
   return ret;
 }
 
-int output_callback(void* data, const uint8_t* buf, size_t count) {
-  std::vector<uint8_t> *output = (std::vector<uint8_t> *)data;
-  output->insert(output->end(), buf, buf + count);
-  return (int)count;
-}
-
 PyDoc_STRVAR(decompress__doc__,
 "Decompress a compressed byte string.\n"
 "\n"
@@ -181,20 +175,33 @@ static PyObject* brotli_decompress(PyObject *self, PyObject *args) {
   if (!ok)
     return NULL;
 
-  BrotliMemInput memin;
-  BrotliInput in = BrotliInitMemInput(input, length, &memin);
-
-  BrotliOutput out;
   std::vector<uint8_t> output;
-  out.cb_ = &output_callback;
-  out.data_ = &output;
-
-  ok = BrotliDecompress(in, out);
+  const size_t kBufferSize = 65536;
+  uint8_t* buffer = new uint8_t[kBufferSize];
+  BrotliState state;
+  BrotliStateInit(&state);
+  
+  BrotliResult result = BROTLI_RESULT_NEEDS_MORE_OUTPUT;
+  while (result == BROTLI_RESULT_NEEDS_MORE_OUTPUT) {
+    size_t available_out = kBufferSize;
+    uint8_t* next_out = buffer;
+    size_t total_out = 0;
+    result = BrotliDecompressStream(&length, &input,
+                                    &available_out, &next_out,
+                                    &total_out, &state);
+    size_t used_out = kBufferSize - available_out;
+    if (used_out != 0)
+      output->insert(output->end(), buffer, buffer + used_out);
+  }
+  ok = result == BROTLI_RESULT_SUCCESS;
   if (ok) {
     ret = PyBytes_FromStringAndSize((char*)(output.size() ? &output[0] : NULL), output.size());
   } else {
     PyErr_SetString(BrotliError, "BrotliDecompress failed");
   }
+  
+  BrotliStateCleanup(&state);
+  delete[] buffer;
 
   return ret;
 }
