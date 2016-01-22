@@ -167,7 +167,7 @@ PyDoc_STRVAR(decompress__doc__,
 
 static PyObject* brotli_decompress(PyObject *self, PyObject *args) {
   PyObject *ret = NULL;
-  uint8_t *input;
+  const uint8_t *input;
   size_t length;
   int ok;
 
