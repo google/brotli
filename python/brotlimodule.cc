@@ -29,10 +29,15 @@ static int mode_convertor(PyObject *o, BrotliParams::Mode *mode) {
     return 0;
   }
 
-  if (!as_uint8(o, mode) ||
-      (*mode != BrotliParams::MODE_GENERIC &&
-       *mode != BrotliParams::MODE_TEXT &&
-       *mode != BrotliParams::MODE_FONT)) {
+  int mode_value = -1;
+  if (!as_uint8(o, mode_value)) {
+    PyErr_SetString(BrotliError, "Invalid mode");
+    return 0;
+  }
+  *mode = (BrotliParams) mode_value;
+  if (*mode != BrotliParams::MODE_GENERIC &&
+      *mode != BrotliParams::MODE_TEXT &&
+      *mode != BrotliParams::MODE_FONT) {
     PyErr_SetString(BrotliError, "Invalid mode");
     return 0;
   }
