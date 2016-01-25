@@ -4,11 +4,12 @@
    See file LICENSE for detail or copy at https://opensource.org/licenses/MIT
 */
 
-#include "./huffman.h"
 #include "./state.h"
 
-#include <stdlib.h>
-#include <string.h>
+#include <stdlib.h>  /* free, malloc */
+
+#include "./huffman.h"
+#include "./types.h"
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
@@ -94,13 +95,6 @@ void BrotliStateInitWithCustomAllocators(BrotliState* s,
   s->symbol_lists = &s->symbols_lists_array[BROTLI_HUFFMAN_MAX_CODE_LENGTH + 1];
 
   s->mtf_upper_bound = 255;
-
-  s->legacy_input_buffer = 0;
-  s->legacy_output_buffer = 0;
-  s->legacy_input_len = 0;
-  s->legacy_output_len = 0;
-  s->legacy_input_pos = 0;
-  s->legacy_output_pos = 0;
 }
 
 void BrotliStateMetablockBegin(BrotliState* s) {
@@ -150,8 +144,6 @@ void BrotliStateCleanup(BrotliState* s) {
 
   BROTLI_FREE(s, s->ringbuffer);
   BROTLI_FREE(s, s->block_type_trees);
-  BROTLI_FREE(s, s->legacy_input_buffer);
-  BROTLI_FREE(s, s->legacy_output_buffer);
 }
 
 int BrotliStateIsStreamStart(const BrotliState* s) {
@@ -166,9 +158,9 @@ int BrotliStateIsStreamEnd(const BrotliState* s) {
 void BrotliHuffmanTreeGroupInit(BrotliState* s, HuffmanTreeGroup* group,
     uint32_t alphabet_size, uint32_t ntrees) {
   /* Pack two allocations into one */
-  const size_t code_size =
-      sizeof(HuffmanCode) * (size_t)(ntrees * BROTLI_HUFFMAN_MAX_TABLE_SIZE);
-  const size_t htree_size = sizeof(HuffmanCode*) * (size_t)ntrees;
+  const size_t max_table_size = kMaxHuffmanTableSize[(alphabet_size + 31) >> 5];
+  const size_t code_size = sizeof(HuffmanCode) * ntrees * max_table_size;
+  const size_t htree_size = sizeof(HuffmanCode*) * ntrees;
   char *p = (char*)BROTLI_ALLOC(s, code_size + htree_size);
   group->alphabet_size = (uint16_t)alphabet_size;
   group->num_htrees = (uint16_t)ntrees;

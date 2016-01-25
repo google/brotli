@@ -9,8 +9,6 @@
 #ifndef BROTLI_DEC_TRANSFORM_H_
 #define BROTLI_DEC_TRANSFORM_H_
 
-#include <stdio.h>
-#include <ctype.h>
 #include "./port.h"
 #include "./types.h"
 
@@ -269,22 +267,19 @@ static BROTLI_NOINLINE int TransformDictionaryWord(
   }
   {
     const int t = kTransforms[transform].transform;
-    int skip = t < kOmitFirst1 ? 0 : t - (kOmitFirst1 - 1);
     int i = 0;
-    uint8_t* uppercase;
-    if (skip > len) {
-      skip = len;
-    }
-    word += skip;
-    len -= skip;
-    if (t <= kOmitLast9) {
+    int skip = t - (kOmitFirst1 - 1);
+    if (skip > 0) {
+      word += skip;
+      len -= skip;
+    } else if (t <= kOmitLast9) {
       len -= t;
     }
     while (i < len) { dst[idx++] = word[i++]; }
-    uppercase = &dst[idx - len];
     if (t == kUppercaseFirst) {
-      ToUpperCase(uppercase);
+      ToUpperCase(&dst[idx - len]);
     } else if (t == kUppercaseAll) {
+      uint8_t* uppercase = &dst[idx - len];
       while (len > 0) {
         int step = ToUpperCase(uppercase);
         uppercase += step;

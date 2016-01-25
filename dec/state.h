@@ -9,7 +9,6 @@
 #ifndef BROTLI_DEC_STATE_H_
 #define BROTLI_DEC_STATE_H_
 
-#include <stdio.h>
 #include "./bit_reader.h"
 #include "./huffman.h"
 #include "./types.h"
@@ -95,6 +94,10 @@ typedef enum {
 
 struct BrotliStateStruct {
   BrotliRunningState state;
+
+  /* This counter is reused for several disjoint loops. */
+  int loop_counter;
+
   BrotliBitReader br;
 
   brotli_alloc_func alloc_func;
@@ -108,8 +111,6 @@ struct BrotliStateStruct {
   } buffer;
   uint32_t buffer_length;
 
-  /* This counter is reused for several disjoint loops. */
-  int loop_counter;
   int pos;
   int max_backward_distance;
   int max_backward_distance_minus_custom_dict_size;
@@ -188,7 +189,7 @@ struct BrotliStateStruct {
   uint32_t context_index;
   uint32_t max_run_length_prefix;
   uint32_t code;
-  HuffmanCode context_map_table[BROTLI_HUFFMAN_MAX_TABLE_SIZE];
+  HuffmanCode context_map_table[BROTLI_HUFFMAN_MAX_SIZE_272];
 
   /* For InverseMoveToFrontTransform */
   uint32_t mtf_upper_bound;
@@ -217,13 +218,6 @@ struct BrotliStateStruct {
   uint32_t num_literal_htrees;
   uint8_t* context_map;
   uint8_t* context_modes;
-
-  uint8_t* legacy_input_buffer;
-  uint8_t* legacy_output_buffer;
-  size_t legacy_input_len;
-  size_t legacy_output_len;
-  size_t legacy_input_pos;
-  size_t legacy_output_pos;
 };
 
 typedef struct BrotliStateStruct BrotliState;

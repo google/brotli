@@ -17,7 +17,7 @@ extern "C" {
 
 extern const uint8_t kBrotliDictionary[122784];
 
-static const int kBrotliDictionaryOffsetsByLength[] = {
+static const uint32_t kBrotliDictionaryOffsetsByLength[] = {
      0,     0,     0,     0,     0,  4096,  9216, 21504, 35840, 44032,
  53248, 63488, 74752, 87040, 93696, 100864, 104704, 106752, 108928, 113536,
  115968, 118528, 119872, 121280, 122016,

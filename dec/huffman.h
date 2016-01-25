@@ -20,9 +20,14 @@ extern "C" {
 /* For current format this constant equals to kNumInsertAndCopyCodes */
 #define BROTLI_HUFFMAN_MAX_CODE_LENGTHS_SIZE 704
 
-/* Maximum possible Huffman table size for an alphabet size of 704, max code
- * length 15 and root table bits 8. */
-#define BROTLI_HUFFMAN_MAX_TABLE_SIZE 1080
+/* Maximum possible Huffman table size for an alphabet size of (index * 32),
+ * max code length 15 and root table bits 8. */
+static const uint16_t kMaxHuffmanTableSize[] = {
+  256, 402, 436, 468, 500, 534, 566, 598, 630, 662, 694, 726, 758, 790, 822,
+  854, 886, 920, 952, 984, 1016, 1048, 1080};
+#define BROTLI_HUFFMAN_MAX_SIZE_26 396
+#define BROTLI_HUFFMAN_MAX_SIZE_258 632
+#define BROTLI_HUFFMAN_MAX_SIZE_272 646
 
 #define BROTLI_HUFFMAN_MAX_CODE_LENGTH_CODE_LENGTH 5
 
