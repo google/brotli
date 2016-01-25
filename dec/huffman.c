@@ -6,11 +6,12 @@
 
 /* Utilities for building Huffman decoding tables. */
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
 #include "./huffman.h"
+
+#include <string.h>  /* memcpy, memset */
+
 #include "./port.h"
+#include "./types.h"
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
@@ -237,7 +238,7 @@ uint32_t BrotliBuildHuffmanTable(HuffmanCode* root_table,
   for (len = root_bits + 1, step = 2; len <= max_length; ++len) {
     symbol = len - (BROTLI_HUFFMAN_MAX_CODE_LENGTH + 1);
     for (; count[len] != 0; --count[len]) {
-      if (sub_key == (uint32_t)(BROTLI_REVERSE_BITS_LOWEST << 1)) {
+      if (sub_key == (BROTLI_REVERSE_BITS_LOWEST << 1U)) {
         table += table_size;
         table_bits = NextTableBitSize(count, len, root_bits);
         table_size = 1 << table_bits;
