@@ -34,7 +34,7 @@ static int mode_convertor(PyObject *o, BrotliParams::Mode *mode) {
     PyErr_SetString(BrotliError, "Invalid mode");
     return 0;
   }
-  *mode = (BrotliParams) mode_value;
+  *mode = (BrotliParams::Mode) mode_value;
   if (*mode != BrotliParams::MODE_GENERIC &&
       *mode != BrotliParams::MODE_TEXT &&
       *mode != BrotliParams::MODE_FONT) {
