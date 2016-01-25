@@ -14,9 +14,9 @@ using namespace brotli;
 
 static PyObject *BrotliError;
 
-static int as_uint8(PyObject *o, int* result) {
+static int as_bounded_int(PyObject *o, int* result, int lower_bound, int upper_bound) {
   long value = PyInt_AsLong(o);
-  if (value < 0 || value > 255) {
+  if ((value < (long) lower_bound) || (value > (long) upper_bound)) {
     return 0;
   }
   *result = (int) value;
@@ -30,7 +30,7 @@ static int mode_convertor(PyObject *o, BrotliParams::Mode *mode) {
   }
 
   int mode_value = -1;
-  if (!as_uint8(o, &mode_value)) {
+  if (!as_bounded_int(o, &mode_value, 0, 255)) {
     PyErr_SetString(BrotliError, "Invalid mode");
     return 0;
   }
@@ -51,7 +51,7 @@ static int quality_convertor(PyObject *o, int *quality) {
     return 0;
   }
 
-  if (!as_uint8(o, quality) || *quality > 11) {
+  if (!as_bounded_int(o, quality, 0, 11)) {
     PyErr_SetString(BrotliError, "Invalid quality. Range is 0 to 11.");
     return 0;
   }
@@ -65,7 +65,7 @@ static int lgwin_convertor(PyObject *o, int *lgwin) {
     return 0;
   }
 
-  if (!as_uint8(o, lgwin) || *lgwin < 10 || *lgwin > 24) {
+  if (!as_bounded_int(o, lgwin, 10, 24)) {
     PyErr_SetString(BrotliError, "Invalid lgwin. Range is 10 to 24.");
     return 0;
   }
@@ -79,7 +79,7 @@ static int lgblock_convertor(PyObject *o, int *lgblock) {
     return 0;
   }
 
-  if (!as_uint8(o, lgblock) || (*lgblock != 0 && *lgblock < 16) || *lgblock > 24) {
+  if (!as_bounded_int(o, lgblock, 0, 24) || (*lgblock != 0 && *lgblock < 16)) {
     PyErr_SetString(BrotliError, "Invalid lgblock. Can be 0 or in range 16 to 24.");
     return 0;
   }
