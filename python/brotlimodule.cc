@@ -30,7 +30,7 @@ static int mode_convertor(PyObject *o, BrotliParams::Mode *mode) {
   }
 
   int mode_value = -1;
-  if (!as_uint8(o, mode_value)) {
+  if (!as_uint8(o, &mode_value)) {
     PyErr_SetString(BrotliError, "Invalid mode");
     return 0;
   }
