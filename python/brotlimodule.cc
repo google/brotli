@@ -20,6 +20,7 @@ static int as_uint8(PyObject *o, int* result) {
     return 0;
   }
   *result = (int) value;
+  return 1;
 }
 
 static int mode_convertor(PyObject *o, BrotliParams::Mode *mode) {
