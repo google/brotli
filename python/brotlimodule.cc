@@ -14,13 +14,27 @@ using namespace brotli;
 
 static PyObject *BrotliError;
 
+static int as_bounded_int(PyObject *o, int* result, int lower_bound, int upper_bound) {
+  long value = PyInt_AsLong(o);
+  if ((value < (long) lower_bound) || (value > (long) upper_bound)) {
+    return 0;
+  }
+  *result = (int) value;
+  return 1;
+}
+
 static int mode_convertor(PyObject *o, BrotliParams::Mode *mode) {
   if (!PyInt_Check(o)) {
     PyErr_SetString(BrotliError, "Invalid mode");
     return 0;
   }
 
-  *mode = (BrotliParams::Mode) PyInt_AsLong(o);
+  int mode_value = -1;
+  if (!as_bounded_int(o, &mode_value, 0, 255)) {
+    PyErr_SetString(BrotliError, "Invalid mode");
+    return 0;
+  }
+  *mode = (BrotliParams::Mode) mode_value;
   if (*mode != BrotliParams::MODE_GENERIC &&
       *mode != BrotliParams::MODE_TEXT &&
       *mode != BrotliParams::MODE_FONT) {
@@ -37,8 +51,7 @@ static int quality_convertor(PyObject *o, int *quality) {
     return 0;
   }
 
-  *quality = PyInt_AsLong(o);
-  if (*quality < 0 || *quality > 11) {
+  if (!as_bounded_int(o, quality, 0, 11)) {
     PyErr_SetString(BrotliError, "Invalid quality. Range is 0 to 11.");
     return 0;
   }
@@ -52,8 +65,7 @@ static int lgwin_convertor(PyObject *o, int *lgwin) {
     return 0;
   }
 
-  *lgwin = PyInt_AsLong(o);
-  if (*lgwin < 10 || *lgwin > 24) {
+  if (!as_bounded_int(o, lgwin, 10, 24)) {
     PyErr_SetString(BrotliError, "Invalid lgwin. Range is 10 to 24.");
     return 0;
   }
@@ -67,8 +79,7 @@ static int lgblock_convertor(PyObject *o, int *lgblock) {
     return 0;
   }
 
-  *lgblock = PyInt_AsLong(o);
-  if ((*lgblock != 0 && *lgblock < 16) || *lgblock > 24) {
+  if (!as_bounded_int(o, lgblock, 0, 24) || (*lgblock != 0 && *lgblock < 16)) {
     PyErr_SetString(BrotliError, "Invalid lgblock. Can be 0 or in range 16 to 24.");
     return 0;
   }
@@ -124,11 +135,11 @@ static PyObject* brotli_compress(PyObject *self, PyObject *args, PyObject *keywd
   if (!ok)
     return NULL;
 
-  output_length = 1.2 * length + 10240;
+  output_length = length + (length >> 2) + 10240;
   output = new uint8_t[output_length];
 
   BrotliParams params;
-  if (mode != -1)
+  if ((int) mode != -1)
     params.mode = mode;
   if (quality != -1)
     params.quality = quality;
