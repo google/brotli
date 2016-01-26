@@ -655,8 +655,8 @@ void StoreTrivialContextMap(size_t num_types,
                             uint8_t* storage) {
   StoreVarLenUint8(num_types - 1, storage_ix, storage);
   if (num_types > 1) {
-    size_t repeat_code = context_bits - 1;
-    uint64_t repeat_bits = (1 << repeat_code) - 1;
+    size_t repeat_code = context_bits - 1u;
+    size_t repeat_bits = (1u << repeat_code) - 1u;
     size_t alphabet_size = num_types + repeat_code;
     std::vector<uint32_t> histogram(alphabet_size);
     std::vector<uint8_t> depths(alphabet_size);

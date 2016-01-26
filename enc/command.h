@@ -100,7 +100,7 @@ struct Command {
 
   explicit Command(size_t insertlen)
       : insert_len_(static_cast<uint32_t>(insertlen))
-      , copy_len_(0), dist_prefix_(16), dist_extra_(0) {
+      , copy_len_(0), dist_extra_(0), dist_prefix_(16) {
     GetLengthCode(insertlen, 4, dist_prefix_ == 0, &cmd_prefix_, &cmd_extra_);
   }
 
@@ -125,10 +125,10 @@ struct Command {
 
   uint32_t insert_len_;
   uint32_t copy_len_;
-  uint16_t cmd_prefix_;
-  uint16_t dist_prefix_;
   uint64_t cmd_extra_;
   uint32_t dist_extra_;
+  uint16_t cmd_prefix_;
+  uint16_t dist_prefix_;
 };
 
 }  // namespace brotli

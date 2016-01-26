@@ -193,6 +193,7 @@ BrotliCompressor::BrotliCompressor(BrotliParams params)
       storage_size_(0),
       storage_(0),
       large_table_(NULL),
+      cmd_code_numbits_(0),
       command_buf_(NULL),
       literal_buf_(NULL) {
   // Sanitize params.
