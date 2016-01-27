@@ -85,7 +85,7 @@ bool WriteMetaBlockParallel(const BrotliParams& params,
                                 kMinUTF8Ratio);
 
   // Initialize hashers.
-  int hash_type = std::min(9, params.quality);
+  int hash_type = std::min(10, params.quality);
   Hashers* hashers = new Hashers();
   hashers->Init(hash_type);
 
@@ -93,7 +93,6 @@ bool WriteMetaBlockParallel(const BrotliParams& params,
   size_t last_insert_len = 0;
   size_t num_commands = 0;
   size_t num_literals = 0;
-  uint32_t max_backward_distance = (1 << params.lgwin) - 16;
   int dist_cache[4] = { -4, -4, -4, -4 };
   Command* commands = static_cast<Command*>(
       malloc(sizeof(Command) * ((input_size + 1) >> 1)));
@@ -104,8 +103,8 @@ bool WriteMetaBlockParallel(const BrotliParams& params,
   CreateBackwardReferences(
       input_size, input_pos, is_last,
       &input[0], mask,
-      max_backward_distance,
       params.quality,
+      params.lgwin,
       hashers,
       hash_type,
       dist_cache,
