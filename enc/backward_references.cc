@@ -18,6 +18,9 @@
 
 namespace brotli {
 
+// The maximum length for which the zopflification uses distinct distances.
+static const uint16_t kMaxZopfliLen = 325;
+
 static const double kInfinity = std::numeric_limits<double>::infinity();
 
 // Histogram based cost model for zopflification.
@@ -483,14 +486,17 @@ void CreateBackwardReferences(size_t num_bytes,
                               bool is_last,
                               const uint8_t* ringbuffer,
                               size_t ringbuffer_mask,
-                              const size_t max_backward_limit,
                               const int quality,
+                              const int lgwin,
                               Hasher* hasher,
                               int* dist_cache,
                               size_t* last_insert_len,
                               Command* commands,
                               size_t* num_commands,
                               size_t* num_literals) {
+  // Set maximum distance, see section 9.1. of the spec.
+  const size_t max_backward_limit = (1 << lgwin) - 16;
+
   // Choose which init method is faster.
   // memset is about 100 times faster than hasher->InitForData().
   const size_t kMaxBytesForPartialHashInit = Hasher::kHashMapSize >> 7;
@@ -545,7 +551,6 @@ void CreateBackwardReferences(size_t num_bytes,
         size_t best_dist_2 = 0;
         double best_score_2 = kMinScore;
         max_distance = std::min(i + i_diff + 1, max_backward_limit);
-        hasher->Store(ringbuffer + i, static_cast<uint32_t>(i + i_diff));
         match_found = hasher->FindLongestMatch(
             ringbuffer, ringbuffer_mask,
             dist_cache, static_cast<uint32_t>(i + i_diff + 1),
@@ -585,14 +590,13 @@ void CreateBackwardReferences(size_t num_bytes,
       insert_length = 0;
       // Put the hash keys into the table, if there are enough
       // bytes left.
-      for (size_t j = 1; j < best_len; ++j) {
+      for (size_t j = 2; j < best_len; ++j) {
         hasher->Store(&ringbuffer[i + j],
                       static_cast<uint32_t>(i + i_diff + j));
       }
       i += best_len;
     } else {
       ++insert_length;
-      hasher->Store(ringbuffer + i, static_cast<uint32_t>(i + i_diff));
       ++i;
       // If we have not seen matches for a long time, we can skip some
       // match lookups. Unsuccessful match lookups are very very expensive
@@ -632,8 +636,8 @@ void CreateBackwardReferences(size_t num_bytes,
                               bool is_last,
                               const uint8_t* ringbuffer,
                               size_t ringbuffer_mask,
-                              const size_t max_backward_limit,
                               const int quality,
+                              const int lgwin,
                               Hashers* hashers,
                               int hash_type,
                               int* dist_cache,
@@ -643,45 +647,53 @@ void CreateBackwardReferences(size_t num_bytes,
                               size_t* num_literals) {
   bool zopflify = quality > 9;
   if (zopflify) {
-    Hashers::H9* hasher = hashers->hash_h9;
-    hasher->Init();
-    if (num_bytes >= 3 && position >= 3) {
-      // Prepare the hashes for three last bytes of the last write.
+    Hashers::H10* hasher = hashers->hash_h10;
+    hasher->Init(lgwin, position, num_bytes, is_last);
+    if (num_bytes >= 3 && position >= kMaxTreeCompLength) {
+      // Store the last `kMaxTreeCompLength - 1` positions in the hasher.
       // These could not be calculated before, since they require knowledge
       // of both the previous and the current block.
-      hasher->Store(&ringbuffer[(position - 3) & ringbuffer_mask],
-                    static_cast<uint32_t>(position - 3));
-      hasher->Store(&ringbuffer[(position - 2) & ringbuffer_mask],
-                    static_cast<uint32_t>(position - 2));
-      hasher->Store(&ringbuffer[(position - 1) & ringbuffer_mask],
-                    static_cast<uint32_t>(position - 1));
+      for (size_t i = position - kMaxTreeCompLength + 1; i < position; ++i) {
+        hasher->Store(ringbuffer, ringbuffer_mask, i, num_bytes + position - i);
+      }
     }
+    // Set maximum distance, see section 9.1. of the spec.
+    const size_t max_backward_limit = (1 << lgwin) - 16;
     std::vector<uint32_t> num_matches(num_bytes);
-    std::vector<BackwardMatch> matches(3 * num_bytes);
+    std::vector<BackwardMatch> matches(4 * num_bytes);
     size_t cur_match_pos = 0;
     for (size_t i = 0; i + 3 < num_bytes; ++i) {
       size_t max_distance = std::min(position + i, max_backward_limit);
       size_t max_length = num_bytes - i;
-      // Ensure that we have at least kMaxZopfliLen free slots.
-      if (matches.size() < cur_match_pos + kMaxZopfliLen) {
-        matches.resize(cur_match_pos + kMaxZopfliLen);
+      // Ensure that we have enough free slots.
+      if (matches.size() < cur_match_pos + Hashers::H10::kMaxNumMatches) {
+        matches.resize(cur_match_pos + Hashers::H10::kMaxNumMatches);
       }
       size_t num_found_matches = hasher->FindAllMatches(
           ringbuffer, ringbuffer_mask, position + i, max_length, max_distance,
           &matches[cur_match_pos]);
+      const size_t cur_match_end = cur_match_pos + num_found_matches;
+      for (size_t j = cur_match_pos; j + 1 < cur_match_end; ++j) {
+        assert(matches[j].length() < matches[j + 1].length());
+        assert(matches[j].distance > max_distance ||
+               matches[j].distance <= matches[j + 1].distance);
+      }
       num_matches[i] = static_cast<uint32_t>(num_found_matches);
-      hasher->Store(&ringbuffer[(position + i) & ringbuffer_mask],
-                    static_cast<uint32_t>(position + i));
-      cur_match_pos += num_found_matches;
-      if (num_found_matches == 1) {
-        const size_t match_len = matches[cur_match_pos - 1].length();
+      if (num_found_matches > 0) {
+        const size_t match_len = matches[cur_match_end - 1].length();
         if (match_len > kMaxZopfliLen) {
+          matches[cur_match_pos++] = matches[cur_match_end - 1];
+          num_matches[i] = 1;
           for (size_t j = 1; j < match_len; ++j) {
             ++i;
-            hasher->Store(&ringbuffer[(position + i) & ringbuffer_mask],
-                          static_cast<uint32_t>(position + i));
+            if (match_len - j < 64) {
+              hasher->Store(ringbuffer, ringbuffer_mask, position + i,
+                            num_bytes - i);
+            }
             num_matches[i] = 0;
           }
+        } else {
+          cur_match_pos = cur_match_end;
         }
       }
     }
@@ -718,49 +730,49 @@ void CreateBackwardReferences(size_t num_bytes,
     case 2:
       CreateBackwardReferences<Hashers::H2>(
           num_bytes, position, is_last, ringbuffer, ringbuffer_mask,
-          max_backward_limit, quality, hashers->hash_h2, dist_cache,
+          quality, lgwin, hashers->hash_h2, dist_cache,
           last_insert_len, commands, num_commands, num_literals);
       break;
     case 3:
       CreateBackwardReferences<Hashers::H3>(
           num_bytes, position, is_last, ringbuffer, ringbuffer_mask,
-          max_backward_limit, quality, hashers->hash_h3, dist_cache,
+          quality, lgwin, hashers->hash_h3, dist_cache,
           last_insert_len, commands, num_commands, num_literals);
       break;
     case 4:
       CreateBackwardReferences<Hashers::H4>(
           num_bytes, position, is_last, ringbuffer, ringbuffer_mask,
-          max_backward_limit, quality, hashers->hash_h4, dist_cache,
+          quality, lgwin, hashers->hash_h4, dist_cache,
           last_insert_len, commands, num_commands, num_literals);
       break;
     case 5:
       CreateBackwardReferences<Hashers::H5>(
           num_bytes, position, is_last, ringbuffer, ringbuffer_mask,
-          max_backward_limit, quality, hashers->hash_h5, dist_cache,
+          quality, lgwin, hashers->hash_h5, dist_cache,
           last_insert_len, commands, num_commands, num_literals);
       break;
     case 6:
       CreateBackwardReferences<Hashers::H6>(
           num_bytes, position, is_last, ringbuffer, ringbuffer_mask,
-          max_backward_limit, quality, hashers->hash_h6, dist_cache,
+          quality, lgwin, hashers->hash_h6, dist_cache,
           last_insert_len, commands, num_commands, num_literals);
       break;
     case 7:
       CreateBackwardReferences<Hashers::H7>(
           num_bytes, position, is_last, ringbuffer, ringbuffer_mask,
-          max_backward_limit, quality, hashers->hash_h7, dist_cache,
+          quality, lgwin, hashers->hash_h7, dist_cache,
           last_insert_len, commands, num_commands, num_literals);
       break;
     case 8:
       CreateBackwardReferences<Hashers::H8>(
           num_bytes, position, is_last, ringbuffer, ringbuffer_mask,
-          max_backward_limit, quality, hashers->hash_h8, dist_cache,
+          quality, lgwin, hashers->hash_h8, dist_cache,
           last_insert_len, commands, num_commands, num_literals);
       break;
     case 9:
       CreateBackwardReferences<Hashers::H9>(
           num_bytes, position, is_last, ringbuffer, ringbuffer_mask,
-          max_backward_limit, quality, hashers->hash_h9, dist_cache,
+          quality, lgwin, hashers->hash_h9, dist_cache,
           last_insert_len, commands, num_commands, num_literals);
       break;
     default:

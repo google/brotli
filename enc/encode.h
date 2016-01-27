@@ -145,7 +145,6 @@ class BrotliCompressor {
                               uint8_t** output);
 
   BrotliParams params_;
-  size_t max_backward_distance_;
   Hashers* hashers_;
   int hash_type_;
   uint64_t input_pos_;

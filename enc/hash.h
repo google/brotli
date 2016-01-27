@@ -13,6 +13,7 @@
 #include <sys/types.h>
 #include <algorithm>
 #include <cstring>
+#include <limits>
 #include <vector>
 
 #include "./dictionary_hash.h"
@@ -25,6 +26,9 @@
 #include "./types.h"
 
 namespace brotli {
+
+static const size_t kMaxTreeSearchDepth = 64;
+static const size_t kMaxTreeCompLength = 128;
 
 static const uint32_t kDistanceCacheIndex[] = {
   0, 1, 2, 3, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1,
@@ -155,7 +159,8 @@ class HashLongestMatchQuickly {
   }
 
   // Find a longest backward match of &ring_buffer[cur_ix & ring_buffer_mask]
-  // up to the length of max_length.
+  // up to the length of max_length and stores the position cur_ix in the
+  // hash table.
   //
   // Does not look for matches longer than max_length.
   // Does not look for matches further away than max_backward.
@@ -174,6 +179,7 @@ class HashLongestMatchQuickly {
                                double* __restrict best_score_out) {
     const size_t best_len_in = *best_len_out;
     const size_t cur_ix_masked = cur_ix & ring_buffer_mask;
+    const uint32_t key = HashBytes(&ring_buffer[cur_ix_masked]);
     int compare_char = ring_buffer[cur_ix_masked + best_len_in];
     double best_score = *best_score_out;
     size_t best_len = best_len_in;
@@ -195,6 +201,7 @@ class HashLongestMatchQuickly {
           *best_score_out = best_score;
           compare_char = ring_buffer[cur_ix_masked + best_len];
           if (kBucketSweep == 1) {
+            buckets_[key] = static_cast<uint32_t>(cur_ix);
             return true;
           } else {
             match_found = true;
@@ -202,10 +209,10 @@ class HashLongestMatchQuickly {
         }
       }
     }
-    const uint32_t key = HashBytes(&ring_buffer[cur_ix_masked]);
     if (kBucketSweep == 1) {
       // Only one to look for, don't bother to prepare for a loop.
       prev_ix = buckets_[key];
+      buckets_[key] = static_cast<uint32_t>(cur_ix);
       size_t backward = cur_ix - prev_ix;
       prev_ix &= static_cast<uint32_t>(ring_buffer_mask);
       if (compare_char != ring_buffer[prev_ix + best_len_in]) {
@@ -283,12 +290,14 @@ class HashLongestMatchQuickly {
               *best_len_code_out = len;
               *best_distance_out = backward;
               *best_score_out = best_score;
-              return true;
+              match_found = true;
             }
           }
         }
       }
     }
+    const uint32_t off = (cur_ix >> 3) % kBucketSweep;
+    buckets_[key + off] = static_cast<uint32_t>(cur_ix);
     return match_found;
   }
 
@@ -316,9 +325,6 @@ class HashLongestMatchQuickly {
   size_t num_dict_lookups_;
   size_t num_dict_matches_;
 };
-
-// The maximum length for which the zopflification uses distinct distances.
-static const uint16_t kMaxZopfliLen = 325;
 
 // A (forgetful) hash table to the data seen by the compressor, to
 // help create backward references to previous data.
@@ -366,7 +372,7 @@ class HashLongestMatch {
   }
 
   // Find a longest backward match of &data[cur_ix] up to the length of
-  // max_length.
+  // max_length and stores the position cur_ix in the hash table.
   //
   // Does not look for matches longer than max_length.
   // Does not look for matches further away than max_backward.
@@ -464,6 +470,8 @@ class HashLongestMatch {
         }
       }
     }
+    buckets_[key][num_[key] & kBlockMask] = static_cast<uint32_t>(cur_ix);
+    ++num_[key];
     if (!match_found && num_dict_matches_ >= (num_dict_lookups_ >> 7)) {
       size_t dict_key = Hash<14>(&data[cur_ix_masked]) << 1;
       for (int k = 0; k < 2; ++k, ++dict_key) {
@@ -503,21 +511,19 @@ class HashLongestMatch {
     return match_found;
   }
 
-  // Similar to FindLongestMatch(), but finds all matches.
+  // Finds all backward matches of &data[cur_ix & ring_buffer_mask] up to the
+  // length of max_length and stores the position cur_ix in the hash table.
   //
   // Sets *num_matches to the number of matches found, and stores the found
-  // matches in matches[0] to matches[*num_matches - 1].
-  //
-  // If the longest match is longer than kMaxZopfliLen, returns only this
-  // longest match.
-  //
-  // Requires that at least kMaxZopfliLen space is available in matches.
+  // matches in matches[0] to matches[*num_matches - 1]. The matches will be
+  // sorted by strictly increasing length and (non-strictly) increasing
+  // distance.
   size_t FindAllMatches(const uint8_t* data,
                         const size_t ring_buffer_mask,
                         const size_t cur_ix,
                         const size_t max_length,
                         const size_t max_backward,
-                        BackwardMatch* matches) const {
+                        BackwardMatch* matches) {
     BackwardMatch* const orig_matches = matches;
     const size_t cur_ix_masked = cur_ix & ring_buffer_mask;
     size_t best_len = 1;
@@ -539,9 +545,6 @@ class HashLongestMatch {
                                    max_length);
       if (len > best_len) {
         best_len = len;
-        if (len > kMaxZopfliLen) {
-          matches = orig_matches;
-        }
         *matches++ = BackwardMatch(backward, len);
       }
     }
@@ -566,12 +569,11 @@ class HashLongestMatch {
                                    max_length);
       if (len > best_len) {
         best_len = len;
-        if (len > kMaxZopfliLen) {
-          matches = orig_matches;
-        }
         *matches++ = BackwardMatch(backward, len);
       }
     }
+    buckets_[key][num_[key] & kBlockMask] = static_cast<uint32_t>(cur_ix);
+    ++num_[key];
     std::vector<uint32_t> dict_matches(kMaxDictionaryMatchLen + 1,
                                        kInvalidMatch);
     size_t minlen = std::max<size_t>(4, best_len + 1);
@@ -604,6 +606,8 @@ class HashLongestMatch {
 
   enum { kHashMapSize = 2 << kBucketBits };
 
+  static const size_t kMaxNumMatches = 64 + (1 << kBlockBits);
+
  private:
   // Number of hash buckets.
   static const uint32_t kBucketSize = 1 << kBucketBits;
@@ -628,6 +632,235 @@ class HashLongestMatch {
   size_t num_dict_matches_;
 };
 
+// A (forgetful) hash table where each hash bucket contains a binary tree of
+// sequences whose first 4 bytes share the same hash code.
+// Each sequence is kMaxTreeCompLength long and is identified by its starting
+// position in the input data. The binary tree is sorted by the lexicographic
+// order of the sequences, and it is also a max-heap with respect to the
+// starting positions.
+class HashToBinaryTree {
+ public:
+  HashToBinaryTree() : forest_(NULL) {
+    Reset();
+  }
+
+  ~HashToBinaryTree() {
+    delete[] forest_;
+  }
+
+  void Reset() {
+    need_init_ = true;
+  }
+
+  void Init(int lgwin, size_t position, size_t bytes, bool is_last) {
+    if (need_init_) {
+      window_mask_ = (1u << lgwin) - 1u;
+      invalid_pos_ = static_cast<uint32_t>(-window_mask_);
+      for (uint32_t i = 0; i < kBucketSize; i++) {
+        buckets_[i] = invalid_pos_;
+      }
+      size_t num_nodes = (position == 0 && is_last) ? bytes : window_mask_ + 1;
+      forest_ = new uint32_t[2 * num_nodes];
+      need_init_ = false;
+    }
+  }
+
+  // Finds all backward matches of &data[cur_ix & ring_buffer_mask] up to the
+  // length of max_length and stores the position cur_ix in the hash table.
+  //
+  // Sets *num_matches to the number of matches found, and stores the found
+  // matches in matches[0] to matches[*num_matches - 1]. The matches will be
+  // sorted by strictly increasing length and (non-strictly) increasing
+  // distance.
+  size_t FindAllMatches(const uint8_t* data,
+                        const size_t ring_buffer_mask,
+                        const size_t cur_ix,
+                        const size_t max_length,
+                        const size_t max_backward,
+                        BackwardMatch* matches) {
+    BackwardMatch* const orig_matches = matches;
+    const size_t cur_ix_masked = cur_ix & ring_buffer_mask;
+    size_t best_len = 1;
+    size_t stop = cur_ix - 64;
+    if (cur_ix < 64) { stop = 0; }
+    for (size_t i = cur_ix - 1; i > stop && best_len <= 2; --i) {
+      size_t prev_ix = i;
+      const size_t backward = cur_ix - prev_ix;
+      if (PREDICT_FALSE(backward > max_backward)) {
+        break;
+      }
+      prev_ix &= ring_buffer_mask;
+      if (data[cur_ix_masked] != data[prev_ix] ||
+          data[cur_ix_masked + 1] != data[prev_ix + 1]) {
+        continue;
+      }
+      const size_t len =
+          FindMatchLengthWithLimit(&data[prev_ix], &data[cur_ix_masked],
+                                   max_length);
+      if (len > best_len) {
+        best_len = len;
+        *matches++ = BackwardMatch(backward, len);
+      }
+    }
+    if (best_len < max_length) {
+      matches = StoreAndFindMatches(data, cur_ix, ring_buffer_mask,
+                                    max_length, &best_len, matches);
+    }
+    std::vector<uint32_t> dict_matches(kMaxDictionaryMatchLen + 1,
+                                       kInvalidMatch);
+    size_t minlen = std::max<size_t>(4, best_len + 1);
+    if (FindAllStaticDictionaryMatches(&data[cur_ix_masked], minlen, max_length,
+                                       &dict_matches[0])) {
+      size_t maxlen = std::min<size_t>(kMaxDictionaryMatchLen, max_length);
+      for (size_t l = minlen; l <= maxlen; ++l) {
+        uint32_t dict_id = dict_matches[l];
+        if (dict_id < kInvalidMatch) {
+          *matches++ = BackwardMatch(max_backward + (dict_id >> 5) + 1, l,
+                                     dict_id & 31);
+        }
+      }
+    }
+    return static_cast<size_t>(matches - orig_matches);
+  }
+
+  // Stores the hash of the next 4 bytes and re-roots the binary tree at the
+  // current sequence, without returning any matches.
+  void Store(const uint8_t* data,
+             const size_t ring_buffer_mask,
+             const size_t cur_ix,
+             const size_t max_length) {
+    size_t best_len = 0;
+    StoreAndFindMatches(data, cur_ix, ring_buffer_mask, max_length,
+                        &best_len, NULL);
+  }
+
+  static const size_t kMaxNumMatches = 64 + kMaxTreeSearchDepth;
+
+ private:
+  // Stores the hash of the next 4 bytes and in a single tree-traversal, the
+  // hash bucket's binary tree is searched for matches and is re-rooted at the
+  // current position.
+  //
+  // If less than kMaxTreeCompLength data is available, the hash bucket of the
+  // current position is searched for matches, but the state of the hash table
+  // is not changed, since we can not know the final sorting order of the
+  // current (incomplete) sequence.
+  //
+  // This function must be called with increasing cur_ix positions.
+  BackwardMatch* StoreAndFindMatches(const uint8_t* const __restrict data,
+                                     const size_t cur_ix,
+                                     const size_t ring_buffer_mask,
+                                     const size_t max_length,
+                                     size_t* const __restrict best_len,
+                                     BackwardMatch* __restrict matches) {
+    const size_t cur_ix_masked = cur_ix & ring_buffer_mask;
+    const size_t max_backward = window_mask_ - 15;
+    const size_t max_comp_len = std::min(max_length, kMaxTreeCompLength);
+    const bool reroot_tree = max_length >= kMaxTreeCompLength;
+    const uint32_t key = HashBytes(&data[cur_ix_masked]);
+    size_t prev_ix = buckets_[key];
+    // The forest index of the rightmost node of the left subtree of the new
+    // root, updated as we traverse and reroot the tree of the hash bucket.
+    size_t node_left = LeftChildIndex(cur_ix);
+    // The forest index of the leftmost node of the right subtree of the new
+    // root, updated as we traverse and reroot the tree of the hash bucket.
+    size_t node_right = RightChildIndex(cur_ix);
+    // The match length of the rightmost node of the left subtree of the new
+    // root, updated as we traverse and reroot the tree of the hash bucket.
+    size_t best_len_left = 0;
+    // The match length of the leftmost node of the right subtree of the new
+    // root, updated as we traverse and reroot the tree of the hash bucket.
+    size_t best_len_right = 0;
+    if (reroot_tree) {
+      buckets_[key] = static_cast<uint32_t>(cur_ix);
+    }
+    for (size_t depth_remaining = kMaxTreeSearchDepth; ; --depth_remaining) {
+      const size_t backward = cur_ix - prev_ix;
+      const size_t prev_ix_masked = prev_ix & ring_buffer_mask;
+      if (backward == 0 || backward > max_backward || depth_remaining == 0) {
+        if (reroot_tree) {
+          forest_[node_left] = invalid_pos_;
+          forest_[node_right] = invalid_pos_;
+        }
+        break;
+      }
+      const size_t cur_len = std::min(best_len_left, best_len_right);
+      const size_t len = cur_len +
+          FindMatchLengthWithLimit(&data[cur_ix_masked + cur_len],
+                                   &data[prev_ix_masked + cur_len],
+                                   max_length - cur_len);
+      if (len > *best_len) {
+        *best_len = len;
+        if (matches) {
+          *matches++ = BackwardMatch(backward, len);
+        }
+        if (len >= max_comp_len) {
+          if (reroot_tree) {
+            forest_[node_left] = forest_[LeftChildIndex(prev_ix)];
+            forest_[node_right] = forest_[RightChildIndex(prev_ix)];
+          }
+          break;
+        }
+      }
+      if (data[cur_ix_masked + len] > data[prev_ix_masked + len]) {
+        best_len_left = len;
+        if (reroot_tree) {
+          forest_[node_left] = static_cast<uint32_t>(prev_ix);
+        }
+        node_left = RightChildIndex(prev_ix);
+        prev_ix = forest_[node_left];
+      } else {
+        best_len_right = len;
+        if (reroot_tree) {
+          forest_[node_right] = static_cast<uint32_t>(prev_ix);
+        }
+        node_right = LeftChildIndex(prev_ix);
+        prev_ix = forest_[node_right];
+      }
+    }
+    return matches;
+  }
+
+  inline size_t LeftChildIndex(const size_t pos) {
+    return 2 * (pos & window_mask_);
+  }
+
+  inline size_t RightChildIndex(const size_t pos) {
+    return 2 * (pos & window_mask_) + 1;
+  }
+
+  static uint32_t HashBytes(const uint8_t *data) {
+    uint32_t h = BROTLI_UNALIGNED_LOAD32(data) * kHashMul32;
+    // The higher bits contain more mixture from the multiplication,
+    // so we take our results from there.
+    return h >> (32 - kBucketBits);
+  }
+
+  static const int kBucketBits = 17;
+  static const size_t kBucketSize = 1 << kBucketBits;
+
+  // The window size minus 1
+  size_t window_mask_;
+
+  // Hash table that maps the 4-byte hashes of the sequence to the last
+  // position where this hash was found, which is the root of the binary
+  // tree of sequences that share this hash bucket.
+  uint32_t buckets_[kBucketSize];
+
+  // The union of the binary trees of each hash bucket. The root of the tree
+  // corresponding to a hash is a sequence starting at buckets_[hash] and
+  // the left and right children of a sequence starting at pos are
+  // forest_[2 * pos] and forest_[2 * pos + 1].
+  uint32_t* forest_;
+
+  // A position used to mark a non-existent sequence, i.e. a tree is empty if
+  // its root is at invalid_pos_ and a node is a leaf if both its children
+  // are at invalid_pos_.
+  uint32_t invalid_pos_;
+
+  bool need_init_;
+};
+
 struct Hashers {
   // For kBucketSweep == 1, enabling the dictionary lookup makes compression
   // a little faster (0.5% - 1%) and it compresses 0.15% better on small text
@@ -640,9 +873,10 @@ struct Hashers {
   typedef HashLongestMatch<15, 6, 10> H7;
   typedef HashLongestMatch<15, 7, 10> H8;
   typedef HashLongestMatch<15, 8, 16> H9;
+  typedef HashToBinaryTree H10;
 
   Hashers() : hash_h2(0), hash_h3(0), hash_h4(0), hash_h5(0),
-              hash_h6(0), hash_h7(0), hash_h8(0), hash_h9(0) {}
+              hash_h6(0), hash_h7(0), hash_h8(0), hash_h9(0), hash_h10(0) {}
 
   ~Hashers() {
     delete hash_h2;
@@ -653,6 +887,7 @@ struct Hashers {
     delete hash_h7;
     delete hash_h8;
     delete hash_h9;
+    delete hash_h10;
   }
 
   void Init(int type) {
@@ -665,6 +900,7 @@ struct Hashers {
       case 7: hash_h7 = new H7; break;
       case 8: hash_h8 = new H8; break;
       case 9: hash_h9 = new H9; break;
+      case 10: hash_h10 = new H10; break;
       default: break;
     }
   }
@@ -679,7 +915,7 @@ struct Hashers {
 
   // Custom LZ77 window.
   void PrependCustomDictionary(
-      int type, const size_t size, const uint8_t* dict) {
+      int type, int lgwin, const size_t size, const uint8_t* dict) {
     switch (type) {
       case 2: WarmupHash(size, dict, hash_h2); break;
       case 3: WarmupHash(size, dict, hash_h3); break;
@@ -689,6 +925,13 @@ struct Hashers {
       case 7: WarmupHash(size, dict, hash_h7); break;
       case 8: WarmupHash(size, dict, hash_h8); break;
       case 9: WarmupHash(size, dict, hash_h9); break;
+      case 10:
+        hash_h10->Init(lgwin, 0, size, false);
+        for (size_t i = 0; i + kMaxTreeCompLength - 1 < size; ++i) {
+          hash_h10->Store(dict, std::numeric_limits<size_t>::max(),
+                          i, size - i);
+        }
+        break;
       default: break;
     }
   }
@@ -702,6 +945,7 @@ struct Hashers {
   H7* hash_h7;
   H8* hash_h8;
   H9* hash_h9;
+  H10* hash_h10;
 };
 
 }  // namespace brotli
