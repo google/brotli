@@ -127,7 +127,7 @@ static uint32_t DecodeWindowBits(BrotliBitReader* br) {
   return 17;
 }
 
-static BROTLI_INLINE BROTLI_NO_ASAN void memmove16(
+static BROTLI_INLINE void memmove16(
     uint8_t* dst, uint8_t* src) {
 #if defined(__ARM_NEON__)
   vst1q_u8(dst, vld1q_u8(src));
