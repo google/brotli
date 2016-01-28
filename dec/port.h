@@ -94,13 +94,9 @@
 
 #ifdef BROTLI_BUILD_PORTABLE
 #define BROTLI_ALIGNED_READ 1
-#define BROTLI_SAFE_MEMMOVE 1
 #else
 #define BROTLI_ALIGNED_READ 0
-#define BROTLI_SAFE_MEMMOVE 0
 #endif
-
-#define BROTLI_ASAN_BUILD __has_feature(address_sanitizer)
 
 /* Define "PREDICT_TRUE" and "PREDICT_FALSE" macros for capable compilers.
 
@@ -197,12 +193,6 @@ OR:
 #define BROTLI_NOINLINE __attribute__ ((noinline))
 #else
 #define BROTLI_NOINLINE
-#endif
-
-#if BROTLI_ASAN_BUILD && !defined(BROTLI_BUILD_PORTABLE)
-#define BROTLI_NO_ASAN __attribute__((no_sanitize("address"))) BROTLI_NOINLINE
-#else
-#define BROTLI_NO_ASAN
 #endif
 
 #define BROTLI_REPEAT(N, X) { \
