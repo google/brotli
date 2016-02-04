@@ -1717,6 +1717,10 @@ postReadDistance:
     uint8_t* copy_src = &s->ringbuffer[
         (pos - s->distance_code) & s->ringbuffer_mask];
     uint8_t* copy_dst = &s->ringbuffer[pos];
+    /* Check for possible underflow and clamp the pointer to 0. */
+    if (PREDICT_FALSE(s->ringbuffer_end < (const uint8_t*)0 + i)) {
+      ringbuffer_end_minus_copy_length = 0;
+    }
     /* update the recent distances cache */
     s->dist_rb[s->dist_rb_idx & 3] = s->distance_code;
     ++s->dist_rb_idx;
