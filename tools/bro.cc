@@ -131,7 +131,8 @@ error:
 
 static FILE* OpenInputFile(const char* input_path) {
   if (input_path == 0) {
-    return fdopen(STDIN_FILENO, "rb");
+    setmode(_fileno(stdin), O_BINARY);
+    return stdin;
   }
   FILE* f = fopen(input_path, "rb");
   if (f == 0) {
@@ -143,7 +144,8 @@ static FILE* OpenInputFile(const char* input_path) {
 
 static FILE *OpenOutputFile(const char *output_path, const int force) {
   if (output_path == 0) {
-    return fdopen(STDOUT_FILENO, "wb");
+    setmode(_fileno(stdout), O_BINARY);
+    return stdout;
   }
   int excl = force ? 0 : O_EXCL;
   int fd = open(output_path, O_CREAT | excl | O_WRONLY | O_TRUNC,
