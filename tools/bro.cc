@@ -18,6 +18,13 @@
 #include "../dec/decode.h"
 #include "../enc/encode.h"
 
+#ifdef _WIN32
+# include <io.h>
+# include <fcntl.h>
+# define SET_BINARY_MODE(handle) setmode((handle), O_BINARY)
+#else
+# define SET_BINARY_MODE(handle) ((void)0)
+#endif
 
 static bool ParseQuality(const char* s, int* quality) {
   if (s[0] >= '0' && s[0] <= '9') {
@@ -131,7 +138,7 @@ error:
 
 static FILE* OpenInputFile(const char* input_path) {
   if (input_path == 0) {
-    setmode(_fileno(stdin), O_BINARY);
+    SET_BINARY_MODE(stdin);
     return stdin;
   }
   FILE* f = fopen(input_path, "rb");
@@ -144,7 +151,7 @@ static FILE* OpenInputFile(const char* input_path) {
 
 static FILE *OpenOutputFile(const char *output_path, const int force) {
   if (output_path == 0) {
-    setmode(_fileno(stdout), O_BINARY);
+    SET_BINARY_MODE(stdout);
     return stdout;
   }
   int excl = force ? 0 : O_EXCL;
