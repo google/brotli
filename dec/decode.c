@@ -1714,6 +1714,10 @@ postReadDistance:
   } else {
     const uint8_t *ringbuffer_end_minus_copy_length =
         s->ringbuffer_end - i;
+    /* Check for possible underflow and clamp the pointer to 0. */
+    if (PREDICT_FALSE(s->ringbuffer_end < (const uint8_t*)0 + i)) {
+      ringbuffer_end_minus_copy_length = 0;
+    }
     uint8_t* copy_src = &s->ringbuffer[
         (pos - s->distance_code) & s->ringbuffer_mask];
     uint8_t* copy_dst = &s->ringbuffer[pos];
