@@ -7,6 +7,8 @@ I found the following issues with the Brotli format:
   It could be lowered to 16+(44-POSTFIX<<POSTFIX), and this could matter.
 - The block type code is useless if NBLTYPES==2, you would only need 1 symbol
   anyway.
+- why is ` not a quote? And what is so special about the %? (See UTF8).
+  The tab probably is a better character to take separately than the %
 """
 import struct
 from operator import itemgetter
@@ -56,10 +58,13 @@ class BitStream:
         True
         >>> olleke.peek(15)
         11803
+        >>> hex(olleke.peek(32))
+        '0x2e1b'
         """
         #with 8 we have at least one bit, so with 22 we have 15
+        bitsToGet = n+7
         return int.from_bytes(
-            self.data[self.pos>>3:self.pos+22>>3],
+            self.data[self.pos>>3:self.pos+bitsToGet>>3],
             'little')>>(self.pos&7)&(1<<n)-1
 
     def readPrefix(self, prefix):
@@ -269,7 +274,7 @@ class DistanceAlphabet(Alphabet):
             raise NotImplementedError('Last distance buffer')
         if dcode<16+self.NDIRECT:
             return str(dcode-16)
-        #we use the original formulas
+        #we use the original formulas, instead of my clear explanation
         POSTFIX_MASK = (1 << self.NPOSTFIX) - 1
         ndistbits = 1 + ((dcode - self.NDIRECT - 16) >> (self.NPOSTFIX + 1))
         hcode = (dcode - self.NDIRECT - 16) >> self.NPOSTFIX
@@ -277,12 +282,6 @@ class DistanceAlphabet(Alphabet):
         offset = ((2 + (hcode & 1)) << ndistbits) - 4
         distance = ((offset + dextra) << self.NPOSTFIX) + lcode + self.NDIRECT + 1
         return str(distance)
-
-    def meaningTuple(self, symbol, extra):
-        """Give meaning of symbol as (action, value) pair
-        for complex alphabets.
-        """
-        raise NotImplementedError
 
     def __getitem__(self, symbol):
         """Give mnemonic representation of meaning.
@@ -496,18 +495,24 @@ class PrefixCode:
                 repeat = 2
                 startSymbol = next(alphabetIter)
                 endSymbol = next(alphabetIter)
+                #count those symbols in total: rest follows
+                total += 2*32768>>lastLength
                 symbolLengths[startSymbol] = symbolLengths[endSymbol] = lastLength
-                while length==16:
+                #note: loop may end because we're there
+                #even if a 16 appears to follow
+                while length==16 and total<32768:
                     #read extra bits, jump back for printItem
                     extra = stream.peek(2)+3
                     stream.pos -= bits
                     #determine last symbol
                     oldRepeat = repeat
                     repeat = (repeat-2<<2)+extra
-                    #read as many symbols as repeat increases
-                    for i in range(repeat-oldRepeat):
+                    #read as many symbols as repeat increased
+                    for i in range(oldRepeat, repeat):
                         endSymbol = next(alphabetIter)
                         symbolLengths[endSymbol] = lastLength
+                    #compute new total already at this point
+                    total += (repeat-oldRepeat)*32768>>lastLength
                     layout.printItem(
                         bits,
                         lengthAlphabet.meaning(16, repeat),
@@ -516,17 +521,18 @@ class PrefixCode:
                             lastLength,
                             self.alphabet[startSymbol],
                             self.alphabet[endSymbol]))
-                    #see if there are more to do
+                    #see if there are 16 to follow
                     bits, length = stream.readPrefix(lengthCode.decodeTable)
+                #jump back to symbol
                 stream.pos -= bits
-                #some code like below
-                total += repeat*32768>>lastLength
             elif length==17:
                 #scan series of 17s (groups of zero counts)
                 #start with repeat count 2
                 repeat = 2
                 startSymbol = next(alphabetIter)
                 endSymbol = next(alphabetIter)
+                #note: loop will not end with total==32768,
+                #since total doesn't change here
                 while length==17:
                     #read extra bits, jump back for printItem
                     extra = stream.peek(3)+3
@@ -555,6 +561,7 @@ class PrefixCode:
                     'length of '+self.alphabet[symbol])
                 total += 32768>>length
                 lastLength = length
+        assert total==32768
         self.decodeTable = PrefixCode.codeFromLengths(symbolLengths)
         print('End of table. Prefix code '+name+':')
         print(self.showCode(symbolLengths, True))
@@ -663,6 +670,7 @@ class Layout:
         >>> l.printItem(3, "data", 0, 'because') #doctest: +REPORT_NDIFF
         0002 00              0,00 data       because
         """
+        #TODO: verbosity level
         startAddress = self.stream.pos
         #determine bit data
         bitdata = self.stream.verboseRead(bits,
@@ -688,6 +696,11 @@ class Layout:
             hexdata+' '*filler+bitdata, self.width,
             str(meaning), explanation,
             ))
+
+    def printPrefixItem(self, code):
+        """Get an item from a prefix code, show it, and return the value.
+        """
+        #TODO: finish; show the relevant used code in a column; use everywhere
 
     def all(self):
         """Print entire brotli stream.
@@ -719,6 +732,17 @@ class Layout:
             self.metablock()
 
     def readLiteralContextModes(self):
+        """Read literal context modes.
+        LSB6: lower 6 bits of last char
+        MSB6: upper 6 bits of last char
+        UTF8: rougly dependent on categories:
+            upper 4 bits depend on category of last char:
+                control/whitespace/space/punctuation/quote/%/open/close/
+                comma/period/=/digits/VOWEL/CONSONANT/vowel/consonant
+            lower 2 bits depend on category of 2nd last char:
+                space/punctuation/digit or upper/lowercase
+        signed: hamming weight of last 2 chars
+        """
         print('Context modes'.center(60, '-'))
         self.literalContextModes = []
         for i in range(self.NBLTYPESL):
@@ -758,8 +782,8 @@ class Layout:
         if empty block, skip block and return true.
         """
         MNIBBLES = [4,5,6,0][self.stream.peek(2)]
-        self.printItem(2, MNIBBLES, 0, "Number of nibbles in MLEN-1")
         if MNIBBLES:
+            self.printItem(2, MNIBBLES, 0, "Number of nibbles in MLEN-1", True)
             MLEN = self.stream.read(MNIBBLES*4)+1
             self.stream.pos -= MNIBBLES*4
             self.printItem(
@@ -770,7 +794,23 @@ class Layout:
             self.MLEN = MLEN
         else:
             #empty block; skip and return False
-            raise NotImplementedError('Empty block')
+            self.printItem(2, "0:Empty", 0, "MNIBBLES=0 means empty block")
+            self.printItem(1, self.stream.peek(1), 0, 'Reserved bit must be 0')
+            MSKIPBYTES = self.stream.peek(2)
+            MSKIP = (self.stream.peek(MSKIPBYTES*8+2)>>2)+1
+            self.printItem(
+                2,
+                MSKIP,
+                8*MSKIPBYTES,
+                '{:0{}x}h {:02b}: {} bytes to skip'.format(
+                    MSKIP-1, MSKIPBYTES*2,
+                    MSKIPBYTES,
+                    MSKIP),
+                True)
+            if self.stream.pos&7:
+                self.printItem(-self.stream.pos&7, 'ignored')
+            self.stream.pos += 8*MSKIP
+            print("Skipping to {:x}".format(self.stream.pos>>3))
         return not MNIBBLES
 
     def uncompressed(self):
@@ -922,6 +962,8 @@ class Layout:
 
     def metablock(self):
         print('Meta block contents'.center(60, '='))
+        #TODO: do the data
+
 """
     You tell the class what you read, what it means, in what contexts,
     and ask it to print the results.
@@ -959,24 +1001,25 @@ __test__ = {
     ... except NotImplementedError: pass
     ... #doctest: +REPORT_NDIFF
     addr hex           binary value      explanation
-    Stream header --------------------------------------------------
+    -----------------------Stream header------------------------
     0000 1b              1011 22         window size = (1<<22)-16 = 4194288
-    Meta block header ==================================================
+    =====================Meta block header======================
                         1     True       ISLAST
                        0      False      LASTEMPTY
                     ,00       4          Number of nibbles in MLEN-1
     0001 2e 00       ,00h,2Eh 0x2e       MLEN = 1+0x2e=47
-    Block type descriptors --------------------------------------------------
+    -------------------Block type descriptors-------------------
     0003 00                 0 1          NBLTYPESL
                            0  1          NBLTYPESI
                           0   1          NBLTYPESD
                         00    0          POSTFIX
     0004 44             0,000 0          NDIRECT = 0<<POSTFIX = 0
+    -----------------------Context modes------------------------
                       10      UTF8       literal context mode 0
-    Context maps --------------------------------------------------
+    ------------------------Context maps------------------------
                      0        1          NTREESL
                     0         1          NTREESD
-    Prefix code lists --------------------------------------------------
+    ---------------------Prefix code lists----------------------
                   10          Complex; HSKIP=2 prefix code L0 of 1
     0005 4f               1,0 3          length for 3
                       0111    1          length for 4
@@ -1013,23 +1056,23 @@ __test__ = {
                       0       4          length of 's'
     0011 b4              0,11 skip       't'
                         0     4          length of 'u'
+    End of table. Prefix code L0 of 1:
+        000: 'e'
+        100: 'l'
+        0010: \\x0a
+        1010: ' '
+        0110: '!'
+        1110: 'K'
+        0001: 'O'
+        1001: 'R'
+        0101: 'b'
+        1101: 'k'
+        0011: 'n'
+        1011: 'o'
+        0111: 's'
+        1111: 'u'
                       01      Simple     prefix code I0 of 1
                     11        4          code words
-    End of table. Code:
-        000: 'e'
-        0001: 'O'
-        0010: \x0a
-        0011: 'n'
-        100: 'l'
-        0101: 'b'
-        0110: '!'
-        0111: 's'
-        1001: 'R'
-        1010: ' '
-        1011: 'o'
-        1101: 'k'
-        1110: 'K'
-        1111: 'u'
     0012 2a      ,00101010,10 I5C4       [symbol]
     0013 b5 ec    00,10110101 I6+xC7     [symbol]
     0015 22       0010,111011 I8+xC5     [symbol]
@@ -1040,7 +1083,7 @@ __test__ = {
     0018 a6           0,01110 2last-3    [symbol]
                 010011        11xx0-3    [symbol]
     0019 aa           01010,1 11xxx0-3   [symbol]
-    Meta block contents ==================================================
+    ====================Meta block contents=====================
     """,
 
 'file': """
@@ -1048,24 +1091,25 @@ __test__ = {
     ... open("H:/Downloads/brotli-master/tests/testdata/10x10y.compressed",'rb')
     ...     .read())).all()
     addr hex           binary value      explanation
-    Stream header --------------------------------------------------
+    -----------------------Stream header------------------------
     0000 1b              1011 22         window size = (1<<22)-16 = 4194288
-    Meta block header ==================================================
+    =====================Meta block header======================
                         1     True       ISLAST
                        0      False      LASTEMPTY
                     ,00       4          Number of nibbles in MLEN-1
     0001 13 00       ,00h,13h 0x13       MLEN = 1+0x13=20
-    Block type descriptors --------------------------------------------------
+    -------------------Block type descriptors-------------------
     0003 00                 0 1          NBLTYPESL
                            0  1          NBLTYPESI
                           0   1          NBLTYPESD
                         00    0          POSTFIX
     0004 a4             0,000 0          NDIRECT = 0<<POSTFIX = 0
+    -----------------------Context modes------------------------
                       10      UTF8       literal context mode 0
-    Context maps --------------------------------------------------
+    ------------------------Context maps------------------------
                      0        1          NTREESL
                     0         1          NTREESD
-    Prefix code lists --------------------------------------------------
+    ---------------------Prefix code lists----------------------
                   01          Simple     prefix code L0 of 1
     0005 b0               0,1 2          code words
     0006 b2         0,1011000 'X'        [symbol]
@@ -1077,30 +1121,31 @@ __test__ = {
                01             Simple     prefix code D0 of 1
              00               1          code words
     000b 8a           010,000 10x0-3     [symbol]
-    Meta block contents ==================================================
+    ====================Meta block contents=====================
     """,
 
 'XY': """
     >>> Layout(BitStream(brotli.compress('X'*10+'Y'*10))).all()
     addr hex           binary value      explanation
-    Stream header --------------------------------------------------
+    -----------------------Stream header------------------------
     0000 1b              1011 22         window size = (1<<22)-16 = 4194288
-    Meta block header ==================================================
+    =====================Meta block header======================
                         1     True       ISLAST
                        0      False      LASTEMPTY
                     ,00       4          Number of nibbles in MLEN-1
     0001 13 00       ,00h,13h 0x13       MLEN = 1+0x13=20
-    Block type descriptors --------------------------------------------------
+    -------------------Block type descriptors-------------------
     0003 00                 0 1          NBLTYPESL
                            0  1          NBLTYPESI
                           0   1          NBLTYPESD
                         00    0          POSTFIX
     0004 a4             0,000 0          NDIRECT = 0<<POSTFIX = 0
+    -----------------------Context modes------------------------
                       10      UTF8       literal context mode 0
-    Context maps --------------------------------------------------
+    ------------------------Context maps------------------------
                      0        1          NTREESL
                     0         1          NTREESD
-    Prefix code lists --------------------------------------------------
+    ---------------------Prefix code lists----------------------
                   01          Simple     prefix code L0 of 1
     0005 b0               0,1 2          code words
     0006 b2         0,1011000 'X'        [symbol]
@@ -1111,7 +1156,7 @@ __test__ = {
     0009 00               0,1 Simple     prefix code D0 of 1
                         00    1          code words
     000a e0           0,00000 last       [symbol]
-    Meta block contents ==================================================
+    ====================Meta block contents=====================
     """,
 }
 
@@ -1120,6 +1165,10 @@ if __name__=='__main__':
     if len(sys.argv)>1:
         Layout(BitStream(open(sys.argv[1],'rb').read())).all()
     else:
+        open('brotlidump.br','wb').write(
+            brotli.compress(
+                open('brotlidump.py','r').read()
+            ))
         sys.path.append("h:/Persoonlijk/bin")
         import brotli
         olleke = BitStream(brotli.compress(
