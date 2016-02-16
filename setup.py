@@ -138,7 +138,6 @@ brotli = Extension("brotli",
                         "dec/decode.c",
                         "dec/dictionary.c",
                         "dec/huffman.c",
-                        "dec/streams.c",
                         "dec/state.c",
                     ],
                     depends=[
