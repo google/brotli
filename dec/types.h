@@ -29,10 +29,10 @@ typedef __int64 int64_t;
    size length. Neither items nor size are allowed to be 0.
    opaque argument is a pointer provided by client and could be used to bind
    function to specific object (memory pool). */
-typedef void* (*brotli_alloc_func) (void* opaque, size_t size);
+typedef void* (*brotli_alloc_func)(void* opaque, size_t size);
 
 /* Deallocating function pointer. Function SHOULD be no-op in the case the
    address is 0. */
-typedef void  (*brotli_free_func)  (void* opaque, void* address);
+typedef void (*brotli_free_func)(void* opaque, void* address);
 
 #endif  /* BROTLI_DEC_TYPES_H_ */

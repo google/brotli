@@ -44,5 +44,5 @@ int BrotliWarmupBitReader(BrotliBitReader* const br) {
 }
 
 #if defined(__cplusplus) || defined(c_plusplus)
-}    /* extern "C" */
+}  /* extern "C" */
 #endif

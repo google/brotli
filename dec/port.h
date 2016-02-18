@@ -24,7 +24,7 @@
 #ifndef BROTLI_DEC_PORT_H_
 #define BROTLI_DEC_PORT_H_
 
-#include<assert.h>
+#include <assert.h>
 
 /* Compatibility with non-clang compilers. */
 #ifndef __has_builtin
@@ -39,10 +39,6 @@
 #define __has_feature(x) 0
 #endif
 
-#if defined(__sparc)
-#define BROTLI_TARGET_SPARC
-#endif
-
 #if defined(__arm__) || defined(__thumb__) || \
     defined(_M_ARM) || defined(_M_ARMT)
 #define BROTLI_TARGET_ARM
@@ -54,6 +50,10 @@
 #define BROTLI_TARGET_ARMV8
 #endif  /* ARMv8 */
 #endif  /* ARM */
+
+#if defined(__i386) || defined(_M_IX86)
+#define BROTLI_TARGET_X86
+#endif
 
 #if defined(__x86_64__) || defined(_M_X64)
 #define BROTLI_TARGET_X64
@@ -83,19 +83,13 @@
 #define BROTLI_MODERN_COMPILER 0
 #endif
 
-/* SPARC and ARMv6 don't support unaligned read.
-   Choose portable build for them. */
-#if !defined(BROTLI_BUILD_PORTABLE)
-#if defined(BROTLI_TARGET_SPARC) || \
-    (defined(BROTLI_TARGET_ARM) && !defined(BROTLI_TARGET_ARMV7))
-#define BROTLI_BUILD_PORTABLE
-#endif  /* SPARK or ARMv6 */
-#endif  /* portable build */
-
 #ifdef BROTLI_BUILD_PORTABLE
 #define BROTLI_ALIGNED_READ 1
+#elif defined(BROTLI_TARGET_X86) || defined(BROTLI_TARGET_X64) || \
+     defined(BROTLI_TARGET_ARMV7) || defined(BROTLI_TARGET_ARMV8)
+#define BROTLI_ALIGNED_READ 0  /* Allow unaligned access on whitelisted CPUs. */
 #else
-#define BROTLI_ALIGNED_READ 0
+#define BROTLI_ALIGNED_READ 1
 #endif
 
 /* Define "PREDICT_TRUE" and "PREDICT_FALSE" macros for capable compilers.
@@ -137,8 +131,8 @@ OR:
 #endif
 
 #ifndef _MSC_VER
-#if defined(__cplusplus) || !defined(__STRICT_ANSI__) \
-    || __STDC_VERSION__ >= 199901L
+#if defined(__cplusplus) || !defined(__STRICT_ANSI__) || \
+    __STDC_VERSION__ >= 199901L
 #define BROTLI_INLINE inline ATTRIBUTE_ALWAYS_INLINE
 #else
 #define BROTLI_INLINE
@@ -190,14 +184,14 @@ OR:
 #endif
 
 #if BROTLI_MODERN_COMPILER || __has_attribute(noinline)
-#define BROTLI_NOINLINE __attribute__ ((noinline))
+#define BROTLI_NOINLINE __attribute__((noinline))
 #else
 #define BROTLI_NOINLINE
 #endif
 
-#define BROTLI_REPEAT(N, X) { \
-  if ((N & 1) != 0) {X;} \
-  if ((N & 2) != 0) {X; X;} \
+#define BROTLI_REPEAT(N, X) {     \
+  if ((N & 1) != 0) {X;}          \
+  if ((N & 2) != 0) {X; X;}       \
   if ((N & 4) != 0) {X; X; X; X;} \
 }
 
@@ -220,9 +214,9 @@ static BROTLI_INLINE unsigned BrotliRBit(unsigned input) {
 
 #define BROTLI_ALLOC(S, L) S->alloc_func(S->memory_manager_opaque, L)
 
-#define BROTLI_FREE(S, X) { \
+#define BROTLI_FREE(S, X) {                  \
   S->free_func(S->memory_manager_opaque, X); \
-  X = NULL; \
+  X = NULL;                                  \
 }
 
 #define BROTLI_UNUSED(X) (void)(X)
