@@ -150,7 +150,7 @@ struct BrotliStateStruct {
   int distance_postfix_mask;
   uint32_t num_dist_htrees;
   uint8_t* dist_context_map;
-  HuffmanCode *literal_htree;
+  HuffmanCode* literal_htree;
   uint8_t literal_htree_index;
   uint8_t dist_htree_index;
   uint32_t repeat_code_len;
@@ -174,7 +174,7 @@ struct BrotliStateStruct {
   uint16_t* symbol_lists;
   /* Storage from symbol_lists. */
   uint16_t symbols_lists_array[BROTLI_HUFFMAN_MAX_CODE_LENGTH + 1 +
-      BROTLI_HUFFMAN_MAX_CODE_LENGTHS_SIZE];
+                               BROTLI_HUFFMAN_MAX_CODE_LENGTHS_SIZE];
   /* Tails of symbol chains. */
   int next_symbol[32];
   uint8_t code_length_code_lengths[18];
@@ -242,9 +242,8 @@ int BrotliStateIsStreamStart(const BrotliState* s);
    produced all of the output, and 0 otherwise. */
 int BrotliStateIsStreamEnd(const BrotliState* s);
 
-
 #if defined(__cplusplus) || defined(c_plusplus)
-} /* extern "C" */
+}  /* extern "C" */
 #endif
 
 #endif  /* BROTLI_DEC_STATE_H_ */

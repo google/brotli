@@ -9462,5 +9462,5 @@ const uint8_t kBrotliDictionary[122784] = {
 };
 
 #if defined(__cplusplus) || defined(c_plusplus)
-}    /* extern "C" */
+}  /* extern "C" */
 #endif

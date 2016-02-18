@@ -161,7 +161,7 @@ void BrotliHuffmanTreeGroupInit(BrotliState* s, HuffmanTreeGroup* group,
   const size_t max_table_size = kMaxHuffmanTableSize[(alphabet_size + 31) >> 5];
   const size_t code_size = sizeof(HuffmanCode) * ntrees * max_table_size;
   const size_t htree_size = sizeof(HuffmanCode*) * ntrees;
-  char *p = (char*)BROTLI_ALLOC(s, code_size + htree_size);
+  char* p = (char*)BROTLI_ALLOC(s, code_size + htree_size);
   group->alphabet_size = (uint16_t)alphabet_size;
   group->num_htrees = (uint16_t)ntrees;
   group->codes = (HuffmanCode*)p;
@@ -174,5 +174,5 @@ void BrotliHuffmanTreeGroupRelease(BrotliState* s, HuffmanTreeGroup* group) {
 }
 
 #if defined(__cplusplus) || defined(c_plusplus)
-} /* extern "C" */
+}  /* extern "C" */
 #endif

@@ -28,12 +28,12 @@ extern "C" {
 
 /* BROTLI_FAILURE macro unwraps to BROTLI_RESULT_ERROR in non-debug build. */
 /* In debug build it dumps file name, line and pretty function name. */
-#if defined(_MSC_VER) || !defined(BROTLI_DEBUG)
+#if defined(_MSC_VER) || \
+  (!defined(BROTLI_DEBUG) && !defined(BROTLI_DECODE_DEBUG))
 #define BROTLI_FAILURE() BROTLI_RESULT_ERROR
 #else
-#define BROTLI_FAILURE() \
-    BrotliFailure(__FILE__, __LINE__, __PRETTY_FUNCTION__)
-static inline BrotliResult BrotliFailure(const char *f, int l, const char *fn) {
+#define BROTLI_FAILURE() BrotliFailure(__FILE__, __LINE__, __PRETTY_FUNCTION__)
+static inline BrotliResult BrotliFailure(const char* f, int l, const char* fn) {
   fprintf(stderr, "ERROR at %s:%d (%s)\n", f, l, fn);
   fflush(stderr);
   return BROTLI_RESULT_ERROR;
@@ -41,10 +41,10 @@ static inline BrotliResult BrotliFailure(const char *f, int l, const char *fn) {
 #endif
 
 #ifdef BROTLI_DECODE_DEBUG
-#define BROTLI_LOG_UINT(name)                                    \
+#define BROTLI_LOG_UINT(name)                                       \
   printf("[%s] %s = %lu\n", __func__, #name, (unsigned long)(name))
-#define BROTLI_LOG_ARRAY_INDEX(array_name, idx)                  \
-  printf("[%s] %s[%lu] = %lu\n", __func__, #array_name, \
+#define BROTLI_LOG_ARRAY_INDEX(array_name, idx)                     \
+  printf("[%s] %s[%lu] = %lu\n", __func__, #array_name,             \
          (unsigned long)(idx), (unsigned long)array_name[idx])
 #define BROTLI_LOG(x) printf x
 #else
@@ -61,8 +61,8 @@ static const uint32_t kNumBlockLengthCodes = 26;
 static const int kLiteralContextBits = 6;
 static const int kDistanceContextBits = 2;
 
-#define HUFFMAN_TABLE_BITS      8U
-#define HUFFMAN_TABLE_MASK      0xff
+#define HUFFMAN_TABLE_BITS 8U
+#define HUFFMAN_TABLE_MASK 0xff
 
 #define CODE_LENGTH_CODES 18
 static const uint8_t kCodeLengthCodeOrder[CODE_LENGTH_CODES] = {
@@ -127,8 +127,7 @@ static uint32_t DecodeWindowBits(BrotliBitReader* br) {
   return 17;
 }
 
-static BROTLI_INLINE void memmove16(
-    uint8_t* dst, uint8_t* src) {
+static BROTLI_INLINE void memmove16(uint8_t* dst, uint8_t* src) {
 #if defined(__ARM_NEON__)
   vst1q_u8(dst, vld1q_u8(src));
 #else
@@ -479,8 +478,7 @@ static BROTLI_INLINE void ProcessSingleCodeLength(uint32_t code_len,
     *prev_code_len = code_len;
     *space -= 32768U >> code_len;
     code_length_histo[code_len]++;
-    BROTLI_LOG(("[ReadHuffmanCode] code_length[%d] = %d\n",
-                *symbol, code_len));
+    BROTLI_LOG(("[ReadHuffmanCode] code_length[%d] = %d\n", *symbol, code_len));
   }
   (*symbol)++;
 }
@@ -532,8 +530,8 @@ static BROTLI_INLINE void ProcessRepeatedCodeLength(uint32_t code_len,
     } while (++(*symbol) != last);
     next_symbol[*repeat_code_len] = next;
     *space -= repeat_delta << (15 - *repeat_code_len);
-    code_length_histo[*repeat_code_len] = (uint16_t)
-        (code_length_histo[*repeat_code_len] + repeat_delta);
+    code_length_histo[*repeat_code_len] =
+        (uint16_t)(code_length_histo[*repeat_code_len] + repeat_delta);
   } else {
     *symbol += repeat_delta;
   }
@@ -568,8 +566,8 @@ static BrotliResult ReadSymbolCodeLengths(
     BrotliFillBitWindow16(br);
     p += BrotliGetBitsUnmasked(br) &
         BitMask(BROTLI_HUFFMAN_MAX_CODE_LENGTH_CODE_LENGTH);
-    BrotliDropBits(br, p->bits); /* Use 1..5 bits */
-    code_len = p->value; /* code_len == 0..17 */
+    BrotliDropBits(br, p->bits);  /* Use 1..5 bits */
+    code_len = p->value;  /* code_len == 0..17 */
     if (code_len < kCodeLengthRepeatCode) {
       ProcessSingleCodeLength(code_len, &symbol, &repeat, &space,
           &prev_code_len, symbol_lists, code_length_histo, next_symbol);
@@ -785,8 +783,8 @@ Complex: /* Decode Huffman-coded code lengths. */
         BROTLI_LOG(("[ReadHuffmanCode] space = %d\n", s->space));
         return BROTLI_FAILURE();
       }
-      table_size = BrotliBuildHuffmanTable(table, HUFFMAN_TABLE_BITS,
-          s->symbol_lists, s->code_length_histo);
+      table_size = BrotliBuildHuffmanTable(
+          table, HUFFMAN_TABLE_BITS, s->symbol_lists, s->code_length_histo);
       if (opt_table_size) {
         *opt_table_size = table_size;
       }
@@ -926,7 +924,7 @@ static BrotliResult DecodeContextMap(uint32_t context_map_size,
   BrotliBitReader* br = &s->br;
   BrotliResult result = BROTLI_RESULT_SUCCESS;
 
-  switch((int)s->substate_context_map) {
+  switch ((int)s->substate_context_map) {
     case BROTLI_STATE_CONTEXT_MAP_NONE:
       result = DecodeVarLenUint8(s, br, num_htrees);
       if (result != BROTLI_RESULT_SUCCESS) {
@@ -1144,12 +1142,11 @@ static int BROTLI_NOINLINE SafeDecodeDistanceBlockSwitch(BrotliState* s) {
 
 static BrotliResult WriteRingBuffer(size_t* available_out, uint8_t** next_out,
     size_t* total_out, BrotliState* s) {
-  size_t pos = (s->pos > s->ringbuffer_size) ?
-      (size_t)s->ringbuffer_size : (size_t)(s->pos);
-  uint8_t* start = s->ringbuffer
-      + (s->partial_pos_out & (size_t)s->ringbuffer_mask);
-  size_t partial_pos_rb =
-      (s->rb_roundtrips * (size_t)s->ringbuffer_size) + pos;
+  size_t pos = (s->pos > s->ringbuffer_size) ? (size_t)s->ringbuffer_size
+                                             : (size_t)(s->pos);
+  uint8_t* start =
+      s->ringbuffer + (s->partial_pos_out & (size_t)s->ringbuffer_mask);
+  size_t partial_pos_rb = (s->rb_roundtrips * (size_t)s->ringbuffer_size) + pos;
   size_t to_write = (partial_pos_rb - s->partial_pos_out);
   size_t num_written = *available_out;
   if (num_written > to_write) {
@@ -1199,7 +1196,7 @@ static int BROTLI_NOINLINE BrotliAllocateRingBuffer(BrotliState* s) {
 
   if (s->custom_dict) {
     memcpy(&s->ringbuffer[(-s->custom_dict_size) & s->ringbuffer_mask],
-                          s->custom_dict, (size_t)s->custom_dict_size);
+           s->custom_dict, (size_t)s->custom_dict_size);
   }
 
   return 1;
@@ -1238,8 +1235,8 @@ static BrotliResult BROTLI_NOINLINE CopyUncompressedBlockToOutput(
         /* No break, continue to next state */
       }
       case BROTLI_STATE_UNCOMPRESSED_WRITE: {
-        BrotliResult result = WriteRingBuffer(
-            available_out, next_out, total_out, s);
+        BrotliResult result =
+            WriteRingBuffer(available_out, next_out, total_out, s);
         if (result != BROTLI_RESULT_SUCCESS) {
           return result;
         }
@@ -1293,10 +1290,10 @@ static void BROTLI_NOINLINE BrotliCalculateRingBufferSize(BrotliState* s,
   s->ringbuffer_size = 1 << s->window_bits;
 
   if (s->is_uncompressed) {
-    int next_block_header = BrotliPeekByte(br,
-        (size_t)s->meta_block_remaining_len);
-    if (next_block_header != -1) { /* Peek succeeded */
-      if ((next_block_header & 3) == 3) { /* ISLAST and ISEMPTY */
+    int next_block_header =
+        BrotliPeekByte(br, (size_t)s->meta_block_remaining_len);
+    if (next_block_header != -1) {  /* Peek succeeded */
+      if ((next_block_header & 3) == 3) {  /* ISLAST and ISEMPTY */
         is_last = 1;
       }
     }
@@ -1305,8 +1302,8 @@ static void BROTLI_NOINLINE BrotliCalculateRingBufferSize(BrotliState* s,
   /* We need at least 2 bytes of ring buffer size to get the last two
      bytes for context from there */
   if (is_last) {
-    while (s->ringbuffer_size >= s->meta_block_remaining_len * 2
-        && s->ringbuffer_size > 32) {
+    while (s->ringbuffer_size >= s->meta_block_remaining_len * 2 &&
+           s->ringbuffer_size > 32) {
       s->ringbuffer_size >>= 1;
     }
   }
@@ -1407,8 +1404,8 @@ static BROTLI_INLINE int ReadDistanceInternal(int safe,
     if (!safe && (s->distance_postfix_bits == 0)) {
       nbits = ((uint32_t)distval >> 1) + 1;
       offset = ((2 + (distval & 1)) << nbits) - 4;
-      s->distance_code = (int)s->num_direct_distance_codes +
-          offset + (int)BrotliReadBits(br, nbits);
+      s->distance_code = (int)s->num_direct_distance_codes + offset +
+                         (int)BrotliReadBits(br, nbits);
     } else {
       /* This branch also works well when s->distance_postfix_bits == 0 */
       uint32_t bits;
@@ -1498,16 +1495,17 @@ static BROTLI_INLINE int CheckInputAmount(int safe,
   return BrotliCheckInputAmount(br, num);
 }
 
-#define BROTLI_SAFE(METHOD) { \
-  if (safe) { \
-    if (! Safe ## METHOD ) { \
-      result = BROTLI_RESULT_NEEDS_MORE_INPUT; \
-      goto saveStateAndReturn; \
-    } \
-  } else { \
-    METHOD ; \
-  } \
-}
+#define BROTLI_SAFE(METHOD)                      \
+  {                                              \
+    if (safe) {                                  \
+      if (!Safe##METHOD) {                       \
+        result = BROTLI_RESULT_NEEDS_MORE_INPUT; \
+        goto saveStateAndReturn;                 \
+      }                                          \
+    } else {                                     \
+      METHOD;                                    \
+    }                                            \
+  }
 
 static BROTLI_INLINE BrotliResult ProcessCommandsInternal(int safe,
     BrotliState* s) {
@@ -1579,8 +1577,8 @@ CommandInner:
         PreloadSymbol(safe, s->literal_htree, br, &bits, &value);
       }
       if (!safe) {
-        s->ringbuffer[pos] = (uint8_t)ReadPreloadedSymbol(
-            s->literal_htree, br, &bits, &value);
+        s->ringbuffer[pos] =
+            (uint8_t)ReadPreloadedSymbol(s->literal_htree, br, &bits, &value);
       } else {
         uint32_t literal;
         if (!SafeReadSymbol(s->literal_htree, br, &literal)) {
@@ -1700,58 +1698,44 @@ postReadDistance:
         }
       } else {
         BROTLI_LOG(("Invalid backward reference. pos: %d distance: %d "
-               "len: %d bytes left: %d\n",
-            pos, s->distance_code, i,
-            s->meta_block_remaining_len));
+            "len: %d bytes left: %d\n",
+            pos, s->distance_code, i, s->meta_block_remaining_len));
         return BROTLI_FAILURE();
       }
     } else {
       BROTLI_LOG(("Invalid backward reference. pos: %d distance: %d "
-             "len: %d bytes left: %d\n", pos, s->distance_code, i,
-             s->meta_block_remaining_len));
+          "len: %d bytes left: %d\n",
+          pos, s->distance_code, i, s->meta_block_remaining_len));
       return BROTLI_FAILURE();
     }
   } else {
-    const uint8_t *ringbuffer_end_minus_copy_length =
-        s->ringbuffer_end - i;
-    uint8_t* copy_src = &s->ringbuffer[
-        (pos - s->distance_code) & s->ringbuffer_mask];
+    int src_start = (pos - s->distance_code) & s->ringbuffer_mask;
     uint8_t* copy_dst = &s->ringbuffer[pos];
-    /* Check for possible underflow and clamp the pointer to 0. */
-    if (PREDICT_FALSE(s->ringbuffer_end < (const uint8_t*)0 + i)) {
-      ringbuffer_end_minus_copy_length = 0;
-    }
+    uint8_t* copy_src = &s->ringbuffer[src_start];
+    int dst_end = pos + i;
+    int src_end = src_start + i;
     /* update the recent distances cache */
     s->dist_rb[s->dist_rb_idx & 3] = s->distance_code;
     ++s->dist_rb_idx;
     s->meta_block_remaining_len -= i;
     if (PREDICT_FALSE(s->meta_block_remaining_len < 0)) {
       BROTLI_LOG(("Invalid backward reference. pos: %d distance: %d "
-             "len: %d bytes left: %d\n", pos, s->distance_code, i,
-             s->meta_block_remaining_len));
+          "len: %d bytes left: %d\n",
+          pos, s->distance_code, i, s->meta_block_remaining_len));
       return BROTLI_FAILURE();
     }
-    /* There is 128+ bytes of slack in the ringbuffer allocation.
+    /* There are 32+ bytes of slack in the ringbuffer allocation.
        Also, we have 16 short codes, that make these 16 bytes irrelevant
        in the ringbuffer. Let's copy over them as a first guess.
      */
     memmove16(copy_dst, copy_src);
-    /* Now check if the copy extends over the ringbuffer end,
-       or if the copy overlaps with itself, if yes, do wrap-copy. */
-    if (copy_src < copy_dst) {
-      if (copy_dst >= ringbuffer_end_minus_copy_length) {
-        goto CommandPostWrapCopy;
-      }
-      if (copy_src + i > copy_dst) {
-        goto postSelfintersecting;
-      }
-    } else {
-      if (copy_src >= ringbuffer_end_minus_copy_length) {
-        goto CommandPostWrapCopy;
-      }
-      if (copy_dst + i > copy_src) {
-        goto postSelfintersecting;
-      }
+    if (src_end > pos && dst_end > src_start) {
+      /* Regions intersect. */
+      goto CommandPostWrapCopy;
+    }
+    if (dst_end >= s->ringbuffer_size || src_end >= s->ringbuffer_size) {
+      /* At least one region wraps. */
+      goto CommandPostWrapCopy;
     }
     pos += i;
     if (i > 16) {
@@ -1772,30 +1756,17 @@ postReadDistance:
   } else {
     goto CommandBegin;
   }
-postSelfintersecting:
-  while (--i >= 0) {
-    s->ringbuffer[pos] =
-        s->ringbuffer[(pos - s->distance_code) & s->ringbuffer_mask];
-    ++pos;
-  }
-  if (s->meta_block_remaining_len <= 0) {
-    /* Next metablock, if any */
-    s->state = BROTLI_STATE_METABLOCK_DONE;
-    goto saveStateAndReturn;
-  } else {
-    goto CommandBegin;
-  }
-
 CommandPostWrapCopy:
-  s->state = BROTLI_STATE_COMMAND_POST_WRAP_COPY;
-  while (--i >= 0) {
-    s->ringbuffer[pos] =
-        s->ringbuffer[(pos - s->distance_code) & s->ringbuffer_mask];
-    ++pos;
-    if (pos == s->ringbuffer_size) {
-      /*s->partial_pos_rb += (size_t)s->ringbuffer_size;*/
-      s->state = BROTLI_STATE_COMMAND_POST_WRITE_2;
-      goto saveStateAndReturn;
+  {
+    int wrap_guard = s->ringbuffer_size - pos;
+    while (--i >= 0) {
+      s->ringbuffer[pos] =
+          s->ringbuffer[(pos - s->distance_code) & s->ringbuffer_mask];
+      ++pos;
+      if (PREDICT_FALSE(--wrap_guard == 0)) {
+        s->state = BROTLI_STATE_COMMAND_POST_WRITE_2;
+        goto saveStateAndReturn;
+      }
     }
   }
   if (s->meta_block_remaining_len <= 0) {
@@ -1960,8 +1931,8 @@ BrotliResult BrotliDecompressStream(size_t* available_in,
           result = BROTLI_FAILURE();
           break;
         }
-        s->block_len_trees = s->block_type_trees +
-            3 * BROTLI_HUFFMAN_MAX_SIZE_258;
+        s->block_len_trees =
+            s->block_type_trees + 3 * BROTLI_HUFFMAN_MAX_SIZE_258;
 
         s->state = BROTLI_STATE_METABLOCK_BEGIN;
         /* No break, continue to next state */
@@ -2081,8 +2052,8 @@ BrotliResult BrotliDecompressStream(size_t* available_in,
         }
         s->distance_postfix_bits = bits & BitMask(2);
         bits >>= 2;
-        s->num_direct_distance_codes = NUM_DISTANCE_SHORT_CODES +
-            (bits << s->distance_postfix_bits);
+        s->num_direct_distance_codes =
+            NUM_DISTANCE_SHORT_CODES + (bits << s->distance_postfix_bits);
         BROTLI_LOG_UINT(s->num_direct_distance_codes);
         BROTLI_LOG_UINT(s->distance_postfix_bits);
         s->distance_postfix_mask = (int)BitMask(s->distance_postfix_bits);
@@ -2159,6 +2130,8 @@ BrotliResult BrotliDecompressStream(size_t* available_in,
             case 2:
               hgroup = &s->distance_hgroup;
               break;
+            default:
+              return BROTLI_FAILURE();
           }
           result = HuffmanTreeGroupDecode(hgroup, s);
         }
@@ -2255,10 +2228,10 @@ BrotliResult BrotliDecompressStream(size_t* available_in,
 void BrotliSetCustomDictionary(
     size_t size, const uint8_t* dict, BrotliState* s) {
   s->custom_dict = dict;
-  s->custom_dict_size = (int) size;
+  s->custom_dict_size = (int)size;
 }
 
 
 #if defined(__cplusplus) || defined(c_plusplus)
-}    /* extern "C" */
+}  /* extern "C" */
 #endif
