@@ -71,7 +71,7 @@ def main(args=None):
                         'tradeoff. The higher the quality, the slower the '
                         'compression. Range is 0 to 11. Defaults to 11.')
     params.add_argument('--lgwin', metavar="LGWIN", type=int,
-                        choices=list(range(16, 25)),
+                        choices=list(range(10, 25)),
                         help='Base 2 logarithm of the sliding window size. Range is '
                         '10 to 24. Defaults to 22.')
     params.add_argument('--lgblock', metavar="LGBLOCK", type=int,
