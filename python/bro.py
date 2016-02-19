@@ -61,7 +61,7 @@ def main(args=None):
     parser.add_argument('-d', '--decompress', action='store_true',
                         help='Decompress input file', default=False)
     params = parser.add_argument_group('optional encoder parameters')
-    params.add_argument('-m', '--mode', metavar="MODE", type=int, choices=[0, 1],
+    params.add_argument('-m', '--mode', metavar="MODE", type=int, choices=[0, 1, 2],
                         help='The compression mode can be 0 for generic input, '
                         '1 for UTF-8 encoded text, or 2 for WOFF 2.0 font data. '
                         'Defaults to 0.')
@@ -71,7 +71,7 @@ def main(args=None):
                         'tradeoff. The higher the quality, the slower the '
                         'compression. Range is 0 to 11. Defaults to 11.')
     params.add_argument('--lgwin', metavar="LGWIN", type=int,
-                        choices=list(range(16, 25)),
+                        choices=list(range(10, 25)),
                         help='Base 2 logarithm of the sliding window size. Range is '
                         '10 to 24. Defaults to 22.')
     params.add_argument('--lgblock', metavar="LGBLOCK", type=int,
