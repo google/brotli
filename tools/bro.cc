@@ -146,8 +146,13 @@ static FILE *OpenOutputFile(const char *output_path, const int force) {
     return fdopen(STDOUT_FILENO, "wb");
   }
   int excl = force ? 0 : O_EXCL;
+#if defined(_WIN32)
+  int fd = open(output_path, O_CREAT | excl | O_WRONLY | O_TRUNC | O_BINARY,
+                S_IREAD | S_IWRITE);
+#else
   int fd = open(output_path, O_CREAT | excl | O_WRONLY | O_TRUNC,
                 S_IRUSR | S_IWUSR);
+#endif
   if (fd < 0) {
     if (!force) {
       struct stat statbuf;
