@@ -33,12 +33,3 @@ for filename in INPUTS.splitlines():
                     uncompressed, "--custom-dictionary", filename], env=TEST_ENV)
         if diff_q(filename, uncompressed) != 0:
             sys.exit(1)
-        # Test the streaming version
-        with open(filename, "rb") as infile, \
-                open(uncompressed, "wb") as outfile:
-            p = Popen([PYTHON, BRO, "-q", str(quality)], stdin=infile,
-                      stdout=PIPE, env=TEST_ENV)
-            check_call([PYTHON, BRO, "-d"], stdin=p.stdout, stdout=outfile,
-                       env=TEST_ENV)
-        if diff_q(filename, uncompressed) != 0:
-            sys.exit(1)
