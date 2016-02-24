@@ -105,8 +105,8 @@ PyDoc_STRVAR(compress__doc__,
 "  lgblock (int, optional): Base 2 logarithm of the maximum input block size.\n"
 "    Range is 16 to 24. If set to 0, the value will be set based on the\n"
 "    quality. Defaults to 0.\n"
-"  dictionary (bytes, optional): Custom dictionary. Should be shorter than\n"
-"     sliding window size.\n"
+"  dictionary (bytes, optional): Custom dictionary. Only last sliding window\n"
+"     size bytes will be used.\n"
 "\n"
 "Returns:\n"
 "  The compressed byte string.\n"
@@ -158,10 +158,16 @@ static PyObject* brotli_compress(PyObject *self, PyObject *args, PyObject *keywd
     ok = BrotliCompressBuffer(params, length, input,
                               &output_length, output);
   } else {
+    uint8_t *custom_dictionary_start = custom_dictionary;
     BrotliMemIn in(input, length);
     BrotliMemOut out(output, output_length);
+    size_t sliding_window_size = ((size_t)1) << params.lgwin;
+    if (custom_dictionary_length > sliding_window_size) {
+      custom_dictionary_start += custom_dictionary_length - sliding_window_size;
+      custom_dictionary_length = sliding_window_size;
+    }
     ok = BrotliCompressWithCustomDictionary(custom_dictionary_length,
-        custom_dictionary, params, &in, &out);
+        custom_dictionary_start, params, &in, &out);
     output_length = out.position();
   }
 

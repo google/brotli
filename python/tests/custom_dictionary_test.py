@@ -21,15 +21,16 @@ testdata/plrabn12.txt
 os.chdir(os.path.abspath("../../tests"))
 for filename in INPUTS.splitlines():
     for quality in (1, 6, 9, 11):
-        filename = os.path.abspath(filename)
-        print('Roundtrip testing file "%s" at quality %d with auto-custom-dictionary' %
-              (os.path.basename(filename), quality))
-        compressed = os.path.splitext(filename)[0] + ".custom_bro"
-        uncompressed = os.path.splitext(filename)[0] + ".custom_unbro"
-        check_call([PYTHON, BRO, "-f", "-q", str(quality), "-i", filename,
-                    "-o", compressed, "--lgwin", "24",
-                    "--custom-dictionary", filename], env=TEST_ENV)
-        check_call([PYTHON, BRO, "-f", "-d", "-i", compressed, "-o",
-                    uncompressed, "--custom-dictionary", filename], env=TEST_ENV)
-        if diff_q(filename, uncompressed) != 0:
-            sys.exit(1)
+        for lgwin in (10, 15, 20, 24):
+            filename = os.path.abspath(filename)
+            print('Roundtrip testing file "%s" at quality %d with lg(win)=%d and auto-custom-dictionary' %
+                  (os.path.basename(filename), quality, lgwin))
+            compressed = os.path.splitext(filename)[0] + ".custom_bro"
+            uncompressed = os.path.splitext(filename)[0] + ".custom_unbro"
+            check_call([PYTHON, BRO, "-f", "-q", str(quality), "-i", filename,
+                        "-o", compressed, "--lgwin", str(lgwin),
+                        "--custom-dictionary", filename], env=TEST_ENV)
+            check_call([PYTHON, BRO, "-f", "-d", "-i", compressed, "-o",
+                        uncompressed, "--custom-dictionary", filename], env=TEST_ENV)
+            if diff_q(filename, uncompressed) != 0:
+                sys.exit(1)
