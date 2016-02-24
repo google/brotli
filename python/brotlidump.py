@@ -1,5 +1,5 @@
 #!python3
-"""Program to dump contents of brotli files showing the compression format.
+"""Program to dump contents of Brotli compressed files showing the compression format.
 Jurjen N.E. Bos, 2016.
 I found the following issues with the Brotli format:
 - The distance alphabet has size 16+(48<<POSTFIX),
@@ -15,6 +15,34 @@ from collections import defaultdict, deque
 from functools import partial
 
 class InvalidStream(Exception): pass
+#lookup table
+L, I, D = "literal", "insert&copy", "distance"
+pL, pI, pD = 'P'+L, 'P'+I, 'P'+D
+
+def outputCharFormatter(c):
+    """Show character in readable format
+    """
+    #TODO 2: allow hex only output
+    if 32<c<127: return chr(c)
+    elif c==10: return '\\n'
+    elif c==13: return '\\r'
+    elif c==32: return '" "'
+    else: return '\\x{:02x}'.format(c)
+
+def outputFormatter(s):
+    """Show string or char.
+    """
+    result = ''
+    def formatSubString(s):
+        for c in s:
+            if c==32: yield ' '
+            else: yield outputCharFormatter(c)
+    if len(result)<200: return ''.join(formatSubString(s))
+    else:
+        return ''.join(formatSubString(s[:100]))+'...'+ \
+               ''.join(formatSubString(s[-100:]))
+
+
 class BitStream:
     """Represent a bytes object. Can read bits and prefix codes the way
     Brotli does.
@@ -91,7 +119,7 @@ class Symbol:
     def __len__(self):
         """Number of bits in the prefix notation of this symbol
         """
-        return self.code.lengthTable[self.index]
+        return self.code.length(self.index)
 
     def __int__(self):
         return self.index
@@ -112,23 +140,27 @@ class Symbol:
         """
         return self.code.mnemonic(self.index)
 
-    #requiring extra bits
+    #requiring optional extra bits, if self.code supports them
     def value(self, extra=None):
         """The value used for processing. Can be a tuple.
         with optional extra bits
         """
-        if extra is None and self.extraBits():
-            raise ValueError('value: symbol needs extra bits')
-        return self.code.value(self.index, extra)
+        if isinstance(self.code, WithExtra):
+            if not 0<=extra<1<<self.extraBits():
+                raise ValueError("value: extra value doesn't fit in extraBits")
+            return self.code.value(self.index, extra)
+        if extra is not None:
+            raise ValueError('value: no extra bits for this code')
+        return self.code.value(self.index)
 
     def explanation(self, extra=None):
         """Long explanation of the value from the numeric value
         with optional extra bits
         Used by Layout.verboseRead when printing the value
         """
-        if extra is None and self.extraBits():
-            raise ValueError('explanation: symbol needs extra bits')
-        return self.code.explanation(self.index, extra)
+        if isinstance(self.code, WithExtra):
+            return self.code.callback(self, extra)
+        return self.code.callback(self)
 
 #========================Code definitions==================================
 class RangeDecoder:
@@ -269,7 +301,7 @@ class PrefixDecoder:
         self.switchToPrefix()
 
     def setLength(self, lengthTable):
-        """Given the bit pattern lengths for symbols 0..len-1,
+        """Given the bit pattern lengths for symbols given in lengthTable,
         set decodeTable, minLength, maxLength
         """
         self.lengthTable = lengthTable
@@ -311,12 +343,14 @@ class Code(RangeDecoder, PrefixDecoder):
     name: show as context in Layout.verboseRead
     """
     name = '?'
-    description = ''
-    def __init__(self, name=None, *, description='', **args):
+    #callback is a function that gets the symbol and the extra bits
+    #default callback calls explanation
+    def __init__(self, name=None, *, callback=None, description='', **args):
         """Don't forget to set either alphabetSize or decodeTable
         """
         #set name when provided, otherwise take class variable
         if name is not None: self.name = name
+        if callback is not None: self.callback = callback
         self.description = description
         #mode switch
         if 'bitLength' in args or 'alphabetSize' in args:
@@ -353,29 +387,21 @@ class Code(RangeDecoder, PrefixDecoder):
         """
         return str(self.value(index))
 
-    def explanation(self, index, extra=None):
+    def callback(self, symbol):
+        return self.explanation(symbol.index)
+
+    def explanation(self, index):
         """Long explanation of the value from the numeric value
-        If you don't supply extra, it is not mentioned.
-        This is a default routine, that is overridden in the subclasses.
+        This is a default routine.
+        You can customize in three ways:
+        - set description to add some text
+        - override to get more control
+        - set callback to make it dependent on you local variables
         """
-        extraBits = 0 if extra is None else self.extraBits(index)
-        if not hasattr(self, 'extraTable'):
-            formatString = '{0}{3}'
-            lo = hi = value = self.value(index, extra)
-        elif extraBits==0:
-            formatString = '{0}{2}: {3}'
-            lo, hi = self.span(index)
-            value = lo
-        else:
-            formatString = '{0}{1} {2}: {3}-{4}; {3}+{5}={6}'
-            lo, hi = self.span(index)
-            value = lo+extra
-        return formatString.format(
+        value = self.value(index)
+        return '{0}{1}: {2}'.format(
             self.description and self.description+': ',
-            'x'*extraBits,
             self.bitPattern(index),
-            lo, hi,
-            extra,
             value,
             )
 
@@ -449,6 +475,34 @@ class WithExtra(Code):
         extraBits = self.extraBits(symbol.index)
         return length, symbol, extraBits, stream.read(extraBits)
 
+    def explanation(self, index, extra=None):
+        """Expanded version of Code.explanation supporting extra bits.
+        If you don't supply extra, it is not mentioned.
+        """
+        extraBits = 0 if extra is None else self.extraBits(index)
+        if not hasattr(self, 'extraTable'):
+            formatString = '{0}{3}'
+            lo = hi = value = self.value(index, extra)
+        elif extraBits==0:
+            formatString = '{0}{2}: {3}'
+            lo, hi = self.span(index)
+            value = lo
+        else:
+            formatString = '{0}{1} {2}: {3}-{4}; {3}+{5}={6}'
+            lo, hi = self.span(index)
+            value = lo+extra
+        return formatString.format(
+            self.description and self.description+': ',
+            'x'*extraBits,
+            self.bitPattern(index),
+            lo, hi,
+            extra,
+            value,
+            )
+
+    def callback(self, symbol, extra):
+        return self.explanation(symbol.index, extra)
+
 class BoolCode(Code):
     """Same as Code(bitLength=1), but shows a boolean.
     """
@@ -487,7 +541,7 @@ class Enumerator(WithExtra):
         """Override if you don't define value0 and extraTable
         """
         lower, upper = self.span(index)
-        value = lower+extra
+        value = lower+(extra or 0)
         if value>upper:
             raise ValueError('value: extra out of range')
         return value
@@ -532,22 +586,32 @@ class PrefixCodeHeader(WithExtra):
         lengths = [1, 2, 3, 4, 0, 5, 17, 6]
         return '{} is complex with lengths {}...'.format(
             self.codename,
-            ', '.join(
+            ','.join(
                 map(str, lengths[index:index+5]))
             )
+
+class TreeShapeAlhabet(BoolCode):
+    """The bit used to indicate if four word code is "deep" or "wide"
+    """
+    name = 'SHAPE'
+    def value(self, index):
+        return [(2,2,2,2), (1,2,3,3)][index]
+
+    def explanation(self, index):
+        return str(bool(index))+': lengths {},{},{},{}'.format(*self.value(index))
 
 class LengthOfLengthAlphabet(Code):
     """For use in decoding complex code descriptors.
     >>> lengthOfLengthAlphabet = LengthOfLengthAlphabet('')
     >>> print(lengthOfLengthAlphabet[2])
-     coded with 2 bits
+    coded with 2 bits
     >>> len(lengthOfLengthAlphabet[0])
     2
     >>> [len(lengthOfLengthAlphabet[x]) for x in range(6)]
     [2, 4, 3, 2, 2, 4]
     >>> lengthOfLengthAlphabet.showCode()
-      00:skipped              01: coded with 4 bits 0111: coded with 1 bits
-      10: coded with 3 bits  011: coded with 2 bits 1111: coded with 5 bits
+      00:skipped             01:coded with 4 bits 0111:coded with 1 bits
+      10:coded with 3 bits  011:coded with 2 bits 1111:coded with 5 bits
     """
     decodeTable = {
          0b00:0,     0b10:3,
@@ -560,7 +624,7 @@ class LengthOfLengthAlphabet(Code):
 
     def mnemonic(self, index):
         if index==0: return 'skipped'
-        return ' coded with {} bits'.format(index)
+        return 'coded with {} bits'.format(index)
 
     def explanation(self, index, extra=None):
         return self.description+': '+self.mnemonic(index)
@@ -607,12 +671,12 @@ class WindowSizeAlphabet(Code):
     def __init__(self, name=None):
         super().__init__(name, decodeTable=self.decodeTable)
 
-    def value(self, index, extra=None):
+    def value(self, index):
         #missing value gives index None
         if index is None: return None
         return (1<<index)-16
 
-    def explanation(self, index, extra=None):
+    def explanation(self, index):
         return 'windowsize=(1<<{})-16={}'.format(
             index, (1<<index)-16)
 
@@ -666,14 +730,34 @@ class MetablockLengthAlphabet(WithExtra):
     def explanation(self, index, extra):
         if index==0: return '11: empty block'
         extraBits = self.extraBits(index)
-        return 'data length: {:{}x}h+1={}'.format(extra, extraBits//4, extra+1)
+        return 'data length: {:0{}x}h+1={}'.format(extra, extraBits//4, extra+1)
 
+
+class ReservedAlphabet(BoolCode):
+    """The reserved bit that must be zero.
+    """
+    name = 'RSVD'
+    def value(self, index):
+        if index: raise ValueError('Reserved bit is not zero')
+
+    def explanation(self, index):
+        return 'Reserved (must be zero)'
+
+class FillerAlphabet(Code):
+    def __init__(self, *, streamPos):
+        super().__init__('SKIP', bitLength=(-streamPos)&7)
+
+    def explanation(self, index):
+        return '{} bit{} ignored'.format(
+            self.length(index),
+            '' if self.length(index)==1 else 's',
+            )
 
 class SkipLengthAlphabet(WithExtra):
     """Used for the skip length in an empty metablock
     >>> skipLengthAlphabet = SkipLengthAlphabet()
     >>> skipLengthAlphabet[0]; str(skipLengthAlphabet[0])
-    Symbol(skip, 0)
+    Symbol(SKIP, 0)
     'empty'
     >>> skipLengthAlphabet[4]
     Traceback (most recent call last):
@@ -693,7 +777,7 @@ class SkipLengthAlphabet(WithExtra):
     00:empty    01:hh01     10:hhhh10   11:hhhhhh11
     """
     def __init__(self):
-        super().__init__('skip', bitLength=2)
+        super().__init__('SKIP', bitLength=2)
 
     def extraBits(self, index):
         return index*8
@@ -719,25 +803,10 @@ class SkipLengthAlphabet(WithExtra):
 
 class TypeCountAlphabet(Enumerator):
     """Used for giving block type counts and tree counts.
-    >>> typeCountAlphabet = TypeCountAlphabet()
-    >>> len(typeCountAlphabet)
-    9
-    >>> typeCountAlphabet[3]
-    Symbol(BT#, 3)
-    >>> typeCountAlphabet[9]
-    Traceback (most recent call last):
-        ...
-    ValueError: No symbol TypeCountAlphabet[9]
-    >>> print(typeCountAlphabet[3])
-    xx0101
-    >>> typeCountAlphabet[8].value(127)
-    256
-    >>> typeCountAlphabet[4].explanation(2)
-    'Count: xxx 0111: 9-16; 9+2=11'
-    >>> typeCountAlphabet.showCode() #doctest: +SKIP
-       0:empty       0101:xx0101      1011:xxxxx1011
-    0001:0001        1101:xxxxxx1101  0111:xxx0111
-    1001:xxxx1001    0011:x0011       1111:xxxxxxx1111
+    >>> TypeCountAlphabet(description='').showCode()
+       0:0            0101:xx,0101      1011:xxxxx,1011
+    0001:0001         1101:xxxxxx,1101  0111:xxx,0111
+    1001:xxxx,1001    0011:x,0011       1111:xxxxxxx,1111
     """
     decodeTable = {
              0b0: 0,   0b1001: 5,
@@ -751,15 +820,25 @@ class TypeCountAlphabet(Enumerator):
     extraTable = [0, 0, 1, 2, 3, 4, 5, 6, 7]
     name = 'BT#'
 
-    def __init__(self, name=None, *, description='Count'):
+    def __init__(self, name=None, *, description):
         super().__init__(
             name,
             decodeTable=self.decodeTable,
             description=description)
 
     def mnemonic(self, index):
-        if index==0: return 'empty'
-        return 'x'*(self.extraBits(index))+self.bitPattern(index)
+        if index==0: return '0'
+        if index==1: return '0001'
+        return 'x'*(self.extraBits(index))+','+self.bitPattern(index)
+
+    def explanation(self, index, extra):
+        value = self.value(index, extra)
+        description = self.description
+        if value==1: description = description[:-1]
+        return '{}: {} {}'.format(
+            self.mnemonic(index),
+            value,
+            description)
 
 class BlockTypeAlphabet(Code):
     """The block types; this code works for all three kinds.
@@ -776,10 +855,10 @@ class BlockTypeAlphabet(Code):
         elif index==1: return '+1'
         else: return '#'+str(index-2)
 
-    def value(self, index, extra):
+    def value(self, index):
         return index-2
 
-    def explanation(self, index, extra=None):
+    def explanation(self, index):
         if index==0: return '0: previous'
         elif index==1: return '1: increment'
         else: return 'Set block type to: '+str(index-2)
@@ -788,7 +867,7 @@ class BlockCountAlphabet(Enumerator):
     """Block counts
     >>> b = BlockCountAlphabet('L')
     >>> print(b[25])
-    BC16625-16793840
+    [24*x]: BC16625-16793840
     """
 
     value0 = 1
@@ -797,7 +876,10 @@ class BlockCountAlphabet(Enumerator):
         super().__init__(name, alphabetSize=26, **args)
 
     def mnemonic(self, index):
-        return 'BC{}-{}'.format(*self.span(index))
+        extraBits = self.extraBits(index)
+        return '{}: BC{}-{}'.format(
+            'x'*extraBits if index<5 else '[{}*x]'.format(extraBits),
+            *self.span(index))
 
     def explanation(self, index, extra):
         return 'Block count: '+super().explanation(index, extra)
@@ -830,7 +912,7 @@ class LiteralContextMode(Code):
     """For the literal context modes.
     >>> LiteralContextMode().showCode()
     00:LSB6   01:MSB6   10:UTF8   11:Signed
-    >>> LiteralContextMode().explanation(2, 0)
+    >>> LiteralContextMode().explanation(2)
     'Context mode for type 9: 2(UTF8)'
     """
 
@@ -841,14 +923,16 @@ class LiteralContextMode(Code):
     def mnemonic(self, index):
         return ['LSB6', 'MSB6', 'UTF8', 'Signed'][index]
 
-    def explanation(self, index, extra):
+    def explanation(self, index):
         return 'Context mode for type {}: {}({})'.format(
             self.number,
             index,
             self.mnemonic(index))
 
 class RLEmaxAlphabet(Enumerator):
-    """Used for counting the number of context maps.
+    """Used for describing the run length encoding used for describing context maps.
+    >>> RLEmaxAlphabet().showCode()
+    0:1    1:more
     """
     value0 = 0
     extraTable = [0, 4]
@@ -872,8 +956,8 @@ class TreeAlphabet(WithExtra):
     xx+4 zeroes
     >>> t[3].explanation(2)
     '8+010=10 zeroes'
-    >>> t[0].value() #doctest: +SKIP
-    ('#', 0)
+    >>> t[0].value(0)
+    (1, 0)
     """
     name = 'CMI'
     def __init__(self, name=None, *, RLEMAX, NTREES, **args):
@@ -919,10 +1003,7 @@ class LiteralAlphabet(Code):
         super().__init__('L'+str(number), alphabetSize=1<<8)
 
     def mnemonic(self, index):
-        if 32<index<128: return chr(index)
-        elif index==10: return '\\n'
-        elif index==32: return '" "'
-        else: return '\\x{:02x}'.format(index)
+        return outputCharFormatter(index)
 
     def value(self, index, extra=None):
         return index
@@ -1131,12 +1212,17 @@ class ContextModeKeeper:
         """Switch to given context mode (0..3)"""
         self.mode = mode
     def getIndex(self):
-        if self.mode==2:
+        if self.mode==0:  #LSB6
+            return self.chars[1]&0x3f
+        elif self.mode==1: #MSB6
+            return self.chars[1]>>2
+        elif self.mode==2: #UTF8: character class of previous and a bit of the second
             p2,p1 = self.chars
             return self.lut0[p1]|self.lut1[p2]
-        else:
-            #TODO: finish
-            raise NotImplementedError
+        elif self.mode==3: #Signed: initial bits of last two bytes
+            p2,p1 = self.chars
+            return self.lut2[p1]<<3|self.lut2[p2]
+
     def add(self, index):
         """Adjust the context for output char (as int)."""
         self.chars.append(index)
@@ -1152,15 +1238,8 @@ class ContextModeKeeper:
            12, 48, 52, 52, 52, 48, 52, 52, 52, 48, 52, 52, 52, 52, 52, 48,
            52, 52, 52, 52, 52, 48, 52, 52, 52, 52, 52, 24, 12, 28, 12, 12,
            12, 56, 60, 60, 60, 56, 60, 60, 60, 56, 60, 60, 60, 60, 60, 56,
-           60, 60, 60, 60, 60, 56, 60, 60, 60, 60, 60, 24, 12, 28, 12,  0,
-            0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1,
-            0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1,
-            0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1,
-            0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1,
-            2, 3, 2, 3, 2, 3, 2, 3, 2, 3, 2, 3, 2, 3, 2, 3,
-            2, 3, 2, 3, 2, 3, 2, 3, 2, 3, 2, 3, 2, 3, 2, 3,
-            2, 3, 2, 3, 2, 3, 2, 3, 2, 3, 2, 3, 2, 3, 2, 3,
-            2, 3, 2, 3, 2, 3, 2, 3, 2, 3, 2, 3, 2, 3, 2, 3]
+           60, 60, 60, 60, 60, 56, 60, 60, 60, 60, 60, 24, 12, 28, 12,  0
+           ]+[0,1]*32+[2,3]*32
     #0: space  1:punctuation  2:digit/upper 3:lower
     lut1 = [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
              0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -1169,32 +1248,11 @@ class ContextModeKeeper:
              1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
              2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 1, 1, 1, 1,
              1, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
-             3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 1, 1, 1, 1, 0,
-             0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-             0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-             0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-             0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-             0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-             0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-             2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
-             2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2]
-    #hamming weight
-    lut2 = [ 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-             2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
-             2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
-             2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
-             3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
-             3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
-             3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
-             3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
-             4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4,
-             4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4,
-             4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4,
-             4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4,
-             5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5,
-             5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5,
-             5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5,
-             6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 7]
+             3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 1, 1, 1, 1, 0
+           ]+[0]*96+[2]*32
+    #initial bits: 8*0, 4*0, 2*0, 1*0, 1*1, 2*1, 4*1, 8*1
+    lut2 = [0]+[1]*15+[2]*48+[3]*64+[4]*64+[5]*48+[6]*15+[7]
+    assert len(lut0)==len(lut1)==len(lut2)==256
 
 class WordList:
     """Word list.
@@ -1205,7 +1263,7 @@ class WordList:
              10, 10, 10,  9,  9,  8,  7,  7,  8,  7,
               7,  6,  6,  5,  5]
     def __init__(self):
-        self.file = open('dict','rb')
+        self.file = open('dict', 'rb')
         self.compileActions()
 
     def word(self, size, dist):
@@ -1329,11 +1387,13 @@ class Layout:
         Bytes are separated by commas
         whole bytes are displayed in hex
         >>> Layout(olleke).formatBitData(6, 2, 16)
-        ',00h,2Eh ,00'
+        '|00h|2Eh,|00'
         >>> Layout(olleke).formatBitData(4, 1, 0)
         '1'
         """
         result = []
+        #make empty prefix code explicit
+        if width1==0: result = ['()', ',']
         for width in width1, width2:
             #skip empty width2
             if width==0: continue
@@ -1347,41 +1407,52 @@ class Layout:
                 elif availableBits<8:
                     #read rest of byte, ending at boundary
                     data = self.stream.data[pos>>3] >> (pos&7)
-                    result.append(',{:0{}b}'.format(data, availableBits))
+                    result.append('|{:0{}b}'.format(data, availableBits))
                 else:
                     #read whole byte (in hex), beginning and ending at boundary
                     data = self.stream.data[pos>>3]
-                    result.append(',{:02X}h'.format(data))
+                    result.append('|{:02X}h'.format(data))
                 width -= availableBits
                 pos += availableBits
-            #if width overshot, fix pos
+            #if width overshot from the availableBits subtraction, fix it
             pos += width
-            result.append(' ')
+            #add comma to separate fields
+            result.append(',')
         #concatenate pieces, reversed, skipping the last space
         return ''.join(result[-2::-1])
 
     def readPrefixCode(self, alphabet):
         """give alphabet the prefix code that is read from the stream
+        Called for the following alphabets, in this order:
+        The alphabet in question must have a "logical" order,
+        otherwise the assignment of symbols doesn't work.
         """
-        mode, hskipOrSymbols = self.verboseRead(PrefixCodeHeader(alphabet.name))
+        mode, numberOfSymbols = self.verboseRead(PrefixCodeHeader(alphabet.name))
         if mode=='Complex':
-            self.readComplexCode(hskipOrSymbols, alphabet)
+            #for a complex code, numberOfSymbols means hskip
+            self.readComplexCode(numberOfSymbols, alphabet)
             return alphabet
         else:
-            NSYM = hskipOrSymbols
-            symbolSize = (len(alphabet)-1).bit_length()
             table = []
-            for i in range(NSYM):
-                #TODO 1: show symbol at this point
-                table.append(self.verboseReadNoExtra(alphabet).index)
-            if NSYM==4:
-                treeShape = self.verboseRead(
-                    BoolCode('SHAPE',
-                    description='True means lengths 1233 instead of 2222'))
-                symbols = [0,1,3,7] if treeShape else [0,2,1,3]
-            else:
-                symbols = [None, [0], [0,1], [0,1,3]][NSYM]
-            alphabet.setDecode({symbol:s for (symbol,s) in zip(symbols, table)})
+            #Set table of lengths for mnemonic function
+            lengths = [[0], [1,1], [1,2,2], '????'][numberOfSymbols-1]
+            #adjust mnemonic function of alphabet class
+            def myMnemonic(index):
+                return '{} bit{}: {}'.format(
+                    lengths[i],
+                    '' if lengths[i]==1 else 's',
+                    alphabet.__class__.mnemonic(alphabet, index)
+                    )
+            alphabet.mnemonic = myMnemonic
+            for i in range(numberOfSymbols):
+                table.append(self.verboseRead(alphabet, skipExtra=True).index)
+            #restore mnemonic
+            del alphabet.mnemonic
+            if numberOfSymbols==4:
+                #read tree shape to redefine lengths
+                lengths = self.verboseRead(TreeShapeAlhabet())
+            #construct the alphabet prefix code
+            alphabet.setLength(dict(zip(table, lengths)))
         return alphabet
 
     def readComplexCode(self, hskip, alphabet):
@@ -1506,12 +1577,13 @@ class Layout:
     def processStream(self):
         """Process a brotli stream.
         """
-        print('addr hex{:{}s}binary context explanation'.format(
+        print('addr  hex{:{}s}binary context explanation'.format(
             '', self.width-10))
         print('Stream header'.center(60, '-'))
-        self.WBITS = self.verboseRead(WindowSizeAlphabet())
+        self.windowSize = self.verboseRead(WindowSizeAlphabet())
         print('Metablock header'.center(60, '='))
         self.ISLAST = False
+        self.output = bytearray()
         while not self.ISLAST:
             self.ISLAST = self.verboseRead(
                 BoolCode('LAST', description="Last block"))
@@ -1525,102 +1597,63 @@ class Layout:
             self.currentBlockCounts = {}
             self.blockTypeCodes = {}
             self.blockCountCodes = {}
-            for blockType in 'LID': self.blockType(blockType)
-            self.numberOfTrees = {'I': self.numberOfBlockTypes['I']}
+            for blockType in (L,I,D): self.blockType(blockType)
             print('Distance code parameters'.center(60, '-'))
             self.NPOSTFIX, self.NDIRECT = self.verboseRead(DistanceParamAlphabet())
             self.readLiteralContextModes()
             print('Context maps'.center(60, '-'))
             self.cmaps = {}
-            for blockType in 'LD': self.contextMap(blockType)
+            #keep the number of each kind of prefix tree for the last loop
+            numberOfTrees = {I: self.numberOfBlockTypes[I]}
+            for blockType in (L,D):
+                numberOfTrees[blockType] = self.contextMap(blockType)
             print('Prefix code lists'.center(60, '-'))
             self.prefixCodes = {}
-            for blockType in 'LID': self.readPrefixArray(blockType)
+            for blockType in (L,I,D):
+                self.readPrefixArray(blockType, numberOfTrees[blockType])
             self.metablock()
 
     #metablock header
-    def verboseRead(self, alphabet, context=''):
+    def verboseRead(self, alphabet, context='', skipExtra=False):
         """Read symbol and extra from stream and explain what happens.
         Returns the value of the symbol
         >>> olleke.pos = 0
         >>> l = Layout(olleke)
         >>> l.verboseRead(WindowSizeAlphabet())
-        0000 1b                   1011 WSIZE   windowsize=(1<<22)-16=4194288
+        0000  1b                   1011 WSIZE   windowsize=(1<<22)-16=4194288
         4194288
-        >>> l.verboseRead(BoolCode('LAST', description="Last block"))
-                                 1     LAST    Last block: True
-        True
-        >>> l.verboseRead(BoolCode('EMPTY', description="Empty block"))
-                                0      EMPTY   Empty block: False
-        False
-        >>> l.verboseRead(MetablockLengthAlphabet())
-        0001 2e 00        ,00h,2Eh ,00 MLEN    data length:   2eh+1=47
-        47
         """
-        #TODO 3: verbosity level
+        #TODO 2: verbosity level, e.g. show only codes and maps in header
         stream = self.stream
         pos = stream.pos
-        length, symbol, extraBits, extra = alphabet.readTupleAndExtra(stream)
+        if skipExtra:
+            length, symbol = alphabet.readTuple(stream)
+            extraBits, extra = 0, None
+        else:
+            length, symbol, extraBits, extra = alphabet.readTupleAndExtra(
+                stream)
         #fields: address, hex data, binary data, name of alphabet, explanation
         hexdata = self.makeHexData(pos)
         addressField = '{:04x}'.format(pos+7>>3) if hexdata else ''
         bitdata = self.formatBitData(pos, length, extraBits)
-        #move bitdata so that the bytes are easier to read
-        #we have room from the hexdata to self.width
-        if ',' in bitdata:
+        #bitPtr moves bitdata so that the bytes are easier to read
+        #jump back to right if a new byte starts
+        if '|' in bitdata[1:]:
             #start over on the right side
             self.bitPtr = self.width
         fillWidth = self.bitPtr-(len(hexdata)+len(bitdata))
         if fillWidth<0: fillWidth = 0
-        #build line and print
-        print('{:4s} {:<{}s} {:7s} {}'.format(
+        print('{:<5s} {:<{}s} {:7s} {}'.format(
             addressField,
             hexdata+' '*fillWidth+bitdata, self.width,
             context+alphabet.name,
-            symbol.explanation(extra),
+            symbol if skipExtra else symbol.explanation(extra),
             ))
-        self.bitPtr -= len(bitdata)
-        return symbol.value(extra)
-
-    def verboseReadNoExtra(self, alphabet):
-        """Read only symbol from stream and explain what happens.
-        Extra is not used; return just the symbol
-        >>> olleke.pos = 76
-        >>> l = Layout(olleke)
-        >>> x = l.verboseReadNoExtra(DistanceAlphabet(0,NPOSTFIX=0,NDIRECT=0))
-        000a 82                10,1100 D0      10[15*x]-3
-        >>> x.explanation(0x86a3)
-        '10[1000011010100011]-3: [0]+100000'
-        """
-        stream = self.stream
-        pos = stream.pos
-        length, symbol = alphabet.readTuple(stream)
-        #fields: address, hex data, binary data, name of alphabet, mnemonic
-        hexdata = self.makeHexData(pos)
-        addressField = '{:04x}'.format(pos+7>>3) if hexdata else ''
-        bitdata = self.formatBitData(pos, length)
-        #move bitdata so that the bytes are easier to read
-        #we have room from the hexdata to self.width
-        if ',' in bitdata:
-            #start over on the right side
-            self.bitPtr = self.width
-        fillWidth = self.bitPtr-(len(hexdata)+len(bitdata))
-        if fillWidth<0: fillWidth = 0
-        #build line and print
-        print('{:4s} {:<{}s} {:7s} {}'.format(
-            addressField,
-            hexdata+' '*fillWidth+bitdata, self.width,
-            alphabet.name,
-            symbol,
-            ))
-        self.bitPtr -= len(bitdata)
-        return symbol
-
-    kindToWord = {
-        'L': 'literal',
-        'I': 'insert&copy',
-        'D': 'distance',
-        }
+        #jump to the right if we started with a '|'
+        #because we didn't jump before printing
+        if bitdata.startswith('|'): self.bitPtr = self.width
+        else: self.bitPtr -= len(bitdata)
+        return symbol if skipExtra else symbol.value(extra)
 
     def metablockLength(self):
         """Read MNIBBLES and meta block length;
@@ -1630,43 +1663,37 @@ class Layout:
         if self.MLEN:
             return False
         #empty block; skip and return False
-        self.verboseRead(Code('rsvd', bitLength=1,
-            description='Reserved (must be 0)'))
+        self.verboseRead(ReservedAlphabet())
         MSKIP = self.verboseRead(SkipLengthAlphabet())
-        if self.stream.pos&7:
-            #TODO 3: confusing message at this point
-            self.verboseRead(Code('skip', bitLength=self.stream.pos&7,
-                description='bits ignored'))
+        self.verboseRead(FillerAlphabet(streamPos=self.stream.pos))
         self.stream.pos += 8*MSKIP
         print("Skipping to {:x}".format(self.stream.pos>>3))
         return True
 
     def uncompressed(self):
-        """Read UNCOMPRESSED bit.
-        If true, handle uncompressed data
+        """If true, handle uncompressed data
         """
         ISUNCOMPRESSED = self.verboseRead(
             BoolCode('UNCMPR', description='Is uncompressed?'))
         if ISUNCOMPRESSED:
-            if self.stream.pos&7:
-                self.printItem(-self.stream.pos&7, 'ignored')
+            self.verboseRead(FillerAlphabet(streamPos=self.stream.pos))
             print('Uncompressed data:')
-            print(self.stream.readBytes(self.MLEN))
+            self.output += self.stream.readBytes(self.MLEN)
+            print(outputFormatter(self.output[-self.MLEN:]))
         return ISUNCOMPRESSED
 
     def blockType(self, kind):
         """Read block type switch descriptor for given kind of blockType."""
         NBLTYPES = self.verboseRead(TypeCountAlphabet(
-            'BT#'+kind,
-            description='Number of {} block types'.format(self.kindToWord[kind])))
+            'BT#'+kind[0].upper(),
+            description='{} block types'.format(kind),
+            ))
         self.numberOfBlockTypes[kind] = NBLTYPES
         if NBLTYPES>=2:
             self.blockTypeCodes[kind] = self.readPrefixCode(
-                BlockTypeAlphabet('BT'+kind, NBLTYPES))
-            #TODO 2: if this is a simple code, codeword mnemonics don't show the number of x's
+                BlockTypeAlphabet('BT'+kind[0].upper(), NBLTYPES))
             self.blockCountCodes[kind] = self.readPrefixCode(
-                BlockCountAlphabet('BC'+kind))
-            #TODO 2: at this point, the explanation goes wrong: bits are shown from the original code, not the new one (either use [] notation, or remove mnemonic altogether)
+                BlockCountAlphabet('BC'+kind[0].upper()))
             blockCount = self.verboseRead(self.blockCountCodes[kind])
         else:
             blockCount = 1<<24
@@ -1686,51 +1713,54 @@ class Layout:
         """
         print('Context modes'.center(60, '-'))
         self.literalContextModes = []
-        for i in range(self.numberOfBlockTypes['L']):
+        for i in range(self.numberOfBlockTypes[L]):
             self.literalContextModes.append(
                 self.verboseRead(LiteralContextMode(number=i)))
 
     def contextMap(self, kind):
-        """Read context maps"""
+        """Read context maps
+        Returns the number of differnt values on the context map
+        (In other words, the number of prefix trees)
+        """
         NTREES = self.verboseRead(TypeCountAlphabet(
-            kind+'T#',
-            description='Number of {} prefix trees'.format(
-                self.kindToWord[kind])))
-        self.numberOfTrees[kind] = NTREES
-        mapSize = {'L':64, 'D':4}[kind]
+            kind[0].upper()+'T#',
+            description='{} prefix trees'.format(kind)))
+        mapSize = {L:64, D:4}[kind]
         if NTREES<2:
             self.cmaps[kind] = [0]*mapSize
-            return
-        #read CMAPkind
-        RLEMAX = self.verboseRead(RLEmaxAlphabet(
-            'RLE#'+kind,
-            description=self.kindToWord[kind]+' context map'))
-        alphabet = TreeAlphabet('CM'+kind, NTREES=NTREES, RLEMAX=RLEMAX)
-        cmapCode = self.readPrefixCode(alphabet)
-        tableSize = mapSize*self.numberOfBlockTypes[kind]
-        cmap = []
-        while len(cmap)<tableSize:
-            cmapCode.description = 'map {}, entry {}'.format(
-                *divmod(len(cmap), mapSize))
-            count, value = self.verboseRead(cmapCode)
-            cmap.extend([value]*count)
-        IMTF = self.verboseRead(BoolCode('IMTF', description='Apply inverse MTF'))
-        if IMTF:
-            self.IMTF(cmap)
-        if kind=='L':
-            print('Context maps for literal data:')
-            for i in range(0, len(cmap), 64):
-                print(*(
-                    ''.join(map(str, cmap[j:j+8]))
-                    for j in range(i, i+64, 8)
-                    ))
         else:
-            print('Context map for distances:')
-            print(*(
-                ''.join(map(str, cmap[i:i+4]))
-                for i in range(0, len(cmap), 4)
-                ))
-        self.cmaps[kind] = cmap
+            #read CMAPkind
+            RLEMAX = self.verboseRead(RLEmaxAlphabet(
+                'RLE#'+kind[0].upper(),
+                description=kind+' context map'))
+            alphabet = TreeAlphabet('CM'+kind[0].upper(), NTREES=NTREES, RLEMAX=RLEMAX)
+            cmapCode = self.readPrefixCode(alphabet)
+            tableSize = mapSize*self.numberOfBlockTypes[kind]
+            cmap = []
+            while len(cmap)<tableSize:
+                cmapCode.description = 'map {}, entry {}'.format(
+                    *divmod(len(cmap), mapSize))
+                count, value = self.verboseRead(cmapCode)
+                cmap.extend([value]*count)
+            assert len(cmap)==tableSize
+            IMTF = self.verboseRead(BoolCode('IMTF', description='Apply inverse MTF'))
+            if IMTF:
+                self.IMTF(cmap)
+            if kind==L:
+                print('Context maps for literal data:')
+                for i in range(0, len(cmap), 64):
+                    print(*(
+                        ''.join(map(str, cmap[j:j+8]))
+                        for j in range(i, i+64, 8)
+                        ))
+            else:
+                print('Context map for distances:')
+                print(*(
+                    ''.join(map('{:x}'.format, cmap[i:i+4]))
+                    for i in range(0, len(cmap), 4)
+                    ))
+            self.cmaps[kind] = cmap
+        return NTREES
 
     @staticmethod
     def IMTF(v):
@@ -1747,15 +1777,13 @@ class Layout:
             #replace transformed value
             v[i] = value
 
-    def readPrefixArray(self, kind):
+    def readPrefixArray(self, kind, numberOfTrees):
         """Read prefix code array"""
-        assert kind in 'LID'
         prefixes = []
-        numberOfTrees = self.numberOfTrees[kind]
         for i in range(numberOfTrees):
-            if kind=='L': alphabet = LiteralAlphabet(i)
-            elif kind=='I': alphabet = InsertAndCopyAlphabet(i)
-            elif kind=='D': alphabet = DistanceAlphabet(
+            if kind==L: alphabet = LiteralAlphabet(i)
+            elif kind==I: alphabet = InsertAndCopyAlphabet(i)
+            elif kind==D: alphabet = DistanceAlphabet(
                 i, NPOSTFIX=self.NPOSTFIX, NDIRECT=self.NDIRECT)
             self.readPrefixCode(alphabet)
             prefixes.append(alphabet)
@@ -1766,7 +1794,6 @@ class Layout:
         """Process the data.
         Relevant variables of self:
         numberOfBlockTypes[kind]: number of block types
-        numberOfTrees: number of prefix codes of the three kinds
         currentBlockTypes[kind]: current block types (=0)
         literalContextModes: the context modes for the literal block types
         currentBlockCounts[kind]: counters for block types
@@ -1778,65 +1805,99 @@ class Layout:
         lastChars: the last two chars
         output: the result
         """
-        #TODO 3: remove numberOfTrees
         print('Meta block contents'.center(60, '='))
-        self.currentBlockTypes = {'L':0, 'I':0, 'D':0, 'pL':1, 'pI':1, 'pD':1}
+        self.currentBlockTypes = {L:0, I:0, D:0, pL:1, pI:1, pD:1}
         self.lastDistances = deque([17,16,11,4], maxlen=4)
         #the current context mode is for block type 0
         self.contextMode = ContextModeKeeper(self.literalContextModes[0])
-        output = bytearray()
         wordList = WordList()
-        while len(output)<self.MLEN:
+
+        #setup distance callback function
+        def distanceCallback(symbol, extra):
+            "callback function for displaying decoded distance"
+            index, offset = symbol.value(extra)
+            if index:
+                #recent distance
+                distance = self.lastDistances[-index]+offset
+                return 'Distance: {}last{:+d}={}'.format(index, offset, distance)
+            #absolute value
+            if offset<=maxDistance:
+                return 'Absolute value: {} (pos {})'.format(offset, maxDistance-offset)
+            #word list value
+            action, word = divmod(offset-maxDistance, 1<<wordList.NDBITS[copyLen])
+            return '{}-{} gives word {},{} action {}'.format(
+                offset, maxDistance, copyLen, word, action)
+        for dpc in self.prefixCodes[D]: dpc.callback = distanceCallback
+
+        blockLen = 0
+        #there we go
+        while blockLen<self.MLEN:
+            #get insert&copy command
             litLen, copyLen, dist0Flag = self.verboseRead(
-                self.prefixCodes['I'][
-                    self.figureBlockType('I')])
+                self.prefixCodes[I][
+                    self.figureBlockType(I)])
+            #literal data
             for i in range(litLen):
-                bt = self.figureBlockType('L')
+                bt = self.figureBlockType(L)
                 cm = self.contextMode.getIndex()
-                ct = self.cmaps['L'][bt<<6|cm]
+                ct = self.cmaps[L][bt<<6|cm]
                 char = self.verboseRead(
-                    self.prefixCodes['L'][ct],
+                    self.prefixCodes[L][ct],
                     context='{},{}='.format(bt,cm))
                 self.contextMode.add(char)
-                output.append(char)
+                self.output.append(char)
+            blockLen += litLen
+            #check if we're done
+            if blockLen>=self.MLEN: return
+            #distance
+            #distances are computed relative to output length, at most window size
+            maxDistance = min(len(self.output), self.windowSize)
             if dist0Flag:
                 distance = self.lastDistances[-1]
             else:
-                bt = self.figureBlockType('D')
+                bt = self.figureBlockType(D)
                 cm = {2:0, 3:1, 4:2}.get(copyLen, 3)
-                ct = self.cmaps['D'][bt<<2|cm]
+                ct = self.cmaps[D][bt<<2|cm]
                 index, offset = self.verboseRead(
-                    self.prefixCodes['D'][ct],
+                    self.prefixCodes[D][ct],
                     context='{},{}='.format(bt,cm))
                 distance = self.lastDistances[-index]+offset if index else offset
-            outputLen = len(output)
-            if len(output)>=self.MLEN: return output
-            if distance<=outputLen:
-                for i in range(outputLen-distance, outputLen-distance+copyLen):
-                    output.append(output[i])
+                if index==1 and offset==0:
+                    #to make sure distance is not put in last distance list
+                    dist0Flag = True
+            if distance<=maxDistance:
+                #copy from output
+                for i in range(
+                        maxDistance-distance,
+                        maxDistance-distance+copyLen):
+                    self.output.append(self.output[i])
                 if not dist0Flag: self.lastDistances.append(distance)
                 comment = 'Seen before'
             else:
-                #show effect of action here
-                output.extend(wordList.word(copyLen, distance-outputLen-1))
+                #fetch from wordlist
+                newWord = wordList.word(copyLen, distance-maxDistance-1)
+                self.output.extend(newWord)
+                #adjust copyLen to reflect actual new data
+                copyLen = len(newWord)
                 comment = 'From wordlist'
-            print(' '*39,
+            blockLen += copyLen
+            print(' '*40,
                 comment,
-                ':"',
-                output[outputLen:].decode('ascii','ignore').replace('\n','\\n'),
+                ': "',
+                outputFormatter(self.output[-copyLen:]),
                 '"',
                 sep='')
-            self.contextMode.add(output[-2])
-            self.contextMode.add(output[-1])
+            self.contextMode.add(self.output[-2])
+            self.contextMode.add(self.output[-1])
 
     def figureBlockType(self, kind):
         counts, types = self.currentBlockCounts, self.currentBlockTypes
         if counts[kind]==0:
             newType = self.verboseRead(self.blockTypeCodes[kind])
-            if newType==-2: newType = types['p'+kind]
+            if newType==-2: newType = types['P'+kind]
             elif newType==-1:
                 newType = (types[kind]+1)%self.numberOfBlockTypes[kind]
-            types['p'+kind] = types[kind]
+            types['P'+kind] = types[kind]
             types[kind] = newType
             counts[kind] = self.verboseRead(self.blockCountCodes[kind])
         counts[kind] -=1
@@ -1920,6 +1981,10 @@ __test__ = {
       0:2  01:3 011:5 111:6
     >>> len(a)
     4
+    >>> def callback(i): return 'call{}back'.format(i)
+    >>> a=Code('t',callback=callback,bitLength=3)
+    >>> a[6].explanation()
+    'call6back'
     """,
 
 'WithExtra': """
@@ -1938,7 +2003,7 @@ __test__ = {
 
 'BoolCode': """
     >>> BoolCode('test')[0].explanation()
-    'False'
+    '0: False'
     """,
 
 'Enumerator': """
@@ -1952,16 +2017,6 @@ __test__ = {
     TypeError: value() missing 1 required positional argument: 'extra'
     >>> a.explanation(3,4)
     'xx 011: 8-11; 8+4=12'
-    """,
-
-#TODO 1: more tests
-'LiteralContextMode': """
-    """,
-
-'PrefixCodeHeader': """
-    """,
-
-'LengthOfLengthAlphabet': """
     """,
 
 'WindowSizeAlphabet': """
@@ -1991,19 +2046,24 @@ __test__ = {
     0100001:1008     0110001:2032        1101:8388592     1111:16777200
     """,
 
-'MetablockLengthAlphabet': """
-    """,
-
-'SkipLengthAlphabet': """
-    """,
-
 'TypeCountAlphabet': """
-    """,
-
-'LengthAlphabet': """
-    """,
-
-'TreeAlphabet': """
+    >>> typeCountAlphabet = TypeCountAlphabet(description='bananas')
+    >>> len(typeCountAlphabet)
+    9
+    >>> typeCountAlphabet[3]
+    Symbol(BT#, 3)
+    >>> typeCountAlphabet[9]
+    Traceback (most recent call last):
+        ...
+    ValueError: No symbol TypeCountAlphabet[9]
+    >>> print(typeCountAlphabet[3])
+    xx,0101
+    >>> typeCountAlphabet[8].value(127)
+    256
+    >>> typeCountAlphabet[4].explanation(2)
+    'xxx,0111: 11 bananas'
+    >>> typeCountAlphabet[0].explanation()
+    '0: 1 banana'
     """,
 
 'DistanceParamAlphabet': """
@@ -2014,18 +2074,6 @@ __test__ = {
     (2, Symbol(DIST, 1), 4, 10)
     >>> dpa.explanation(2, 5)
     '2 postfix bits and 0101<<2=20 direct codes'
-    """,
-
-'RLEmaxAlphabet': """
-    """,
-
-'InsertLengthAlphabet': """
-    """,
-
-'CopyLengthAlphabet': """
-    """,
-
-'InsertAndCopyAlphabet': """
     """,
 
 'LiteralAlphabet': """
@@ -2041,28 +2089,42 @@ __test__ = {
     00110011:3    01100111:g    10011011:\\x9b 11001111:\\xcf
     """,
 
-'DistanceAlphabet': """
-    """,
-
-'BlockTypeAlphabet': """
-    """,
-
 'BlockCountAlphabet': """
     >>> bc=BlockCountAlphabet('BCL')
     >>> len(bc)
     26
     >>> bs=BitStream(b'\\x40\\x83\\xc8\\x59\\12\\x02')
-    >>> x = bc.readTupleAndExtra(bs); x[1].explanation(x[3])   #doctest: +SKIP
-    'xx[0]: 1-4; 1+2=3'
-    >>> x = bc.readTupleAndExtra(bs); x[1].explanation(x[3])   #doctest: +SKIP
-    'xxx[6]: 33-40; 33+0=33'
-    >>> x = bc.readTupleAndExtra(bs); x[1].explanation(x[3])   #doctest: +SKIP
-    'xxxxxx[17]: 305-368; 305+28=333'
-    >>> x = bc.readTupleAndExtra(bs); x[1].explanation(x[3])   #doctest: +SKIP
-    '[11*x][22]: 2289-4336; 2289+1044=3333'
+    >>> x = bc.readTupleAndExtra(bs); x[1].explanation(x[3])
+    'Block count: xx 00000: 1-4; 1+2=3'
+    >>> x = bc.readTupleAndExtra(bs); x[1].explanation(x[3])
+    'Block count: xxx 00110: 33-40; 33+0=33'
+    >>> x = bc.readTupleAndExtra(bs); x[1].explanation(x[3])
+    'Block count: xxxxxx 10001: 305-368; 305+28=333'
+    >>> x = bc.readTupleAndExtra(bs); x[1].explanation(x[3])
+    'Block count: xxxxxxxxxxx 10110: 2289-4336; 2289+1044=3333'
     """,
 
 'Layout': """
+    >>> olleke.pos = 0
+    >>> l = Layout(olleke)
+    >>> l.verboseRead(WindowSizeAlphabet())
+    0000  1b                   1011 WSIZE   windowsize=(1<<22)-16=4194288
+    4194288
+    >>> l.verboseRead(BoolCode('LAST', description="Last block"))
+                              1     LAST    Last block: 1: True
+    True
+    >>> l.verboseRead(BoolCode('EMPTY', description="Empty block"))
+                             0      EMPTY   Empty block: 0: False
+    False
+    >>> l.verboseRead(MetablockLengthAlphabet())
+    0001  2e 00        |00h|2Eh,|00 MLEN    data length: 002eh+1=47
+    47
+    >>> olleke.pos = 76
+    >>> l = Layout(olleke)
+    >>> x = l.verboseRead(DistanceAlphabet(0,NPOSTFIX=0,NDIRECT=0), skipExtra=True)
+    000a  82                10|1100 D0      10[15*x]-3
+    >>> x.explanation(0x86a3)
+    '10[1000011010100011]-3: [0]+100000'
     """,
 
 'olleke': """
@@ -2070,108 +2132,107 @@ __test__ = {
     >>> try: Layout(olleke).processStream()
     ... except NotImplementedError: pass
     ... #doctest: +REPORT_NDIFF
-    addr hex               binary context explanation
+    addr  hex               binary context explanation
     -----------------------Stream header------------------------
-    0000 1b                   1011 WSIZE   windowsize=(1<<22)-16=4194288
+    0000  1b                   1011 WSIZE   windowsize=(1<<22)-16=4194288
     ======================Metablock header======================
-                             1     LAST    Last block: True
-                            0      EMPTY   Empty block: False
-    0001 2e 00        ,00h,2Eh ,00 MLEN    data length:   2eh+1=47
+                              1     LAST    Last block: 1: True
+                             0      EMPTY   Empty block: 0: False
+    0001  2e 00        |00h|2Eh,|00 MLEN    data length: 002eh+1=47
     -------------------Block type descriptors-------------------
-    0003 00          0             BT#L    Number of literal block types: 0: 1
-                    0              BT#I    Number of insert&copy block types: 0: 1
-                   0               BT#D    Number of distance block types: 0: 1
+    0003  00                      0 BT#L    0: 1 literal block type
+                                 0  BT#I    0: 1 insert&copy block type
+                                0   BT#D    0: 1 distance block type
     ------------------Distance code parameters------------------
-    0004 44               0,000 00 DIST    0 postfix bits and 0000<<0=0 direct codes
+    0004  44               0|000,00 DIST    0 postfix bits and 0000<<0=0 direct codes
     -----------------------Context modes------------------------
-                        10         LC0     Context mode for type 0: 2(UTF8)
+                         10         LC0     Context mode for type 0: 2(UTF8)
     ------------------------Context maps------------------------
-                       0           LT#     Number of literal prefix trees: 0: 1
-                      0            DT#     Number of distance prefix trees: 0: 1
+                        0           LT#     0: 1 literal prefix tree
+                       0            DT#     0: 1 distance prefix tree
     ---------------------Prefix code lists----------------------
-                    10             PFX     L0 is complex with lengths 3, 4, 0, 5, 17...
-    0005 4f                    1,0 ##L0    len 3:  coded with 3 bits
-                           0111    ##L0    len 4:  coded with 1 bits
-                         10        ##L0    unused:  coded with 3 bits
-    0006 d6                    0,0 ##L0    len 5: skipped
-                            011    ##L0    zero xxx:  coded with 2 bits
+                     10             PFX     L0 is complex with lengths 3,4,0,5,17...
+    0005  4f                    1|0 ##L0    len 3: coded with 3 bits
+                            0111    ##L0    len 4: coded with 1 bits
+                          10        ##L0    unused: coded with 3 bits
+    0006  d6                    0|0 ##L0    len 5: skipped
+                             011    ##L0    zero xxx: coded with 2 bits
     ***** Lengths for L0 will be coded as:
       0:len 4     01:zero xxx 011:unused   111:len 3
-    0007 95                1,11 01 #L0     7+3 unused
-                          0        #L0     Length for \\n is 4 bits
-                    001 01         #L0     1+3 unused
-    0008 44                010 0,1 #L0     total 19+2 unused
-                          0        #L0     Length for " " is 4 bits
-                         0         #L0     Length for ! is 4 bits
-    0009 cb                011 ,01 #L0     3+3 unused
-                           ,110 01 #L0     total 35+6 unused
-    000a 82               0        #L0     Length for K is 4 bits
-                    000 01         #L0     0+3 unused
-                   0               #L0     Length for O is 4 bits
-    000b 4d                   01,1 #L0     symbol P unused
-                           011     #L0     symbol Q unused
-                          0        #L0     Length for R is 4 bits
-    000c 88                000 ,01 #L0     0+3 unused
-                           ,100 01 #L0     total 11+4 unused
-    000d b6               0        #L0     Length for b is 4 bits
-                       011         #L0     symbol c unused
-                    011            #L0     symbol d unused
-    000e 27                   11,1 #L0     Length for e is 3 bits
-                        010 01     #L0     2+3 unused
-                                ,0 #L0     Length for k is 4 bits
-    000f 1f                  111   #L0     Length for l is 3 bits
-                          011      #L0     symbol m unused
-                         0         #L0     Length for n is 4 bits
-                                ,0 #L0     Length for o is 4 bits
-    0010 c1               000 01   #L0     0+3 unused
-                         0         #L0     Length for s is 4 bits
-    0011 b4                   0,11 #L0     symbol t unused
-                             0     #L0     Length for u is 4 bits
+    0007  95                1|11,01 #L0     7+3 unused
+                           0        #L0     Length for \\n is 4 bits
+                     001,01         #L0     1+3 unused
+    0008  44                010,0|1 #L0     total 19+2 unused
+                           0        #L0     Length for " " is 4 bits
+                          0         #L0     Length for ! is 4 bits
+    0009  cb                011,|01 #L0     3+3 unused
+                     |110,01        #L0     total 35+6 unused
+    000a  82                      0 #L0     Length for K is 4 bits
+                            000,01  #L0     0+3 unused
+                           0        #L0     Length for O is 4 bits
+    000b  4d                   01|1 #L0     symbol P unused
+                            011     #L0     symbol Q unused
+                           0        #L0     Length for R is 4 bits
+    000c  88                000,|01 #L0     0+3 unused
+                     |100,01        #L0     total 11+4 unused
+    000d  b6                      0 #L0     Length for b is 4 bits
+                               011  #L0     symbol c unused
+                            011     #L0     symbol d unused
+    000e  27                   11|1 #L0     Length for e is 3 bits
+                         010,01     #L0     2+3 unused
+                       |0           #L0     Length for k is 4 bits
+    000f  1f                    111 #L0     Length for l is 3 bits
+                             011    #L0     symbol m unused
+                            0       #L0     Length for n is 4 bits
+                          |0        #L0     Length for o is 4 bits
+    0010  c1                 000,01 #L0     0+3 unused
+                            0       #L0     Length for s is 4 bits
+    0011  b4                   0|11 #L0     symbol t unused
+                              0     #L0     Length for u is 4 bits
     End of table. Prefix code L0:
      000:e   0010:\\n  0110:!   0001:O   0101:b   0011:n   0111:s
      100:l   1010:" " 1110:K   1001:R   1101:k   1011:o   1111:u
-                        11 01      PFX     IC0 is simple with 4 code words
-    0012 2a                ,2Ah,10 IC0     I5C4
-    0013 b5 ec              00,B5h IC0     I6+xC7
-    0015 22            0010,111011 IC0     I8+xC5
-    0016 8c            001100,0010 IC0     I0C14+xx
-                      0            SHAPE   True means lengths 1233 instead of 2222: False
-    0017 74                 10 0,1 PFX     D0 is simple with 3 code words
-    0018 a6                0,01110 D0      2last-3
-                     010011        D0      11xx-3
-    0019 aa                01010,1 D0      11xxx-3
+                         11,01      PFX     IC0 is simple with 4 code words
+    0012  2a                |2Ah|10 IC0     ? bits: I5C4
+    0013  b5 ec              00|B5h IC0     ? bits: I6+xC7
+    0015  22            0010|111011 IC0     ? bits: I8+xC5
+    0016  8c            001100|0010 IC0     ? bits: I0C14+xx
+                       0            SHAPE   False: lengths 2,2,2,2
+    0017  74                 10,0|1 PFX     D0 is simple with 3 code words
+    0018  a6                0|01110 D0      1 bit: 2last-3
+                      010011        D0      2 bits: 11xx-3
+    0019  aa                01010|1 D0      2 bits: 11xxx-3
     ====================Meta block contents=====================
-                             ,1 01 IC0     Literal: 9, copy: 5
-    001a 41              0001      0,0=L0  O
-                      100          0,48=L0 l
-    001b a2                   10,0 0,62=L0 l
-                           000     0,63=L0 e
-    001c a1                  1,101 0,59=L0 k
-                          000      0,63=L0 e
-                             ,1010 0,59=L0 " "
-    001d b5              0101      0,11=L0 b
-                             ,1011 0,60=L0 o
-    001e 24                 0      0,3=D0  2last-3: [2]-3
-                                           Seen before:"lleke"
-                        0 10       IC0     Literal: 6, copy: 7
-                             ,0010 0,59=L0 \\n
-    001f 89              1001      0,7=L0  R
-                      000          0,52=L0 e
-    0020 fa                  010,1 0,58=L0 b
-                         1111      0,63=L0 u
-    0021 eb                  011,1 0,59=L0 s
-                        11 01      0,3=D0  11[11]-3: [0]+12
-                                           Seen before:"olleke\\n"
-    0022 db                 01 1,1 IC0     Literal: 0, copy: 15
-                           ,110 11 0,3=D0  11[110]-3: [0]+27
-                                           Seen before:"Olleke bolleke\\n"
-    0023 f8              00        IC0     Literal: 5, copy: 4
-                     1110          0,7=L0  K
-    0024 2c                  00,11 0,52=L0 n
-                         1011      0,62=L0 o
-    0025 0d                   1,00 0,59=L0 l
-                          0110     0,63=L0 !
-                         0         0,2=D0  2last-3: [2]-3
+                       |1,01        IC0     Literal: 9, copy: 5
+    001a  41                   0001 0,0=L0  O
+                            100     0,48=L0 l
+    001b  a2                   10|0 0,62=L0 l
+                            000     0,63=L0 e
+    001c  a1                  1|101 0,59=L0 k
+                           000      0,63=L0 e
+                      |1010         0,59=L0 " "
+    001d  b5                   0101 0,11=L0 b
+                          |1011     0,60=L0 o
+    001e  24                      0 0,3=D0  Distance: 2last-3=8
+                                            Seen before: "lleke"
+                              0,10  IC0     Literal: 6, copy: 7
+                         |0010      0,59=L0 \\n
+    001f  89                   1001 0,7=L0  R
+                            000     0,52=L0 e
+    0020  fa                  010|1 0,58=L0 b
+                          1111      0,63=L0 u
+    0021  eb                  011|1 0,59=L0 s
+                         11,01      0,3=D0  Absolute value: 12 (pos 8)
+                                            Seen before: "olleke\\n"
+    0022  db                 01,1|1 IC0     Literal: 0, copy: 15
+                      |110,11       0,3=D0  Absolute value: 27 (pos 0)
+                                            Seen before: "Olleke bolleke\\n"
+    0023  f8                     00 IC0     Literal: 5, copy: 4
+                             1110   0,7=L0  K
+    0024  2c                  00|11 0,52=L0 n
+                          1011      0,62=L0 o
+    0025  0d                   1|00 0,59=L0 l
+                           0110     0,63=L0 !
     """,
 
 'file': """
@@ -2179,101 +2240,100 @@ __test__ = {
     ... open("H:/Downloads/brotli-master/tests/testdata/10x10y.compressed",'rb')
     ...     .read())).processStream()
     ... except NotImplementedError: pass
-    addr hex               binary context explanation
+    addr  hex               binary context explanation
     -----------------------Stream header------------------------
-    0000 1b                   1011 WSIZE   windowsize=(1<<22)-16=4194288
+    0000  1b                   1011 WSIZE   windowsize=(1<<22)-16=4194288
     ======================Metablock header======================
-                             1     LAST    Last block: True
-                            0      EMPTY   Empty block: False
-    0001 13 00        ,00h,13h ,00 MLEN    data length:   13h+1=20
+                              1     LAST    Last block: 1: True
+                             0      EMPTY   Empty block: 0: False
+    0001  13 00        |00h|13h,|00 MLEN    data length: 0013h+1=20
     -------------------Block type descriptors-------------------
-    0003 00          0             BT#L    Number of literal block types: 0: 1
-                    0              BT#I    Number of insert&copy block types: 0: 1
-                   0               BT#D    Number of distance block types: 0: 1
+    0003  00                      0 BT#L    0: 1 literal block type
+                                 0  BT#I    0: 1 insert&copy block type
+                                0   BT#D    0: 1 distance block type
     ------------------Distance code parameters------------------
-    0004 a4               0,000 00 DIST    0 postfix bits and 0000<<0=0 direct codes
+    0004  a4               0|000,00 DIST    0 postfix bits and 0000<<0=0 direct codes
     -----------------------Context modes------------------------
-                        10         LC0     Context mode for type 0: 2(UTF8)
+                         10         LC0     Context mode for type 0: 2(UTF8)
     ------------------------Context maps------------------------
-                       0           LT#     Number of literal prefix trees: 0: 1
-                      0            DT#     Number of distance prefix trees: 0: 1
+                        0           LT#     0: 1 literal prefix tree
+                       0            DT#     0: 1 distance prefix tree
     ---------------------Prefix code lists----------------------
-    0005 b0                 0,1 01 PFX     L0 is simple with 2 code words
-    0006 b2              0,1011000 L0      X
-    0007 ea              0,1011001 L0      Y
-                    01 01          PFX     IC0 is simple with 2 code words
-    0008 81            0000001,111 IC0     I1C9&D=0
-    0009 47 02             0,47h,1 IC0     I1C9
-                      00 01        PFX     D0 is simple with 1 code word
-    000b 8a                010,000 D0      10x-3
+    0005  b0                 0|1,01 PFX     L0 is simple with 2 code words
+    0006  b2              0|1011000 L0      1 bit: X
+    0007  ea              0|1011001 L0      1 bit: Y
+                     01,01          PFX     IC0 is simple with 2 code words
+    0008  81            0000001|111 IC0     1 bit: I1C9&D=0
+    0009  47 02             0|47h|1 IC0     1 bit: I1C9
+                       00,01        PFX     D0 is simple with 1 code word
+    000b  8a                010|000 D0      0 bits: 10x-3
     ====================Meta block contents=====================
-                          1        IC0     Literal: 1, copy: 9
-                         0         0,0=L0  X
-                        0          0,3=D0  10[0]-3: [0]+1
-                                           Seen before:"XXXXXXXXX"
-                       0           IC0     Literal: 1, copy: 9, same distance
-                                ,1 0,54=L0 Y
-                                           Seen before:"YYYYYYYYY"
+                           1        IC0     Literal: 1, copy: 9
+                          0         0,0=L0  X
+                      0,()          0,3=D0  Absolute value: 1 (pos 0)
+                                            Seen before: "XXXXXXXXX"
+                     0              IC0     Literal: 1, copy: 9, same distance
+                   |1               0,54=L0 Y
+                                            Seen before: "YYYYYYYYY"
     """,
 
 'XY': """
     >>> try: Layout(BitStream(brotli.compress('X'*10+'Y'*10))).processStream()
     ... except NotImplementedError: pass
-    addr hex               binary context explanation
+    addr  hex               binary context explanation
     -----------------------Stream header------------------------
-    0000 1b                   1011 WSIZE   windowsize=(1<<22)-16=4194288
+    0000  1b                   1011 WSIZE   windowsize=(1<<22)-16=4194288
     ======================Metablock header======================
-                             1     LAST    Last block: True
-                            0      EMPTY   Empty block: False
-    0001 13 00        ,00h,13h ,00 MLEN    data length:   13h+1=20
+                              1     LAST    Last block: 1: True
+                             0      EMPTY   Empty block: 0: False
+    0001  13 00        |00h|13h,|00 MLEN    data length: 0013h+1=20
     -------------------Block type descriptors-------------------
-    0003 00          0             BT#L    Number of literal block types: 0: 1
-                    0              BT#I    Number of insert&copy block types: 0: 1
-                   0               BT#D    Number of distance block types: 0: 1
+    0003  00                      0 BT#L    0: 1 literal block type
+                                 0  BT#I    0: 1 insert&copy block type
+                                0   BT#D    0: 1 distance block type
     ------------------Distance code parameters------------------
-    0004 a4               0,000 00 DIST    0 postfix bits and 0000<<0=0 direct codes
+    0004  a4               0|000,00 DIST    0 postfix bits and 0000<<0=0 direct codes
     -----------------------Context modes------------------------
-                        10         LC0     Context mode for type 0: 2(UTF8)
+                         10         LC0     Context mode for type 0: 2(UTF8)
     ------------------------Context maps------------------------
-                       0           LT#     Number of literal prefix trees: 0: 1
-                      0            DT#     Number of distance prefix trees: 0: 1
+                        0           LT#     0: 1 literal prefix tree
+                       0            DT#     0: 1 distance prefix tree
     ---------------------Prefix code lists----------------------
-    0005 b0                 0,1 01 PFX     L0 is simple with 2 code words
-    0006 b2              0,1011000 L0      X
-    0007 82              0,1011001 L0      Y
-                    00 01          PFX     IC0 is simple with 1 code word
-    0008 84            0000100,100 IC0     I4C6&D=0
-    0009 00                 00 0,1 PFX     D0 is simple with 1 code word
-    000a e0                0,00000 D0      last
+    0005  b0                 0|1,01 PFX     L0 is simple with 2 code words
+    0006  b2              0|1011000 L0      1 bit: X
+    0007  82              0|1011001 L0      1 bit: Y
+                     00,01          PFX     IC0 is simple with 1 code word
+    0008  84            0000100|100 IC0     0 bits: I4C6&D=0
+    0009  00                 00,0|1 PFX     D0 is simple with 1 code word
+    000a  e0                0|00000 D0      0 bits: last
     ====================Meta block contents=====================
-                                   IC0     Literal: 4, copy: 6, same distance
-                          0        0,0=L0  X
-                         0         0,52=L0 X
-                        0          0,54=L0 X
-                       0           0,54=L0 X
-                                           Seen before:"XXXXXX"
-                                   IC0     Literal: 4, copy: 6, same distance
-                      1            0,54=L0 Y
-                     1             0,54=L0 Y
-                                ,1 0,54=L0 Y
-    000b 01                    1   0,54=L0 Y
-                                           Seen before:"YYYYYY"
+                          ()        IC0     Literal: 4, copy: 6, same distance
+                         0          0,0=L0  X
+                        0           0,52=L0 X
+                       0            0,54=L0 X
+                      0             0,54=L0 X
+                                            Seen before: "XXXXXX"
+                    ()              IC0     Literal: 4, copy: 6, same distance
+                   1                0,54=L0 Y
+                  1                 0,54=L0 Y
+                |1                  0,54=L0 Y
+    000b  01                      1 0,54=L0 Y
+                                            Seen before: "YYYYYY"
     """,
 
 'empty': """
     >>> try: Layout(BitStream(b'\\x81\\x16\\x00\\x58')).processStream()
     ... except NotImplementedError: pass
-    ...  #doctest: +SKIP
-    addr hex               binary context explanation
+    addr  hex               binary context explanation
     -----------------------Stream header------------------------
-    0000 81                0000001 WSIZE   windowsize=(1<<17)-16=131056
+    0000  81                0000001 WSIZE   windowsize=(1<<17)-16=131056
     ======================Metablock header======================
-                                ,1 LAST    Last block: True
-    0001 16                    0   EMPTY   Empty block: False
-                             11    MLEN    11: empty block
-                            0      rsvd    Reserved (must be 0): 0
-    0002 00           000000,00 01 skip    skip length: 0h+1=1
-    0003 58                1000,00 skip    bits ignored: 100000
+                          |1        LAST    Last block: 1: True
+    0001  16                      0 EMPTY   Empty block: 0: False
+                                11  MLEN    11: empty block
+                               0    RSVD    Reserved (must be zero)
+    0002  00           000000|00,01 SKIP    skip length: 0h+1=1
+                    |00             SKIP    2 bits ignored
     Skipping to 4
     """,
 
@@ -2288,9 +2348,9 @@ if __name__=='__main__':
         sys.path.append("h:/Persoonlijk/bin")
         try:
             import brotli
-            open('brotlidump.br','wb').write(
+            open('brotlidump.br', 'wb').write(
                 brotli.compress(
-                    open('brotlidump.py','r').read()
+                    open('brotlidump.py', 'r').read()
                 ))
             olleke = BitStream(brotli.compress(
                 'Olleke bolleke\nRebusolleke\nOlleke bolleke\nKnol!'))
