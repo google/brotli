@@ -119,9 +119,9 @@ OR:
 
 /* IS_CONSTANT macros returns true for compile-time constant expressions. */
 #if BROTLI_MODERN_COMPILER || __has_builtin(__builtin_constant_p)
-#define IS_CONSTANT(x) __builtin_constant_p(x)
+#define IS_CONSTANT(x) (!!__builtin_constant_p(x))
 #else
-#define IS_CONSTANT(x) 0
+#define IS_CONSTANT(x) (!!0)
 #endif
 
 #if BROTLI_MODERN_COMPILER || __has_attribute(always_inline)
@@ -207,9 +207,9 @@ static BROTLI_INLINE unsigned BrotliRBit(unsigned input) {
 #endif  /* gcc || clang */
 
 #if defined(BROTLI_TARGET_ARM)
-#define BROTLI_HAS_UBFX 1
+#define BROTLI_HAS_UBFX (!!1)
 #else
-#define BROTLI_HAS_UBFX 0
+#define BROTLI_HAS_UBFX (!!0)
 #endif
 
 #define BROTLI_ALLOC(S, L) S->alloc_func(S->memory_manager_opaque, L)
