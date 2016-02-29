@@ -26,7 +26,7 @@ static const double kInfinity = std::numeric_limits<double>::infinity();
 // Histogram based cost model for zopflification.
 class ZopfliCostModel {
  public:
-  ZopfliCostModel() : min_cost_cmd_(kInfinity) {}
+  ZopfliCostModel(void) : min_cost_cmd_(kInfinity) {}
 
   void SetFromCommands(size_t num_bytes,
                        size_t position,
@@ -117,7 +117,7 @@ class ZopfliCostModel {
     return literal_costs_[to] - literal_costs_[from];
   }
 
-  double GetMinCostCmd() const {
+  double GetMinCostCmd(void) const {
     return min_cost_cmd_;
   }
 
@@ -238,7 +238,7 @@ class StartPosQueue {
   explicit StartPosQueue(int bits)
       : mask_((1u << bits) - 1), q_(1 << bits), idx_(0) {}
 
-  void Clear() {
+  void Clear(void) {
     idx_ = 0;
   }
 
@@ -263,7 +263,7 @@ class StartPosQueue {
     }
   }
 
-  size_t size() const { return std::min(idx_, mask_ + 1); }
+  size_t size(void) const { return std::min(idx_, mask_ + 1); }
 
   size_t GetStartPos(size_t k) const {
     return q_[(k + 1 - idx_) & mask_].first;

@@ -104,7 +104,7 @@ struct Command {
     GetLengthCode(insertlen, 4, dist_prefix_ == 0, &cmd_prefix_, &cmd_extra_);
   }
 
-  uint32_t DistanceCode() const {
+  uint32_t DistanceCode(void) const {
     if (dist_prefix_ < 16) {
       return dist_prefix_;
     }
@@ -114,7 +114,7 @@ struct Command {
     return (prefix << nbits) + extra + 12;
   }
 
-  uint32_t DistanceContext() const {
+  uint32_t DistanceContext(void) const {
     uint32_t r = cmd_prefix_ >> 6;
     uint32_t c = cmd_prefix_ & 7;
     if ((r == 0 || r == 2 || r == 4 || r == 7) && (c <= 2)) {

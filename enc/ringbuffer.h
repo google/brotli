@@ -9,6 +9,7 @@
 #ifndef BROTLI_ENC_RINGBUFFER_H_
 #define BROTLI_ENC_RINGBUFFER_H_
 
+#include <cstdlib>  /* free, realloc */
 
 #include "./port.h"
 #include "./types.h"
@@ -42,7 +43,7 @@ class RingBuffer {
     buffer_[-2] = buffer_[size_ - 2] = 0;
     buffer_[-1] = buffer_[size_ - 1] = 0;
   }
-  ~RingBuffer() {
+  ~RingBuffer(void) {
     delete [] data_;
   }
 
@@ -72,18 +73,18 @@ class RingBuffer {
     }
   }
 
-  void Reset() {
+  void Reset(void) {
     pos_ = 0;
   }
 
   // Logical cursor position in the ring buffer.
-  uint32_t position() const { return pos_; }
+  uint32_t position(void) const { return pos_; }
 
   // Bit mask for getting the physical position for a logical position.
-  uint32_t mask() const { return mask_; }
+  uint32_t mask(void) const { return mask_; }
 
-  uint8_t *start() { return &buffer_[0]; }
-  const uint8_t *start() const { return &buffer_[0]; }
+  uint8_t *start(void) { return &buffer_[0]; }
+  const uint8_t *start(void) const { return &buffer_[0]; }
 
  private:
   void WriteTail(const uint8_t *bytes, size_t n) {

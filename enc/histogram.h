@@ -25,10 +25,10 @@ struct BlockSplit;
 // A simple container for histograms of data in blocks.
 template<int kDataSize>
 struct Histogram {
-  Histogram() {
+  Histogram(void) {
     Clear();
   }
-  void Clear() {
+  void Clear(void) {
     memset(data_, 0, sizeof(data_));
     total_count_ = 0;
     bit_cost_ = std::numeric_limits<double>::infinity();

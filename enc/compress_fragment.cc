@@ -22,6 +22,7 @@
 #include "./fast_log.h"
 #include "./find_match_length.h"
 #include "./port.h"
+#include "./types.h"
 #include "./write_bits.h"
 
 namespace brotli {

@@ -92,7 +92,7 @@ inline double BackwardReferenceScoreUsingLastDistance(size_t copy_length,
 }
 
 struct BackwardMatch {
-  BackwardMatch() : distance(0), length_and_code(0) {}
+  BackwardMatch(void) : distance(0), length_and_code(0) {}
 
   BackwardMatch(size_t dist, size_t len)
       : distance(static_cast<uint32_t>(dist))
@@ -103,10 +103,10 @@ struct BackwardMatch {
       , length_and_code(static_cast<uint32_t>(
             (len << 5) | (len == len_code ? 0 : len_code))) {}
 
-  size_t length() const {
+  size_t length(void) const {
     return length_and_code >> 5;
   }
-  size_t length_code() const {
+  size_t length_code(void) const {
     size_t code = length_and_code & 31;
     return code ? code : length();
   }
@@ -123,15 +123,15 @@ struct BackwardMatch {
 template <int kBucketBits, int kBucketSweep, bool kUseDictionary>
 class HashLongestMatchQuickly {
  public:
-  HashLongestMatchQuickly() {
+  HashLongestMatchQuickly(void) {
     Reset();
   }
-  void Reset() {
+  void Reset(void) {
     need_init_ = true;
     num_dict_lookups_ = 0;
     num_dict_matches_ = 0;
   }
-  void Init() {
+  void Init(void) {
     if (need_init_) {
       // It is not strictly necessary to fill this buffer here, but
       // not filling will make the results of the compression stochastic
@@ -337,17 +337,17 @@ template <int kBucketBits,
           int kNumLastDistancesToCheck>
 class HashLongestMatch {
  public:
-  HashLongestMatch() {
+  HashLongestMatch(void) {
     Reset();
   }
 
-  void Reset() {
+  void Reset(void) {
     need_init_ = true;
     num_dict_lookups_ = 0;
     num_dict_matches_ = 0;
   }
 
-  void Init() {
+  void Init(void) {
     if (need_init_) {
       memset(&num_[0], 0, sizeof(num_));
       need_init_ = false;
@@ -875,10 +875,10 @@ struct Hashers {
   typedef HashLongestMatch<15, 8, 16> H9;
   typedef HashToBinaryTree H10;
 
-  Hashers() : hash_h2(0), hash_h3(0), hash_h4(0), hash_h5(0),
-              hash_h6(0), hash_h7(0), hash_h8(0), hash_h9(0), hash_h10(0) {}
+  Hashers(void) : hash_h2(0), hash_h3(0), hash_h4(0), hash_h5(0),
+                  hash_h6(0), hash_h7(0), hash_h8(0), hash_h9(0), hash_h10(0) {}
 
-  ~Hashers() {
+  ~Hashers(void) {
     delete hash_h2;
     delete hash_h3;
     delete hash_h4;
