@@ -18,7 +18,7 @@
 namespace brotli {
 
 struct BlockSplit {
-  BlockSplit() : num_types(0) {}
+  BlockSplit(void) : num_types(0) {}
 
   size_t num_types;
   std::vector<uint8_t> types;

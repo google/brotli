@@ -84,7 +84,7 @@ BrotliFileIn::BrotliFileIn(FILE* f, size_t max_read_size)
       buf_(new char[max_read_size]),
       buf_size_(max_read_size) { }
 
-BrotliFileIn::~BrotliFileIn() {
+BrotliFileIn::~BrotliFileIn(void) {
   delete[] buf_;
 }
 

@@ -25,7 +25,7 @@ struct BlockSplitIterator {
     }
   }
 
-  void Next() {
+  void Next(void) {
     if (length_ == 0) {
       ++idx_;
       type_ = split_.types[idx_];

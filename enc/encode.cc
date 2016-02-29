@@ -9,7 +9,8 @@
 #include "./encode.h"
 
 #include <algorithm>
-#include <cstring>
+#include <cstdlib>  /* free, malloc */
+#include <cstring>  /* memset */
 #include <limits>
 
 #include "./backward_references.h"
@@ -253,7 +254,7 @@ BrotliCompressor::BrotliCompressor(BrotliParams params)
   hashers_->Init(hash_type_);
 }
 
-BrotliCompressor::~BrotliCompressor() {
+BrotliCompressor::~BrotliCompressor(void) {
   delete[] storage_;
   free(commands_);
   delete ringbuffer_;
@@ -812,7 +813,7 @@ class BrotliBlockReader {
  public:
   explicit BrotliBlockReader(size_t block_size)
       : block_size_(block_size), buf_(NULL) {}
-  ~BrotliBlockReader() { delete[] buf_; }
+  ~BrotliBlockReader(void) { delete[] buf_; }
 
   const uint8_t* Read(BrotliIn* in, size_t* bytes_read, bool* is_last) {
     *bytes_read = 0;

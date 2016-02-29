@@ -11,6 +11,7 @@
 #include "./brotli_bit_stream.h"
 
 #include <algorithm>
+#include <cstdlib>  /* free, malloc */
 #include <cstring>
 #include <limits>
 #include <vector>
@@ -22,6 +23,7 @@
 #include "./fast_log.h"
 #include "./prefix.h"
 #include "./write_bits.h"
+
 namespace brotli {
 
 namespace {

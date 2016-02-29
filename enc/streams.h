@@ -19,7 +19,7 @@ namespace brotli {
 // Input interface for the compression routines.
 class BrotliIn {
  public:
-  virtual ~BrotliIn() {}
+  virtual ~BrotliIn(void) {}
 
   // Return a pointer to the next block of input of at most n bytes.
   // Return the actual length in *nread.
@@ -32,7 +32,7 @@ class BrotliIn {
 // Output interface for the compression routines.
 class BrotliOut {
  public:
-  virtual ~BrotliOut() {}
+  virtual ~BrotliOut(void) {}
 
   // Write n bytes of data from buf.
   // Return true if all written, false otherwise.
@@ -47,7 +47,7 @@ class BrotliMemIn : public BrotliIn {
   void Reset(const void* buf, size_t len);
 
   // returns the amount of data consumed
-  size_t position() const { return pos_; }
+  size_t position(void) const { return pos_; }
 
   const void* Read(size_t n, size_t* OUTPUT);
 
@@ -65,7 +65,7 @@ class BrotliMemOut : public BrotliOut {
   void Reset(void* buf, size_t len);
 
   // returns the amount of data written
-  size_t position() const { return pos_; }
+  size_t position(void) const { return pos_; }
 
   bool Write(const void* buf, size_t n);
 
@@ -96,7 +96,7 @@ class BrotliStringOut : public BrotliOut {
 class BrotliFileIn : public BrotliIn {
  public:
   BrotliFileIn(FILE* f, size_t max_read_size);
-  ~BrotliFileIn();
+  ~BrotliFileIn(void);
 
   const void* Read(size_t n, size_t* bytes_read);
 

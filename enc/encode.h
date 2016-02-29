@@ -26,7 +26,7 @@ static const int kMinInputBlockBits = 16;
 static const int kMaxInputBlockBits = 24;
 
 struct BrotliParams {
-  BrotliParams()
+  BrotliParams(void)
       : mode(MODE_GENERIC),
         quality(11),
         lgwin(22),
@@ -68,10 +68,10 @@ struct BrotliParams {
 class BrotliCompressor {
  public:
   explicit BrotliCompressor(BrotliParams params);
-  ~BrotliCompressor();
+  ~BrotliCompressor(void);
 
   // The maximum input size that can be processed at once.
-  size_t input_block_size() const { return size_t(1) << params_.lgblock; }
+  size_t input_block_size(void) const { return size_t(1) << params_.lgblock; }
 
   // Encodes the data in input_buffer as a meta-block and writes it to
   // encoded_buffer (*encoded_size should be set to the size of
@@ -129,7 +129,7 @@ class BrotliCompressor {
   void BrotliSetCustomDictionary(size_t size, const uint8_t* dict);
 
   // No-op, but we keep it here for API backward-compatibility.
-  void WriteStreamHeader() {}
+  void WriteStreamHeader(void) {}
 
  private:
   uint8_t* GetBrotliStorage(size_t size);
