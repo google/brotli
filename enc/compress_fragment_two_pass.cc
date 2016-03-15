@@ -57,8 +57,11 @@ static void BuildAndStoreCommandPrefixCode(
     const uint32_t histogram[128],
     uint8_t depth[128], uint16_t bits[128],
     size_t* storage_ix, uint8_t* storage) {
-  CreateHuffmanTree(histogram, 64, 15, depth);
-  CreateHuffmanTree(&histogram[64], 64, 14, &depth[64]);
+  // Tree size for building a tree over 64 symbols is 2 * 64 + 1.
+  static const size_t kTreeSize = 129;
+  HuffmanTree tree[kTreeSize];
+  CreateHuffmanTree(histogram, 64, 15, tree, depth);
+  CreateHuffmanTree(&histogram[64], 64, 14, tree, &depth[64]);
   // We have to jump through a few hoopes here in order to compute
   // the command bits because the symbols are in a different order than in
   // the full alphabet. This looks complicated, but having the symbols
@@ -93,9 +96,9 @@ static void BuildAndStoreCommandPrefixCode(
       cmd_depth[256 + 8 * i] = depth[8 + i];
       cmd_depth[448 + 8 * i] = depth[16 + i];
     }
-    StoreHuffmanTree(cmd_depth, 704, storage_ix, storage);
+    StoreHuffmanTree(cmd_depth, 704, tree, storage_ix, storage);
   }
-  StoreHuffmanTree(&depth[64], 64, storage_ix, storage);
+  StoreHuffmanTree(&depth[64], 64, tree, storage_ix, storage);
 }
 
 inline void EmitInsertLen(uint32_t insertlen, uint32_t** commands) {
@@ -227,7 +230,8 @@ void CreateCommands(const uint8_t* input, size_t block_size, size_t input_size,
   assert(table_size <= (1u << 31));
   assert((table_size & (table_size - 1)) == 0);  // table must be power of two
   const size_t shift = 64u - Log2FloorNonZero(table_size);
-  assert(static_cast<size_t>(0xffffffffffffffffU >> shift) == table_size - 1);
+  assert(table_size - 1 == static_cast<size_t>(
+      MAKE_UINT64_T(0xFFFFFFFF, 0xFFFFFF) >> shift));
   const uint8_t* ip_end = input + block_size;
   // "next_emit" is a pointer to the first byte that is not covered by a
   // previous copy. Bytes between "next_emit" and the start of the next copy or

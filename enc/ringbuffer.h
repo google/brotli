@@ -31,24 +31,52 @@ class RingBuffer {
       : size_(1u << window_bits),
         mask_((1u << window_bits) - 1),
         tail_size_(1u << tail_bits),
-        pos_(0) {
-    static const size_t kSlackForEightByteHashingEverywhere = 7;
-    const size_t buflen = size_ + tail_size_;
-    data_ = new uint8_t[2 + buflen + kSlackForEightByteHashingEverywhere];
-    buffer_ = data_ + 2;
-    for (size_t i = 0; i < kSlackForEightByteHashingEverywhere; ++i) {
-      buffer_[buflen + i] = 0;
-    }
-    // Initialize the last two bytes and their copy to zero.
-    buffer_[-2] = buffer_[size_ - 2] = 0;
-    buffer_[-1] = buffer_[size_ - 1] = 0;
-  }
+        total_size_(size_ + tail_size_),
+        cur_size_(0),
+        pos_(0),
+        data_(0),
+        buffer_(0) {}
+
   ~RingBuffer(void) {
-    delete [] data_;
+    free(data_);
+  }
+
+  // Allocates or re-allocates data_ to the given length + plus some slack
+  // region before and after. Fills the slack regions with zeros.
+  inline void InitBuffer(const uint32_t buflen) {
+    static const size_t kSlackForEightByteHashingEverywhere = 7;
+    cur_size_ = buflen;
+    data_ = static_cast<uint8_t*>(realloc(
+        data_, 2 + buflen + kSlackForEightByteHashingEverywhere));
+    buffer_ = data_ + 2;
+    buffer_[-2] = buffer_[-1] = 0;
+    for (size_t i = 0; i < kSlackForEightByteHashingEverywhere; ++i) {
+      buffer_[cur_size_ + i] = 0;
+    }
   }
 
   // Push bytes into the ring buffer.
   void Write(const uint8_t *bytes, size_t n) {
+    if (pos_ == 0 && n < tail_size_) {
+      // Special case for the first write: to process the first block, we don't
+      // need to allocate the whole ringbuffer and we don't need the tail
+      // either. However, we do this memory usage optimization only if the
+      // first write is less than the tail size, which is also the input block
+      // size, otherwise it is likely that other blocks will follow and we
+      // will need to reallocate to the full size anyway.
+      pos_ = static_cast<uint32_t>(n);
+      InitBuffer(pos_);
+      memcpy(buffer_, bytes, n);
+      return;
+    }
+    if (cur_size_ < total_size_) {
+      // Lazily allocate the full buffer.
+      InitBuffer(total_size_);
+      // Initialize the last two bytes to zero, so that we don't have to worry
+      // later when we copy the last two bytes to the first two positions.
+      buffer_[size_ - 2] = 0;
+      buffer_[size_ - 1] = 0;
+    }
     const size_t masked_pos = pos_ & mask_;
     // The length of the writes is limited so that we do not need to worry
     // about a write
@@ -60,7 +88,7 @@ class RingBuffer {
       // Split into two writes.
       // Copy into the end of the buffer, including the tail buffer.
       memcpy(&buffer_[masked_pos], bytes,
-             std::min(n, (size_ + tail_size_) - masked_pos));
+             std::min(n, total_size_ - masked_pos));
       // Copy into the beginning of the buffer
       memcpy(&buffer_[0], bytes + (size_ - masked_pos),
              n - (size_ - masked_pos));
@@ -100,7 +128,9 @@ class RingBuffer {
   const uint32_t size_;
   const uint32_t mask_;
   const uint32_t tail_size_;
+  const uint32_t total_size_;
 
+  uint32_t cur_size_;
   // Position to write in the ring buffer.
   uint32_t pos_;
   // The actual ring buffer containing the copy of the last two bytes, the data,

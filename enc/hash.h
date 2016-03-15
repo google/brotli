@@ -14,7 +14,6 @@
 #include <algorithm>
 #include <cstring>
 #include <limits>
-#include <vector>
 
 #include "./dictionary_hash.h"
 #include "./fast_log.h"
@@ -278,7 +277,7 @@ class HashLongestMatchQuickly {
           if (matchlen + kCutoffTransformsCount > len && matchlen > 0) {
             const size_t transform_id = kCutoffTransforms[len - matchlen];
             const size_t word_id =
-                transform_id * (1 << kBrotliDictionarySizeBitsByLength[len]) +
+                transform_id * (1u << kBrotliDictionarySizeBitsByLength[len]) +
                 dist;
             const size_t backward = max_backward + word_id + 1;
             const double score = BackwardReferenceScore(matchlen, backward);
@@ -574,8 +573,10 @@ class HashLongestMatch {
     }
     buckets_[key][num_[key] & kBlockMask] = static_cast<uint32_t>(cur_ix);
     ++num_[key];
-    std::vector<uint32_t> dict_matches(kMaxDictionaryMatchLen + 1,
-                                       kInvalidMatch);
+    uint32_t dict_matches[kMaxDictionaryMatchLen + 1];
+    for (size_t i = 0; i <= kMaxDictionaryMatchLen; ++i) {
+      dict_matches[i] = kInvalidMatch;
+    }
     size_t minlen = std::max<size_t>(4, best_len + 1);
     if (FindAllStaticDictionaryMatches(&data[cur_ix_masked], minlen, max_length,
                                        &dict_matches[0])) {
@@ -706,8 +707,10 @@ class HashToBinaryTree {
       matches = StoreAndFindMatches(data, cur_ix, ring_buffer_mask,
                                     max_length, &best_len, matches);
     }
-    std::vector<uint32_t> dict_matches(kMaxDictionaryMatchLen + 1,
-                                       kInvalidMatch);
+    uint32_t dict_matches[kMaxDictionaryMatchLen + 1];
+    for (size_t i = 0; i <= kMaxDictionaryMatchLen; ++i) {
+      dict_matches[i] = kInvalidMatch;
+    }
     size_t minlen = std::max<size_t>(4, best_len + 1);
     if (FindAllStaticDictionaryMatches(&data[cur_ix_masked], minlen, max_length,
                                        &dict_matches[0])) {
@@ -725,13 +728,32 @@ class HashToBinaryTree {
 
   // Stores the hash of the next 4 bytes and re-roots the binary tree at the
   // current sequence, without returning any matches.
+  // REQUIRES: cur_ix + kMaxTreeCompLength <= end-of-current-block
   void Store(const uint8_t* data,
              const size_t ring_buffer_mask,
-             const size_t cur_ix,
-             const size_t max_length) {
+             const size_t cur_ix) {
     size_t best_len = 0;
-    StoreAndFindMatches(data, cur_ix, ring_buffer_mask, max_length,
+    StoreAndFindMatches(data, cur_ix, ring_buffer_mask, kMaxTreeCompLength,
                         &best_len, NULL);
+  }
+
+  void StitchToPreviousBlock(size_t num_bytes,
+                             size_t position,
+                             const uint8_t* ringbuffer,
+                             size_t ringbuffer_mask) {
+    if (num_bytes >= 3 && position >= kMaxTreeCompLength) {
+      // Store the last `kMaxTreeCompLength - 1` positions in the hasher.
+      // These could not be calculated before, since they require knowledge
+      // of both the previous and the current block.
+      const size_t i_start = position - kMaxTreeCompLength + 1;
+      const size_t i_end = std::min(position, i_start + num_bytes);
+      for (size_t i = i_start; i < i_end; ++i) {
+        // We know that i + kMaxTreeCompLength <= position + num_bytes, i.e. the
+        // end of the current block and that we have at least
+        // kMaxTreeCompLength tail in the ringbuffer.
+        Store(ringbuffer, ringbuffer_mask, i);
+      }
+    }
   }
 
   static const size_t kMaxNumMatches = 64 + kMaxTreeSearchDepth;
@@ -928,8 +950,7 @@ struct Hashers {
       case 10:
         hash_h10->Init(lgwin, 0, size, false);
         for (size_t i = 0; i + kMaxTreeCompLength - 1 < size; ++i) {
-          hash_h10->Store(dict, std::numeric_limits<size_t>::max(),
-                          i, size - i);
+          hash_h10->Store(dict, std::numeric_limits<size_t>::max(), i);
         }
         break;
       default: break;

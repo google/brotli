@@ -28,6 +28,12 @@ namespace brotli {
 
 namespace {
 
+static const size_t kMaxHuffmanTreeSize = 2 * kNumCommandPrefixes + 1;
+// Context map alphabet has 256 context id symbols plus max 16 rle symbols.
+static const size_t kContextMapAlphabetSize = 256 + 16;
+// Block type alphabet has 256 block id symbols plus 2 special symbols.
+static const size_t kBlockTypeAlphabetSize = 256 + 2;
+
 // nibblesbits represents the 2 bits to encode MNIBBLES (0-3)
 // REQUIRES: length > 0
 // REQUIRES: length <= (1 << 24)
@@ -43,6 +49,18 @@ void EncodeMlen(size_t length, uint64_t* bits,
   *nibblesbits = mnibbles - 4;
   *numbits = mnibbles * 4;
   *bits = length;
+}
+
+static inline void StoreCommandExtra(
+    const Command& cmd, size_t* storage_ix, uint8_t* storage) {
+  uint32_t copylen_code = cmd.copy_len_code();
+  uint16_t inscode = GetInsertLengthCode(cmd.insert_len_);
+  uint16_t copycode = GetCopyLengthCode(copylen_code);
+  uint32_t insnumextra = GetInsertExtra(inscode);
+  uint64_t insextraval = cmd.insert_len_ - GetInsertBase(inscode);
+  uint64_t copyextraval = copylen_code - GetCopyBase(copycode);
+  uint64_t bits = (copyextraval << insnumextra) | insextraval;
+  WriteBits(insnumextra + GetCopyExtra(copycode), bits, storage_ix, storage);
 }
 
 }  // namespace
@@ -148,13 +166,14 @@ void StoreHuffmanTreeOfHuffmanTreeToBitMask(
 }
 
 void StoreHuffmanTreeToBitMask(
-    const std::vector<uint8_t> &huffman_tree,
-    const std::vector<uint8_t> &huffman_tree_extra_bits,
-    const uint8_t *code_length_bitdepth,
-    const std::vector<uint16_t> &code_length_bitdepth_symbols,
+    const size_t huffman_tree_size,
+    const uint8_t* huffman_tree,
+    const uint8_t* huffman_tree_extra_bits,
+    const uint8_t* code_length_bitdepth,
+    const uint16_t* code_length_bitdepth_symbols,
     size_t * __restrict storage_ix,
     uint8_t * __restrict storage) {
-  for (size_t i = 0; i < huffman_tree.size(); ++i) {
+  for (size_t i = 0; i < huffman_tree_size; ++i) {
     size_t ix = huffman_tree[i];
     WriteBits(code_length_bitdepth[ix], code_length_bitdepth_symbols[ix],
               storage_ix, storage);
@@ -208,18 +227,21 @@ void StoreSimpleHuffmanTree(const uint8_t* depths,
 // num = alphabet size
 // depths = symbol depths
 void StoreHuffmanTree(const uint8_t* depths, size_t num,
+                      HuffmanTree* tree,
                       size_t *storage_ix, uint8_t *storage) {
   // Write the Huffman tree into the brotli-representation.
-  std::vector<uint8_t> huffman_tree;
-  std::vector<uint8_t> huffman_tree_extra_bits;
-  // TODO: Consider allocating these from stack.
-  huffman_tree.reserve(256);
-  huffman_tree_extra_bits.reserve(256);
-  WriteHuffmanTree(depths, num, &huffman_tree, &huffman_tree_extra_bits);
+  // The command alphabet is the largest, so this allocation will fit all
+  // alphabets.
+  assert(num <= kNumCommandPrefixes);
+  uint8_t huffman_tree[kNumCommandPrefixes];
+  uint8_t huffman_tree_extra_bits[kNumCommandPrefixes];
+  size_t huffman_tree_size = 0;
+  WriteHuffmanTree(depths, num, &huffman_tree_size, huffman_tree,
+                   huffman_tree_extra_bits);
 
   // Calculate the statistics of the Huffman tree in brotli-representation.
   uint32_t huffman_tree_histogram[kCodeLengthCodes] = { 0 };
-  for (size_t i = 0; i < huffman_tree.size(); ++i) {
+  for (size_t i = 0; i < huffman_tree_size; ++i) {
     ++huffman_tree_histogram[huffman_tree[i]];
   }
 
@@ -239,11 +261,10 @@ void StoreHuffmanTree(const uint8_t* depths, size_t num,
 
   // Calculate another Huffman tree to use for compressing both the
   // earlier Huffman tree with.
-  // TODO: Consider allocating these from stack.
   uint8_t code_length_bitdepth[kCodeLengthCodes] = { 0 };
-  std::vector<uint16_t> code_length_bitdepth_symbols(kCodeLengthCodes);
+  uint16_t code_length_bitdepth_symbols[kCodeLengthCodes] = { 0 };
   CreateHuffmanTree(&huffman_tree_histogram[0], kCodeLengthCodes,
-                    5, &code_length_bitdepth[0]);
+                    5, tree, &code_length_bitdepth[0]);
   ConvertBitDepthsToSymbols(code_length_bitdepth, kCodeLengthCodes,
                             &code_length_bitdepth_symbols[0]);
 
@@ -256,16 +277,17 @@ void StoreHuffmanTree(const uint8_t* depths, size_t num,
   }
 
   // Store the real huffman tree now.
-  StoreHuffmanTreeToBitMask(huffman_tree,
+  StoreHuffmanTreeToBitMask(huffman_tree_size,
+                            huffman_tree,
                             huffman_tree_extra_bits,
                             &code_length_bitdepth[0],
                             code_length_bitdepth_symbols,
                             storage_ix, storage);
 }
 
-
 void BuildAndStoreHuffmanTree(const uint32_t *histogram,
                               const size_t length,
+                              HuffmanTree* tree,
                               uint8_t* depth,
                               uint16_t* bits,
                               size_t* storage_ix,
@@ -296,14 +318,19 @@ void BuildAndStoreHuffmanTree(const uint32_t *histogram,
     return;
   }
 
-  CreateHuffmanTree(histogram, length, 15, depth);
+  CreateHuffmanTree(histogram, length, 15, tree, depth);
   ConvertBitDepthsToSymbols(depth, length, bits);
 
   if (count <= 4) {
     StoreSimpleHuffmanTree(depth, s4, count, max_bits, storage_ix, storage);
   } else {
-    StoreHuffmanTree(depth, length, storage_ix, storage);
+    StoreHuffmanTree(depth, length, tree, storage_ix, storage);
   }
+}
+
+static inline bool SortHuffmanTree(const HuffmanTree& v0,
+                                   const HuffmanTree& v1) {
+  return v0.total_count_ < v1.total_count_;
 }
 
 void BuildAndStoreHuffmanTreeFast(const uint32_t *histogram,
@@ -467,52 +494,58 @@ void BuildAndStoreHuffmanTreeFast(const uint32_t *histogram,
   }
 }
 
-size_t IndexOf(const std::vector<uint32_t>& v, uint32_t value) {
+size_t IndexOf(const uint8_t* v, size_t v_size, uint8_t value) {
   size_t i = 0;
-  for (; i < v.size(); ++i) {
+  for (; i < v_size; ++i) {
     if (v[i] == value) return i;
   }
   return i;
 }
 
-void MoveToFront(std::vector<uint32_t>* v, size_t index) {
-  uint32_t value = (*v)[index];
+void MoveToFront(uint8_t* v, size_t index) {
+  uint8_t value = v[index];
   for (size_t i = index; i != 0; --i) {
-    (*v)[i] = (*v)[i - 1];
+    v[i] = v[i - 1];
   }
-  (*v)[0] = value;
+  v[0] = value;
 }
 
-std::vector<uint32_t> MoveToFrontTransform(const std::vector<uint32_t>& v) {
-  if (v.empty()) return v;
-  uint32_t max_value = *std::max_element(v.begin(), v.end());
-  std::vector<uint32_t> mtf(max_value + 1);
-  for (uint32_t i = 0; i <= max_value; ++i) mtf[i] = i;
-  std::vector<uint32_t> result(v.size());
-  for (size_t i = 0; i < v.size(); ++i) {
-    size_t index = IndexOf(mtf, v[i]);
-    assert(index < mtf.size());
-    result[i] = static_cast<uint32_t>(index);
-    MoveToFront(&mtf, index);
+void MoveToFrontTransform(const uint32_t* __restrict v_in,
+                          const size_t v_size,
+                          uint32_t* v_out) {
+  if (v_size == 0) {
+    return;
   }
-  return result;
+  uint32_t max_value = *std::max_element(v_in, v_in + v_size);
+  assert(max_value < 256u);
+  uint8_t mtf[256];
+  size_t mtf_size = max_value + 1;
+  for (uint32_t i = 0; i <= max_value; ++i) {
+    mtf[i] = static_cast<uint8_t>(i);
+  }
+  for (size_t i = 0; i < v_size; ++i) {
+    size_t index = IndexOf(mtf, mtf_size, static_cast<uint8_t>(v_in[i]));
+    assert(index < mtf_size);
+    v_out[i] = static_cast<uint32_t>(index);
+    MoveToFront(mtf, index);
+  }
 }
 
-// Finds runs of zeros in v_in and replaces them with a prefix code of the run
-// length plus extra bits in *v_out and *extra_bits. Non-zero values in v_in are
-// shifted by *max_length_prefix. Will not create prefix codes bigger than the
-// initial value of *max_run_length_prefix. The prefix code of run length L is
-// simply Log2Floor(L) and the number of extra bits is the same as the prefix
-// code.
-void RunLengthCodeZeros(const std::vector<uint32_t>& v_in,
-                        uint32_t* max_run_length_prefix,
-                        std::vector<uint32_t>* v_out,
-                        std::vector<uint32_t>* extra_bits) {
+// Finds runs of zeros in v[0..in_size) and replaces them with a prefix code of
+// the run length plus extra bits (lower 9 bits is the prefix code and the rest
+// are the extra bits). Non-zero values in v[] are shifted by
+// *max_length_prefix. Will not create prefix codes bigger than the initial
+// value of *max_run_length_prefix. The prefix code of run length L is simply
+// Log2Floor(L) and the number of extra bits is the same as the prefix code.
+void RunLengthCodeZeros(const size_t in_size,
+                        uint32_t* __restrict v,
+                        size_t* __restrict out_size,
+                        uint32_t* __restrict max_run_length_prefix) {
   uint32_t max_reps = 0;
-  for (size_t i = 0; i < v_in.size();) {
-    for (; i < v_in.size() && v_in[i] != 0; ++i) ;
+  for (size_t i = 0; i < in_size;) {
+    for (; i < in_size && v[i] != 0; ++i) ;
     uint32_t reps = 0;
-    for (; i < v_in.size() && v_in[i] == 0; ++i) {
+    for (; i < in_size && v[i] == 0; ++i) {
       ++reps;
     }
     max_reps = std::max(reps, max_reps);
@@ -520,27 +553,31 @@ void RunLengthCodeZeros(const std::vector<uint32_t>& v_in,
   uint32_t max_prefix = max_reps > 0 ? Log2FloorNonZero(max_reps) : 0;
   max_prefix = std::min(max_prefix, *max_run_length_prefix);
   *max_run_length_prefix = max_prefix;
-  for (size_t i = 0; i < v_in.size();) {
-    if (v_in[i] != 0) {
-      v_out->push_back(v_in[i] + *max_run_length_prefix);
-      extra_bits->push_back(0);
+  *out_size = 0;
+  for (size_t i = 0; i < in_size;) {
+    assert(*out_size <= i);
+    if (v[i] != 0) {
+      v[*out_size] = v[i] + *max_run_length_prefix;
       ++i;
+      ++(*out_size);
     } else {
       uint32_t reps = 1;
-      for (size_t k = i + 1; k < v_in.size() && v_in[k] == 0; ++k) {
+      for (size_t k = i + 1; k < in_size && v[k] == 0; ++k) {
         ++reps;
       }
       i += reps;
       while (reps != 0) {
         if (reps < (2u << max_prefix)) {
           uint32_t run_length_prefix = Log2FloorNonZero(reps);
-          v_out->push_back(run_length_prefix);
-          extra_bits->push_back(reps - (1u << run_length_prefix));
+          const uint32_t extra_bits = reps - (1u << run_length_prefix);
+          v[*out_size] = run_length_prefix + (extra_bits << 9);
+          ++(*out_size);
           break;
         } else {
-          v_out->push_back(max_prefix);
-          extra_bits->push_back((1u << max_prefix) - 1u);
+          const uint32_t extra_bits = (1u << max_prefix) - 1u;
+          v[*out_size] = max_prefix + (extra_bits << 9);
           reps -= (2u << max_prefix) - 1u;
+          ++(*out_size);
         }
       }
     }
@@ -549,6 +586,7 @@ void RunLengthCodeZeros(const std::vector<uint32_t>& v_in,
 
 void EncodeContextMap(const std::vector<uint32_t>& context_map,
                       size_t num_clusters,
+                      HuffmanTree* tree,
                       size_t* storage_ix, uint8_t* storage) {
   StoreVarLenUint8(num_clusters - 1, storage_ix, storage);
 
@@ -556,37 +594,40 @@ void EncodeContextMap(const std::vector<uint32_t>& context_map,
     return;
   }
 
-  std::vector<uint32_t> transformed_symbols = MoveToFrontTransform(context_map);
-  std::vector<uint32_t> rle_symbols;
-  std::vector<uint32_t> extra_bits;
+  uint32_t* rle_symbols = new uint32_t[context_map.size()];
+  MoveToFrontTransform(&context_map[0], context_map.size(), rle_symbols);
   uint32_t max_run_length_prefix = 6;
-  RunLengthCodeZeros(transformed_symbols, &max_run_length_prefix,
-                     &rle_symbols, &extra_bits);
-  HistogramContextMap symbol_histogram;
-  for (size_t i = 0; i < rle_symbols.size(); ++i) {
-    symbol_histogram.Add(rle_symbols[i]);
+  size_t num_rle_symbols = 0;
+  RunLengthCodeZeros(context_map.size(), rle_symbols,
+                     &num_rle_symbols, &max_run_length_prefix);
+  uint32_t histogram[kContextMapAlphabetSize];
+  memset(histogram, 0, sizeof(histogram));
+  static const int kSymbolBits = 9;
+  static const uint32_t kSymbolMask = (1u << kSymbolBits) - 1u;
+  for (size_t i = 0; i < num_rle_symbols; ++i) {
+    ++histogram[rle_symbols[i] & kSymbolMask];
   }
   bool use_rle = max_run_length_prefix > 0;
   WriteBits(1, use_rle, storage_ix, storage);
   if (use_rle) {
     WriteBits(4, max_run_length_prefix - 1, storage_ix, storage);
   }
-  EntropyCodeContextMap symbol_code;
-  memset(symbol_code.depth_, 0, sizeof(symbol_code.depth_));
-  memset(symbol_code.bits_, 0, sizeof(symbol_code.bits_));
-  BuildAndStoreHuffmanTree(symbol_histogram.data_,
-                           num_clusters + max_run_length_prefix,
-                           symbol_code.depth_, symbol_code.bits_,
-                           storage_ix, storage);
-  for (size_t i = 0; i < rle_symbols.size(); ++i) {
-    WriteBits(symbol_code.depth_[rle_symbols[i]],
-              symbol_code.bits_[rle_symbols[i]],
-              storage_ix, storage);
-    if (rle_symbols[i] > 0 && rle_symbols[i] <= max_run_length_prefix) {
-      WriteBits(rle_symbols[i], extra_bits[i], storage_ix, storage);
+  uint8_t depths[kContextMapAlphabetSize];
+  uint16_t bits[kContextMapAlphabetSize];
+  memset(depths, 0, sizeof(depths));
+  memset(bits, 0, sizeof(bits));
+  BuildAndStoreHuffmanTree(histogram, num_clusters + max_run_length_prefix,
+                           tree, depths, bits, storage_ix, storage);
+  for (size_t i = 0; i < num_rle_symbols; ++i) {
+    const uint32_t rle_symbol = rle_symbols[i] & kSymbolMask;
+    const uint32_t extra_bits_val = rle_symbols[i] >> kSymbolBits;
+    WriteBits(depths[rle_symbol], bits[rle_symbol], storage_ix, storage);
+    if (rle_symbol > 0 && rle_symbol <= max_run_length_prefix) {
+      WriteBits(rle_symbol, extra_bits_val, storage_ix, storage);
     }
   }
   WriteBits(1, 1, storage_ix, storage);  // use move-to-front
+  delete[] rle_symbols;
 }
 
 void StoreBlockSwitch(const BlockSplitCode& code,
@@ -608,12 +649,15 @@ void StoreBlockSwitch(const BlockSplitCode& code,
 void BuildAndStoreBlockSplitCode(const std::vector<uint8_t>& types,
                                  const std::vector<uint32_t>& lengths,
                                  const size_t num_types,
+                                 HuffmanTree* tree,
                                  BlockSplitCode* code,
                                  size_t* storage_ix,
                                  uint8_t* storage) {
   const size_t num_blocks = types.size();
-  std::vector<uint32_t> type_histo(num_types + 2);
-  std::vector<uint32_t> length_histo(26);
+  uint32_t type_histo[kBlockTypeAlphabetSize];
+  uint32_t length_histo[kNumBlockLenPrefixes];
+  memset(type_histo, 0, (num_types + 2) * sizeof(type_histo[0]));
+  memset(length_histo, 0, sizeof(length_histo));
   size_t last_type = 1;
   size_t second_last_type = 0;
   code->type_code.resize(num_blocks);
@@ -622,8 +666,8 @@ void BuildAndStoreBlockSplitCode(const std::vector<uint8_t>& types,
   code->length_extra.resize(num_blocks);
   code->type_depths.resize(num_types + 2);
   code->type_bits.resize(num_types + 2);
-  code->length_depths.resize(26);
-  code->length_bits.resize(26);
+  memset(code->length_depths, 0, sizeof(code->length_depths));
+  memset(code->length_bits, 0, sizeof(code->length_bits));
   for (size_t i = 0; i < num_blocks; ++i) {
     size_t type = types[i];
     size_t type_code = (type == last_type + 1 ? 1 :
@@ -641,10 +685,10 @@ void BuildAndStoreBlockSplitCode(const std::vector<uint8_t>& types,
   }
   StoreVarLenUint8(num_types - 1, storage_ix, storage);
   if (num_types > 1) {
-    BuildAndStoreHuffmanTree(&type_histo[0], num_types + 2,
+    BuildAndStoreHuffmanTree(&type_histo[0], num_types + 2, tree,
                              &code->type_depths[0], &code->type_bits[0],
                              storage_ix, storage);
-    BuildAndStoreHuffmanTree(&length_histo[0], 26,
+    BuildAndStoreHuffmanTree(&length_histo[0], kNumBlockLenPrefixes, tree,
                              &code->length_depths[0], &code->length_bits[0],
                              storage_ix, storage);
     StoreBlockSwitch(*code, 0, storage_ix, storage);
@@ -653,6 +697,7 @@ void BuildAndStoreBlockSplitCode(const std::vector<uint8_t>& types,
 
 void StoreTrivialContextMap(size_t num_types,
                             size_t context_bits,
+                            HuffmanTree* tree,
                             size_t* storage_ix,
                             uint8_t* storage) {
   StoreVarLenUint8(num_types - 1, storage_ix, storage);
@@ -660,9 +705,12 @@ void StoreTrivialContextMap(size_t num_types,
     size_t repeat_code = context_bits - 1u;
     size_t repeat_bits = (1u << repeat_code) - 1u;
     size_t alphabet_size = num_types + repeat_code;
-    std::vector<uint32_t> histogram(alphabet_size);
-    std::vector<uint8_t> depths(alphabet_size);
-    std::vector<uint16_t> bits(alphabet_size);
+    uint32_t histogram[kContextMapAlphabetSize];
+    uint8_t depths[kContextMapAlphabetSize];
+    uint16_t bits[kContextMapAlphabetSize];
+    memset(histogram, 0, alphabet_size * sizeof(histogram[0]));
+    memset(depths, 0, alphabet_size * sizeof(depths[0]));
+    memset(bits, 0, alphabet_size * sizeof(bits[0]));
     // Write RLEMAX.
     WriteBits(1, 1, storage_ix, storage);
     WriteBits(4, repeat_code - 1, storage_ix, storage);
@@ -671,7 +719,7 @@ void StoreTrivialContextMap(size_t num_types,
     for (size_t i = context_bits; i < alphabet_size; ++i) {
       histogram[i] = 1;
     }
-    BuildAndStoreHuffmanTree(&histogram[0], alphabet_size,
+    BuildAndStoreHuffmanTree(&histogram[0], alphabet_size, tree,
                              &depths[0], &bits[0],
                              storage_ix, storage);
     for (size_t i = 0; i < num_types; ++i) {
@@ -702,11 +750,12 @@ class BlockEncoder {
 
   // Creates entropy codes of block lengths and block types and stores them
   // to the bit stream.
-  void BuildAndStoreBlockSwitchEntropyCodes(size_t* storage_ix,
+  void BuildAndStoreBlockSwitchEntropyCodes(HuffmanTree* tree,
+                                            size_t* storage_ix,
                                             uint8_t* storage) {
     BuildAndStoreBlockSplitCode(
         block_types_, block_lengths_, num_block_types_,
-        &block_split_code_, storage_ix, storage);
+        tree, &block_split_code_, storage_ix, storage);
   }
 
   // Creates entropy codes for all block types and stores them to the bit
@@ -714,12 +763,14 @@ class BlockEncoder {
   template<int kSize>
   void BuildAndStoreEntropyCodes(
       const std::vector<Histogram<kSize> >& histograms,
+      HuffmanTree* tree,
       size_t* storage_ix, uint8_t* storage) {
     depths_.resize(histograms.size() * alphabet_size_);
     bits_.resize(histograms.size() * alphabet_size_);
     for (size_t i = 0; i < histograms.size(); ++i) {
       size_t ix = i * alphabet_size_;
       BuildAndStoreHuffmanTree(&histograms[i].data_[0], alphabet_size_,
+                               tree,
                                &depths_[ix], &bits_[ix],
                                storage_ix, storage);
     }
@@ -798,6 +849,8 @@ void StoreMetaBlock(const uint8_t* input,
       kNumDistanceShortCodes + num_direct_distance_codes +
       (48u << distance_postfix_bits);
 
+  HuffmanTree* tree = static_cast<HuffmanTree*>(
+      malloc(kMaxHuffmanTreeSize * sizeof(HuffmanTree)));
   BlockEncoder literal_enc(256,
                            mb.literal_split.num_types,
                            mb.literal_split.types,
@@ -811,9 +864,9 @@ void StoreMetaBlock(const uint8_t* input,
                             mb.distance_split.types,
                             mb.distance_split.lengths);
 
-  literal_enc.BuildAndStoreBlockSwitchEntropyCodes(storage_ix, storage);
-  command_enc.BuildAndStoreBlockSwitchEntropyCodes(storage_ix, storage);
-  distance_enc.BuildAndStoreBlockSwitchEntropyCodes(storage_ix, storage);
+  literal_enc.BuildAndStoreBlockSwitchEntropyCodes(tree, storage_ix, storage);
+  command_enc.BuildAndStoreBlockSwitchEntropyCodes(tree, storage_ix, storage);
+  distance_enc.BuildAndStoreBlockSwitchEntropyCodes(tree, storage_ix, storage);
 
   WriteBits(2, distance_postfix_bits, storage_ix, storage);
   WriteBits(4, num_direct_distance_codes >> distance_postfix_bits,
@@ -824,37 +877,36 @@ void StoreMetaBlock(const uint8_t* input,
 
   size_t num_literal_histograms = mb.literal_histograms.size();
   if (mb.literal_context_map.empty()) {
-    StoreTrivialContextMap(num_literal_histograms, kLiteralContextBits,
+    StoreTrivialContextMap(num_literal_histograms, kLiteralContextBits, tree,
                            storage_ix, storage);
   } else {
-    EncodeContextMap(mb.literal_context_map, num_literal_histograms,
+    EncodeContextMap(mb.literal_context_map, num_literal_histograms, tree,
                      storage_ix, storage);
   }
 
   size_t num_dist_histograms = mb.distance_histograms.size();
   if (mb.distance_context_map.empty()) {
-    StoreTrivialContextMap(num_dist_histograms, kDistanceContextBits,
+    StoreTrivialContextMap(num_dist_histograms, kDistanceContextBits, tree,
                            storage_ix, storage);
   } else {
-    EncodeContextMap(mb.distance_context_map, num_dist_histograms,
+    EncodeContextMap(mb.distance_context_map, num_dist_histograms, tree,
                      storage_ix, storage);
   }
 
-  literal_enc.BuildAndStoreEntropyCodes(mb.literal_histograms,
+  literal_enc.BuildAndStoreEntropyCodes(mb.literal_histograms, tree,
                                         storage_ix, storage);
-  command_enc.BuildAndStoreEntropyCodes(mb.command_histograms,
+  command_enc.BuildAndStoreEntropyCodes(mb.command_histograms, tree,
                                         storage_ix, storage);
-  distance_enc.BuildAndStoreEntropyCodes(mb.distance_histograms,
+  distance_enc.BuildAndStoreEntropyCodes(mb.distance_histograms, tree,
                                          storage_ix, storage);
+  free(tree);
 
   size_t pos = start_pos;
   for (size_t i = 0; i < n_commands; ++i) {
     const Command cmd = commands[i];
     size_t cmd_code = cmd.cmd_prefix_;
-    uint32_t lennumextra = static_cast<uint32_t>(cmd.cmd_extra_ >> 48);
-    uint64_t lenextra = cmd.cmd_extra_ & 0xffffffffffffUL;
     command_enc.StoreSymbol(cmd_code, storage_ix, storage);
-    WriteBits(lennumextra, lenextra, storage_ix, storage);
+    StoreCommandExtra(cmd, storage_ix, storage);
     if (mb.literal_context_map.empty()) {
       for (size_t j = cmd.insert_len_; j != 0; --j) {
         literal_enc.StoreSymbol(input[pos & mask], storage_ix, storage);
@@ -871,8 +923,8 @@ void StoreMetaBlock(const uint8_t* input,
         ++pos;
       }
     }
-    pos += cmd.copy_len_;
-    if (cmd.copy_len_ > 0) {
+    pos += cmd.copy_len();
+    if (cmd.copy_len()) {
       prev_byte2 = input[(pos - 2) & mask];
       prev_byte = input[(pos - 1) & mask];
       if (cmd.cmd_prefix_ >= 128) {
@@ -911,8 +963,8 @@ void BuildHistograms(const uint8_t* input,
       lit_histo->Add(input[pos & mask]);
       ++pos;
     }
-    pos += cmd.copy_len_;
-    if (cmd.copy_len_ > 0 && cmd.cmd_prefix_ >= 128) {
+    pos += cmd.copy_len();
+    if (cmd.copy_len() && cmd.cmd_prefix_ >= 128) {
       dist_histo->Add(cmd.dist_prefix_);
     }
   }
@@ -935,17 +987,15 @@ void StoreDataWithHuffmanCodes(const uint8_t* input,
   for (size_t i = 0; i < n_commands; ++i) {
     const Command cmd = commands[i];
     const size_t cmd_code = cmd.cmd_prefix_;
-    const uint32_t lennumextra = static_cast<uint32_t>(cmd.cmd_extra_ >> 48);
-    const uint64_t lenextra = cmd.cmd_extra_ & 0xffffffffffffUL;
     WriteBits(cmd_depth[cmd_code], cmd_bits[cmd_code], storage_ix, storage);
-    WriteBits(lennumextra, lenextra, storage_ix, storage);
+    StoreCommandExtra(cmd, storage_ix, storage);
     for (size_t j = cmd.insert_len_; j != 0; --j) {
       const uint8_t literal = input[pos & mask];
       WriteBits(lit_depth[literal], lit_bits[literal], storage_ix, storage);
       ++pos;
     }
-    pos += cmd.copy_len_;
-    if (cmd.copy_len_ > 0 && cmd.cmd_prefix_ >= 128) {
+    pos += cmd.copy_len();
+    if (cmd.copy_len() && cmd.cmd_prefix_ >= 128) {
       const size_t dist_code = cmd.dist_prefix_;
       const uint32_t distnumextra = cmd.dist_extra_ >> 24;
       const uint32_t distextra = cmd.dist_extra_ & 0xffffff;
@@ -983,15 +1033,18 @@ void StoreMetaBlockTrivial(const uint8_t* input,
   std::vector<uint8_t> dist_depth(64);
   std::vector<uint16_t> dist_bits(64);
 
-  BuildAndStoreHuffmanTree(&lit_histo.data_[0], 256,
+  HuffmanTree* tree = static_cast<HuffmanTree*>(
+      malloc(kMaxHuffmanTreeSize * sizeof(HuffmanTree)));
+  BuildAndStoreHuffmanTree(&lit_histo.data_[0], 256, tree,
                            &lit_depth[0], &lit_bits[0],
                            storage_ix, storage);
-  BuildAndStoreHuffmanTree(&cmd_histo.data_[0], kNumCommandPrefixes,
+  BuildAndStoreHuffmanTree(&cmd_histo.data_[0], kNumCommandPrefixes, tree,
                            &cmd_depth[0], &cmd_bits[0],
                            storage_ix, storage);
-  BuildAndStoreHuffmanTree(&dist_histo.data_[0], 64,
+  BuildAndStoreHuffmanTree(&dist_histo.data_[0], 64, tree,
                            &dist_depth[0], &dist_bits[0],
                            storage_ix, storage);
+  free(tree);
   StoreDataWithHuffmanCodes(input, start_pos, mask, commands,
                             n_commands, &lit_depth[0], &lit_bits[0],
                             &cmd_depth[0], &cmd_bits[0],
@@ -1026,7 +1079,7 @@ void StoreMetaBlockFast(const uint8_t* input,
         ++pos;
       }
       num_literals += cmd.insert_len_;
-      pos += cmd.copy_len_;
+      pos += cmd.copy_len();
     }
     uint8_t lit_depth[256] = { 0 };
     uint16_t lit_bits[256] = { 0 };

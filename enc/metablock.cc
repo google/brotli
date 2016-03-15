@@ -258,8 +258,8 @@ void BuildMetaBlockGreedy(const uint8_t* ringbuffer,
       lit_blocks.AddSymbol(ringbuffer[pos & mask]);
       ++pos;
     }
-    pos += cmd.copy_len_;
-    if (cmd.copy_len_ > 0 && cmd.cmd_prefix_ >= 128) {
+    pos += cmd.copy_len();
+    if (cmd.copy_len() && cmd.cmd_prefix_ >= 128) {
       dist_blocks.AddSymbol(cmd.dist_prefix_);
     }
   }
@@ -488,8 +488,8 @@ void BuildMetaBlockGreedyWithContexts(const uint8_t* ringbuffer,
       prev_byte = literal;
       ++pos;
     }
-    pos += cmd.copy_len_;
-    if (cmd.copy_len_ > 0) {
+    pos += cmd.copy_len();
+    if (cmd.copy_len()) {
       prev_byte2 = ringbuffer[(pos - 2) & mask];
       prev_byte = ringbuffer[(pos - 1) & mask];
       if (cmd.cmd_prefix_ >= 128) {
@@ -515,20 +515,25 @@ void BuildMetaBlockGreedyWithContexts(const uint8_t* ringbuffer,
 void OptimizeHistograms(size_t num_direct_distance_codes,
                         size_t distance_postfix_bits,
                         MetaBlockSplit* mb) {
+  uint8_t* good_for_rle = new uint8_t[kNumCommandPrefixes];
   for (size_t i = 0; i < mb->literal_histograms.size(); ++i) {
-    OptimizeHuffmanCountsForRle(256, &mb->literal_histograms[i].data_[0]);
+    OptimizeHuffmanCountsForRle(256, &mb->literal_histograms[i].data_[0],
+                                good_for_rle);
   }
   for (size_t i = 0; i < mb->command_histograms.size(); ++i) {
     OptimizeHuffmanCountsForRle(kNumCommandPrefixes,
-                                &mb->command_histograms[i].data_[0]);
+                                &mb->command_histograms[i].data_[0],
+                                good_for_rle);
   }
   size_t num_distance_codes =
       kNumDistanceShortCodes + num_direct_distance_codes +
       (48u << distance_postfix_bits);
   for (size_t i = 0; i < mb->distance_histograms.size(); ++i) {
     OptimizeHuffmanCountsForRle(num_distance_codes,
-                                &mb->distance_histograms[i].data_[0]);
+                                &mb->distance_histograms[i].data_[0],
+                                good_for_rle);
   }
+  delete[] good_for_rle;
 }
 
 }  // namespace brotli

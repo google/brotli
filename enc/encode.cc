@@ -38,7 +38,7 @@ static const int kMinQualityForContextModeling = 5;
 static const int kMinQualityForOptimizeHistograms = 4;
 // For quality 2 there is no block splitting, so we buffer at most this much
 // literals and commands.
-static const int kMaxNumDelayedSymbols = 0x2fff;
+static const size_t kMaxNumDelayedSymbols = 0x2fff;
 
 #define COPY_ARRAY(dst, src) memcpy(dst, src, sizeof(src));
 
@@ -51,7 +51,7 @@ void RecomputeDistancePrefixes(Command* cmds,
   }
   for (size_t i = 0; i < num_commands; ++i) {
     Command* cmd = &cmds[i];
-    if (cmd->copy_len_ > 0 && cmd->cmd_prefix_ >= 128) {
+    if (cmd->copy_len() && cmd->cmd_prefix_ >= 128) {
       PrefixEncodeCopyDistance(cmd->DistanceCode(),
                                num_direct_distance_codes,
                                distance_postfix_bits,
@@ -180,6 +180,250 @@ void InitCommandPrefixCodes(uint8_t cmd_depths[128],
   *cmd_code_numbits = kDefaultCommandCodeNumBits;
 }
 
+// Decide about the context map based on the ability of the prediction
+// ability of the previous byte UTF8-prefix on the next byte. The
+// prediction ability is calculated as shannon entropy. Here we need
+// shannon entropy instead of 'BitsEntropy' since the prefix will be
+// encoded with the remaining 6 bits of the following byte, and
+// BitsEntropy will assume that symbol to be stored alone using Huffman
+// coding.
+void ChooseContextMap(int quality,
+                      uint32_t* bigram_histo,
+                      size_t* num_literal_contexts,
+                      const uint32_t** literal_context_map) {
+  uint32_t monogram_histo[3] = { 0 };
+  uint32_t two_prefix_histo[6] = { 0 };
+  size_t total = 0;
+  for (size_t i = 0; i < 9; ++i) {
+    total += bigram_histo[i];
+    monogram_histo[i % 3] += bigram_histo[i];
+    size_t j = i;
+    if (j >= 6) {
+      j -= 6;
+    }
+    two_prefix_histo[j] += bigram_histo[i];
+  }
+  size_t dummy;
+  double entropy1 = ShannonEntropy(monogram_histo, 3, &dummy);
+  double entropy2 = (ShannonEntropy(two_prefix_histo, 3, &dummy) +
+                     ShannonEntropy(two_prefix_histo + 3, 3, &dummy));
+  double entropy3 = 0;
+  for (size_t k = 0; k < 3; ++k) {
+    entropy3 += ShannonEntropy(bigram_histo + 3 * k, 3, &dummy);
+  }
+
+  assert(total != 0);
+  double scale = 1.0 / static_cast<double>(total);
+  entropy1 *= scale;
+  entropy2 *= scale;
+  entropy3 *= scale;
+
+  static const uint32_t kStaticContextMapContinuation[64] = {
+    1, 1, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+  };
+  static const uint32_t kStaticContextMapSimpleUTF8[64] = {
+    0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+  };
+  if (quality < 7) {
+    // 3 context models is a bit slower, don't use it at lower qualities.
+    entropy3 = entropy1 * 10;
+  }
+  // If expected savings by symbol are less than 0.2 bits, skip the
+  // context modeling -- in exchange for faster decoding speed.
+  if (entropy1 - entropy2 < 0.2 &&
+      entropy1 - entropy3 < 0.2) {
+    *num_literal_contexts = 1;
+  } else if (entropy2 - entropy3 < 0.02) {
+    *num_literal_contexts = 2;
+    *literal_context_map = kStaticContextMapSimpleUTF8;
+  } else {
+    *num_literal_contexts = 3;
+    *literal_context_map = kStaticContextMapContinuation;
+  }
+}
+
+void DecideOverLiteralContextModeling(const uint8_t* input,
+                                      size_t start_pos,
+                                      size_t length,
+                                      size_t mask,
+                                      int quality,
+                                      ContextType* literal_context_mode,
+                                      size_t* num_literal_contexts,
+                                      const uint32_t** literal_context_map) {
+  if (quality < kMinQualityForContextModeling || length < 64) {
+    return;
+  }
+  // Gather bigram data of the UTF8 byte prefixes. To make the analysis of
+  // UTF8 data faster we only examine 64 byte long strides at every 4kB
+  // intervals.
+  const size_t end_pos = start_pos + length;
+  uint32_t bigram_prefix_histo[9] = { 0 };
+  for (; start_pos + 64 <= end_pos; start_pos += 4096) {
+      static const int lut[4] = { 0, 0, 1, 2 };
+    const size_t stride_end_pos = start_pos + 64;
+    int prev = lut[input[start_pos & mask] >> 6] * 3;
+    for (size_t pos = start_pos + 1; pos < stride_end_pos; ++pos) {
+      const uint8_t literal = input[pos & mask];
+      ++bigram_prefix_histo[prev + lut[literal >> 6]];
+      prev = lut[literal >> 6] * 3;
+    }
+  }
+  *literal_context_mode = CONTEXT_UTF8;
+  ChooseContextMap(quality, &bigram_prefix_histo[0], num_literal_contexts,
+                   literal_context_map);
+}
+
+bool ShouldCompress(const uint8_t* data,
+                    const size_t mask,
+                    const uint64_t last_flush_pos,
+                    const size_t bytes,
+                    const size_t num_literals,
+                    const size_t num_commands) {
+  if (num_commands < (bytes >> 8) + 2) {
+    if (num_literals > 0.99 * static_cast<double>(bytes)) {
+      uint32_t literal_histo[256] = { 0 };
+      static const uint32_t kSampleRate = 13;
+      static const double kMinEntropy = 7.92;
+      const double bit_cost_threshold =
+          static_cast<double>(bytes) * kMinEntropy / kSampleRate;
+      size_t t = (bytes + kSampleRate - 1) / kSampleRate;
+      uint32_t pos = static_cast<uint32_t>(last_flush_pos);
+      for (size_t i = 0; i < t; i++) {
+        ++literal_histo[data[pos & mask]];
+        pos += kSampleRate;
+      }
+      if (BitsEntropy(literal_histo, 256) > bit_cost_threshold) {
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
+void WriteMetaBlockInternal(const uint8_t* data,
+                            const size_t mask,
+                            const uint64_t last_flush_pos,
+                            const size_t bytes,
+                            const bool is_last,
+                            const int quality,
+                            const bool font_mode,
+                            const uint8_t prev_byte,
+                            const uint8_t prev_byte2,
+                            const size_t num_literals,
+                            const size_t num_commands,
+                            Command* commands,
+                            const int* saved_dist_cache,
+                            int* dist_cache,
+                            size_t* storage_ix,
+                            uint8_t* storage) {
+  if (bytes == 0) {
+    // Write the ISLAST and ISEMPTY bits.
+    WriteBits(2, 3, storage_ix, storage);
+    *storage_ix = (*storage_ix + 7u) & ~7u;
+    return;
+  }
+
+  if (!ShouldCompress(data, mask, last_flush_pos, bytes,
+                      num_literals, num_commands)) {
+    // Restore the distance cache, as its last update by
+    // CreateBackwardReferences is now unused.
+    memcpy(dist_cache, saved_dist_cache, 4 * sizeof(dist_cache[0]));
+    StoreUncompressedMetaBlock(is_last, data,
+                               WrapPosition(last_flush_pos), mask, bytes,
+                               storage_ix, storage);
+    return;
+  }
+
+  const uint8_t last_byte = storage[0];
+  const uint8_t last_byte_bits = static_cast<uint8_t>(*storage_ix & 0xff);
+  uint32_t num_direct_distance_codes = 0;
+  uint32_t distance_postfix_bits = 0;
+  if (quality > 9 && font_mode) {
+    num_direct_distance_codes = 12;
+    distance_postfix_bits = 1;
+    RecomputeDistancePrefixes(commands,
+                              num_commands,
+                              num_direct_distance_codes,
+                              distance_postfix_bits);
+  }
+  if (quality == 2) {
+    StoreMetaBlockFast(data, WrapPosition(last_flush_pos),
+                       bytes, mask, is_last,
+                       commands, num_commands,
+                       storage_ix, storage);
+  } else if (quality < kMinQualityForBlockSplit) {
+    StoreMetaBlockTrivial(data, WrapPosition(last_flush_pos),
+                          bytes, mask, is_last,
+                          commands, num_commands,
+                          storage_ix, storage);
+  } else {
+    MetaBlockSplit mb;
+    ContextType literal_context_mode = CONTEXT_UTF8;
+    if (quality <= 9) {
+      size_t num_literal_contexts = 1;
+      const uint32_t* literal_context_map = NULL;
+      DecideOverLiteralContextModeling(data, WrapPosition(last_flush_pos),
+                                       bytes, mask,
+                                       quality,
+                                       &literal_context_mode,
+                                       &num_literal_contexts,
+                                       &literal_context_map);
+      if (literal_context_map == NULL) {
+        BuildMetaBlockGreedy(data, WrapPosition(last_flush_pos), mask,
+                             commands, num_commands, &mb);
+      } else {
+        BuildMetaBlockGreedyWithContexts(data, WrapPosition(last_flush_pos),
+                                         mask,
+                                         prev_byte, prev_byte2,
+                                         literal_context_mode,
+                                         num_literal_contexts,
+                                         literal_context_map,
+                                         commands, num_commands,
+                                         &mb);
+      }
+    } else {
+      if (!IsMostlyUTF8(data, WrapPosition(last_flush_pos), mask, bytes,
+                        kMinUTF8Ratio)) {
+        literal_context_mode = CONTEXT_SIGNED;
+      }
+      BuildMetaBlock(data, WrapPosition(last_flush_pos), mask,
+                     prev_byte, prev_byte2,
+                     commands, num_commands,
+                     literal_context_mode,
+                     &mb);
+    }
+    if (quality >= kMinQualityForOptimizeHistograms) {
+      OptimizeHistograms(num_direct_distance_codes,
+                         distance_postfix_bits,
+                         &mb);
+    }
+    StoreMetaBlock(data, WrapPosition(last_flush_pos), bytes, mask,
+                   prev_byte, prev_byte2,
+                   is_last,
+                   num_direct_distance_codes,
+                   distance_postfix_bits,
+                   literal_context_mode,
+                   commands, num_commands,
+                   mb,
+                   storage_ix, storage);
+  }
+  if (bytes + 4 < (*storage_ix >> 3)) {
+    // Restore the distance cache and last byte.
+    memcpy(dist_cache, saved_dist_cache, 4 * sizeof(dist_cache[0]));
+    storage[0] = last_byte;
+    *storage_ix = last_byte_bits;
+    StoreUncompressedMetaBlock(is_last, data,
+                               WrapPosition(last_flush_pos), mask,
+                               bytes, storage_ix, storage);
+  }
+}
+
 BrotliCompressor::BrotliCompressor(BrotliParams params)
     : params_(params),
       hashers_(new Hashers()),
@@ -211,7 +455,7 @@ BrotliCompressor::BrotliCompressor(BrotliParams params)
   } else if (params_.lgblock == 0) {
     params_.lgblock = 16;
     if (params_.quality >= 9 && params_.lgwin > params_.lgblock) {
-      params_.lgblock = std::min(21, params_.lgwin);
+      params_.lgblock = std::min(18, params_.lgwin);
     }
   } else {
     params_.lgblock = std::min(kMaxInputBlockBits,
@@ -403,9 +647,13 @@ bool BrotliCompressor::WriteBrotliData(const bool is_last,
                            &num_literals_);
 
   size_t max_length = std::min<size_t>(mask + 1, 1u << kMaxInputBlockBits);
+  const size_t max_literals = max_length / 8;
+  const size_t max_commands = max_length / 8;
   if (!is_last && !force_flush &&
       (params_.quality >= kMinQualityForBlockSplit ||
        (num_literals_ + num_commands_ < kMaxNumDelayedSymbols)) &&
+      num_literals_ < max_literals &&
+      num_commands_ < max_commands &&
       input_pos_ + input_block_size() <= last_flush_pos_ + max_length) {
     // Merge with next input block. Everything will happen later.
     last_processed_pos_ = input_pos_;
@@ -421,253 +669,36 @@ bool BrotliCompressor::WriteBrotliData(const bool is_last,
     last_insert_len_ = 0;
   }
 
-  WriteMetaBlockInternal(is_last, out_size, output);
-  return true;
-}
-
-// Decide about the context map based on the ability of the prediction
-// ability of the previous byte UTF8-prefix on the next byte. The
-// prediction ability is calculated as shannon entropy. Here we need
-// shannon entropy instead of 'BitsEntropy' since the prefix will be
-// encoded with the remaining 6 bits of the following byte, and
-// BitsEntropy will assume that symbol to be stored alone using Huffman
-// coding.
-void ChooseContextMap(int quality,
-                      uint32_t* bigram_histo,
-                      size_t* num_literal_contexts,
-                      const uint32_t** literal_context_map) {
-  uint32_t monogram_histo[3] = { 0 };
-  uint32_t two_prefix_histo[6] = { 0 };
-  size_t total = 0;
-  for (size_t i = 0; i < 9; ++i) {
-    total += bigram_histo[i];
-    monogram_histo[i % 3] += bigram_histo[i];
-    size_t j = i;
-    if (j >= 6) {
-      j -= 6;
-    }
-    two_prefix_histo[j] += bigram_histo[i];
-  }
-  size_t dummy;
-  double entropy1 = ShannonEntropy(monogram_histo, 3, &dummy);
-  double entropy2 = (ShannonEntropy(two_prefix_histo, 3, &dummy) +
-                     ShannonEntropy(two_prefix_histo + 3, 3, &dummy));
-  double entropy3 = 0;
-  for (size_t k = 0; k < 3; ++k) {
-    entropy3 += ShannonEntropy(bigram_histo + 3 * k, 3, &dummy);
-  }
-
-  assert(total != 0);
-  double scale = 1.0 / static_cast<double>(total);
-  entropy1 *= scale;
-  entropy2 *= scale;
-  entropy3 *= scale;
-
-  static const uint32_t kStaticContextMapContinuation[64] = {
-    1, 1, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-  };
-  static const uint32_t kStaticContextMapSimpleUTF8[64] = {
-    0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-  };
-  if (quality < 7) {
-    // 3 context models is a bit slower, don't use it at lower qualities.
-    entropy3 = entropy1 * 10;
-  }
-  // If expected savings by symbol are less than 0.2 bits, skip the
-  // context modeling -- in exchange for faster decoding speed.
-  if (entropy1 - entropy2 < 0.2 &&
-      entropy1 - entropy3 < 0.2) {
-    *num_literal_contexts = 1;
-  } else if (entropy2 - entropy3 < 0.02) {
-    *num_literal_contexts = 2;
-    *literal_context_map = kStaticContextMapSimpleUTF8;
-  } else {
-    *num_literal_contexts = 3;
-    *literal_context_map = kStaticContextMapContinuation;
-  }
-}
-
-void DecideOverLiteralContextModeling(const uint8_t* input,
-                                      size_t start_pos,
-                                      size_t length,
-                                      size_t mask,
-                                      int quality,
-                                      ContextType* literal_context_mode,
-                                      size_t* num_literal_contexts,
-                                      const uint32_t** literal_context_map) {
-  if (quality < kMinQualityForContextModeling || length < 64) {
-    return;
-  }
-  // Gather bigram data of the UTF8 byte prefixes. To make the analysis of
-  // UTF8 data faster we only examine 64 byte long strides at every 4kB
-  // intervals.
-  const size_t end_pos = start_pos + length;
-  uint32_t bigram_prefix_histo[9] = { 0 };
-  for (; start_pos + 64 <= end_pos; start_pos += 4096) {
-      static const int lut[4] = { 0, 0, 1, 2 };
-    const size_t stride_end_pos = start_pos + 64;
-    int prev = lut[input[start_pos & mask] >> 6] * 3;
-    for (size_t pos = start_pos + 1; pos < stride_end_pos; ++pos) {
-      const uint8_t literal = input[pos & mask];
-      ++bigram_prefix_histo[prev + lut[literal >> 6]];
-      prev = lut[literal >> 6] * 3;
-    }
-  }
-  *literal_context_mode = CONTEXT_UTF8;
-  ChooseContextMap(quality, &bigram_prefix_histo[0], num_literal_contexts,
-                   literal_context_map);
-}
-
-void BrotliCompressor::WriteMetaBlockInternal(const bool is_last,
-                                              size_t* out_size,
-                                              uint8_t** output) {
   if (!is_last && input_pos_ == last_flush_pos_) {
     // We have no new input data and we don't have to finish the stream, so
     // nothing to do.
     *out_size = 0;
-    return;
+    return true;
   }
   assert(input_pos_ >= last_flush_pos_);
   assert(input_pos_ > last_flush_pos_ || is_last);
   assert(input_pos_ - last_flush_pos_ <= 1u << 24);
-  const uint32_t bytes = static_cast<uint32_t>(input_pos_ - last_flush_pos_);
-  const uint8_t* data = ringbuffer_->start();
-  const uint32_t mask = ringbuffer_->mask();
-  const size_t max_out_size = 2 * bytes + 500;
+  const uint32_t metablock_size =
+      static_cast<uint32_t>(input_pos_ - last_flush_pos_);
+  const size_t max_out_size = 2 * metablock_size + 500;
   uint8_t* storage = GetBrotliStorage(max_out_size);
   storage[0] = last_byte_;
   size_t storage_ix = last_byte_bits_;
-
-  bool uncompressed = false;
-  if (num_commands_ < (bytes >> 8) + 2) {
-    if (num_literals_ > 0.99 * static_cast<double>(bytes)) {
-      uint32_t literal_histo[256] = { 0 };
-      static const uint32_t kSampleRate = 13;
-      static const double kMinEntropy = 7.92;
-      const double bit_cost_threshold =
-          static_cast<double>(bytes) * kMinEntropy / kSampleRate;
-      size_t t = (bytes + kSampleRate - 1) / kSampleRate;
-      uint32_t pos = static_cast<uint32_t>(last_flush_pos_);
-      for (size_t i = 0; i < t; i++) {
-        ++literal_histo[data[pos & mask]];
-        pos += kSampleRate;
-      }
-      if (BitsEntropy(literal_histo, 256) > bit_cost_threshold) {
-        uncompressed = true;
-      }
-    }
-  }
-
-  if (bytes == 0) {
-    // Write the ISLAST and ISEMPTY bits.
-    WriteBits(2, 3, &storage_ix, &storage[0]);
-    storage_ix = (storage_ix + 7u) & ~7u;
-  } else if (uncompressed) {
-    // Restore the distance cache, as its last update by
-    // CreateBackwardReferences is now unused.
-    memcpy(dist_cache_, saved_dist_cache_, sizeof(dist_cache_));
-    StoreUncompressedMetaBlock(is_last, data,
-                               WrapPosition(last_flush_pos_), mask, bytes,
-                               &storage_ix,
-                               &storage[0]);
-  } else {
-    uint32_t num_direct_distance_codes = 0;
-    uint32_t distance_postfix_bits = 0;
-    if (params_.quality > 9 && params_.mode == BrotliParams::MODE_FONT) {
-      num_direct_distance_codes = 12;
-      distance_postfix_bits = 1;
-      RecomputeDistancePrefixes(commands_,
-                                num_commands_,
-                                num_direct_distance_codes,
-                                distance_postfix_bits);
-    }
-    if (params_.quality == 2) {
-      StoreMetaBlockFast(data, WrapPosition(last_flush_pos_),
-                         bytes, mask, is_last,
-                         commands_, num_commands_,
-                         &storage_ix,
-                         &storage[0]);
-    } else if (params_.quality < kMinQualityForBlockSplit) {
-      StoreMetaBlockTrivial(data, WrapPosition(last_flush_pos_),
-                            bytes, mask, is_last,
-                            commands_, num_commands_,
-                            &storage_ix,
-                            &storage[0]);
-    } else {
-      MetaBlockSplit mb;
-      ContextType literal_context_mode = CONTEXT_UTF8;
-      if (params_.quality <= 9) {
-        size_t num_literal_contexts = 1;
-        const uint32_t* literal_context_map = NULL;
-        DecideOverLiteralContextModeling(data, WrapPosition(last_flush_pos_),
-                                         bytes, mask,
-                                         params_.quality,
-                                         &literal_context_mode,
-                                         &num_literal_contexts,
-                                         &literal_context_map);
-        if (literal_context_map == NULL) {
-          BuildMetaBlockGreedy(data, WrapPosition(last_flush_pos_), mask,
-                               commands_, num_commands_,
-                               &mb);
-        } else {
-          BuildMetaBlockGreedyWithContexts(data, WrapPosition(last_flush_pos_),
-                                           mask,
-                                           prev_byte_, prev_byte2_,
-                                           literal_context_mode,
-                                           num_literal_contexts,
-                                           literal_context_map,
-                                           commands_, num_commands_,
-                                           &mb);
-        }
-      } else {
-        if (!IsMostlyUTF8(
-            data, WrapPosition(last_flush_pos_), mask, bytes, kMinUTF8Ratio)) {
-          literal_context_mode = CONTEXT_SIGNED;
-        }
-        BuildMetaBlock(data, WrapPosition(last_flush_pos_), mask,
-                       prev_byte_, prev_byte2_,
-                       commands_, num_commands_,
-                       literal_context_mode,
-                       &mb);
-      }
-      if (params_.quality >= kMinQualityForOptimizeHistograms) {
-        OptimizeHistograms(num_direct_distance_codes,
-                           distance_postfix_bits,
-                           &mb);
-      }
-      StoreMetaBlock(data, WrapPosition(last_flush_pos_), bytes, mask,
-                     prev_byte_, prev_byte2_,
-                     is_last,
-                     num_direct_distance_codes,
-                     distance_postfix_bits,
-                     literal_context_mode,
-                     commands_, num_commands_,
-                     mb,
-                     &storage_ix,
-                     &storage[0]);
-    }
-    if (bytes + 4 < (storage_ix >> 3)) {
-      // Restore the distance cache and last byte.
-      memcpy(dist_cache_, saved_dist_cache_, sizeof(dist_cache_));
-      storage[0] = last_byte_;
-      storage_ix = last_byte_bits_;
-      StoreUncompressedMetaBlock(is_last, data,
-                                 WrapPosition(last_flush_pos_), mask,
-                                 bytes, &storage_ix, &storage[0]);
-    }
-  }
+  bool font_mode = params_.mode == BrotliParams::MODE_FONT;
+  WriteMetaBlockInternal(
+      data, mask, last_flush_pos_, metablock_size, is_last, params_.quality,
+      font_mode, prev_byte_, prev_byte2_, num_literals_, num_commands_,
+      commands_, saved_dist_cache_, dist_cache_, &storage_ix, storage);
   last_byte_ = storage[storage_ix >> 3];
   last_byte_bits_ = storage_ix & 7u;
   last_flush_pos_ = input_pos_;
   last_processed_pos_ = input_pos_;
-  prev_byte_ = data[(static_cast<uint32_t>(last_flush_pos_) - 1) & mask];
-  prev_byte2_ = data[(static_cast<uint32_t>(last_flush_pos_) - 2) & mask];
+  if (last_flush_pos_ > 0) {
+    prev_byte_ = data[(static_cast<uint32_t>(last_flush_pos_) - 1) & mask];
+  }
+  if (last_flush_pos_ > 1) {
+    prev_byte2_ = data[(static_cast<uint32_t>(last_flush_pos_) - 2) & mask];
+  }
   num_commands_ = 0;
   num_literals_ = 0;
   // Save the state of the distance cache in case we need to restore it for
@@ -675,6 +706,7 @@ void BrotliCompressor::WriteMetaBlockInternal(const bool is_last,
   memcpy(saved_dist_cache_, dist_cache_, sizeof(dist_cache_));
   *output = &storage[0];
   *out_size = storage_ix >> 3;
+  return true;
 }
 
 bool BrotliCompressor::WriteMetaBlock(const size_t input_size,
@@ -739,6 +771,177 @@ bool BrotliCompressor::FinishStream(
   return WriteMetaBlock(0, NULL, true, encoded_size, encoded_buffer);
 }
 
+int BrotliCompressBufferQuality10(int lgwin,
+                                  size_t input_size,
+                                  const uint8_t* input_buffer,
+                                  size_t* encoded_size,
+                                  uint8_t* encoded_buffer) {
+  const size_t mask = std::numeric_limits<size_t>::max() >> 1;
+  assert(input_size <= mask + 1);
+  const size_t max_backward_limit = (1 << lgwin) - 16;
+  int dist_cache[4] = { 4, 11, 15, 16 };
+  int saved_dist_cache[4] = { 4, 11, 15, 16 };
+  int ok = 1;
+  const size_t max_out_size = *encoded_size;
+  size_t total_out_size = 0;
+  uint8_t last_byte;
+  uint8_t last_byte_bits;
+  EncodeWindowBits(lgwin, &last_byte, &last_byte_bits);
+
+  Hashers::H10* hasher = new Hashers::H10;
+  const size_t hasher_eff_size = std::min(input_size, max_backward_limit + 16);
+  hasher->Init(lgwin, 0, hasher_eff_size, true);
+
+  const int lgblock = std::min(18, lgwin);
+  const int lgmetablock = std::min(24, lgwin + 1);
+  const size_t max_block_size = static_cast<size_t>(1) << lgblock;
+  const size_t max_metablock_size = static_cast<size_t>(1) << lgmetablock;
+  const size_t max_literals_per_metablock = max_metablock_size / 8;
+  const size_t max_commands_per_metablock = max_metablock_size / 8;
+  size_t metablock_start = 0;
+  uint8_t prev_byte = 0;
+  uint8_t prev_byte2 = 0;
+  while (ok && metablock_start < input_size) {
+    const size_t metablock_end =
+        std::min(input_size, metablock_start + max_metablock_size);
+    const size_t expected_num_commands =
+        (metablock_end - metablock_start) / 12 + 16;
+    Command* commands = 0;
+    size_t num_commands = 0;
+    size_t last_insert_len = 0;
+    size_t num_literals = 0;
+    size_t metablock_size = 0;
+    size_t cmd_alloc_size = 0;
+
+    for (size_t block_start = metablock_start; block_start < metablock_end; ) {
+      size_t block_size = std::min(metablock_end - block_start, max_block_size);
+      ZopfliNode* nodes = new ZopfliNode[block_size + 1];
+      std::vector<uint32_t> path;
+      hasher->StitchToPreviousBlock(block_size, block_start,
+                                    input_buffer, mask);
+      ZopfliComputeShortestPath(block_size, block_start, input_buffer, mask,
+                                max_backward_limit, dist_cache,
+                                hasher, nodes, &path);
+      // We allocate a command buffer in the first iteration of this loop that
+      // will be likely big enough for the whole metablock, so that for most
+      // inputs we will not have to reallocate in later iterations. We do the
+      // allocation here and not before the loop, because if the input is small,
+      // this will be allocated after the zopfli cost model is freed, so this
+      // will not increase peak memory usage.
+      // TODO: If the first allocation is too small, increase command
+      // buffer size exponentially.
+      size_t new_cmd_alloc_size = std::max(expected_num_commands,
+                                           num_commands + path.size() + 1);
+      if (cmd_alloc_size != new_cmd_alloc_size) {
+        cmd_alloc_size = new_cmd_alloc_size;
+        commands = static_cast<Command*>(
+            realloc(commands, cmd_alloc_size * sizeof(Command)));
+      }
+      ZopfliCreateCommands(block_size, block_start, max_backward_limit, path,
+                           &nodes[0], dist_cache, &last_insert_len,
+                           &commands[num_commands], &num_literals);
+      num_commands += path.size();
+      block_start += block_size;
+      metablock_size += block_size;
+      delete[] nodes;
+      if (num_literals > max_literals_per_metablock ||
+          num_commands > max_commands_per_metablock) {
+        break;
+      }
+    }
+
+    if (last_insert_len > 0) {
+      Command cmd(last_insert_len);
+      commands[num_commands++] = cmd;
+      num_literals += last_insert_len;
+    }
+
+    const bool is_last = (metablock_start + metablock_size == input_size);
+    uint8_t* storage = NULL;
+    size_t storage_ix = last_byte_bits;
+
+    if (metablock_size == 0) {
+      // Write the ISLAST and ISEMPTY bits.
+      storage = new uint8_t[16];
+      storage[0] = last_byte;
+      WriteBits(2, 3, &storage_ix, storage);
+      storage_ix = (storage_ix + 7u) & ~7u;
+    } else if (!ShouldCompress(input_buffer, mask, metablock_start,
+                               metablock_size, num_literals, num_commands)) {
+      // Restore the distance cache, as its last update by
+      // CreateBackwardReferences is now unused.
+      memcpy(dist_cache, saved_dist_cache, 4 * sizeof(dist_cache[0]));
+      storage = new uint8_t[metablock_size + 16];
+      storage[0] = last_byte;
+      StoreUncompressedMetaBlock(is_last, input_buffer,
+                                 metablock_start, mask, metablock_size,
+                                 &storage_ix, storage);
+    } else {
+      uint32_t num_direct_distance_codes = 0;
+      uint32_t distance_postfix_bits = 0;
+      MetaBlockSplit mb;
+      ContextType literal_context_mode = CONTEXT_UTF8;
+      if (!IsMostlyUTF8(
+              input_buffer, metablock_start, mask, metablock_size,
+              kMinUTF8Ratio)) {
+        literal_context_mode = CONTEXT_SIGNED;
+      }
+      BuildMetaBlock(input_buffer, metablock_start, mask,
+                     prev_byte, prev_byte2,
+                     commands, num_commands,
+                     literal_context_mode,
+                     &mb);
+      OptimizeHistograms(num_direct_distance_codes,
+                         distance_postfix_bits,
+                         &mb);
+      const size_t max_out_metablock_size = 2 * metablock_size + 500;
+      storage = new uint8_t[max_out_metablock_size];
+      storage[0] = last_byte;
+      StoreMetaBlock(input_buffer, metablock_start, metablock_size, mask,
+                     prev_byte, prev_byte2,
+                     is_last,
+                     num_direct_distance_codes,
+                     distance_postfix_bits,
+                     literal_context_mode,
+                     commands, num_commands,
+                     mb,
+                     &storage_ix, storage);
+      if (metablock_size + 4 < (storage_ix >> 3)) {
+        // Restore the distance cache and last byte.
+        memcpy(dist_cache, saved_dist_cache, 4 * sizeof(dist_cache[0]));
+        storage[0] = last_byte;
+        storage_ix = last_byte_bits;
+        StoreUncompressedMetaBlock(is_last, input_buffer,
+                                   metablock_start, mask,
+                                   metablock_size, &storage_ix, storage);
+      }
+    }
+    last_byte = storage[storage_ix >> 3];
+    last_byte_bits = storage_ix & 7u;
+    metablock_start += metablock_size;
+    prev_byte = input_buffer[metablock_start - 1];
+    prev_byte2 = input_buffer[metablock_start - 2];
+    // Save the state of the distance cache in case we need to restore it for
+    // emitting an uncompressed block.
+    memcpy(saved_dist_cache, dist_cache, 4 * sizeof(dist_cache[0]));
+
+    const size_t out_size = storage_ix >> 3;
+    total_out_size += out_size;
+    if (total_out_size <= max_out_size) {
+      memcpy(encoded_buffer, storage, out_size);
+      encoded_buffer += out_size;
+    } else {
+      ok = 0;
+    }
+    delete[] storage;
+    free(commands);
+  }
+
+  *encoded_size = total_out_size;
+  delete hasher;
+  return ok;
+}
+
 int BrotliCompressBuffer(BrotliParams params,
                          size_t input_size,
                          const uint8_t* input_buffer,
@@ -747,6 +950,18 @@ int BrotliCompressBuffer(BrotliParams params,
   if (*encoded_size == 0) {
     // Output buffer needs at least one byte.
     return 0;
+  }
+  if (input_size == 0) {
+    // Handle the special case of empty input.
+    *encoded_size = 1;
+    *encoded_buffer = 6;
+    return 1;
+  }
+  if (params.quality == 10) {
+    // TODO(user) Implement this direct path for all quality levels.
+    const int lgwin = std::min(24, std::max(16, params.lgwin));
+    return BrotliCompressBufferQuality10(lgwin, input_size, input_buffer,
+                                         encoded_size, encoded_buffer);
   }
   BrotliMemIn in(input_buffer, input_size);
   BrotliMemOut out(encoded_buffer, *encoded_size);

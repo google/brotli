@@ -73,35 +73,47 @@ static inline uint16_t CombineLengthCodes(
 
 static inline void GetLengthCode(size_t insertlen, size_t copylen,
                                  bool use_last_distance,
-                                 uint16_t* code, uint64_t* extra) {
+                                 uint16_t* code) {
   uint16_t inscode = GetInsertLengthCode(insertlen);
   uint16_t copycode = GetCopyLengthCode(copylen);
-  uint64_t insnumextra = kInsExtra[inscode];
-  uint64_t numextra = insnumextra + kCopyExtra[copycode];
-  uint64_t insextraval = insertlen - kInsBase[inscode];
-  uint64_t copyextraval = copylen - kCopyBase[copycode];
   *code = CombineLengthCodes(inscode, copycode, use_last_distance);
-  *extra = (numextra << 48) | (copyextraval << insnumextra) | insextraval;
+}
+
+static inline uint32_t GetInsertBase(uint16_t inscode) {
+  return kInsBase[inscode];
+}
+
+static inline uint32_t GetInsertExtra(uint16_t inscode) {
+  return kInsExtra[inscode];
+}
+
+static inline uint32_t GetCopyBase(uint16_t copycode) {
+  return kCopyBase[copycode];
+}
+
+static inline uint32_t GetCopyExtra(uint16_t copycode) {
+  return kCopyExtra[copycode];
 }
 
 struct Command {
   // distance_code is e.g. 0 for same-as-last short code, or 16 for offset 1.
   Command(size_t insertlen, size_t copylen, size_t copylen_code,
           size_t distance_code)
-      : insert_len_(static_cast<uint32_t>(insertlen))
-      , copy_len_(static_cast<uint32_t>(copylen)) {
+      : insert_len_(static_cast<uint32_t>(insertlen)) {
+    copy_len_ = static_cast<uint32_t>(
+        copylen | ((copylen_code ^ copylen) << 24));
     // The distance prefix and extra bits are stored in this Command as if
     // npostfix and ndirect were 0, they are only recomputed later after the
     // clustering if needed.
     PrefixEncodeCopyDistance(distance_code, 0, 0, &dist_prefix_, &dist_extra_);
     GetLengthCode(insertlen, copylen_code, dist_prefix_ == 0,
-                  &cmd_prefix_, &cmd_extra_);
+                  &cmd_prefix_);
   }
 
   explicit Command(size_t insertlen)
       : insert_len_(static_cast<uint32_t>(insertlen))
-      , copy_len_(0), dist_extra_(0), dist_prefix_(16) {
-    GetLengthCode(insertlen, 4, dist_prefix_ == 0, &cmd_prefix_, &cmd_extra_);
+      , copy_len_(4 << 24), dist_extra_(0), dist_prefix_(16) {
+    GetLengthCode(insertlen, 4, dist_prefix_ == 0, &cmd_prefix_);
   }
 
   uint32_t DistanceCode(void) const {
@@ -123,9 +135,17 @@ struct Command {
     return 3;
   }
 
+  inline uint32_t copy_len(void) const {
+    return copy_len_ & 0xFFFFFF;
+  }
+
+  inline uint32_t copy_len_code(void) const {
+    return (copy_len_ & 0xFFFFFF) ^ (copy_len_ >> 24);
+  }
+
   uint32_t insert_len_;
+  /* Stores copy_len in low 24 bits and copy_len XOR copy_code in high 8 bit. */
   uint32_t copy_len_;
-  uint64_t cmd_extra_;
   uint32_t dist_extra_;
   uint16_t cmd_prefix_;
   uint16_t dist_prefix_;

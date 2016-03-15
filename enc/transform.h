@@ -197,7 +197,7 @@ static size_t ToUpperCase(uint8_t *p, size_t len) {
 inline std::string TransformWord(
     WordTransformType transform_type, const uint8_t* word, size_t len) {
   if (transform_type <= kOmitLast9) {
-    if (len <= transform_type) {
+    if (len <= static_cast<size_t>(transform_type)) {
       return std::string();
     }
     return std::string(word, word + len - transform_type);
