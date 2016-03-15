@@ -958,7 +958,7 @@ int BrotliCompressBuffer(BrotliParams params,
     return 1;
   }
   if (params.quality == 10) {
-    // TODO(user) Implement this direct path for all quality levels.
+    // TODO: Implement this direct path for all quality levels.
     const int lgwin = std::min(24, std::max(16, params.lgwin));
     return BrotliCompressBufferQuality10(lgwin, input_size, input_buffer,
                                          encoded_size, encoded_buffer);
