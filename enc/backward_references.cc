@@ -21,8 +21,6 @@ namespace brotli {
 // The maximum length for which the zopflification uses distinct distances.
 static const uint16_t kMaxZopfliLen = 325;
 
-static const double kInfinity = std::numeric_limits<double>::infinity();
-
 // Histogram based cost model for zopflification.
 class ZopfliCostModel {
  public:
@@ -42,7 +40,7 @@ class ZopfliCostModel {
     size_t pos = position - last_insert_len;
     for (size_t i = 0; i < num_commands; i++) {
       size_t inslength = commands[i].insert_len_;
-      size_t copylength = commands[i].copy_len_;
+      size_t copylength = commands[i].copy_len();
       size_t distcode = commands[i].dist_prefix_;
       size_t cmdcode = commands[i].cmd_prefix_;
 
@@ -56,7 +54,7 @@ class ZopfliCostModel {
       pos += inslength + copylength;
     }
 
-    std::vector<double> cost_literal;
+    std::vector<float> cost_literal;
     Set(histogram_literal, &cost_literal);
     Set(histogram_cmd, &cost_cmd_);
     Set(histogram_dist, &cost_dist_);
@@ -77,26 +75,25 @@ class ZopfliCostModel {
                            size_t position,
                            const uint8_t* ringbuffer,
                            size_t ringbuffer_mask) {
-    std::vector<float> literal_cost(num_bytes + 1);
+    literal_costs_.resize(num_bytes + 2);
     EstimateBitCostsForLiterals(position, num_bytes, ringbuffer_mask,
-                                ringbuffer, &literal_cost[0]);
-    literal_costs_.resize(num_bytes + 1);
+                                ringbuffer, &literal_costs_[1]);
     literal_costs_[0] = 0.0;
     for (size_t i = 0; i < num_bytes; ++i) {
-      literal_costs_[i + 1] = literal_costs_[i] + literal_cost[i];
+      literal_costs_[i + 1] += literal_costs_[i];
     }
     cost_cmd_.resize(kNumCommandPrefixes);
     cost_dist_.resize(kNumDistancePrefixes);
     for (uint32_t i = 0; i < kNumCommandPrefixes; ++i) {
-      cost_cmd_[i] = FastLog2(11 + i);
+      cost_cmd_[i] = static_cast<float>(FastLog2(11 + i));
     }
     for (uint32_t i = 0; i < kNumDistancePrefixes; ++i) {
-      cost_dist_[i] = FastLog2(20 + i);
+      cost_dist_[i] = static_cast<float>(FastLog2(20 + i));
     }
-    min_cost_cmd_ = FastLog2(11);
+    min_cost_cmd_ = static_cast<float>(FastLog2(11));
   }
 
-  double GetCommandCost(
+  float GetCommandCost(
       size_t dist_code, size_t length_code, size_t insert_length) const {
     uint16_t inscode = GetInsertLengthCode(insert_length);
     uint16_t copycode = GetCopyLengthCode(length_code);
@@ -106,29 +103,29 @@ class ZopfliCostModel {
     PrefixEncodeCopyDistance(dist_code, 0, 0, &dist_symbol, &distextra);
     uint32_t distnumextra = distextra >> 24;
 
-    double result =  static_cast<double>(
-        kInsExtra[inscode] + kCopyExtra[copycode] + distnumextra);
+    float result = static_cast<float>(
+        GetInsertExtra(inscode) + GetCopyExtra(copycode) + distnumextra);
     result += cost_cmd_[cmdcode];
     if (cmdcode >= 128) result += cost_dist_[dist_symbol];
     return result;
   }
 
-  double GetLiteralCosts(size_t from, size_t to) const {
+  float GetLiteralCosts(size_t from, size_t to) const {
     return literal_costs_[to] - literal_costs_[from];
   }
 
-  double GetMinCostCmd(void) const {
+  float GetMinCostCmd(void) const {
     return min_cost_cmd_;
   }
 
  private:
-  void Set(const std::vector<uint32_t>& histogram, std::vector<double>* cost) {
+  void Set(const std::vector<uint32_t>& histogram, std::vector<float>* cost) {
     cost->resize(histogram.size());
     size_t sum = 0;
     for (size_t i = 0; i < histogram.size(); i++) {
       sum += histogram[i];
     }
-    double log2sum = FastLog2(sum);
+    float log2sum = static_cast<float>(FastLog2(sum));
     for (size_t i = 0; i < histogram.size(); i++) {
       if (histogram[i] == 0) {
         (*cost)[i] = log2sum + 2;
@@ -136,32 +133,19 @@ class ZopfliCostModel {
       }
 
       // Shannon bits for this symbol.
-      (*cost)[i] = log2sum - FastLog2(histogram[i]);
+      (*cost)[i] = log2sum - static_cast<float>(FastLog2(histogram[i]));
 
       // Cannot be coded with less than 1 bit
       if ((*cost)[i] < 1) (*cost)[i] = 1;
     }
   }
 
-  std::vector<double> cost_cmd_;  // The insert and copy length symbols.
-  std::vector<double> cost_dist_;
+  std::vector<float> cost_cmd_;  // The insert and copy length symbols.
+  std::vector<float> cost_dist_;
   // Cumulative costs of literals per position in the stream.
-  std::vector<double> literal_costs_;
-  double min_cost_cmd_;
+  std::vector<float> literal_costs_;
+  float min_cost_cmd_;
 };
-
-inline void SetDistanceCache(size_t distance,
-                             size_t distance_code,
-                             size_t max_distance,
-                             const int* dist_cache,
-                             int* result_dist_cache) {
-  if (distance <= max_distance && distance_code > 0) {
-    result_dist_cache[0] = static_cast<int>(distance);
-    memcpy(&result_dist_cache[1], dist_cache, 3 * sizeof(dist_cache[0]));
-  } else {
-    memcpy(result_dist_cache, dist_cache, 4 * sizeof(dist_cache[0]));
-  }
-}
 
 inline size_t ComputeDistanceCode(size_t distance,
                                   size_t max_distance,
@@ -194,47 +178,28 @@ inline size_t ComputeDistanceCode(size_t distance,
   return distance + 15;
 }
 
-struct ZopfliNode {
-  ZopfliNode() : length(1),
-                 distance(0),
-                 distance_code(0),
-                 length_code(0),
-                 insert_length(0),
-                 cost(kInfinity) {}
-
-  // best length to get up to this byte (not including this byte itself)
-  uint32_t length;
-  // distance associated with the length
-  uint32_t distance;
-  uint32_t distance_code;
-  int distance_cache[4];
-  // length code associated with the length - usually the same as length,
-  // except in case of length-changing dictionary transformation.
-  uint32_t length_code;
-  // number of literal inserts before this copy
-  uint32_t insert_length;
-  // smallest cost to get to this byte from the beginning, as found so far
-  double cost;
-};
-
+// REQUIRES: len >= 2, start_pos <= pos
+// REQUIRES: cost < kInfinity, nodes[start_pos].cost < kInfinity
+// Maintains the "ZopfliNode array invariant".
 inline void UpdateZopfliNode(ZopfliNode* nodes, size_t pos, size_t start_pos,
                              size_t len, size_t len_code, size_t dist,
-                             size_t dist_code, size_t max_dist,
-                             const int* dist_cache, double cost) {
+                             size_t short_code, float cost) {
   ZopfliNode& next = nodes[pos + len];
-  next.length = static_cast<uint32_t>(len);
-  next.length_code = static_cast<uint32_t>(len_code);
-  next.distance = static_cast<uint32_t>(dist);
-  next.distance_code = static_cast<uint32_t>(dist_code);
+  next.length = static_cast<uint32_t>(len | ((len + 9u - len_code) << 24));
+  next.distance = static_cast<uint32_t>(dist | (short_code << 25));
   next.insert_length = static_cast<uint32_t>(pos - start_pos);
   next.cost = cost;
-  SetDistanceCache(dist, dist_code, max_dist, dist_cache,
-                   &next.distance_cache[0]);
 }
 
 // Maintains the smallest 2^k cost difference together with their positions
 class StartPosQueue {
  public:
+  struct PosData {
+    size_t pos;
+    int distance_cache[4];
+    float costdiff;
+  };
+
   explicit StartPosQueue(int bits)
       : mask_((1u << bits) - 1), q_(1 << bits), idx_(0) {}
 
@@ -242,21 +207,15 @@ class StartPosQueue {
     idx_ = 0;
   }
 
-  void Push(size_t pos, double costdiff) {
-    if (costdiff == kInfinity) {
-      // We can't start a command from an unreachable start position.
-      // E.g. position 1 in a stream is always unreachable, because all commands
-      // have a copy of at least length 2.
-      return;
-    }
-    size_t offset = -idx_ & mask_;
+  void Push(const StartPosQueue::PosData& posdata) {
+    size_t offset = ~idx_ & mask_;
     ++idx_;
     size_t len = size();
-    q_[offset] = std::make_pair(pos, costdiff);
+    q_[offset] = posdata;
     /* Restore the sorted order. In the list of |len| items at most |len - 1|
        adjacent element comparisons / swaps are required. */
     for (size_t i = 1; i < len; ++i) {
-      if (q_[offset & mask_].second > q_[(offset + 1) & mask_].second) {
+      if (q_[offset & mask_].costdiff > q_[(offset + 1) & mask_].costdiff) {
         std::swap(q_[offset & mask_], q_[(offset + 1) & mask_]);
       }
       ++offset;
@@ -265,32 +224,32 @@ class StartPosQueue {
 
   size_t size(void) const { return std::min(idx_, mask_ + 1); }
 
-  size_t GetStartPos(size_t k) const {
-    return q_[(k + 1 - idx_) & mask_].first;
+  const StartPosQueue::PosData& GetStartPosData(size_t k) const {
+    return q_[(k - idx_) & mask_];
   }
 
  private:
   const size_t mask_;
-  std::vector<std::pair<size_t, double> > q_;
+  std::vector<PosData> q_;
   size_t idx_;
 };
 
 // Returns the minimum possible copy length that can improve the cost of any
 // future position.
 size_t ComputeMinimumCopyLength(const StartPosQueue& queue,
-                                const std::vector<ZopfliNode>& nodes,
+                                const ZopfliNode* nodes,
                                 const ZopfliCostModel& model,
-                                size_t pos,
-                                double min_cost_cmd) {
+                                const size_t num_bytes,
+                                const size_t pos) {
   // Compute the minimum possible cost of reaching any future position.
-  const size_t start0 = queue.GetStartPos(0);
-  double min_cost = (nodes[start0].cost +
-                     model.GetLiteralCosts(start0, pos) +
-                     min_cost_cmd);
+  const size_t start0 = queue.GetStartPosData(0).pos;
+  float min_cost = (nodes[start0].cost +
+                    model.GetLiteralCosts(start0, pos) +
+                    model.GetMinCostCmd());
   size_t len = 2;
   size_t next_len_bucket = 4;
   size_t next_len_offset = 10;
-  while (pos + len < nodes.size() && nodes[pos + len].cost <= min_cost) {
+  while (pos + len <= num_bytes && nodes[pos + len].cost <= min_cost) {
     // We already reached (pos + len) with no more cost than the minimum
     // possible cost of reaching anything from this pos, so there is no point in
     // looking for lengths <= len.
@@ -298,7 +257,7 @@ size_t ComputeMinimumCopyLength(const StartPosQueue& queue,
     if (len == next_len_offset) {
       // We reached the next copy length code bucket, so we add one more
       // extra bit to the minimum cost.
-      min_cost += 1.0;
+      min_cost += static_cast<float>(1.0);
       next_len_offset += next_len_bucket;
       next_len_bucket *= 2;
     }
@@ -306,164 +265,194 @@ size_t ComputeMinimumCopyLength(const StartPosQueue& queue,
   return len;
 }
 
-void ZopfliIterate(size_t num_bytes,
-                   size_t position,
-                   const uint8_t* ringbuffer,
-                   size_t ringbuffer_mask,
-                   const size_t max_backward_limit,
-                   const ZopfliCostModel& model,
-                   const std::vector<uint32_t>& num_matches,
-                   const std::vector<BackwardMatch>& matches,
-                   int* dist_cache,
-                   size_t* last_insert_len,
-                   Command* commands,
-                   size_t* num_commands,
-                   size_t* num_literals) {
-  const Command * const orig_commands = commands;
-
-  std::vector<ZopfliNode> nodes(num_bytes + 1);
-  nodes[0].length = 0;
-  nodes[0].cost = 0;
-  memcpy(nodes[0].distance_cache, dist_cache, 4 * sizeof(dist_cache[0]));
-
-  StartPosQueue queue(3);
-  const double min_cost_cmd = model.GetMinCostCmd();
-
-  size_t cur_match_pos = 0;
-  for (size_t i = 0; i + 3 < num_bytes; i++) {
-    size_t cur_ix = position + i;
-    size_t cur_ix_masked = cur_ix & ringbuffer_mask;
-    size_t max_distance = std::min(cur_ix, max_backward_limit);
-    size_t max_length = num_bytes - i;
-
-    queue.Push(i, nodes[i].cost - model.GetLiteralCosts(0, i));
-
-    const size_t min_len = ComputeMinimumCopyLength(queue, nodes, model,
-                                                    i, min_cost_cmd);
-
-    // Go over the command starting positions in order of increasing cost
-    // difference.
-    for (size_t k = 0; k < 5 && k < queue.size(); ++k) {
-      const size_t start = queue.GetStartPos(k);
-      const double start_costdiff =
-          nodes[start].cost - model.GetLiteralCosts(0, start);
-      const int* dist_cache2 = &nodes[start].distance_cache[0];
-
-      // Look for last distance matches using the distance cache from this
-      // starting position.
-      size_t best_len = min_len - 1;
-      for (size_t j = 0; j < kNumDistanceShortCodes; ++j) {
-        const size_t idx = kDistanceCacheIndex[j];
-        const size_t backward =
-            static_cast<size_t>(dist_cache2[idx] + kDistanceCacheOffset[j]);
-        size_t prev_ix = cur_ix - backward;
-        if (prev_ix >= cur_ix) {
-          continue;
-        }
-        if (PREDICT_FALSE(backward > max_distance)) {
-          continue;
-        }
-        prev_ix &= ringbuffer_mask;
-
-        if (cur_ix_masked + best_len > ringbuffer_mask ||
-            prev_ix + best_len > ringbuffer_mask ||
-            ringbuffer[cur_ix_masked + best_len] !=
-            ringbuffer[prev_ix + best_len]) {
-          continue;
-        }
-        const size_t len =
-            FindMatchLengthWithLimit(&ringbuffer[prev_ix],
-                                     &ringbuffer[cur_ix_masked],
-                                     max_length);
-        for (size_t l = best_len + 1; l <= len; ++l) {
-          const size_t inslen = i - start;
-          double cmd_cost = model.GetCommandCost(j, l, inslen);
-          double cost = start_costdiff + cmd_cost + model.GetLiteralCosts(0, i);
-          if (cost < nodes[i + l].cost) {
-            UpdateZopfliNode(&nodes[0], i, start, l, l, backward, j,
-                             max_distance, dist_cache2, cost);
-          }
-          best_len = l;
-        }
-      }
-
-      // At higher iterations look only for new last distance matches, since
-      // looking only for new command start positions with the same distances
-      // does not help much.
-      if (k >= 2) continue;
-
-      // Loop through all possible copy lengths at this position.
-      size_t len = min_len;
-      for (size_t j = 0; j < num_matches[i]; ++j) {
-        BackwardMatch match = matches[cur_match_pos + j];
-        size_t dist = match.distance;
-        bool is_dictionary_match = dist > max_distance;
-        // We already tried all possible last distance matches, so we can use
-        // normal distance code here.
-        size_t dist_code = dist + 15;
-        // Try all copy lengths up until the maximum copy length corresponding
-        // to this distance. If the distance refers to the static dictionary, or
-        // the maximum length is long enough, try only one maximum length.
-        size_t max_len = match.length();
-        if (len < max_len && (is_dictionary_match || max_len > kMaxZopfliLen)) {
-          len = max_len;
-        }
-        for (; len <= max_len; ++len) {
-          size_t len_code = is_dictionary_match ? match.length_code() : len;
-          const size_t inslen = i - start;
-          double cmd_cost = model.GetCommandCost(dist_code, len_code, inslen);
-          double cost = start_costdiff + cmd_cost + model.GetLiteralCosts(0, i);
-          if (cost < nodes[i + len].cost) {
-            UpdateZopfliNode(&nodes[0], i, start, len, len_code, dist,
-                             dist_code, max_distance, dist_cache2, cost);
-          }
-        }
-      }
+// Fills in dist_cache[0..3] with the last four distances (as defined by
+// Section 4. of the Spec) that would be used at (block_start + pos) if we
+// used the shortest path of commands from block_start, computed from
+// nodes[0..pos]. The last four distances at block_start are in
+// starting_dist_cach[0..3].
+// REQUIRES: nodes[pos].cost < kInfinity
+// REQUIRES: nodes[0..pos] satisfies that "ZopfliNode array invariant".
+void ComputeDistanceCache(const size_t block_start,
+                          const size_t pos,
+                          const size_t max_backward,
+                          const int* starting_dist_cache,
+                          const ZopfliNode* nodes,
+                          int* dist_cache) {
+  int idx = 0;
+  size_t p = pos;
+  // Because of prerequisite, does at most (pos + 1) / 2 iterations.
+  while (idx < 4 && p > 0) {
+    const size_t clen = nodes[p].copy_length();
+    const size_t ilen = nodes[p].insert_length;
+    const size_t dist = nodes[p].copy_distance();
+    // Since block_start + p is the end position of the command, the copy part
+    // starts from block_start + p - clen. Distances that are greater than this
+    // or greater than max_backward are static dictionary references, and do
+    // not update the last distances. Also distance code 0 (last distance)
+    // does not update the last distances.
+    if (dist + clen <= block_start + p && dist <= max_backward &&
+        nodes[p].distance_code() > 0) {
+      dist_cache[idx++] = static_cast<int>(dist);
     }
+    // Because of prerequisite, p >= clen + ilen >= 2.
+    p -= clen + ilen;
+  }
+  for (; idx < 4; ++idx) {
+    dist_cache[idx] = *starting_dist_cache++;
+  }
+}
 
-    cur_match_pos += num_matches[i];
+void UpdateNodes(const size_t num_bytes,
+                 const size_t block_start,
+                 const size_t pos,
+                 const uint8_t* ringbuffer,
+                 const size_t ringbuffer_mask,
+                 const size_t max_backward_limit,
+                 const int* starting_dist_cache,
+                 const size_t num_matches,
+                 const BackwardMatch* matches,
+                 const ZopfliCostModel* model,
+                 StartPosQueue* queue,
+                 ZopfliNode* nodes) {
+  size_t cur_ix = block_start + pos;
+  size_t cur_ix_masked = cur_ix & ringbuffer_mask;
+  size_t max_distance = std::min(cur_ix, max_backward_limit);
 
-    // The zopflification can be too slow in case of very long lengths, so in
-    // such case skip it all, it does not cost a lot of compression ratio.
-    if (num_matches[i] == 1 &&
-        matches[cur_match_pos - 1].length() > kMaxZopfliLen) {
-      i += matches[cur_match_pos - 1].length() - 1;
-      queue.Clear();
-    }
+  if (nodes[pos].cost <= model->GetLiteralCosts(0, pos)) {
+    StartPosQueue::PosData posdata;
+    posdata.pos = pos;
+    posdata.costdiff = nodes[pos].cost - model->GetLiteralCosts(0, pos);
+    ComputeDistanceCache(block_start, pos, max_backward_limit,
+                         starting_dist_cache, nodes, posdata.distance_cache);
+    queue->Push(posdata);
   }
 
-  std::vector<uint32_t> backwards;
+  const size_t min_len = ComputeMinimumCopyLength(
+      *queue, nodes, *model, num_bytes, pos);
+
+  // Go over the command starting positions in order of increasing cost
+  // difference.
+  for (size_t k = 0; k < 5 && k < queue->size(); ++k) {
+    const StartPosQueue::PosData& posdata = queue->GetStartPosData(k);
+    const size_t start = posdata.pos;
+    const float start_costdiff = posdata.costdiff;
+
+    // Look for last distance matches using the distance cache from this
+    // starting position.
+    size_t best_len = min_len - 1;
+    for (size_t j = 0; j < kNumDistanceShortCodes; ++j) {
+      const size_t idx = kDistanceCacheIndex[j];
+      const size_t backward = static_cast<size_t>(posdata.distance_cache[idx] +
+                                                  kDistanceCacheOffset[j]);
+      size_t prev_ix = cur_ix - backward;
+      if (prev_ix >= cur_ix) {
+        continue;
+      }
+      if (PREDICT_FALSE(backward > max_distance)) {
+        continue;
+      }
+      prev_ix &= ringbuffer_mask;
+
+      if (cur_ix_masked + best_len > ringbuffer_mask ||
+          prev_ix + best_len > ringbuffer_mask ||
+          ringbuffer[cur_ix_masked + best_len] !=
+          ringbuffer[prev_ix + best_len]) {
+        continue;
+      }
+      const size_t len =
+          FindMatchLengthWithLimit(&ringbuffer[prev_ix],
+                                   &ringbuffer[cur_ix_masked],
+                                   num_bytes - pos);
+      for (size_t l = best_len + 1; l <= len; ++l) {
+        const size_t inslen = pos - start;
+        float cmd_cost = model->GetCommandCost(j, l, inslen);
+        float cost = start_costdiff + cmd_cost + model->GetLiteralCosts(0, pos);
+        if (cost < nodes[pos + l].cost) {
+          UpdateZopfliNode(&nodes[0], pos, start, l, l, backward, j + 1, cost);
+        }
+        best_len = l;
+      }
+    }
+
+    // At higher iterations look only for new last distance matches, since
+    // looking only for new command start positions with the same distances
+    // does not help much.
+    if (k >= 2) continue;
+
+    // Loop through all possible copy lengths at this position.
+    size_t len = min_len;
+    for (size_t j = 0; j < num_matches; ++j) {
+      BackwardMatch match = matches[j];
+      size_t dist = match.distance;
+      bool is_dictionary_match = dist > max_distance;
+      // We already tried all possible last distance matches, so we can use
+      // normal distance code here.
+      size_t dist_code = dist + 15;
+      // Try all copy lengths up until the maximum copy length corresponding
+      // to this distance. If the distance refers to the static dictionary, or
+      // the maximum length is long enough, try only one maximum length.
+      size_t max_len = match.length();
+      if (len < max_len && (is_dictionary_match || max_len > kMaxZopfliLen)) {
+        len = max_len;
+      }
+      for (; len <= max_len; ++len) {
+        size_t len_code = is_dictionary_match ? match.length_code() : len;
+        const size_t inslen = pos - start;
+        float cmd_cost = model->GetCommandCost(dist_code, len_code, inslen);
+        float cost = start_costdiff + cmd_cost + model->GetLiteralCosts(0, pos);
+        if (cost < nodes[pos + len].cost) {
+          UpdateZopfliNode(&nodes[0], pos, start, len, len_code, dist, 0, cost);
+        }
+      }
+    }
+  }
+}
+
+void ComputeShortestPathFromNodes(size_t num_bytes,
+                                  const ZopfliNode* nodes,
+                                  std::vector<uint32_t>* path) {
+  std::vector<uint32_t> backwards(num_bytes / 2 + 1);
   size_t index = num_bytes;
   while (nodes[index].cost == kInfinity) --index;
+  size_t num_commands = 0;
   while (index != 0) {
-    size_t len = nodes[index].length + nodes[index].insert_length;
-    backwards.push_back(static_cast<uint32_t>(len));
+    size_t len = nodes[index].command_length();
+    backwards[num_commands++] = static_cast<uint32_t>(len);
     index -= len;
   }
-
-  std::vector<uint32_t> path;
-  for (size_t i = backwards.size(); i > 0; i--) {
-    path.push_back(backwards[i - 1]);
+  path->resize(num_commands);
+  for (size_t i = num_commands, j = 0; i > 0; --i, ++j) {
+    (*path)[j] = backwards[i - 1];
   }
+}
 
+void ZopfliCreateCommands(const size_t num_bytes,
+                          const size_t block_start,
+                          const size_t max_backward_limit,
+                          const std::vector<uint32_t>& path,
+                          const ZopfliNode* nodes,
+                          int* dist_cache,
+                          size_t* last_insert_len,
+                          Command* commands,
+                          size_t* num_literals) {
   size_t pos = 0;
   for (size_t i = 0; i < path.size(); i++) {
     const ZopfliNode& next = nodes[pos + path[i]];
-    size_t copy_length = next.length;
+    size_t copy_length = next.copy_length();
     size_t insert_length = next.insert_length;
     pos += insert_length;
     if (i == 0) {
       insert_length += *last_insert_len;
       *last_insert_len = 0;
     }
-    size_t distance = next.distance;
-    size_t len_code = next.length_code;
-    size_t max_distance = std::min(position + pos, max_backward_limit);
+    size_t distance = next.copy_distance();
+    size_t len_code = next.length_code();
+    size_t max_distance = std::min(block_start + pos, max_backward_limit);
     bool is_dictionary = (distance > max_distance);
-    size_t dist_code = next.distance_code;
+    size_t dist_code = next.distance_code();
 
     Command cmd(insert_length, copy_length, len_code, dist_code);
-    *commands++ = cmd;
+    commands[i] = cmd;
 
     if (!is_dictionary && dist_code > 0) {
       dist_cache[3] = dist_cache[2];
@@ -473,11 +462,85 @@ void ZopfliIterate(size_t num_bytes,
     }
 
     *num_literals += insert_length;
-    insert_length = 0;
     pos += copy_length;
   }
   *last_insert_len += num_bytes - pos;
-  *num_commands += static_cast<size_t>(commands - orig_commands);
+}
+
+void ZopfliIterate(size_t num_bytes,
+                   size_t position,
+                   const uint8_t* ringbuffer,
+                   size_t ringbuffer_mask,
+                   const size_t max_backward_limit,
+                   const int* dist_cache,
+                   const ZopfliCostModel& model,
+                   const std::vector<uint32_t>& num_matches,
+                   const std::vector<BackwardMatch>& matches,
+                   ZopfliNode* nodes,
+                   std::vector<uint32_t>* path) {
+  nodes[0].length = 0;
+  nodes[0].cost = 0;
+  StartPosQueue queue(3);
+  size_t cur_match_pos = 0;
+  for (size_t i = 0; i + 3 < num_bytes; i++) {
+    UpdateNodes(num_bytes, position, i, ringbuffer, ringbuffer_mask,
+                max_backward_limit, dist_cache, num_matches[i],
+                &matches[cur_match_pos], &model, &queue, &nodes[0]);
+    cur_match_pos += num_matches[i];
+    // The zopflification can be too slow in case of very long lengths, so in
+    // such case skip it all, it does not cost a lot of compression ratio.
+    if (num_matches[i] == 1 &&
+        matches[cur_match_pos - 1].length() > kMaxZopfliLen) {
+      i += matches[cur_match_pos - 1].length() - 1;
+      queue.Clear();
+    }
+  }
+  ComputeShortestPathFromNodes(num_bytes, &nodes[0], path);
+}
+
+
+void ZopfliComputeShortestPath(size_t num_bytes,
+                               size_t position,
+                               const uint8_t* ringbuffer,
+                               size_t ringbuffer_mask,
+                               const size_t max_backward_limit,
+                               const int* dist_cache,
+                               Hashers::H10* hasher,
+                               ZopfliNode* nodes,
+                               std::vector<uint32_t>* path) {
+  nodes[0].length = 0;
+  nodes[0].cost = 0;
+  ZopfliCostModel* model = new ZopfliCostModel;
+  model->SetFromLiteralCosts(num_bytes, position,
+                             ringbuffer, ringbuffer_mask);
+  StartPosQueue queue(3);
+  BackwardMatch matches[Hashers::H10::kMaxNumMatches];
+  for (size_t i = 0; i + 3 < num_bytes; i++) {
+    const size_t max_distance = std::min(position + i, max_backward_limit);
+    size_t num_matches = hasher->FindAllMatches(
+        ringbuffer, ringbuffer_mask, position + i, num_bytes - i, max_distance,
+        matches);
+    if (num_matches > 0 &&
+        matches[num_matches - 1].length() > kMaxZopfliLen) {
+      matches[0] = matches[num_matches - 1];
+      num_matches = 1;
+    }
+    UpdateNodes(num_bytes, position, i, ringbuffer, ringbuffer_mask,
+                max_backward_limit, dist_cache, num_matches, matches,
+                model, &queue, nodes);
+    if (num_matches == 1 && matches[0].length() > kMaxZopfliLen) {
+      for (size_t j = 1; j < matches[0].length() && i + 4 < num_bytes; ++j) {
+        ++i;
+        if (matches[0].length() - j < 64 &&
+            num_bytes - i >= kMaxTreeCompLength) {
+          hasher->Store(ringbuffer, ringbuffer_mask, position + i);
+        }
+      }
+      queue.Clear();
+    }
+  }
+  delete model;
+  ComputeShortestPathFromNodes(num_bytes, nodes, path);
 }
 
 template<typename Hasher>
@@ -527,7 +590,7 @@ void CreateBackwardReferences(size_t num_bytes,
   size_t apply_random_heuristics = i + random_heuristics_window_size;
 
   // Minimum score to accept a backward reference.
-  const int kMinScore = 4.0;
+  const double kMinScore = 4.0;
 
   while (i + Hasher::kHashTypeLength - 1 < i_end) {
     size_t max_length = i_end - i;
@@ -649,16 +712,23 @@ void CreateBackwardReferences(size_t num_bytes,
   if (zopflify) {
     Hashers::H10* hasher = hashers->hash_h10;
     hasher->Init(lgwin, position, num_bytes, is_last);
-    if (num_bytes >= 3 && position >= kMaxTreeCompLength) {
-      // Store the last `kMaxTreeCompLength - 1` positions in the hasher.
-      // These could not be calculated before, since they require knowledge
-      // of both the previous and the current block.
-      for (size_t i = position - kMaxTreeCompLength + 1; i < position; ++i) {
-        hasher->Store(ringbuffer, ringbuffer_mask, i, num_bytes + position - i);
-      }
-    }
+    hasher->StitchToPreviousBlock(num_bytes, position,
+                                  ringbuffer, ringbuffer_mask);
     // Set maximum distance, see section 9.1. of the spec.
     const size_t max_backward_limit = (1 << lgwin) - 16;
+    if (quality == 10) {
+      std::vector<ZopfliNode> nodes(num_bytes + 1);
+      std::vector<uint32_t> path;
+      ZopfliComputeShortestPath(num_bytes, position,
+                                ringbuffer, ringbuffer_mask,
+                                max_backward_limit, dist_cache, hasher,
+                                &nodes[0], &path);
+      ZopfliCreateCommands(num_bytes, position, max_backward_limit, path,
+                           &nodes[0], dist_cache, last_insert_len, commands,
+                           num_literals);
+      *num_commands += path.size();
+      return;
+    }
     std::vector<uint32_t> num_matches(num_bytes);
     std::vector<BackwardMatch> matches(4 * num_bytes);
     size_t cur_match_pos = 0;
@@ -686,9 +756,8 @@ void CreateBackwardReferences(size_t num_bytes,
           num_matches[i] = 1;
           for (size_t j = 1; j < match_len; ++j) {
             ++i;
-            if (match_len - j < 64) {
-              hasher->Store(ringbuffer, ringbuffer_mask, position + i,
-                            num_bytes - i);
+            if (match_len - j < 64 && num_bytes - i >= kMaxTreeCompLength) {
+              hasher->Store(ringbuffer, ringbuffer_mask, position + i);
             }
             num_matches[i] = 0;
           }
@@ -719,9 +788,15 @@ void CreateBackwardReferences(size_t num_bytes,
       *num_literals = orig_num_literals;
       *last_insert_len = orig_last_insert_len;
       memcpy(dist_cache, orig_dist_cache, 4 * sizeof(dist_cache[0]));
+      std::vector<ZopfliNode> nodes(num_bytes + 1);
+      std::vector<uint32_t> path;
       ZopfliIterate(num_bytes, position, ringbuffer, ringbuffer_mask,
-                    max_backward_limit, model, num_matches, matches, dist_cache,
-                    last_insert_len, commands, num_commands, num_literals);
+                    max_backward_limit, dist_cache, model, num_matches, matches,
+                    &nodes[0], &path);
+      ZopfliCreateCommands(num_bytes, position, max_backward_limit, path,
+                           &nodes[0], dist_cache, last_insert_len, commands,
+                           num_literals);
+      *num_commands += path.size();
     }
     return;
   }

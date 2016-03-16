@@ -78,7 +78,7 @@ static const uint32_t kCodeLengthBits[18] = {
 };
 
 inline void StoreStaticCodeLengthCode(size_t* storage_ix, uint8_t* storage) {
-  WriteBits(40, 0x000000ff55555554U, storage_ix, storage);
+  WriteBits(40, MAKE_UINT64_T(0xff, 0x55555554), storage_ix, storage);
 }
 
 static const uint64_t kZeroRepsBits[704] = {

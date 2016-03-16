@@ -60,7 +60,7 @@ inline void PrefixEncodeCopyDistance(size_t distance_code,
     return;
   }
   distance_code -= kNumDistanceShortCodes + num_direct_codes;  /* >= 0 */
-  distance_code += (1 << (postfix_bits + 2));  /* > 0 */
+  distance_code += (1u << (postfix_bits + 2u));  /* > 0 */
   size_t bucket = Log2FloorNonZero(distance_code) - 1;
   size_t postfix_mask = (1 << postfix_bits) - 1;
   size_t postfix = distance_code & postfix_mask;

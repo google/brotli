@@ -50,8 +50,8 @@ void BuildHistograms(
       prev_byte = ringbuffer[pos & mask];
       ++pos;
     }
-    pos += cmd.copy_len_;
-    if (cmd.copy_len_ > 0) {
+    pos += cmd.copy_len();
+    if (cmd.copy_len()) {
       prev_byte2 = ringbuffer[(pos - 2) & mask];
       prev_byte = ringbuffer[(pos - 1) & mask];
       if (cmd.cmd_prefix_ >= 128) {

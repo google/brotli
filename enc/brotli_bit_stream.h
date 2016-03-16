@@ -48,6 +48,7 @@ void StoreUncompressedMetaBlockHeader(size_t length,
 // Stores a context map where the histogram type is always the block type.
 void StoreTrivialContextMap(size_t num_types,
                             size_t context_bits,
+                            HuffmanTree* tree,
                             size_t* storage_ix,
                             uint8_t* storage);
 
@@ -57,13 +58,14 @@ void StoreHuffmanTreeOfHuffmanTreeToBitMask(
     size_t *storage_ix,
     uint8_t *storage);
 
-void StoreHuffmanTree(const uint8_t* depths, size_t num,
+void StoreHuffmanTree(const uint8_t* depths, size_t num, HuffmanTree* tree,
                       size_t *storage_ix, uint8_t *storage);
 
 // Builds a Huffman tree from histogram[0:length] into depth[0:length] and
 // bits[0:length] and stores the encoded tree to the bit stream.
 void BuildAndStoreHuffmanTree(const uint32_t *histogram,
                               const size_t length,
+                              HuffmanTree* tree,
                               uint8_t* depth,
                               uint16_t* bits,
                               size_t* storage_ix,
@@ -81,6 +83,7 @@ void BuildAndStoreHuffmanTreeFast(const uint32_t *histogram,
 // histogram ids is given by num_clusters.
 void EncodeContextMap(const std::vector<uint32_t>& context_map,
                       size_t num_clusters,
+                      HuffmanTree* tree,
                       size_t* storage_ix, uint8_t* storage);
 
 // Data structure that stores everything that is needed to encode each block
@@ -92,8 +95,8 @@ struct BlockSplitCode {
   std::vector<uint32_t> length_extra;
   std::vector<uint8_t> type_depths;
   std::vector<uint16_t> type_bits;
-  std::vector<uint8_t> length_depths;
-  std::vector<uint16_t> length_bits;
+  uint8_t length_depths[kNumBlockLenPrefixes];
+  uint16_t length_bits[kNumBlockLenPrefixes];
 };
 
 // Builds a BlockSplitCode data structure from the block split given by the

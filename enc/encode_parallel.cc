@@ -40,7 +40,7 @@ void RecomputeDistancePrefixes(Command* cmds, size_t num_commands,
   }
   for (size_t i = 0; i < num_commands; ++i) {
     Command* cmd = &cmds[i];
-    if (cmd->copy_len_ > 0 && cmd->cmd_prefix_ >= 128) {
+    if (cmd->copy_len() && cmd->cmd_prefix_ >= 128) {
       PrefixEncodeCopyDistance(cmd->DistanceCode(),
                                num_direct_distance_codes,
                                distance_postfix_bits,

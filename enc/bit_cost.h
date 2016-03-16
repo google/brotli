@@ -48,38 +48,62 @@ static inline double BitsEntropy(const uint32_t *population, size_t size) {
   return retval;
 }
 
-
 template<int kSize>
 double PopulationCost(const Histogram<kSize>& histogram) {
+  static const double kOneSymbolHistogramCost = 12;
+  static const double kTwoSymbolHistogramCost = 20;
+  static const double kThreeSymbolHistogramCost = 28;
+  static const double kFourSymbolHistogramCost = 37;
   if (histogram.total_count_ == 0) {
-    return 12;
+    return kOneSymbolHistogramCost;
   }
   int count = 0;
+  int s[5];
   for (int i = 0; i < kSize; ++i) {
     if (histogram.data_[i] > 0) {
+      s[count] = i;
       ++count;
+      if (count > 4) break;
     }
   }
   if (count == 1) {
-    return 12;
+    return kOneSymbolHistogramCost;
   }
   if (count == 2) {
-    return static_cast<double>(20 + histogram.total_count_);
+    return (kTwoSymbolHistogramCost +
+            static_cast<double>(histogram.total_count_));
   }
-  double bits = 0;
-  uint8_t depth_array[kSize] = { 0 };
-  if (count <= 4) {
-    // For very low symbol count we build the Huffman tree.
-    CreateHuffmanTree(&histogram.data_[0], kSize, 15, depth_array);
-    for (int i = 0; i < kSize; ++i) {
-      bits += histogram.data_[i] * depth_array[i];
+  if (count == 3) {
+    const uint32_t histo0 = histogram.data_[s[0]];
+    const uint32_t histo1 = histogram.data_[s[1]];
+    const uint32_t histo2 = histogram.data_[s[2]];
+    const uint32_t histomax = std::max(histo0, std::max(histo1, histo2));
+    return (kThreeSymbolHistogramCost +
+            2 * (histo0 + histo1 + histo2) - histomax);
+  }
+  if (count == 4) {
+    uint32_t histo[4];
+    for (int i = 0; i < 4; ++i) {
+      histo[i] = histogram.data_[s[i]];
     }
-    return count == 3 ? bits + 28 : bits + 37;
+    // Sort
+    for (int i = 0; i < 4; ++i) {
+      for (int j = i + 1; j < 4; ++j) {
+        if (histo[j] > histo[i]) {
+          std::swap(histo[j], histo[i]);
+        }
+      }
+    }
+    const uint32_t h23 = histo[2] + histo[3];
+    const uint32_t histomax = std::max(h23, histo[0]);
+    return (kFourSymbolHistogramCost +
+            3 * h23 + 2 * (histo[0] + histo[1]) - histomax);
   }
 
   // In this loop we compute the entropy of the histogram and simultaneously
   // build a simplified histogram of the code length codes where we use the
   // zero repeat code 17, but we don't use the non-zero repeat code 16.
+  double bits = 0;
   size_t max_depth = 1;
   uint32_t depth_histo[kCodeLengthCodes] = { 0 };
   const double log2total = FastLog2(histogram.total_count_);

@@ -24,4 +24,6 @@ typedef __int64 int64_t;
 #include <stdint.h>
 #endif  /* defined(_MSC_VER) && (_MSC_VER < 1600) */
 
+#define MAKE_UINT64_T(high, low) ((((uint64_t)(high)) << 32) | low)
+
 #endif  /* BROTLI_ENC_TYPES_H_ */
