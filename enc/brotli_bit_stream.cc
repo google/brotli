@@ -165,7 +165,7 @@ void StoreHuffmanTreeOfHuffmanTreeToBitMask(
   }
 }
 
-void StoreHuffmanTreeToBitMask(
+static void StoreHuffmanTreeToBitMask(
     const size_t huffman_tree_size,
     const uint8_t* huffman_tree,
     const uint8_t* huffman_tree_extra_bits,
@@ -189,11 +189,11 @@ void StoreHuffmanTreeToBitMask(
   }
 }
 
-void StoreSimpleHuffmanTree(const uint8_t* depths,
-                            size_t symbols[4],
-                            size_t num_symbols,
-                            size_t max_bits,
-                            size_t *storage_ix, uint8_t *storage) {
+static void StoreSimpleHuffmanTree(const uint8_t* depths,
+                                   size_t symbols[4],
+                                   size_t num_symbols,
+                                   size_t max_bits,
+                                   size_t *storage_ix, uint8_t *storage) {
   // value of 1 indicates a simple Huffman code
   WriteBits(2, 1, storage_ix, storage);
   WriteBits(2, num_symbols - 1, storage_ix, storage);  // NSYM - 1
@@ -494,7 +494,7 @@ void BuildAndStoreHuffmanTreeFast(const uint32_t *histogram,
   }
 }
 
-size_t IndexOf(const uint8_t* v, size_t v_size, uint8_t value) {
+static size_t IndexOf(const uint8_t* v, size_t v_size, uint8_t value) {
   size_t i = 0;
   for (; i < v_size; ++i) {
     if (v[i] == value) return i;
@@ -502,7 +502,7 @@ size_t IndexOf(const uint8_t* v, size_t v_size, uint8_t value) {
   return i;
 }
 
-void MoveToFront(uint8_t* v, size_t index) {
+static void MoveToFront(uint8_t* v, size_t index) {
   uint8_t value = v[index];
   for (size_t i = index; i != 0; --i) {
     v[i] = v[i - 1];
@@ -510,9 +510,9 @@ void MoveToFront(uint8_t* v, size_t index) {
   v[0] = value;
 }
 
-void MoveToFrontTransform(const uint32_t* __restrict v_in,
-                          const size_t v_size,
-                          uint32_t* v_out) {
+static void MoveToFrontTransform(const uint32_t* __restrict v_in,
+                                 const size_t v_size,
+                                 uint32_t* v_out) {
   if (v_size == 0) {
     return;
   }
@@ -537,10 +537,10 @@ void MoveToFrontTransform(const uint32_t* __restrict v_in,
 // *max_length_prefix. Will not create prefix codes bigger than the initial
 // value of *max_run_length_prefix. The prefix code of run length L is simply
 // Log2Floor(L) and the number of extra bits is the same as the prefix code.
-void RunLengthCodeZeros(const size_t in_size,
-                        uint32_t* __restrict v,
-                        size_t* __restrict out_size,
-                        uint32_t* __restrict max_run_length_prefix) {
+static void RunLengthCodeZeros(const size_t in_size,
+                               uint32_t* __restrict v,
+                               size_t* __restrict out_size,
+                               uint32_t* __restrict max_run_length_prefix) {
   uint32_t max_reps = 0;
   for (size_t i = 0; i < in_size;) {
     for (; i < in_size && v[i] != 0; ++i) ;
@@ -646,13 +646,13 @@ void StoreBlockSwitch(const BlockSplitCode& code,
             storage_ix, storage);
 }
 
-void BuildAndStoreBlockSplitCode(const std::vector<uint8_t>& types,
-                                 const std::vector<uint32_t>& lengths,
-                                 const size_t num_types,
-                                 HuffmanTree* tree,
-                                 BlockSplitCode* code,
-                                 size_t* storage_ix,
-                                 uint8_t* storage) {
+static void BuildAndStoreBlockSplitCode(const std::vector<uint8_t>& types,
+                                        const std::vector<uint32_t>& lengths,
+                                        const size_t num_types,
+                                        HuffmanTree* tree,
+                                        BlockSplitCode* code,
+                                        size_t* storage_ix,
+                                        uint8_t* storage) {
   const size_t num_blocks = types.size();
   uint32_t type_histo[kBlockTypeAlphabetSize];
   uint32_t length_histo[kNumBlockLenPrefixes];
@@ -823,7 +823,7 @@ class BlockEncoder {
   std::vector<uint16_t> bits_;
 };
 
-void JumpToByteBoundary(size_t* storage_ix, uint8_t* storage) {
+static void JumpToByteBoundary(size_t* storage_ix, uint8_t* storage) {
   *storage_ix = (*storage_ix + 7u) & ~7u;
   storage[*storage_ix >> 3] = 0;
 }
@@ -947,14 +947,14 @@ void StoreMetaBlock(const uint8_t* input,
   }
 }
 
-void BuildHistograms(const uint8_t* input,
-                     size_t start_pos,
-                     size_t mask,
-                     const brotli::Command *commands,
-                     size_t n_commands,
-                     HistogramLiteral* lit_histo,
-                     HistogramCommand* cmd_histo,
-                     HistogramDistance* dist_histo) {
+static void BuildHistograms(const uint8_t* input,
+                            size_t start_pos,
+                            size_t mask,
+                            const brotli::Command *commands,
+                            size_t n_commands,
+                            HistogramLiteral* lit_histo,
+                            HistogramCommand* cmd_histo,
+                            HistogramDistance* dist_histo) {
   size_t pos = start_pos;
   for (size_t i = 0; i < n_commands; ++i) {
     const Command cmd = commands[i];
@@ -970,19 +970,19 @@ void BuildHistograms(const uint8_t* input,
   }
 }
 
-void StoreDataWithHuffmanCodes(const uint8_t* input,
-                               size_t start_pos,
-                               size_t mask,
-                               const brotli::Command *commands,
-                               size_t n_commands,
-                               const uint8_t* lit_depth,
-                               const uint16_t* lit_bits,
-                               const uint8_t* cmd_depth,
-                               const uint16_t* cmd_bits,
-                               const uint8_t* dist_depth,
-                               const uint16_t* dist_bits,
-                               size_t* storage_ix,
-                               uint8_t* storage) {
+static void StoreDataWithHuffmanCodes(const uint8_t* input,
+                                      size_t start_pos,
+                                      size_t mask,
+                                      const brotli::Command *commands,
+                                      size_t n_commands,
+                                      const uint8_t* lit_depth,
+                                      const uint16_t* lit_bits,
+                                      const uint8_t* cmd_depth,
+                                      const uint16_t* cmd_bits,
+                                      const uint8_t* dist_depth,
+                                      const uint16_t* dist_bits,
+                                      size_t* storage_ix,
+                                      uint8_t* storage) {
   size_t pos = start_pos;
   for (size_t i = 0; i < n_commands; ++i) {
     const Command cmd = commands[i];

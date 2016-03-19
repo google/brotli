@@ -42,10 +42,10 @@ static const size_t kMaxNumDelayedSymbols = 0x2fff;
 
 #define COPY_ARRAY(dst, src) memcpy(dst, src, sizeof(src));
 
-void RecomputeDistancePrefixes(Command* cmds,
-                               size_t num_commands,
-                               uint32_t num_direct_distance_codes,
-                               uint32_t distance_postfix_bits) {
+static void RecomputeDistancePrefixes(Command* cmds,
+                                      size_t num_commands,
+                                      uint32_t num_direct_distance_codes,
+                                      uint32_t distance_postfix_bits) {
   if (num_direct_distance_codes == 0 && distance_postfix_bits == 0) {
     return;
   }
@@ -63,7 +63,7 @@ void RecomputeDistancePrefixes(Command* cmds,
 
 /* Wraps 64-bit input position to 32-bit ringbuffer position preserving
    "not-a-first-lap" feature. */
-uint32_t WrapPosition(uint64_t position) {
+static uint32_t WrapPosition(uint64_t position) {
   uint32_t result = static_cast<uint32_t>(position);
   if (position > (1u << 30)) {
     result = (result & ((1u << 30) - 1)) | (1u << 30);
@@ -80,11 +80,11 @@ uint8_t* BrotliCompressor::GetBrotliStorage(size_t size) {
   return storage_;
 }
 
-size_t MaxHashTableSize(int quality) {
+static size_t MaxHashTableSize(int quality) {
   return quality == 0 ? 1 << 15 : 1 << 17;
 }
 
-size_t HashTableSize(size_t max_table_size, size_t input_size) {
+static size_t HashTableSize(size_t max_table_size, size_t input_size) {
   size_t htsize = 256;
   while (htsize < max_table_size && htsize < input_size) {
     htsize <<= 1;
@@ -118,7 +118,8 @@ int* BrotliCompressor::GetHashTable(int quality,
   return table;
 }
 
-void EncodeWindowBits(int lgwin, uint8_t* last_byte, uint8_t* last_byte_bits) {
+static void EncodeWindowBits(int lgwin, uint8_t* last_byte,
+                             uint8_t* last_byte_bits) {
   if (lgwin == 16) {
     *last_byte = 0;
     *last_byte_bits = 1;
@@ -135,10 +136,10 @@ void EncodeWindowBits(int lgwin, uint8_t* last_byte, uint8_t* last_byte_bits) {
 }
 
 // Initializes the command and distance prefix codes for the first block.
-void InitCommandPrefixCodes(uint8_t cmd_depths[128],
-                            uint16_t cmd_bits[128],
-                            uint8_t cmd_code[512],
-                            size_t* cmd_code_numbits) {
+static void InitCommandPrefixCodes(uint8_t cmd_depths[128],
+                                   uint16_t cmd_bits[128],
+                                   uint8_t cmd_code[512],
+                                   size_t* cmd_code_numbits) {
   static const uint8_t kDefaultCommandDepths[128] = {
     0, 4, 4, 5, 6, 6, 7, 7, 7, 7, 7, 8, 8, 8, 8, 8,
     0, 0, 0, 4, 4, 4, 4, 4, 5, 5, 6, 6, 6, 6, 7, 7,
@@ -187,10 +188,10 @@ void InitCommandPrefixCodes(uint8_t cmd_depths[128],
 // encoded with the remaining 6 bits of the following byte, and
 // BitsEntropy will assume that symbol to be stored alone using Huffman
 // coding.
-void ChooseContextMap(int quality,
-                      uint32_t* bigram_histo,
-                      size_t* num_literal_contexts,
-                      const uint32_t** literal_context_map) {
+static void ChooseContextMap(int quality,
+                             uint32_t* bigram_histo,
+                             size_t* num_literal_contexts,
+                             const uint32_t** literal_context_map) {
   uint32_t monogram_histo[3] = { 0 };
   uint32_t two_prefix_histo[6] = { 0 };
   size_t total = 0;
@@ -248,14 +249,15 @@ void ChooseContextMap(int quality,
   }
 }
 
-void DecideOverLiteralContextModeling(const uint8_t* input,
-                                      size_t start_pos,
-                                      size_t length,
-                                      size_t mask,
-                                      int quality,
-                                      ContextType* literal_context_mode,
-                                      size_t* num_literal_contexts,
-                                      const uint32_t** literal_context_map) {
+static void DecideOverLiteralContextModeling(
+    const uint8_t* input,
+    size_t start_pos,
+    size_t length,
+    size_t mask,
+    int quality,
+    ContextType* literal_context_mode,
+    size_t* num_literal_contexts,
+    const uint32_t** literal_context_map) {
   if (quality < kMinQualityForContextModeling || length < 64) {
     return;
   }
@@ -279,12 +281,12 @@ void DecideOverLiteralContextModeling(const uint8_t* input,
                    literal_context_map);
 }
 
-bool ShouldCompress(const uint8_t* data,
-                    const size_t mask,
-                    const uint64_t last_flush_pos,
-                    const size_t bytes,
-                    const size_t num_literals,
-                    const size_t num_commands) {
+static bool ShouldCompress(const uint8_t* data,
+                           const size_t mask,
+                           const uint64_t last_flush_pos,
+                           const size_t bytes,
+                           const size_t num_literals,
+                           const size_t num_commands) {
   if (num_commands < (bytes >> 8) + 2) {
     if (num_literals > 0.99 * static_cast<double>(bytes)) {
       uint32_t literal_histo[256] = { 0 };
@@ -306,22 +308,22 @@ bool ShouldCompress(const uint8_t* data,
   return true;
 }
 
-void WriteMetaBlockInternal(const uint8_t* data,
-                            const size_t mask,
-                            const uint64_t last_flush_pos,
-                            const size_t bytes,
-                            const bool is_last,
-                            const int quality,
-                            const bool font_mode,
-                            const uint8_t prev_byte,
-                            const uint8_t prev_byte2,
-                            const size_t num_literals,
-                            const size_t num_commands,
-                            Command* commands,
-                            const int* saved_dist_cache,
-                            int* dist_cache,
-                            size_t* storage_ix,
-                            uint8_t* storage) {
+static void WriteMetaBlockInternal(const uint8_t* data,
+                                   const size_t mask,
+                                   const uint64_t last_flush_pos,
+                                   const size_t bytes,
+                                   const bool is_last,
+                                   const int quality,
+                                   const bool font_mode,
+                                   const uint8_t prev_byte,
+                                   const uint8_t prev_byte2,
+                                   const size_t num_literals,
+                                   const size_t num_commands,
+                                   Command* commands,
+                                   const int* saved_dist_cache,
+                                   int* dist_cache,
+                                   size_t* storage_ix,
+                                   uint8_t* storage) {
   if (bytes == 0) {
     // Write the ISLAST and ISEMPTY bits.
     WriteBits(2, 3, storage_ix, storage);
@@ -771,11 +773,11 @@ bool BrotliCompressor::FinishStream(
   return WriteMetaBlock(0, NULL, true, encoded_size, encoded_buffer);
 }
 
-int BrotliCompressBufferQuality10(int lgwin,
-                                  size_t input_size,
-                                  const uint8_t* input_buffer,
-                                  size_t* encoded_size,
-                                  uint8_t* encoded_buffer) {
+static int BrotliCompressBufferQuality10(int lgwin,
+                                         size_t input_size,
+                                         const uint8_t* input_buffer,
+                                         size_t* encoded_size,
+                                         uint8_t* encoded_buffer) {
   const size_t mask = std::numeric_limits<size_t>::max() >> 1;
   assert(input_size <= mask + 1);
   const size_t max_backward_limit = (1 << lgwin) - 16;
@@ -972,15 +974,15 @@ int BrotliCompressBuffer(BrotliParams params,
   return 1;
 }
 
-bool BrotliInIsFinished(BrotliIn* r) {
+static bool BrotliInIsFinished(BrotliIn* r) {
   size_t read_bytes;
   return r->Read(0, &read_bytes) == NULL;
 }
 
-const uint8_t* BrotliInReadAndCheckEnd(const size_t block_size,
-                                       BrotliIn* r,
-                                       size_t* bytes_read,
-                                       bool* is_last) {
+static const uint8_t* BrotliInReadAndCheckEnd(const size_t block_size,
+                                              BrotliIn* r,
+                                              size_t* bytes_read,
+                                              bool* is_last) {
   *bytes_read = 0;
   const uint8_t* data = reinterpret_cast<const uint8_t*>(
       r->Read(block_size, bytes_read));
@@ -989,10 +991,10 @@ const uint8_t* BrotliInReadAndCheckEnd(const size_t block_size,
   return data;
 }
 
-bool CopyOneBlockToRingBuffer(BrotliIn* r,
-                              BrotliCompressor* compressor,
-                              size_t* bytes_read,
-                              bool* is_last) {
+static bool CopyOneBlockToRingBuffer(BrotliIn* r,
+                                     BrotliCompressor* compressor,
+                                     size_t* bytes_read,
+                                     bool* is_last) {
   const size_t block_size = compressor->input_block_size();
   const uint8_t* data = BrotliInReadAndCheckEnd(block_size, r,
                                                 bytes_read, is_last);
