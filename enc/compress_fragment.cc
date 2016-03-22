@@ -58,12 +58,12 @@ static inline int IsMatch(const uint8_t* p1, const uint8_t* p2) {
 // we can only approximate the statistics of the actual literal stream.
 // Moreover, for long inputs we build a histogram from a sample of the input
 // and thus have to assign a non-zero depth for each literal.
-void BuildAndStoreLiteralPrefixCode(const uint8_t* input,
-                                    const size_t input_size,
-                                    uint8_t depths[256],
-                                    uint16_t bits[256],
-                                    size_t* storage_ix,
-                                    uint8_t* storage) {
+static void BuildAndStoreLiteralPrefixCode(const uint8_t* input,
+                                           const size_t input_size,
+                                           uint8_t depths[256],
+                                           uint16_t bits[256],
+                                           size_t* storage_ix,
+                                           uint8_t* storage) {
   uint32_t histogram[256] = { 0 };
   size_t histogram_total;
   if (input_size < (1 << 15)) {
@@ -102,9 +102,11 @@ void BuildAndStoreLiteralPrefixCode(const uint8_t* input,
 
 // Builds a command and distance prefix code (each 64 symbols) into "depth" and
 // "bits" based on "histogram" and stores it into the bit stream.
-void BuildAndStoreCommandPrefixCode(const uint32_t histogram[128],
-                                    uint8_t depth[128], uint16_t bits[128],
-                                    size_t* storage_ix, uint8_t* storage) {
+static void BuildAndStoreCommandPrefixCode(const uint32_t histogram[128],
+                                           uint8_t depth[128],
+                                           uint16_t bits[128],
+                                           size_t* storage_ix,
+                                           uint8_t* storage) {
   // Tree size for building a tree over 64 symbols is 2 * 64 + 1.
   static const size_t kTreeSize = 129;
   HuffmanTree tree[kTreeSize];
@@ -315,10 +317,10 @@ static void StoreMetaBlockHeader(
   WriteBits(1, is_uncompressed, storage_ix, storage);
 }
 
-void UpdateBits(size_t n_bits,
-                uint32_t bits,
-                size_t pos,
-                uint8_t *array) {
+static void UpdateBits(size_t n_bits,
+                       uint32_t bits,
+                       size_t pos,
+                       uint8_t *array) {
   while (n_bits > 0) {
     size_t byte_pos = pos >> 3;
     size_t n_unchanged_bits = pos & 7;
@@ -336,15 +338,16 @@ void UpdateBits(size_t n_bits,
   }
 }
 
-void RewindBitPosition(const size_t new_storage_ix,
-                       size_t* storage_ix, uint8_t* storage) {
+static void RewindBitPosition(const size_t new_storage_ix,
+                              size_t* storage_ix, uint8_t* storage) {
   const size_t bitpos = new_storage_ix & 7;
   const size_t mask = (1u << bitpos) - 1;
   storage[new_storage_ix >> 3] &= static_cast<uint8_t>(mask);
   *storage_ix = new_storage_ix;
 }
 
-bool ShouldMergeBlock(const uint8_t* data, size_t len, const uint8_t* depths) {
+static bool ShouldMergeBlock(const uint8_t* data, size_t len,
+                             const uint8_t* depths) {
   size_t histo[256] = { 0 };
   static const size_t kSampleRate = 43;
   for (size_t i = 0; i < len; i += kSampleRate) {
@@ -377,9 +380,9 @@ inline bool ShouldUseUncompressedMode(const uint8_t* metablock_start,
   return sum > static_cast<uint32_t>((1 << 15) * kMinEntropy);
 }
 
-void EmitUncompressedMetaBlock(const uint8_t* begin, const uint8_t* end,
-                               const size_t storage_ix_start,
-                               size_t* storage_ix, uint8_t* storage) {
+static void EmitUncompressedMetaBlock(const uint8_t* begin, const uint8_t* end,
+                                      const size_t storage_ix_start,
+                                      size_t* storage_ix, uint8_t* storage) {
   const size_t len = static_cast<size_t>(end - begin);
   RewindBitPosition(storage_ix_start, storage_ix, storage);
   StoreMetaBlockHeader(len, 1, storage_ix, storage);

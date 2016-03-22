@@ -220,10 +220,10 @@ static void StoreMetaBlockHeader(
   WriteBits(1, is_uncompressed, storage_ix, storage);
 }
 
-void CreateCommands(const uint8_t* input, size_t block_size, size_t input_size,
-                    const uint8_t* base_ip,
-                    int* table, size_t table_size,
-                    uint8_t** literals, uint32_t** commands) {
+static void CreateCommands(const uint8_t* input, size_t block_size,
+                           size_t input_size, const uint8_t* base_ip,
+                           int* table, size_t table_size,
+                           uint8_t** literals, uint32_t** commands) {
   // "ip" is the input pointer.
   const uint8_t* ip = input;
   assert(table_size);
@@ -400,9 +400,9 @@ emit_remainder:
   }
 }
 
-void StoreCommands(const uint8_t* literals, const size_t num_literals,
-                   const uint32_t* commands, const size_t num_commands,
-                   size_t* storage_ix, uint8_t* storage) {
+static void StoreCommands(const uint8_t* literals, const size_t num_literals,
+                          const uint32_t* commands, const size_t num_commands,
+                          size_t* storage_ix, uint8_t* storage) {
   uint8_t lit_depths[256] = { 0 };
   uint16_t lit_bits[256] = { 0 };
   uint32_t lit_histo[256] = { 0 };
@@ -458,8 +458,8 @@ void StoreCommands(const uint8_t* literals, const size_t num_literals,
   }
 }
 
-bool ShouldCompress(const uint8_t* input, size_t input_size,
-                    size_t num_literals) {
+static bool ShouldCompress(const uint8_t* input, size_t input_size,
+                           size_t num_literals) {
   static const double kAcceptableLossForUncompressibleSpeedup = 0.02;
   static const double kMaxRatioOfLiterals =
       1.0 - kAcceptableLossForUncompressibleSpeedup;

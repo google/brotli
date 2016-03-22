@@ -132,7 +132,7 @@ void CreateHuffmanTree(const uint32_t *data,
   }
 }
 
-void Reverse(uint8_t* v, size_t start, size_t end) {
+static void Reverse(uint8_t* v, size_t start, size_t end) {
   --end;
   while (start < end) {
     uint8_t tmp = v[start];
@@ -143,7 +143,7 @@ void Reverse(uint8_t* v, size_t start, size_t end) {
   }
 }
 
-void WriteHuffmanTreeRepetitions(
+static void WriteHuffmanTreeRepetitions(
     const uint8_t previous_value,
     const uint8_t value,
     size_t repetitions,
@@ -187,7 +187,7 @@ void WriteHuffmanTreeRepetitions(
   }
 }
 
-void WriteHuffmanTreeRepetitionsZeros(
+static void WriteHuffmanTreeRepetitionsZeros(
     size_t repetitions,
     size_t* tree_size,
     uint8_t* tree,

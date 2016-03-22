@@ -229,8 +229,8 @@ size_t FindBlocks(const DataType* data, const size_t length,
   return num_blocks;
 }
 
-size_t RemapBlockIds(uint8_t* block_ids, const size_t length,
-                     uint16_t* new_id, const size_t num_histograms) {
+static size_t RemapBlockIds(uint8_t* block_ids, const size_t length,
+                            uint16_t* new_id, const size_t num_histograms) {
   static const uint16_t kInvalidId = 256;
   for (size_t i = 0; i < num_histograms; ++i) {
     new_id[i] = kInvalidId;

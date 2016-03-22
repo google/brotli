@@ -236,11 +236,11 @@ class StartPosQueue {
 
 // Returns the minimum possible copy length that can improve the cost of any
 // future position.
-size_t ComputeMinimumCopyLength(const StartPosQueue& queue,
-                                const ZopfliNode* nodes,
-                                const ZopfliCostModel& model,
-                                const size_t num_bytes,
-                                const size_t pos) {
+static size_t ComputeMinimumCopyLength(const StartPosQueue& queue,
+                                       const ZopfliNode* nodes,
+                                       const ZopfliCostModel& model,
+                                       const size_t num_bytes,
+                                       const size_t pos) {
   // Compute the minimum possible cost of reaching any future position.
   const size_t start0 = queue.GetStartPosData(0).pos;
   float min_cost = (nodes[start0].cost +
@@ -272,12 +272,12 @@ size_t ComputeMinimumCopyLength(const StartPosQueue& queue,
 // starting_dist_cach[0..3].
 // REQUIRES: nodes[pos].cost < kInfinity
 // REQUIRES: nodes[0..pos] satisfies that "ZopfliNode array invariant".
-void ComputeDistanceCache(const size_t block_start,
-                          const size_t pos,
-                          const size_t max_backward,
-                          const int* starting_dist_cache,
-                          const ZopfliNode* nodes,
-                          int* dist_cache) {
+static void ComputeDistanceCache(const size_t block_start,
+                                 const size_t pos,
+                                 const size_t max_backward,
+                                 const int* starting_dist_cache,
+                                 const ZopfliNode* nodes,
+                                 int* dist_cache) {
   int idx = 0;
   size_t p = pos;
   // Because of prerequisite, does at most (pos + 1) / 2 iterations.
@@ -302,18 +302,18 @@ void ComputeDistanceCache(const size_t block_start,
   }
 }
 
-void UpdateNodes(const size_t num_bytes,
-                 const size_t block_start,
-                 const size_t pos,
-                 const uint8_t* ringbuffer,
-                 const size_t ringbuffer_mask,
-                 const size_t max_backward_limit,
-                 const int* starting_dist_cache,
-                 const size_t num_matches,
-                 const BackwardMatch* matches,
-                 const ZopfliCostModel* model,
-                 StartPosQueue* queue,
-                 ZopfliNode* nodes) {
+static void UpdateNodes(const size_t num_bytes,
+                        const size_t block_start,
+                        const size_t pos,
+                        const uint8_t* ringbuffer,
+                        const size_t ringbuffer_mask,
+                        const size_t max_backward_limit,
+                        const int* starting_dist_cache,
+                        const size_t num_matches,
+                        const BackwardMatch* matches,
+                        const ZopfliCostModel* model,
+                        StartPosQueue* queue,
+                        ZopfliNode* nodes) {
   size_t cur_ix = block_start + pos;
   size_t cur_ix_masked = cur_ix & ringbuffer_mask;
   size_t max_distance = std::min(cur_ix, max_backward_limit);
@@ -408,9 +408,9 @@ void UpdateNodes(const size_t num_bytes,
   }
 }
 
-void ComputeShortestPathFromNodes(size_t num_bytes,
-                                  const ZopfliNode* nodes,
-                                  std::vector<uint32_t>* path) {
+static void ComputeShortestPathFromNodes(size_t num_bytes,
+                                         const ZopfliNode* nodes,
+                                         std::vector<uint32_t>* path) {
   std::vector<uint32_t> backwards(num_bytes / 2 + 1);
   size_t index = num_bytes;
   while (nodes[index].cost == kInfinity) --index;
@@ -467,17 +467,17 @@ void ZopfliCreateCommands(const size_t num_bytes,
   *last_insert_len += num_bytes - pos;
 }
 
-void ZopfliIterate(size_t num_bytes,
-                   size_t position,
-                   const uint8_t* ringbuffer,
-                   size_t ringbuffer_mask,
-                   const size_t max_backward_limit,
-                   const int* dist_cache,
-                   const ZopfliCostModel& model,
-                   const std::vector<uint32_t>& num_matches,
-                   const std::vector<BackwardMatch>& matches,
-                   ZopfliNode* nodes,
-                   std::vector<uint32_t>* path) {
+static void ZopfliIterate(size_t num_bytes,
+                          size_t position,
+                          const uint8_t* ringbuffer,
+                          size_t ringbuffer_mask,
+                          const size_t max_backward_limit,
+                          const int* dist_cache,
+                          const ZopfliCostModel& model,
+                          const std::vector<uint32_t>& num_matches,
+                          const std::vector<BackwardMatch>& matches,
+                          ZopfliNode* nodes,
+                          std::vector<uint32_t>* path) {
   nodes[0].length = 0;
   nodes[0].cost = 0;
   StartPosQueue queue(3);

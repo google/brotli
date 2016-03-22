@@ -167,7 +167,7 @@ static FILE *OpenOutputFile(const char *output_path, const int force) {
   return fdopen(fd, "wb");
 }
 
-int64_t FileSize(char *path) {
+static int64_t FileSize(char *path) {
   FILE *f = fopen(path, "rb");
   if (f == NULL) {
     return -1;
@@ -185,7 +185,7 @@ int64_t FileSize(char *path) {
 
 static const size_t kFileBufferSize = 65536;
 
-void Decompresss(FILE* fin, FILE* fout) {
+static void Decompresss(FILE* fin, FILE* fout) {
   uint8_t* input = new uint8_t[kFileBufferSize];
   uint8_t* output = new uint8_t[kFileBufferSize];
   size_t total_out;
