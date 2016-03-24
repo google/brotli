@@ -485,14 +485,14 @@ void SplitBlock(const Command* cmds,
   {
     // Create a continuous array of distance prefixes.
     std::vector<uint16_t> distance_prefixes(num_commands);
-    size_t pos = 0;
+    size_t dist_pos = 0;
     for (size_t i = 0; i < num_commands; ++i) {
       const Command& cmd = cmds[i];
       if (cmd.copy_len() && cmd.cmd_prefix_ >= 128) {
-        distance_prefixes[pos++] = cmd.dist_prefix_;
+        distance_prefixes[dist_pos++] = cmd.dist_prefix_;
       }
     }
-    distance_prefixes.resize(pos);
+    distance_prefixes.resize(dist_pos);
     // Create the block split on the array of distance prefixes.
     SplitByteVector<kNumDistancePrefixes>(
         distance_prefixes,

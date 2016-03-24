@@ -85,18 +85,18 @@ static void BuildAndStoreCommandPrefixCode(
   ConvertBitDepthsToSymbols(&depth[64], 64, &bits[64]);
   {
     // Create the bit length array for the full command alphabet.
-    uint8_t cmd_depth[704] = { 0 };
-    memcpy(cmd_depth, depth + 24, 8);
-    memcpy(cmd_depth + 64, depth + 32, 8);
-    memcpy(cmd_depth + 128, depth + 40, 8);
-    memcpy(cmd_depth + 192, depth + 48, 8);
-    memcpy(cmd_depth + 384, depth + 56, 8);
+    uint8_t full_cmd_depth[704] = { 0 };
+    memcpy(full_cmd_depth, depth + 24, 8);
+    memcpy(full_cmd_depth + 64, depth + 32, 8);
+    memcpy(full_cmd_depth + 128, depth + 40, 8);
+    memcpy(full_cmd_depth + 192, depth + 48, 8);
+    memcpy(full_cmd_depth + 384, depth + 56, 8);
     for (size_t i = 0; i < 8; ++i) {
-      cmd_depth[128 + 8 * i] = depth[i];
-      cmd_depth[256 + 8 * i] = depth[8 + i];
-      cmd_depth[448 + 8 * i] = depth[16 + i];
+      full_cmd_depth[128 + 8 * i] = depth[i];
+      full_cmd_depth[256 + 8 * i] = depth[8 + i];
+      full_cmd_depth[448 + 8 * i] = depth[16 + i];
     }
-    StoreHuffmanTree(cmd_depth, 704, tree, storage_ix, storage);
+    StoreHuffmanTree(full_cmd_depth, 704, tree, storage_ix, storage);
   }
   StoreHuffmanTree(&depth[64], 64, tree, storage_ix, storage);
 }
