@@ -12,6 +12,7 @@
 #include "./bit_reader.h"
 #include "./huffman.h"
 #include "./types.h"
+#include "./port.h"
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
@@ -156,7 +157,6 @@ struct BrotliStateStruct {
   uint32_t repeat_code_len;
   uint32_t prev_code_len;
 
-
   int copy_length;
   int distance_code;
 
@@ -220,27 +220,19 @@ struct BrotliStateStruct {
   uint8_t* context_modes;
 };
 
-typedef struct BrotliStateStruct BrotliState;
+typedef struct BrotliStateStruct BrotliStateInternal;
+#define BrotliState BrotliStateInternal
 
-void BrotliStateInit(BrotliState* s);
-void BrotliStateInitWithCustomAllocators(BrotliState* s,
-                                         brotli_alloc_func alloc_func,
-                                         brotli_free_func free_func,
-                                         void* opaque);
-void BrotliStateCleanup(BrotliState* s);
-void BrotliStateMetablockBegin(BrotliState* s);
-void BrotliStateCleanupAfterMetablock(BrotliState* s);
-void BrotliHuffmanTreeGroupInit(BrotliState* s, HuffmanTreeGroup* group,
-                                uint32_t alphabet_size, uint32_t ntrees);
-void BrotliHuffmanTreeGroupRelease(BrotliState* s, HuffmanTreeGroup* group);
-
-/* Returns 1, if s is in a state where we have not read any input bytes yet,
-   and 0 otherwise */
-int BrotliStateIsStreamStart(const BrotliState* s);
-
-/* Returns 1, if s is in a state where we reached the end of the input and
-   produced all of the output, and 0 otherwise. */
-int BrotliStateIsStreamEnd(const BrotliState* s);
+BROTLI_INTERNAL void BrotliStateInit(BrotliState* s);
+BROTLI_INTERNAL void BrotliStateInitWithCustomAllocators(BrotliState* s,
+    brotli_alloc_func alloc_func, brotli_free_func free_func, void* opaque);
+BROTLI_INTERNAL void BrotliStateCleanup(BrotliState* s);
+BROTLI_INTERNAL void BrotliStateMetablockBegin(BrotliState* s);
+BROTLI_INTERNAL void BrotliStateCleanupAfterMetablock(BrotliState* s);
+BROTLI_INTERNAL void BrotliHuffmanTreeGroupInit(BrotliState* s,
+    HuffmanTreeGroup* group, uint32_t alphabet_size, uint32_t ntrees);
+BROTLI_INTERNAL void BrotliHuffmanTreeGroupRelease(BrotliState* s,
+    HuffmanTreeGroup* group);
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }  /* extern "C" */

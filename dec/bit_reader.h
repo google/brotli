@@ -14,10 +14,6 @@
 #include "./port.h"
 #include "./types.h"
 
-#ifdef BROTLI_DECODE_DEBUG
-#include <stdio.h>
-#endif
-
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
 #endif
@@ -66,13 +62,13 @@ typedef struct {
 } BrotliBitReaderState;
 
 /* Initializes the bitreader fields. */
-void BrotliInitBitReader(BrotliBitReader* const br);
+BROTLI_INTERNAL void BrotliInitBitReader(BrotliBitReader* const br);
 
 /* Ensures that accumulator is not empty. May consume one byte of input.
    Returns 0 if data is required but there is no input available.
    For BROTLI_ALIGNED_READ this function also prepares bit reader for aligned
    reading. */
-int BrotliWarmupBitReader(BrotliBitReader* const br);
+BROTLI_INTERNAL int BrotliWarmupBitReader(BrotliBitReader* const br);
 
 static BROTLI_INLINE void BrotliBitReaderSaveState(
     BrotliBitReader* const from, BrotliBitReaderState* to) {
@@ -298,10 +294,8 @@ static BROTLI_INLINE void BrotliBitReaderUnload(BrotliBitReader* br) {
 static BROTLI_INLINE void BrotliTakeBits(
   BrotliBitReader* const br, uint32_t n_bits, uint32_t* val) {
   *val = (uint32_t)BrotliGetBitsUnmasked(br) & BitMask(n_bits);
-#ifdef BROTLI_DECODE_DEBUG
-  printf("[BrotliReadBits]  %d %d %d val: %6x\n",
-         (int)br->avail_in, (int)br->bit_pos_, n_bits, (int)*val);
-#endif
+  BROTLI_LOG(("[BrotliReadBits]  %d %d %d val: %6x\n",
+      (int)br->avail_in, (int)br->bit_pos_, n_bits, (int)*val));
   BrotliDropBits(br, n_bits);
 }
 

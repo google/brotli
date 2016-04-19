@@ -18,13 +18,16 @@
       read and overlapping memcpy; this reduces decompression speed by 5%
     * BROTLI_DEBUG dumps file name and line number when decoder detects stream
       or memory error
-    * BROTLI_DECODE_DEBUG enables asserts and dumps various state information
+    * BROTLI_ENABLE_LOG enables asserts and dumps various state information
  */
 
 #ifndef BROTLI_DEC_PORT_H_
 #define BROTLI_DEC_PORT_H_
 
+#if defined(BROTLI_ENABLE_LOG) || defined(BROTLI_DEBUG)
 #include <assert.h>
+#include <stdio.h>
+#endif
 
 /* Compatibility with non-clang compilers. */
 #ifndef __has_builtin
@@ -84,12 +87,13 @@
 #endif
 
 #ifdef BROTLI_BUILD_PORTABLE
-#define BROTLI_ALIGNED_READ 1
+#define BROTLI_ALIGNED_READ (!!1)
 #elif defined(BROTLI_TARGET_X86) || defined(BROTLI_TARGET_X64) || \
      defined(BROTLI_TARGET_ARMV7) || defined(BROTLI_TARGET_ARMV8)
-#define BROTLI_ALIGNED_READ 0  /* Allow unaligned access on whitelisted CPUs. */
+/* Allow unaligned read only for whitelisted CPUs. */
+#define BROTLI_ALIGNED_READ (!!0)
 #else
-#define BROTLI_ALIGNED_READ 1
+#define BROTLI_ALIGNED_READ (!!1)
 #endif
 
 /* Define "PREDICT_TRUE" and "PREDICT_FALSE" macros for capable compilers.
@@ -130,6 +134,16 @@ OR:
 #define ATTRIBUTE_ALWAYS_INLINE
 #endif
 
+#if BROTLI_MODERN_COMPILER || __has_attribute(visibility)
+#define ATTRIBUTE_VISIBILITY_HIDDEN __attribute__ ((visibility ("hidden")))
+#else
+#define ATTRIBUTE_VISIBILITY_HIDDEN
+#endif
+
+#ifndef BROTLI_INTERNAL
+#define BROTLI_INTERNAL ATTRIBUTE_VISIBILITY_HIDDEN
+#endif
+
 #ifndef _MSC_VER
 #if defined(__cplusplus) || !defined(__STRICT_ANSI__) || \
     __STDC_VERSION__ >= 199901L
@@ -141,10 +155,22 @@ OR:
 #define BROTLI_INLINE __forceinline
 #endif  /* _MSC_VER */
 
-#ifdef BROTLI_DECODE_DEBUG
+#ifdef BROTLI_ENABLE_LOG
 #define BROTLI_DCHECK(x) assert(x)
+#define BROTLI_LOG(x) printf x
 #else
 #define BROTLI_DCHECK(x)
+#define BROTLI_LOG(x)
+#endif
+
+#if defined(BROTLI_DEBUG) || defined(BROTLI_ENABLE_LOG)
+static inline void BrotliDump(const char* f, int l, const char* fn) {
+  fprintf(stderr, "%s:%d (%s)\n", f, l, fn);
+  fflush(stderr);
+}
+#define BROTLI_DUMP() BrotliDump(__FILE__, __LINE__, __FUNCTION__)
+#else
+#define BROTLI_DUMP() (void)(0)
 #endif
 
 #if defined(BROTLI_BUILD_64_BIT)

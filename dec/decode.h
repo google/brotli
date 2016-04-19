@@ -9,12 +9,13 @@
 #ifndef BROTLI_DEC_DECODE_H_
 #define BROTLI_DEC_DECODE_H_
 
-#include "./state.h"
 #include "./types.h"
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
 #endif
+
+typedef struct BrotliStateStruct BrotliState;
 
 typedef enum {
   /* Decoding error, e.g. corrupt input or memory allocation problem */
@@ -80,14 +81,21 @@ BrotliResult BrotliDecompressStream(size_t* available_in,
    Not to be confused with the built-in transformable dictionary of Brotli.
    The dictionary must exist in memory until decoding is done and is owned by
    the caller. To use:
-    1) initialize state with BrotliStateInit
-    2) use BrotliSetCustomDictionary
-    3) use BrotliDecompressStream
-    4) clean up with BrotliStateCleanup
+    1) Allocate and initialize state with BrotliCreateState
+    2) Use BrotliSetCustomDictionary
+    3) Use BrotliDecompressStream
+    4) Clean up and free state with BrotliDestroyState
 */
 void BrotliSetCustomDictionary(
     size_t size, const uint8_t* dict, BrotliState* s);
 
+/* Returns 1, if s is in a state where we have not read any input bytes yet,
+   and 0 otherwise */
+int BrotliStateIsStreamStart(const BrotliState* s);
+
+/* Returns 1, if s is in a state where we reached the end of the input and
+   produced all of the output, and 0 otherwise. */
+int BrotliStateIsStreamEnd(const BrotliState* s);
 
 #if defined(__cplusplus) || defined(c_plusplus)
 } /* extern "C" */
