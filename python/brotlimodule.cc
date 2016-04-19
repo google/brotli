@@ -220,10 +220,9 @@ static PyObject* brotli_decompress(PyObject *self, PyObject *args, PyObject *key
   std::vector<uint8_t> output;
   const size_t kBufferSize = 65536;
   uint8_t* buffer = new uint8_t[kBufferSize];
-  BrotliState state;
-  BrotliStateInit(&state);
+  BrotliState* state = BrotliCreateState(0, 0, 0);
   if (custom_dictionary_length != 0) {
-    BrotliSetCustomDictionary(custom_dictionary_length, custom_dictionary, &state);
+    BrotliSetCustomDictionary(custom_dictionary_length, custom_dictionary, state);
   }
 
   BrotliResult result = BROTLI_RESULT_NEEDS_MORE_OUTPUT;
@@ -233,7 +232,7 @@ static PyObject* brotli_decompress(PyObject *self, PyObject *args, PyObject *key
     size_t total_out = 0;
     result = BrotliDecompressStream(&length, &input,
                                     &available_out, &next_out,
-                                    &total_out, &state);
+                                    &total_out, state);
     size_t used_out = kBufferSize - available_out;
     if (used_out != 0)
       output.insert(output.end(), buffer, buffer + used_out);
@@ -245,7 +244,7 @@ static PyObject* brotli_decompress(PyObject *self, PyObject *args, PyObject *key
     PyErr_SetString(BrotliError, "BrotliDecompress failed");
   }
   
-  BrotliStateCleanup(&state);
+  BrotliDestroyState(state);
   delete[] buffer;
 
   return ret;
