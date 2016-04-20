@@ -7,9 +7,9 @@
 .ds LF Alakuijala & Szabadka
 .ds RF FORMFEED[Page %]
 .ds LH Internet-Draft
-.ds RH December 2015
+.ds RH April 2016
 .ds CH Brotli
-.ds CF Expires June 10, 2016
+.ds CF Expires October 19, 2016
 .hy 0
 .nh
 .ad l
@@ -18,13 +18,13 @@
 .tl 'Network Working Group''J. Alakuijala'
 .tl 'Internet-Draft''Z. Szabadka'
 .tl 'Intended Status: Informational''Google, Inc'
-.tl 'Expires: June 10, 2016''December 2015'
+.tl 'Expires: October 19, 2016''April 2016'
 .fi
 
 
 .ce 2
 Brotli Compressed Data Format
-draft-alakuijala-brotli-08
+draft-alakuijala-brotli-09
 .fi
 .in 3
 
@@ -52,12 +52,12 @@ and may be updated, replaced, or obsoleted by other documents at any
 time.  It is inappropriate to use Internet-Drafts as reference
 material or to cite them other than as "work in progress."
 
-This Internet-Draft will expire on June 10, 2016.
+This Internet-Draft will expire on October 19, 2016.
 
 .ti 0
 Copyright Notice
 
-Copyright (c) 2015 IETF Trust and the persons identified as the document
+Copyright (c) 2016 IETF Trust and the persons identified as the document
 authors.  All rights reserved.
 
 This document is subject to BCP 78 and the IETF Trust's Legal
@@ -220,9 +220,27 @@ a sequence of bytes, starting with the first byte at the
 *right* margin and proceeding to the *left*, with the
 most-significant bit of each byte on the left as usual, one would
 be able to parse the result from right to left, with fixed-width
-elements in the correct MSB-to-LSB order and prefix codes in
+elements in the correct msb-to-lsb order and prefix codes in
 bit-reversed order (i.e., with the first bit of the code in the
-relative LSB position).
+relative lsb position).
+
+As an example, consider packing the following data elements into
+a sequence of 3 bytes: 3-bit integer value 6, 4-bit integer value 2,
+prefix code 110, prefix code 10, 12-bit integer value 3628.
+
+.nf
+     byte 2   byte 1   byte 0
+   +--------+--------+--------+
+   |11100010|11000101|10010110|
+   +--------+--------+--------+
+    ^            ^ ^   ^   ^
+    |            | |   |   |
+    |            | |   |   +------ integer value 6
+    |            | |   +---------- integer value 2
+    |            | +-------------- prefix code 110
+    |            +---------------- prefix code 10
+    +----------------------------- integer value 3628
+.fi
 
 .ti 0
 2. Compressed representation overview
@@ -693,26 +711,26 @@ are compressed using a prefix code. The alphabet for code lengths
 is as follows:
 
 .nf
-   0 - 15: Represent code lengths of 0 - 15
-       16: Copy the previous non-zero code length 3 - 6 times
+    0..15: Represent code lengths of 0..15
+       16: Copy the previous non-zero code length 3..6 times
            The next 2 bits indicate repeat length
                  (0 = 3, ... , 3 = 6)
            If this is the first code length, or all previous
            code lengths are zero, a code length of 8 is
-           repeated 3 - 6 times
+           repeated 3..6 times
            A repeated code length code of 16 modifies the
            repeat count of the previous one as follows:
               repeat count = (4 * (repeat count - 2)) +
-                             (3 - 6 on the next 2 bits)
+                             (3..6 on the next 2 bits)
            Example:  Codes 7, 16 (+2 bits 11), 16 (+2 bits 10)
                      will expand to 22 code lengths of 7
                      (1 + 4 * (6 - 2) + 5)
-       17: Repeat a code length of 0 for 3 - 10 times.
+       17: Repeat a code length of 0 for 3..10 times.
            (3 bits of length)
            A repeated code length code of 17 modifies the
            repeat count of the previous one as follows:
               repeat count = (8 * (repeat count - 2)) +
-                             (3 - 10 on the next 3 bits)
+                             (3..10 on the next 3 bits)
 .fi
 
 Note that a code of 16 that follows an immediately preceding 16 modifies the
@@ -763,7 +781,7 @@ We can now define the format of the complex prefix code as follows:
       is for symbol 4.
 
       The code lengths of code length symbols are between 0 and
-      5, and they are represented with 2 - 4 bits according to
+      5, and they are represented with 2..4 bits according to
       the variable length code above. A code length of 0 means
       the corresponding code length symbol is not used.
 
@@ -816,7 +834,7 @@ represented with a pair <distance code, extra bits>. The distance
 code and the extra bits are encoded back-to-back, the distance code
 is encoded using a prefix code over the distance alphabet,
 while the extra bits value is encoded as a fixed-width integer
-value. The number of extra bits can be 0 - 24, and it is dependent
+value. The number of extra bits can be 0..24, and it is dependent
 on the distance code.
 
 To convert a distance code and associated extra bits to a backward
@@ -913,7 +931,7 @@ extra bits are encoded back-to-back, the insert-and-copy length code
 is encoded using a prefix code over the insert-and-copy length code
 alphabet, while the extra bits values are encoded as fixed-width
 integer values. The number of insert and copy extra bits can be
-0 - 24, and they are dependent on the insert-and-copy length code.
+0..24, and they are dependent on the insert-and-copy length code.
 
 Some of the insert-and-copy length codes also express the fact that
 the distance symbol of the distance in the same command is 0, i.e. the
@@ -929,17 +947,17 @@ are as follows:
 
 .nf
 .KS
-        Extra               Extra               Extra
-   Code Bits Lengths   Code Bits Lengths   Code Bits Lengths
-   ---- ---- ------    ---- ---- -------   ---- ---- -------
-    0    0     0        8    2    10-13    16    6   130-193
-    1    0     1        9    2    14-17    17    7   194-321
-    2    0     2       10    3    18-25    18    8   322-577
-    3    0     3       11    3    26-33    19    9   578-1089
-    4    0     4       12    4    34-49    20   10   1090-2113
-    5    0     5       13    4    50-65    21   12   2114-6209
-    6    1    6,7      14    5    66-97    22   14   6210-22593
-    7    1    8,9      15    5    98-129   23   24   22594-16799809
+        Extra              Extra               Extra
+   Code Bits Lengths  Code Bits Lengths   Code Bits Lengths
+   ---- ---- -------  ---- ---- -------   ---- ---- -------
+    0    0     0       8    2   10..13    16    6   130..193
+    1    0     1       9    2   14..17    17    7   194..321
+    2    0     2      10    3   18..25    18    8   322..577
+    3    0     3      11    3   26..33    19    9   578..1089
+    4    0     4      12    4   34..49    20   10   1090..2113
+    5    0     5      13    4   50..65    21   12   2114..6209
+    6    1    6,7     14    5   66..97    22   14   6210..22593
+    7    1    8,9     15    5   98..129   23   24   22594..16799809
 .KE
 .fi
 
@@ -948,17 +966,17 @@ of copy extra bits, and the range of copy lengths are as follows:
 
 .nf
 .KS
-        Extra               Extra               Extra
-   Code Bits Lengths   Code Bits Lengths   Code Bits Lengths
-   ---- ---- ------    ---- ---- -------   ---- ---- -------
-    0    0     2        8    1    10,11    16    5    70-101
-    1    0     3        9    1    12,13    17    5   102-133
-    2    0     4       10    2    14-17    18    6   134-197
-    3    0     5       11    2    18-21    19    7   198-325
-    4    0     6       12    3    22-29    20    8   326-581
-    5    0     7       13    3    30-37    21    9   582-1093
-    6    0     8       14    4    38-53    22   10   1094-2117
-    7    0     9       15    4    54-69    23   24   2118-16779333
+        Extra              Extra               Extra
+   Code Bits Lengths  Code Bits Lengths   Code Bits Lengths
+   ---- ---- -------  ---- ---- -------   ---- ---- -------
+    0    0     2       8    1    10,11    16    5   70..101
+    1    0     3       9    1    12,13    17    5   102..133
+    2    0     4      10    2    14..17   18    6   134..197
+    3    0     5      11    2    18..21   19    7   198..325
+    4    0     6      12    3    22..29   20    8   326..581
+    5    0     7      13    3    30..37   21    9   582..1093
+    6    0     8      14    4    38..53   22   10   1094..2117
+    7    0     9      15    4    54..69   23   24   2118..16779333
 .KE
 .fi
 
@@ -969,34 +987,34 @@ and a copy length code, the following table can be used:
 .KS
        Insert
        length        Copy length code
-       code       0-7       8-15     16-23
-              +---------+---------+
-              |         |         |
-         0-7  |   0-63  |  64-127 | <--- distance symbol 0
-              |         |         |
-              +---------+---------+---------+
-              |         |         |         |
-         0-7  | 128-191 | 192-255 | 384-447 |
-              |         |         |         |
-              +---------+---------+---------+
-              |         |         |         |
-         8-15 | 256-319 | 320-383 | 512-575 |
-              |         |         |         |
-              +---------+---------+---------+
-              |         |         |         |
-        16-23 | 448-511 | 576-639 | 640-703 |
-              |         |         |         |
-              +---------+---------+---------+
+       code       0..7       8..15     16..23
+              +----------+----------+
+              |          |          |
+        0..7  |   0..63  |  64..127 | <--- distance symbol 0
+              |          |          |
+              +----------+----------+----------+
+              |          |          |          |
+        0..7  | 128..191 | 192..255 | 384..447 |
+              |          |          |          |
+              +----------+----------+----------+
+              |          |          |          |
+        8..15 | 256..319 | 320..383 | 512..575 |
+              |          |          |          |
+              +----------+----------+----------+
+              |          |          |          |
+       16..23 | 448..511 | 576..639 | 640..703 |
+              |          |          |          |
+              +----------+----------+----------+
 .KE
 .fi
 
 First, look up the cell with the 64 value range containing the
 insert-and-copy length code, this gives the insert length code and
 the copy length code ranges, both 8 values long.
-The copy length code within its range is determined by bits 0-2
-(counted from the LSB) of the insert-and-copy length code.
-The insert length code within its range is determined by bits 3-5
-(counted from the LSB) of the insert-and-copy length code.
+The copy length code within its range is determined by bits 0..2
+(counted from the lsb) of the insert-and-copy length code.
+The insert length code within its range is determined by bits 3..5
+(counted from the lsb) of the insert-and-copy length code.
 Given the insert length and copy length codes, the actual insert
 and copy lengths can be obtained by reading the number of extra
 bits given by the tables above.
@@ -1020,8 +1038,8 @@ the block type that preceded the current type,
 while a block type symbol 1 means that the new block type equals the current
 block type plus one. If the current block type is the maximal possible,
 then a block type symbol of 1 results in wrapping to a new block type of 0.
-Block type symbols 2 - 257
-represent block types 0 - 255 respectively. The previous and current block types
+Block type symbols 2..257
+represent block types 0..255 respectively. The previous and current block types
 are initialized to 1 and 0, respectively, at the end of the
 meta-block header.
 
@@ -1051,24 +1069,24 @@ Each block count in the compressed data is represented with a pair
 bits are encoded back-to-back, the block count code is encoded using
 a prefix code over the block count code alphabet, while the extra
 bits value is encoded as a fixed-width integer value. The number of
-extra bits can be 0 - 24, and it is dependent on the block count
+extra bits can be 0..24, and it is dependent on the block count
 code. The symbols of the block count code alphabet, along with the
 number of extra bits, and the range of block counts are as follows:
 
 .nf
 .KS
-        Extra               Extra               Extra
-   Code Bits Lengths   Code Bits Lengths   Code Bits Lengths
-   ---- ---- ------    ---- ---- -------   ---- ---- -------
-    0    2    1-4       9    4    65-80    18    7   369-496
-    1    2    5-8      10    4    81-96    19    8   497-752
-    2    2    9-12     11    4    97-112   20    9   753-1264
-    3    2   13-16     12    5   113-144   21   10   1265-2288
-    4    3   17-24     13    5   145-176   22   11   2289-4336
-    5    3   25-32     14    5   177-208   23   12   4337-8432
-    6    3   33-40     15    5   209-240   24   13   8433-16624
-    7    3   41-48     16    6   241-304   25   24   16625-16793840
-    8    4   49-64     17    6   305-368
+        Extra              Extra               Extra
+   Code Bits Lengths  Code Bits Lengths   Code Bits Lengths
+   ---- ---- -------  ---- ---- -------   ---- ---- -------
+    0    2    1..4     9    4   65..80    18    7   369..496
+    1    2    5..8    10    4   81..96    19    8   497..752
+    2    2    9..12   11    4   97..112   20    9   753..1264
+    3    2   13..16   12    5  113..144   21   10   1265..2288
+    4    3   17..24   13    5  145..176   22   11   2289..4336
+    5    3   25..32   14    5  177..208   23   12   4337..8432
+    6    3   33..40   15    5  209..240   24   13   8433..16624
+    7    3   41..48   16    6  241..304   25   24   16625..16793840
+    8    4   49..64   17    6  305..368
 .KE
 .fi
 
@@ -1262,9 +1280,9 @@ now define the format of the context map (the same format is used
 for literal and distance context maps):
 
 .nf
-   1-5 bits: RLEMAX, 0 is encoded with one 0 bit, and values
-             1 - 16 are encoded with bit pattern xxxx1 (so 01001
-             is 5)
+   1..5 bits: RLEMAX, 0 is encoded with one 0 bit, and values
+              1..16 are encoded with bit pattern xxxx1 (so 01001
+              is 5)
 
    Prefix code with alphabet size NTREES + RLEMAX
 
@@ -1398,7 +1416,7 @@ The form of these elementary transforms is as follows:
 .fi
 
 For the purposes of UppercaseAll, word is parsed into UTF-8
-characters and converted to upper-case by taking 1 - 3 bytes at a time,
+characters and converted to upper-case by taking 1..3 bytes at a time,
 using the algorithm below:
 
 .nf
@@ -1447,10 +1465,10 @@ previous sections.
 The stream header has only the following one field:
 
 .nf
-   1-7 bits: WBITS, a value in the range 10 - 24, encoded with
-             the following variable length code (as it appears in
-             the compressed data, where the bits are parsed from
-             right to left):
+   1..7 bits: WBITS, a value in the range 10..24, encoded with
+              the following variable length code (as it appears in
+              the compressed data, where the bits are parsed from
+              right to left):
 
                    Value    Bit Pattern
                    -----    -----------
@@ -1527,7 +1545,7 @@ the following:
                       zeros, then the stream should be rejected
                       as invalid)
 
-              0 - 7 bits: fill bits until the next byte boundary,
+              0..7 bits: fill bits until the next byte boundary,
                       must be all zeros
 
               MSKIPLEN bytes of metadata, not part of the
@@ -1546,7 +1564,7 @@ the following:
            ISLAST bit is not set (if the ignored bits are not
            all zeros, the stream should be rejected as invalid)
 
-   1-11 bits: NBLTYPESL, # of literal block types, encoded with
+   1..11 bits: NBLTYPESL, # of literal block types, encoded with
            the following variable length code (as it appears in
            the compressed data, where the bits are parsed from
            right to left, so 0110111 has the value 12):
@@ -1555,13 +1573,13 @@ the following:
                     -----    -----------
                       1                0
                       2             0001
-                     3-4           x0011
-                     5-8          xx0101
-                     9-16        xxx0111
-                    17-32       xxxx1001
-                    33-64      xxxxx1011
-                    65-128    xxxxxx1101
-                   129-256   xxxxxxx1111
+                    3..4           x0011
+                    5..8          xx0101
+                    9..16        xxx0111
+                   17..32       xxxx1001
+                   33..64      xxxxx1011
+                   65..128    xxxxxx1101
+                  129..256   xxxxxxx1111
 
       Prefix code over the block type code alphabet for
          literal block types, appears only if NBLTYPESL >= 2
@@ -1572,8 +1590,8 @@ the following:
       Block count code + extra bits for first literal
          block count, appears only if NBLTYPESL >= 2
 
-   1-11 bits: NBLTYPESI, # of insert-and-copy block types, encoded
-              with the same variable length code as above
+   1..11 bits: NBLTYPESI, # of insert-and-copy block types, encoded
+               with the same variable length code as above
 
       Prefix code over the block type code alphabet for
          insert-and-copy block types, appears only if NBLTYPESI >= 2
@@ -1584,8 +1602,8 @@ the following:
       Block count code + extra bits for first insert-and-copy
          block count, appears only if NBLTYPESI >= 2
 
-   1-11 bits: NBLTYPESD, # of distance block types, encoded
-              with the same variable length code as above
+   1..11 bits: NBLTYPESD, # of distance block types, encoded
+               with the same variable length code as above
 
       Prefix code over the block type code alphabet for
          distance block types, appears only if NBLTYPESD >= 2
@@ -1604,15 +1622,15 @@ the following:
 
    NBLTYPESL x 2 bits: context mode for each literal block type
 
-   1-11 bits: NTREESL, # of literal prefix trees, encoded
-              with the same variable length code as NBLTYPESL
+   1..11 bits: NTREESL, # of literal prefix trees, encoded
+               with the same variable length code as NBLTYPESL
 
       Literal context map, encoded as described in Section 7.3.,
          appears only if NTREESL >= 2, otherwise the context map
          has only zero values
 
-   1-11 bits: NTREESD, # of distance prefix trees, encoded
-              with the same variable length code as NBLTYPESD
+   1..11 bits: NTREESD, # of distance prefix trees, encoded
+               with the same variable length code as NBLTYPESD
 
       Distance context map, encoded as described in Section 7.3.,
          appears only if NTREESD >= 2, otherwise the context map
@@ -1806,19 +1824,183 @@ reference with <length = 5, distance = 2> adds X,Y,X,Y,X to the
 uncompressed stream.
 
 .ti 0
-11. Security Considerations
+11. Considerations for compressor implementations
+
+Since the intent of this document is to define the brotli compressed data format
+without reference to any particular compression algorithm, the material in this
+section is not part of the definition of the format, and a compressor need not
+follow it in order to be compliant.
+
+.ti 0
+11.1. Trivial compressor
+
+In this section we present a very simple algorithm that produces a valid brotli
+stream representing an arbitrary sequence of uncompressed bytes in the form of
+the following C++ language function.
+
+.nf
+   string BrotliCompressTrivial(const string& u) {
+      if (u.empty()) {
+         return string(1, 6);
+      }
+      int i;
+      string c;
+      c.append(1, 12);
+      for (i = 0; i + 65535 < u.size(); i += 65536) {
+         c.append(1, 248);
+         c.append(1, 255);
+         c.append(1, 15);
+         c.append(&u[i], 65536);
+      }
+      if (i < u.size()) {
+         int r = u.size() - i - 1;
+         c.append(1, (r & 31) << 3);
+         c.append(1, r >> 5);
+         c.append(1, 8 + (r >> 13));
+         c.append(&u[i], r + 1);
+      }
+      c.append(1, 3);
+      return c;
+   }
+.fi
+
+Note that this simple algorithm does not actually compress data, that is, the
+brotli representation will always be bigger than the original, but it
+shows that every sequence of N uncompressed bytes can be represented with a
+valid brotli stream that is not longer than N + (3 * (N >> 16) + 5) bytes.
+
+.ti 0
+11.2. Aligning compressed meta-blocks to byte boundaries
+
+As described in Section 9., only those meta-blocks that immediately follow an
+uncompressed meta-block or a metadata meta-block are guaranteed to start on a
+byte boundary. In some applications, it might be required that every
+non-metadata meta-block starts on a byte boundary. This can be achieved by
+appending an empty metadata meta-block after every non-metadata meta-block that
+does not end on a byte boundary.
+
+.ti 0
+11.3. Creating self-contained parts within the compressed data
+
+In some encoder implementations it might be required to make a sequence of
+bytes within a brotli stream self-contained, that is, such that they
+can be decompressed independently from previous parts of the compressed data.
+This is a useful feature for three reasons. First, if a large compressed file
+is damaged, it is possible to recover some of the file after the damage.
+Second, it is useful when doing differential transfer of compressed data. If
+a sequence of uncompressed bytes is unchanged and compressed independently
+from previous data, then the compressed representation may also be
+unchanged and can therefore be transferred very cheaply. Third, if sequences of
+uncompressed bytes are compressed independently, it allows for parallel
+compression of these byte sequences within the same file, in addition
+to parallel compression of multiple files.
+
+Given two sequences of uncompressed bytes, U0 and U1, we will now describe how
+to create two sequences of compressed bytes, C0 and C1, such that the
+concatenation of C0 and C1 is a valid brotli stream, and that C0 and C1
+(together with the first byte of C0 that contains the window size)
+can be decompressed independently from each other to U0 and U1.
+
+When compressing the byte sequence U0 to produce C0, we can use any compressor
+that works on the complete set of uncompressed bytes U0, with the following two
+changes. First, the ISLAST bit of the last meta-block of C0 must not be set.
+Second, C0 must end at a byte-boundary, which can be ensured by appending an
+empty metadata meta-block to it, as in Section 11.2.
+
+When compressing the byte sequence U1 to produce C1, we can use any compressor
+that starts a new meta-block at the beginning of U1 within the U0+U1 input
+stream, with the following two changes. First, backward distances in C1 must
+not refer to static dictionary words or uncompressed bytes in U0.
+Even if a sequence of bytes in U1 would match a static dictionary word, or a
+sequence of bytes that overlaps U0, the compressor must represent this
+sequence of bytes with a combination of literal insertions and backward
+references to bytes in U1 instead. Second, the ring
+buffer of last four distances must be replenished first with distances in C1
+before using it to encode other distances in C1. Note that both compressors
+producing C0 and C1 have to use the same window size, but the stream header is
+emitted only by the compressor that produces C0.
+
+Note that this method can be easily generalized to more than two sequences
+of uncompressed bytes.
+
+.ti 0
+12. Security Considerations
 
 As with any compressed file formats, decompressor implementations should
 handle all compressed data byte sequences, not only those that conform to this
-specification, where non-conformant compressed data sequences should be discarded.
+specification, where non-conformant compressed data sequences should be
+discarded.
+
 A possible attack against a system containing a decompressor
-implementation (e.g. a web browser) is to exploit a buffer
-overflow caused by an invalid compressed data. Therefore decompressor
+implementation (e.g. a web browser) is to exploit a buffer overflow
+triggered by invalid compressed data. Therefore decompressor
 implementations should perform bounds-checking for each memory access
-that result from values decoded from the compressed stream.
+that result from values decoded from the compressed stream and derivatives
+therof.
+
+Another possible attack against a system containing a decompressor
+implementation is to provide it (either valid or invalid) compressed data
+that can make the decompressor system's resource consumption (cpu, memory, or
+storage) to be disproportionately large compared to the size of the
+compressed data. In addition to the size of the compressed data, the amount of
+cpu, memory and storage required to decompress a single compressed meta-block
+within a brotli stream is controlled by the following two paramters: the size of
+the uncompressed meta-block, which is encoded at the start of the compressed
+meta-block, and the size of the sliding window, which is encoded at the start
+of the brotli stream. Decompressor implementations in systems where
+memory or storage is constrained should perform a sanity-check on these two
+parameters. The uncompressed meta-block size that was decoded from the
+compressed stream should be compared against either a hard limit, given by the
+system's constraints or some expectation about the uncompressed data, or against
+a certain multiple of the size of the compressed data. If the uncompressed
+meta-block size is determined to be too high, the compressed data should be
+rejected. Likewise, when the complete uncompressed stream is kept in the
+system containing the decompressor implementation, the total uncompressed
+size of the stream should be checked before decompressing each additional
+meta-block. If the size of the sliding window that was decoded from the start
+of the compressed stream is greater than a certain soft limit, then the
+decompressor implementation should, at first, allocate a smaller sliding
+window that fits the first uncompressed meta-block, and afterwards, before
+decompressing each additional meta-block, it should increase the size of the
+sliding window until the sliding window size specified in the compressed data
+is reached.
+
+Correspondingly, possible attacks against a system containing a compressor
+implementation (e.g. a web server) are to exploit a buffer overflow or cause
+disproportionately large resource consumption by providing e.g. uncompressible
+data.
+As described in Section 11.1., an output buffer of
+
+.nf
+         S(N) = N + (3 * (N >> 16) + 5)
+.fi
+
+bytes is sufficient to hold a valid compressed brotli
+stream representing an arbitrary sequence of N uncompressed bytes.
+Therefore compressor implementations should allocate at least S(N) bytes of
+output buffer before compressing N bytes of data with unknown compressibility
+and should perform bounds-checking for each write into this output buffer.
+If their output buffer is full, compresor implementations should
+revert to the trivial compression algorithm described in Section 11.1.
+The resourse consumption of a compressor implementation for a particular input
+data depends mostly on the algorithm used to find backward matches and on the
+algorithm used to construct context maps and prefix codes and only to a lesser
+extent on the input data itself. If the system containing a compressor
+implementation is overloaded, a possible way to reduce resource usage is to
+switch to more simple algorithms for backward reference search and prefix code
+construction, or to fall back to the trivial compression algorithm described in
+Section 11.1.
+
+A possible attack against a system that sends compressed data over an encrypted
+channel is the following. An attacker who can repeatedly mix arbitrary
+(attacker-supplied) data with secret data (passwords, cookies) and observe the
+length of the ciphertext can potentially reconstruct the secret data. To
+protect against this kind of attack, applications should not mix sensitive data
+with non-sensitive, potentially attacker-supplied data in the same compressed
+stream.
 
 .ti 0
-12. IANA Considerations
+13. IANA Considerations
 
 The "HTTP Content Coding Registry" has been updated with the
 registration below:
@@ -1834,7 +2016,7 @@ registration below:
 .fi
 
 .ti 0
-13. Informative References
+14. Informative References
 .in 14
 
 .ti 3
@@ -1858,7 +2040,7 @@ http://www.ietf.org/rfc/rfc1951.txt
 .in 3
 
 .ti 0
-14. Source code
+15. Source code
 
 Source code for a C language implementation of a brotli compliant
 decompressor and a C++ language implementation of a compressor is
@@ -1866,7 +2048,7 @@ available in the brotli open-source project:
 https://github.com/google/brotli
 
 .ti 0
-15. Acknowledgments
+16. Acknowledgments
 
 The authors would like to thank Mark Adler, Robert Obryk, Thomas
 Pickert, and Joe Tsai for providing helpful review comments,
