@@ -99,7 +99,6 @@ static BROTLI_INLINE int NextTableBitSize(const uint16_t* const count,
   return len - root_bits;
 }
 
-
 void BrotliBuildCodeLengthsHuffmanTable(HuffmanCode* table,
                                         const uint8_t* const code_lengths,
                                         uint16_t* count) {

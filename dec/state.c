@@ -15,6 +15,10 @@
 extern "C" {
 #endif
 
+/* Declared in decode.h */
+int BrotliStateIsStreamStart(const BrotliState* s);
+int BrotliStateIsStreamEnd(const BrotliState* s);
+
 static void* DefaultAllocFunc(void* opaque, size_t size) {
   BROTLI_UNUSED(opaque);
   return malloc(size);
@@ -75,7 +79,6 @@ void BrotliStateInitWithCustomAllocators(BrotliState* s,
   s->insert_copy_hgroup.htrees = NULL;
   s->distance_hgroup.codes = NULL;
   s->distance_hgroup.htrees = NULL;
-
 
   s->custom_dict = NULL;
   s->custom_dict_size = 0;

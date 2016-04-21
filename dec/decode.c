@@ -10,7 +10,6 @@
 #include <arm_neon.h>
 #endif
 
-#include <stdio.h>  /* printf (debug output) */
 #include <stdlib.h>  /* free, malloc */
 #include <string.h>  /* memcpy, memset */
 
@@ -20,38 +19,20 @@
 #include "./huffman.h"
 #include "./port.h"
 #include "./prefix.h"
+#include "./state.h"
 #include "./transform.h"
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
 #endif
 
-/* BROTLI_FAILURE macro unwraps to BROTLI_RESULT_ERROR in non-debug build. */
-/* In debug build it dumps file name, line and pretty function name. */
-#if defined(_MSC_VER) || \
-  (!defined(BROTLI_DEBUG) && !defined(BROTLI_DECODE_DEBUG))
-#define BROTLI_FAILURE() BROTLI_RESULT_ERROR
-#else
-#define BROTLI_FAILURE() BrotliFailure(__FILE__, __LINE__, __PRETTY_FUNCTION__)
-static inline BrotliResult BrotliFailure(const char* f, int l, const char* fn) {
-  fprintf(stderr, "ERROR at %s:%d (%s)\n", f, l, fn);
-  fflush(stderr);
-  return BROTLI_RESULT_ERROR;
-}
-#endif
+#define BROTLI_FAILURE() (BROTLI_DUMP(), BROTLI_RESULT_ERROR)
 
-#ifdef BROTLI_DECODE_DEBUG
 #define BROTLI_LOG_UINT(name)                                       \
-  printf("[%s] %s = %lu\n", __func__, #name, (unsigned long)(name))
+  BROTLI_LOG(("[%s] %s = %lu\n", __func__, #name, (unsigned long)(name)))
 #define BROTLI_LOG_ARRAY_INDEX(array_name, idx)                     \
-  printf("[%s] %s[%lu] = %lu\n", __func__, #array_name,             \
-         (unsigned long)(idx), (unsigned long)array_name[idx])
-#define BROTLI_LOG(x) printf x
-#else
-#define BROTLI_LOG_UINT(name)
-#define BROTLI_LOG_ARRAY_INDEX(array_name, idx)
-#define BROTLI_LOG(x)
-#endif
+  BROTLI_LOG(("[%s] %s[%lu] = %lu\n", __func__, #array_name,        \
+         (unsigned long)(idx), (unsigned long)array_name[idx]))
 
 static const uint32_t kDefaultCodeLength = 8;
 static const uint32_t kCodeLengthRepeatCode = 16;
@@ -89,7 +70,7 @@ BrotliState* BrotliCreateState(
     state = (BrotliState*)alloc_func(opaque, sizeof(BrotliState));
   }
   if (state == 0) {
-    (void)BROTLI_FAILURE();
+    BROTLI_DUMP();
     return 0;
   }
   BrotliStateInitWithCustomAllocators(state, alloc_func, free_func, opaque);
@@ -376,7 +357,6 @@ static BROTLI_INLINE int SafeReadSymbol(const HuffmanCode* table,
   return SafeDecodeSymbol(table, br, result);
 }
 
-
 /* Makes a look-up in first level Huffman table. Peeks 8 bits. */
 static BROTLI_INLINE void PreloadSymbol(int safe,
                                         const HuffmanCode* table,
@@ -514,7 +494,7 @@ static BROTLI_INLINE void ProcessRepeatedCodeLength(uint32_t code_len,
   *repeat += repeat_delta + 3U;
   repeat_delta = *repeat - old_repeat;
   if (*symbol + repeat_delta > alphabet_size) {
-    (void)BROTLI_FAILURE();
+    BROTLI_DUMP();
     *symbol = alphabet_size;
     *space = 0xFFFFF;
     return;
@@ -886,7 +866,6 @@ static BROTLI_NOINLINE void InverseMoveToFrontTransform(uint8_t* v,
   state->mtf_upper_bound = upper_bound;
 }
 
-
 /* Decodes a series of Huffman table using ReadHuffmanCode function. */
 static BrotliResult HuffmanTreeGroupDecode(HuffmanTreeGroup* group,
                                            BrotliState* s) {
@@ -1248,7 +1227,7 @@ static BrotliResult BROTLI_NOINLINE CopyUncompressedBlockToOutput(
       }
     }
   }
-  return BROTLI_FAILURE();
+  BROTLI_DCHECK(0);  /* Unreachable */
 }
 
 int BrotliDecompressedSize(size_t encoded_size,
@@ -1287,7 +1266,8 @@ int BrotliDecompressedSize(size_t encoded_size,
 static void BROTLI_NOINLINE BrotliCalculateRingBufferSize(BrotliState* s,
     BrotliBitReader* br) {
   int is_last = s->is_last_metablock;
-  s->ringbuffer_size = 1 << s->window_bits;
+  int window_size = 1 << s->window_bits;
+  s->ringbuffer_size = window_size;
 
   if (s->is_uncompressed) {
     int next_block_header =
@@ -1299,18 +1279,19 @@ static void BROTLI_NOINLINE BrotliCalculateRingBufferSize(BrotliState* s,
     }
   }
 
+  /* Limit custom dictionary size to stream window size. */
+  if (s->custom_dict_size >= window_size) {
+    s->custom_dict += s->custom_dict_size - window_size;
+    s->custom_dict_size = window_size;
+  }
+
   /* We need at least 2 bytes of ring buffer size to get the last two
      bytes for context from there */
   if (is_last) {
-    while (s->ringbuffer_size >= s->meta_block_remaining_len * 2 &&
-           s->ringbuffer_size > 32) {
+    int min_size_x2 = (s->meta_block_remaining_len + s->custom_dict_size) * 2;
+    while (s->ringbuffer_size >= min_size_x2 && s->ringbuffer_size > 32) {
       s->ringbuffer_size >>= 1;
     }
-  }
-
-  /* But make it fit the custom dictionary if there is one. */
-  while (s->ringbuffer_size < s->custom_dict_size) {
-    s->ringbuffer_size <<= 1;
   }
 
   s->ringbuffer_mask = s->ringbuffer_size - 1;
