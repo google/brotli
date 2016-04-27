@@ -79,8 +79,9 @@ BrotliResult BrotliDecompressStream(size_t* available_in,
 /* Fills the new state with a dictionary for LZ77, warming up the ringbuffer,
    e.g. for custom static dictionaries for data formats.
    Not to be confused with the built-in transformable dictionary of Brotli.
-   The dictionary must exist in memory until decoding is done and is owned by
-   the caller. To use:
+   |size| should be less or equal to 2^24 (16MiB), otherwise the dictionary will
+   be ignored. The dictionary must exist in memory until decoding is done and
+   is owned by the caller. To use:
     1) Allocate and initialize state with BrotliCreateState
     2) Use BrotliSetCustomDictionary
     3) Use BrotliDecompressStream

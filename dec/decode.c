@@ -2208,6 +2208,9 @@ BrotliResult BrotliDecompressStream(size_t* available_in,
 
 void BrotliSetCustomDictionary(
     size_t size, const uint8_t* dict, BrotliState* s) {
+  if (size > (1u << 24)) {
+    return;
+  }
   s->custom_dict = dict;
   s->custom_dict_size = (int)size;
 }
