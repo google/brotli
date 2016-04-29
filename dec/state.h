@@ -193,7 +193,7 @@ struct BrotliStateStruct {
 
   /* For InverseMoveToFrontTransform */
   uint32_t mtf_upper_bound;
-  uint8_t mtf[256];
+  uint8_t mtf[256 + 4];
 
   /* For custom dictionaries */
   const uint8_t* custom_dict;
