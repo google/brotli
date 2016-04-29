@@ -34,6 +34,11 @@
 #define fopen ms_fopen
 #define open ms_open
 
+#if defined(_MSC_VER) && (_MSC_VER >= 1400)
+#define fseek _fseeki64
+#define ftell _ftelli64
+#endif
+
 static inline FILE* ms_fopen(const char *filename, const char *mode) {
   FILE* result = 0;
   fopen_s(&result, filename, mode);
@@ -45,7 +50,7 @@ static inline int ms_open(const char *filename, int oflag, int pmode) {
   _sopen_s(&result, filename, oflag | O_BINARY, _SH_DENYNO, pmode);
   return result;
 }
-#endif  /* MSC_VER */
+#endif  /* WIN32 */
 
 
 static bool ParseQuality(const char* s, int* quality) {
