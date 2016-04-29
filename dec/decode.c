@@ -835,7 +835,7 @@ static BROTLI_NOINLINE void InverseMoveToFrontTransform(uint8_t* v,
   /* Reinitialize elements that could have been changed. */
   uint32_t i = 4;
   uint32_t upper_bound = state->mtf_upper_bound;
-  uint8_t* mtf = state->mtf;
+  uint8_t* mtf = &state->mtf[4];  /* Make mtf[-1] addressable. */
   /* Load endian-aware constant. */
   const uint8_t b0123[4] = {0, 1, 2, 3};
   uint32_t pattern;
@@ -856,11 +856,11 @@ static BROTLI_NOINLINE void InverseMoveToFrontTransform(uint8_t* v,
     uint8_t value = mtf[index];
     upper_bound |= v[i];
     v[i] = value;
+    mtf[-1] = value;
     do {
       index--;
       mtf[index + 1] = mtf[index];
-    } while (index > 0);
-    mtf[0] = value;
+    } while (index >= 0);
   }
   /* Remember amount of elements to be reinitialized. */
   state->mtf_upper_bound = upper_bound;
@@ -1277,12 +1277,6 @@ static void BROTLI_NOINLINE BrotliCalculateRingBufferSize(BrotliState* s,
         is_last = 1;
       }
     }
-  }
-
-  /* Limit custom dictionary size to stream window size. */
-  if (s->custom_dict_size >= window_size) {
-    s->custom_dict += s->custom_dict_size - window_size;
-    s->custom_dict_size = window_size;
   }
 
   /* We need at least 2 bytes of ring buffer size to get the last two
@@ -1900,7 +1894,13 @@ BrotliResult BrotliDecompressStream(size_t* available_in,
           result = BROTLI_FAILURE();
           break;
         }
+        /* Maximum distance, see section 9.1. of the spec. */
         s->max_backward_distance = (1 << s->window_bits) - 16;
+        /* Limit custom dictionary size. */
+        if (s->custom_dict_size >= s->max_backward_distance) {
+          s->custom_dict += s->custom_dict_size - s->max_backward_distance;
+          s->custom_dict_size = s->max_backward_distance;
+        }
         s->max_backward_distance_minus_custom_dict_size =
             s->max_backward_distance - s->custom_dict_size;
 
