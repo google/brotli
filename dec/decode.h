@@ -28,6 +28,51 @@ typedef enum {
   BROTLI_RESULT_NEEDS_MORE_OUTPUT = 3
 } BrotliResult;
 
+typedef enum {
+  BROTLI_NO_ERROR = 0,
+  /* Same as BrotliResult values */
+  BROTLI_SUCCESS = 1,
+  BROTLI_NEEDS_MORE_INPUT = 2,
+  BROTLI_NEEDS_MORE_OUTPUT = 3,
+
+  /* Errors caused by invalid input */
+  BROTLI_ERROR_FORMAT_EXUBERANT_NIBBLE = -1,
+  BROTLI_ERROR_FORMAT_RESERVED = -2,
+  BROTLI_ERROR_FORMAT_EXUBERANT_META_NIBBLE = -3,
+  BROTLI_ERROR_FORMAT_SIMPLE_HUFFMAN_ALPHABET = -4,
+  BROTLI_ERROR_FORMAT_SIMPLE_HUFFMAN_SAME = -5,
+  BROTLI_ERROR_FORMAT_CL_SPACE = -6,
+  BROTLI_ERROR_FORMAT_HUFFMAN_SPACE = -7,
+  BROTLI_ERROR_FORMAT_CONTEXT_MAP_REPEAT = -8,
+  BROTLI_ERROR_FORMAT_BLOCK_LENGTH_1 = -9,
+  BROTLI_ERROR_FORMAT_BLOCK_LENGTH_2 = -10,
+  BROTLI_ERROR_FORMAT_TRANSFORM = -11,
+  BROTLI_ERROR_FORMAT_DICTIONARY = -12,
+  BROTLI_ERROR_FORMAT_WINDOW_BITS = -13,
+  BROTLI_ERROR_FORMAT_PADDING_1 = -14,
+  BROTLI_ERROR_FORMAT_PADDING_2 = -15,
+
+  /* -16..-20 codes are reserved */
+
+  /* Memory allocation problems */
+  BROTLI_ERROR_ALLOC_CONTEXT_MODES = -21,
+  BROTLI_ERROR_ALLOC_TREE_GROUPS = -22,  /* Literal, insert, distance */
+  /* -23..-24 codes are reserved for distinct tree groups */
+  BROTLI_ERROR_ALLOC_CONTEXT_MAP = -25,
+  BROTLI_ERROR_ALLOC_RING_BUFFER_1 = -26,
+  BROTLI_ERROR_ALLOC_RING_BUFFER_2 = -27,
+  /* -28..-29 codes are reserved for dynamic ringbuffer allocation */
+  BROTLI_ERROR_ALLOC_BLOCK_TYPE_TREES = -30,
+
+  /* "Impossible" states */
+  BROTLI_ERROR_UNREACHABLE_1 = -31,
+  BROTLI_ERROR_UNREACHABLE_2 = -32,
+  BROTLI_ERROR_UNREACHABLE_3 = -33,
+  BROTLI_ERROR_UNREACHABLE_4 = -34,
+  BROTLI_ERROR_UNREACHABLE_5 = -35,
+  BROTLI_ERROR_UNREACHABLE_6 = -36
+} BrotliErrorCode;
+
 /* Creates the instance of BrotliState and initializes it. |alloc_func| and
    |free_func| MUST be both zero or both non-zero. In the case they are both
    zero, default memory allocators are used. |opaque| is passed to |alloc_func|
@@ -97,6 +142,10 @@ int BrotliStateIsStreamStart(const BrotliState* s);
 /* Returns 1, if s is in a state where we reached the end of the input and
    produced all of the output, and 0 otherwise. */
 int BrotliStateIsStreamEnd(const BrotliState* s);
+
+/* Returns detailed error code after BrotliDecompressStream returns
+   BROTLI_RESULT_ERROR. */
+BrotliErrorCode BrotliGetErrorCode(const BrotliState* s);
 
 #if defined(__cplusplus) || defined(c_plusplus)
 } /* extern "C" */
