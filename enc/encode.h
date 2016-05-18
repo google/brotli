@@ -180,6 +180,8 @@ class BrotliCompressor {
   // Command and literal buffers for quality 1.
   uint32_t* command_buf_;
   uint8_t* literal_buf_;
+  
+  int is_last_block_emitted_;
 };
 
 // Compresses the data in input_buffer into encoded_buffer, and sets
