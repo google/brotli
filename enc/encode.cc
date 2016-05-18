@@ -442,7 +442,8 @@ BrotliCompressor::BrotliCompressor(BrotliParams params)
       large_table_(NULL),
       cmd_code_numbits_(0),
       command_buf_(NULL),
-      literal_buf_(NULL) {
+      literal_buf_(NULL),
+      is_last_block_emitted_(0) {
   // Sanitize params.
   params_.quality = std::max(0, params_.quality);
   if (params_.lgwin < kMinWindowBits) {
@@ -582,6 +583,10 @@ bool BrotliCompressor::WriteBrotliData(const bool is_last,
   const uint64_t delta = input_pos_ - last_processed_pos_;
   const uint8_t* data = ringbuffer_->start();
   const uint32_t mask = ringbuffer_->mask();
+  
+   /* Adding more blocks after "last" block is forbidden. */
+  if (s->is_last_block_emitted_) return false;
+  if (is_last) s->is_last_block_emitted_ = 1;
 
   if (delta > input_block_size()) {
     return false;
