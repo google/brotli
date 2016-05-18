@@ -585,8 +585,8 @@ bool BrotliCompressor::WriteBrotliData(const bool is_last,
   const uint32_t mask = ringbuffer_->mask();
   
    /* Adding more blocks after "last" block is forbidden. */
-  if (s->is_last_block_emitted_) return false;
-  if (is_last) s->is_last_block_emitted_ = 1;
+  if (is_last_block_emitted_) return false;
+  if (is_last) is_last_block_emitted_ = 1;
 
   if (delta > input_block_size()) {
     return false;
