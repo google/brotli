@@ -73,6 +73,8 @@ typedef enum {
   BROTLI_ERROR_UNREACHABLE_6 = -36
 } BrotliErrorCode;
 
+#define BROTLI_LAST_ERROR_CODE BROTLI_ERROR_UNREACHABLE_6
+
 /* Creates the instance of BrotliState and initializes it. |alloc_func| and
    |free_func| MUST be both zero or both non-zero. In the case they are both
    zero, default memory allocators are used. |opaque| is passed to |alloc_func|
