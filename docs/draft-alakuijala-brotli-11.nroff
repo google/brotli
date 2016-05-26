@@ -9,7 +9,7 @@
 .ds LH Internet-Draft
 .ds RH May 2016
 .ds CH Brotli
-.ds CF Expires November 4, 2016
+.ds CF Expires November 24, 2016
 .hy 0
 .nh
 .ad l
@@ -18,13 +18,13 @@
 .tl 'Network Working Group''J. Alakuijala'
 .tl 'Internet-Draft''Z. Szabadka'
 .tl 'Intended Status: Informational''Google, Inc'
-.tl 'Expires: November 4, 2016''May 2016'
+.tl 'Expires: November 24, 2016''May 2016'
 .fi
 
 
 .ce 2
 Brotli Compressed Data Format
-draft-alakuijala-brotli-10
+draft-alakuijala-brotli-11
 .fi
 .in 3
 
@@ -52,7 +52,7 @@ and may be updated, replaced, or obsoleted by other documents at any
 time.  It is inappropriate to use Internet-Drafts as reference
 material or to cite them other than as "work in progress."
 
-This Internet-Draft will expire on November 4, 2016.
+This Internet-Draft will expire on November 24, 2016.
 
 .ti 0
 Copyright Notice
@@ -110,6 +110,11 @@ The data format defined by this specification does not attempt to:
    * Compress specialized data (e.g., raster graphics) as well
      as the best currently available specialized algorithms.
 .fi
+
+This document is the authoritative specification of the brotli
+compressed data format. It defines the set of valid brotli 
+compressed data streams and a decoder algorithm that produces the
+uncompressed data stream from a valid brotli compressed data stream.
 
 .ti 0
 1.2. Intended audience
@@ -170,9 +175,11 @@ the bits of a byte so that bit 0 is the least-significant bit, i.e.,
 the bits are numbered:
 
 .nf
+.KS
    +--------+
    |76543210|
    +--------+
+.KE
 .fi
 
 Within a computer, a number may occupy multiple bytes. All
@@ -181,6 +188,7 @@ the least-significant byte first (at the lower memory address).
 For example, the decimal number 520 is stored as:
 
 .nf
+.KS
    0        1
    +--------+--------+
    |00001000|00000010|
@@ -189,6 +197,7 @@ For example, the decimal number 520 is stored as:
    |        |
    |        + more significant byte = 2 x 256
    + less significant byte = 8
+.KE
 .fi
 
 .ti 0
@@ -229,6 +238,7 @@ a sequence of 3 bytes: 3-bit integer value 6, 4-bit integer value 2,
 prefix code 110, prefix code 10, 12-bit integer value 3628.
 
 .nf
+.KS
      byte 2   byte 1   byte 0
    +--------+--------+--------+
    |11100010|11000101|10010110|
@@ -240,6 +250,7 @@ prefix code 110, prefix code 10, 12-bit integer value 3628.
     |            | +-------------- prefix code 110
     |            +---------------- prefix code 10
     +----------------------------- integer value 3628
+.KE
 .fi
 
 .ti 0
