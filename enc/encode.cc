@@ -583,7 +583,7 @@ bool BrotliCompressor::WriteBrotliData(const bool is_last,
   const uint64_t delta = input_pos_ - last_processed_pos_;
   const uint8_t* data = ringbuffer_->start();
   const uint32_t mask = ringbuffer_->mask();
-  
+
    /* Adding more blocks after "last" block is forbidden. */
   if (is_last_block_emitted_) return false;
   if (is_last) is_last_block_emitted_ = 1;
@@ -1155,7 +1155,7 @@ int BrotliCompressWithCustomDictionary(size_t dictsize, const uint8_t* dict,
 
   size_t in_bytes = 0;
   size_t out_bytes = 0;
-  uint8_t* output;
+  uint8_t* output = nullptr;
   bool final_block = false;
   BrotliCompressor compressor(params);
   if (dictsize != 0) compressor.BrotliSetCustomDictionary(dictsize, dict);
