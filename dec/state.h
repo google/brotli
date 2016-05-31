@@ -152,7 +152,6 @@ struct BrotliStateStruct {
   uint32_t num_dist_htrees;
   uint8_t* dist_context_map;
   HuffmanCode* literal_htree;
-  uint8_t literal_htree_index;
   uint8_t dist_htree_index;
   uint32_t repeat_code_len;
   uint32_t prev_code_len;
@@ -218,6 +217,8 @@ struct BrotliStateStruct {
   uint32_t num_literal_htrees;
   uint8_t* context_map;
   uint8_t* context_modes;
+
+  uint32_t trivial_literal_contexts[8];  /* 256 bits */
 };
 
 typedef struct BrotliStateStruct BrotliStateInternal;
