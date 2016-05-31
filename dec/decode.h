@@ -157,7 +157,7 @@ int BrotliStateIsStreamEnd(const BrotliState* s);
    BROTLI_RESULT_ERROR. */
 BrotliErrorCode BrotliGetErrorCode(const BrotliState* s);
 
-static inline const char* BrotliErrorString(BrotliErrorCode c) {
+static const char* BrotliErrorString(BrotliErrorCode c) {
   switch (c) {
 #define _BROTLI_ERROR_CODE_CASE(NAME, CODE) case NAME: return #NAME;
 #define _BROTLI_NOTHING
