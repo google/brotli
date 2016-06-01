@@ -1155,7 +1155,7 @@ int BrotliCompressWithCustomDictionary(size_t dictsize, const uint8_t* dict,
 
   size_t in_bytes = 0;
   size_t out_bytes = 0;
-  uint8_t* output = nullptr;
+  uint8_t* output = NULL;
   bool final_block = false;
   BrotliCompressor compressor(params);
   if (dictsize != 0) compressor.BrotliSetCustomDictionary(dictsize, dict);
