@@ -1066,22 +1066,45 @@ static BROTLI_INLINE int DecodeBlockTypeAndLength(int safe,
   return 1;
 }
 
+static BROTLI_INLINE void DetectTrivialLiteralBlockTypes(BrotliState* s) {
+  size_t i;
+  for (i = 0; i < 8; ++i) s->trivial_literal_contexts[i] = 0;
+  for (i = 0; i < s->num_block_types[0]; i++) {
+    size_t offset = i << kLiteralContextBits;
+    size_t error = 0;
+    size_t sample = s->context_map[offset];
+    size_t j;
+    for (j = 0; j < (1u << kLiteralContextBits);) {
+      BROTLI_REPEAT(4, error |= s->context_map[offset + j++] ^ sample;)
+    }
+    if (error == 0) {
+      s->trivial_literal_contexts[i >> 5] |= 1u << (i & 31);
+    }
+  }
+}
+
+static BROTLI_INLINE void PrepareLiteralDecoding(BrotliState* s) {
+  uint8_t context_mode;
+  size_t trivial;
+  uint32_t block_type = s->block_type_rb[1];
+  uint32_t context_offset = block_type << kLiteralContextBits;
+  s->context_map_slice = s->context_map + context_offset;
+  trivial = s->trivial_literal_contexts[block_type >> 5];
+  s->trivial_literal_context = (trivial >> (block_type & 31)) & 1;
+  s->literal_htree = s->literal_hgroup.htrees[s->context_map_slice[0]];
+  context_mode = s->context_modes[block_type];
+  s->context_lookup1 = &kContextLookup[kContextLookupOffsets[context_mode]];
+  s->context_lookup2 = &kContextLookup[kContextLookupOffsets[context_mode + 1]];
+}
+
 /* Decodes the block type and updates the state for literal context.
    Reads 3..54 bits. */
 static BROTLI_INLINE int DecodeLiteralBlockSwitchInternal(int safe,
     BrotliState* s) {
-  uint8_t context_mode;
-  uint32_t context_offset;
   if (!DecodeBlockTypeAndLength(safe, s, 0)) {
     return 0;
   }
-  context_offset = s->block_type_rb[1] << kLiteralContextBits;
-  s->context_map_slice = s->context_map + context_offset;
-  s->literal_htree_index = s->context_map_slice[0];
-  s->literal_htree = s->literal_hgroup.htrees[s->literal_htree_index];
-  context_mode = s->context_modes[s->block_type_rb[1]];
-  s->context_lookup1 = &kContextLookup[kContextLookupOffsets[context_mode]];
-  s->context_lookup2 = &kContextLookup[kContextLookupOffsets[context_mode + 1]];
+  PrepareLiteralDecoding(s);
   return 1;
 }
 
@@ -1153,7 +1176,7 @@ static BrotliErrorCode BROTLI_NOINLINE WriteRingBuffer(size_t* available_out,
   BROTLI_LOG_UINT(to_write);
   BROTLI_LOG_UINT(num_written);
   s->partial_pos_out += num_written;
-  *total_out = s->partial_pos_out;
+  if (total_out) *total_out = s->partial_pos_out;
   if (num_written < to_write) {
     return BROTLI_NEEDS_MORE_OUTPUT;
   }
@@ -1566,6 +1589,7 @@ CommandInner:
       if (PREDICT_FALSE(s->block_length[0] == 0)) {
         BROTLI_SAFE(DecodeLiteralBlockSwitch(s));
         PreloadSymbol(safe, s->literal_htree, br, &bits, &value);
+        if (!s->trivial_literal_context) goto CommandInner;
       }
       if (!safe) {
         s->ringbuffer[pos] =
@@ -1579,7 +1603,6 @@ CommandInner:
         s->ringbuffer[pos] = (uint8_t)literal;
       }
       --s->block_length[0];
-      BROTLI_LOG_UINT(s->literal_htree_index);
       BROTLI_LOG_ARRAY_INDEX(s->ringbuffer, pos);
       ++pos;
       if (PREDICT_FALSE(pos == s->ringbuffer_size)) {
@@ -1601,6 +1624,7 @@ CommandInner:
       }
       if (PREDICT_FALSE(s->block_length[0] == 0)) {
         BROTLI_SAFE(DecodeLiteralBlockSwitch(s));
+        if (s->trivial_literal_context) goto CommandInner;
       }
       context = s->context_lookup1[p1] | s->context_lookup2[p2];
       BROTLI_LOG_UINT(context);
@@ -1629,7 +1653,7 @@ CommandInner:
     } while (--i != 0);
   }
   BROTLI_LOG_UINT(s->meta_block_remaining_len);
-  if (s->meta_block_remaining_len <= 0) {
+  if (PREDICT_FALSE(s->meta_block_remaining_len <= 0)) {
     s->state = BROTLI_STATE_METABLOCK_DONE;
     goto saveStateAndReturn;
   }
@@ -1709,12 +1733,6 @@ postReadDistance:
     s->dist_rb[s->dist_rb_idx & 3] = s->distance_code;
     ++s->dist_rb_idx;
     s->meta_block_remaining_len -= i;
-    if (PREDICT_FALSE(s->meta_block_remaining_len < 0)) {
-      BROTLI_LOG(("Invalid backward reference. pos: %d distance: %d "
-          "len: %d bytes left: %d\n",
-          pos, s->distance_code, i, s->meta_block_remaining_len));
-      return BROTLI_FAILURE(BROTLI_ERROR_FORMAT_BLOCK_LENGTH_2);
-    }
     /* There are 32+ bytes of slack in the ringbuffer allocation.
        Also, we have 16 short codes, that make these 16 bytes irrelevant
        in the ringbuffer. Let's copy over them as a first guess.
@@ -2071,23 +2089,16 @@ BrotliResult BrotliDecompressStream(size_t* available_in,
         }
         s->state = BROTLI_STATE_CONTEXT_MAP_1;
         /* No break, continue to next state */
-      case BROTLI_STATE_CONTEXT_MAP_1: {
-        uint32_t j;
-        result = DecodeContextMap(s->num_block_types[0] << kLiteralContextBits,
-                                  &s->num_literal_htrees, &s->context_map, s);
+      case BROTLI_STATE_CONTEXT_MAP_1:
+        result = DecodeContextMap(
+            s->num_block_types[0] << kLiteralContextBits,
+            &s->num_literal_htrees, &s->context_map, s);
         if (result != BROTLI_SUCCESS) {
           break;
         }
-        s->trivial_literal_context = 1;
-        for (j = 0; j < s->num_block_types[0] << kLiteralContextBits; j++) {
-          if (s->context_map[j] != j >> kLiteralContextBits) {
-            s->trivial_literal_context = 0;
-            break;
-          }
-        }
+        DetectTrivialLiteralBlockTypes(s);
         s->state = BROTLI_STATE_CONTEXT_MAP_2;
         /* No break, continue to next state */
-      }
       case BROTLI_STATE_CONTEXT_MAP_2:
         {
           uint32_t num_distance_codes =
@@ -2137,15 +2148,9 @@ BrotliResult BrotliDecompressStream(size_t* available_in,
         if (result != BROTLI_SUCCESS) break;
         s->loop_counter++;
         if (s->loop_counter >= 3) {
-          uint8_t context_mode = s->context_modes[s->block_type_rb[1]];
-          s->context_map_slice = s->context_map;
+          PrepareLiteralDecoding(s);
           s->dist_context_map_slice = s->dist_context_map;
-          s->context_lookup1 =
-              &kContextLookup[kContextLookupOffsets[context_mode]];
-          s->context_lookup2 =
-              &kContextLookup[kContextLookupOffsets[context_mode + 1]];
           s->htree_command = s->insert_copy_hgroup.htrees[0];
-          s->literal_htree = s->literal_hgroup.htrees[s->literal_htree_index];
           if (!s->ringbuffer && !BrotliAllocateRingBuffer(s)) {
             result = BROTLI_FAILURE(BROTLI_ERROR_ALLOC_RING_BUFFER_2);
             break;
@@ -2194,6 +2199,10 @@ BrotliResult BrotliDecompressStream(size_t* available_in,
         }
         break;
       case BROTLI_STATE_METABLOCK_DONE:
+        if (s->meta_block_remaining_len < 0) {
+          result = BROTLI_FAILURE(BROTLI_ERROR_FORMAT_BLOCK_LENGTH_2);
+          break;
+        }
         BrotliStateCleanupAfterMetablock(s);
         if (!s->is_last_metablock) {
           s->state = BROTLI_STATE_METABLOCK_BEGIN;

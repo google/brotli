@@ -118,7 +118,6 @@ void BrotliStateMetablockBegin(BrotliState* s) {
   s->context_modes = NULL;
   s->dist_context_map = NULL;
   s->context_map_slice = NULL;
-  s->literal_htree_index = 0;
   s->literal_htree = NULL;
   s->dist_context_map_slice = NULL;
   s->dist_htree_index = 0;
