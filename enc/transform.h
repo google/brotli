@@ -11,7 +11,7 @@
 
 #include <string>
 
-#include "./dictionary.h"
+#include "../common/dictionary.h"
 
 namespace brotli {
 

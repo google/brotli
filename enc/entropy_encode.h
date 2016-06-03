@@ -10,9 +10,10 @@
 #define BROTLI_ENC_ENTROPY_ENCODE_H_
 
 #include <string.h>
+
+#include "../common/types.h"
 #include "./histogram.h"
 #include "./prefix.h"
-#include "./types.h"
 
 namespace brotli {
 

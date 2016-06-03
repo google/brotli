@@ -10,16 +10,17 @@
 #define BROTLI_ENC_CLUSTER_H_
 
 #include <math.h>
+
 #include <algorithm>
 #include <utility>
 #include <vector>
 
+#include "../common/types.h"
 #include "./bit_cost.h"
 #include "./entropy_encode.h"
 #include "./fast_log.h"
 #include "./histogram.h"
 #include "./port.h"
-#include "./types.h"
 
 namespace brotli {
 

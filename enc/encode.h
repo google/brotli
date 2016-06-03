@@ -11,12 +11,13 @@
 
 #include <string>
 #include <vector>
+
+#include "../common/types.h"
 #include "./command.h"
 #include "./hash.h"
 #include "./ringbuffer.h"
 #include "./static_dict.h"
 #include "./streams.h"
-#include "./types.h"
 
 namespace brotli {
 

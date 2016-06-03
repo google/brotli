@@ -10,8 +10,9 @@
 
 #include <string.h>  /* memcpy, memset */
 
+#include "../common/constants.h"
+#include "../common/types.h"
 #include "./port.h"
-#include "./types.h"
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
@@ -108,7 +109,7 @@ void BrotliBuildCodeLengthsHuffmanTable(HuffmanCode* table,
   uint32_t key_step;  /* prefix code addend */
   int step;           /* step size to replicate values in current table */
   int table_size;     /* size of current table */
-  int sorted[18];     /* symbols sorted by code length */
+  int sorted[BROTLI_CODE_LENGTH_CODES];  /* symbols sorted by code length */
   /* offsets in sorted table for each length */
   int offset[BROTLI_HUFFMAN_MAX_CODE_LENGTH_CODE_LENGTH + 1];
   int bits;
@@ -125,10 +126,10 @@ void BrotliBuildCodeLengthsHuffmanTable(HuffmanCode* table,
     bits++;
   });
   /* Symbols with code length 0 are placed after all other symbols. */
-  offset[0] = 17;
+  offset[0] = BROTLI_CODE_LENGTH_CODES - 1;
 
   /* sort symbols by length, by symbol order within each length */
-  symbol = 18;
+  symbol = BROTLI_CODE_LENGTH_CODES;
   do {
     BROTLI_REPEAT(6, {
       symbol--;

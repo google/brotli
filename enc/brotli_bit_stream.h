@@ -18,9 +18,9 @@
 
 #include <vector>
 
+#include "../common/types.h"
 #include "./entropy_encode.h"
 #include "./metablock.h"
-#include "./types.h"
 
 namespace brotli {
 

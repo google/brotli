@@ -12,7 +12,7 @@
 #include <assert.h>
 #include <math.h>
 
-#include "./types.h"
+#include "../common/types.h"
 
 namespace brotli {
 
