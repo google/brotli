@@ -24,4 +24,7 @@ for filename in glob.glob("testdata/*.compressed*"):
                    env=TEST_ENV)
     if diff_q(uncompressed, expected) != 0:
         sys.exit(1)
-    os.unlink(uncompressed)
+    try:
+        os.unlink(uncompressed)
+    except OSError:
+        pass
