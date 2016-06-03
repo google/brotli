@@ -4,7 +4,7 @@
    See file LICENSE for detail or copy at https://opensource.org/licenses/MIT
 */
 
-// Entropy encoding (Huffman) utilities.
+/* Entropy encoding (Huffman) utilities. */
 
 #include "./entropy_encode.h"
 
@@ -31,7 +31,7 @@ void SetDepth(const HuffmanTree &p,
   }
 }
 
-// Sort the root nodes, least popular first.
+/* Sort the root nodes, least popular first. */
 static inline bool SortHuffmanTree(const HuffmanTree& v0,
                                    const HuffmanTree& v1) {
   if (v0.total_count_ != v1.total_count_) {
@@ -40,30 +40,30 @@ static inline bool SortHuffmanTree(const HuffmanTree& v0,
   return v0.index_right_or_value_ > v1.index_right_or_value_;
 }
 
-// This function will create a Huffman tree.
-//
-// The catch here is that the tree cannot be arbitrarily deep.
-// Brotli specifies a maximum depth of 15 bits for "code trees"
-// and 7 bits for "code length code trees."
-//
-// count_limit is the value that is to be faked as the minimum value
-// and this minimum value is raised until the tree matches the
-// maximum length requirement.
-//
-// This algorithm is not of excellent performance for very long data blocks,
-// especially when population counts are longer than 2**tree_limit, but
-// we are not planning to use this with extremely long blocks.
-//
-// See http://en.wikipedia.org/wiki/Huffman_coding
+/* This function will create a Huffman tree.
+
+   The catch here is that the tree cannot be arbitrarily deep.
+   Brotli specifies a maximum depth of 15 bits for "code trees"
+   and 7 bits for "code length code trees."
+
+   count_limit is the value that is to be faked as the minimum value
+   and this minimum value is raised until the tree matches the
+   maximum length requirement.
+
+   This algorithm is not of excellent performance for very long data blocks,
+   especially when population counts are longer than 2**tree_limit, but
+   we are not planning to use this with extremely long blocks.
+
+   See http://en.wikipedia.org/wiki/Huffman_coding */
 void CreateHuffmanTree(const uint32_t *data,
                        const size_t length,
                        const int tree_limit,
                        HuffmanTree* tree,
                        uint8_t *depth) {
-  // For block sizes below 64 kB, we never need to do a second iteration
-  // of this loop. Probably all of our block sizes will be smaller than
-  // that, so this loop is mostly of academic interest. If we actually
-  // would need this, we would be better off with the Katajainen algorithm.
+  /* For block sizes below 64 kB, we never need to do a second iteration
+     of this loop. Probably all of our block sizes will be smaller than
+     that, so this loop is mostly of academic interest. If we actually
+     would need this, we would be better off with the Katajainen algorithm. */
   for (uint32_t count_limit = 1; ; count_limit *= 2) {
     size_t n = 0;
     for (size_t i = length; i != 0;) {
@@ -81,19 +81,19 @@ void CreateHuffmanTree(const uint32_t *data,
 
     std::sort(tree, tree + n, SortHuffmanTree);
 
-    // The nodes are:
-    // [0, n): the sorted leaf nodes that we start with.
-    // [n]: we add a sentinel here.
-    // [n + 1, 2n): new parent nodes are added here, starting from
-    //              (n+1). These are naturally in ascending order.
-    // [2n]: we add a sentinel at the end as well.
-    // There will be (2n+1) elements at the end.
+    /* The nodes are:
+       [0, n): the sorted leaf nodes that we start with.
+       [n]: we add a sentinel here.
+       [n + 1, 2n): new parent nodes are added here, starting from
+                    (n+1). These are naturally in ascending order.
+       [2n]: we add a sentinel at the end as well.
+       There will be (2n+1) elements at the end. */
     const HuffmanTree sentinel(std::numeric_limits<uint32_t>::max(), -1, -1);
     tree[n] = sentinel;
     tree[n + 1] = sentinel;
 
-    size_t i = 0;      // Points to the next leaf node.
-    size_t j = n + 1;  // Points to the next non-leaf node.
+    size_t i = 0;      /* Points to the next leaf node. */
+    size_t j = n + 1;  /* Points to the next non-leaf node. */
     for (size_t k = n - 1; k != 0; --k) {
       size_t left, right;
       if (tree[i].total_count_ <= tree[j].total_count_) {
@@ -111,21 +111,20 @@ void CreateHuffmanTree(const uint32_t *data,
         ++j;
       }
 
-      // The sentinel node becomes the parent node.
+        /* The sentinel node becomes the parent node. */
       size_t j_end = 2 * n - k;
       tree[j_end].total_count_ =
           tree[left].total_count_ + tree[right].total_count_;
       tree[j_end].index_left_ = static_cast<int16_t>(left);
       tree[j_end].index_right_or_value_ = static_cast<int16_t>(right);
 
-      // Add back the last sentinel node.
+        /* Add back the last sentinel node. */
       tree[j_end + 1] = sentinel;
     }
     SetDepth(tree[2 * n - 1], &tree[0], depth, 0);
 
-    // We need to pack the Huffman tree in tree_limit bits.
-    // If this was not successful, add fake entities to the lowest values
-    // and retry.
+      /* We need to pack the Huffman tree in tree_limit bits. If this was not
+         successful, add fake entities to the lowest values and retry. */
     if (*std::max_element(&depth[0], &depth[length]) <= tree_limit) {
       break;
     }
@@ -229,7 +228,7 @@ void OptimizeHuffmanCountsForRle(size_t length, uint32_t* counts,
   size_t limit;
   size_t sum;
   const size_t streak_limit = 1240;
-  // Let's make the Huffman code more compatible with rle encoding.
+  /* Let's make the Huffman code more compatible with rle encoding. */
   size_t i;
   for (i = 0; i < length; i++) {
     if (counts[i]) {
@@ -243,9 +242,9 @@ void OptimizeHuffmanCountsForRle(size_t length, uint32_t* counts,
     --length;
   }
   if (length == 0) {
-    return;  // All zeros.
+    return;  /* All zeros. */
   }
-  // Now counts[0..length - 1] does not have trailing zeros.
+  /* Now counts[0..length - 1] does not have trailing zeros. */
   {
     size_t nonzeros = 0;
     uint32_t smallest_nonzero = 1 << 30;
@@ -258,7 +257,7 @@ void OptimizeHuffmanCountsForRle(size_t length, uint32_t* counts,
       }
     }
     if (nonzeros < 5) {
-      // Small histogram will model it well.
+      /* Small histogram will model it well. */
       return;
     }
     size_t zeros = length - nonzeros;
@@ -275,13 +274,13 @@ void OptimizeHuffmanCountsForRle(size_t length, uint32_t* counts,
       return;
     }
   }
-  // 2) Let's mark all population counts that already can be encoded
-  // with an rle code.
+  /* 2) Let's mark all population counts that already can be encoded
+     with an rle code. */
   memset(good_for_rle, 0, length);
   {
-    // Let's not spoil any of the existing good rle codes.
-    // Mark any seq of 0's that is longer as 5 as a good_for_rle.
-    // Mark any seq of non-0's that is longer as 7 as a good_for_rle.
+    /* Let's not spoil any of the existing good rle codes.
+       Mark any seq of 0's that is longer as 5 as a good_for_rle.
+       Mark any seq of non-0's that is longer as 7 as a good_for_rle. */
     uint32_t symbol = counts[0];
     size_t step = 0;
     for (i = 0; i <= length; ++i) {
@@ -302,8 +301,8 @@ void OptimizeHuffmanCountsForRle(size_t length, uint32_t* counts,
       }
     }
   }
-  // 3) Let's replace those population counts that lead to more rle codes.
-  // Math here is in 24.8 fixed point representation.
+  /* 3) Let's replace those population counts that lead to more rle codes.
+     Math here is in 24.8 fixed point representation. */
   stride = 0;
   limit = 256 * (counts[0] + counts[1] + counts[2]) / 3 + 420;
   sum = 0;
@@ -313,26 +312,26 @@ void OptimizeHuffmanCountsForRle(size_t length, uint32_t* counts,
         (256 * counts[i] - limit + streak_limit) >= 2 * streak_limit) {
       if (stride >= 4 || (stride >= 3 && sum == 0)) {
         size_t k;
-        // The stride must end, collapse what we have, if we have enough (4).
+        /* The stride must end, collapse what we have, if we have enough (4). */
         size_t count = (sum + stride / 2) / stride;
         if (count == 0) {
           count = 1;
         }
         if (sum == 0) {
-          // Don't make an all zeros stride to be upgraded to ones.
+          /* Don't make an all zeros stride to be upgraded to ones. */
           count = 0;
         }
         for (k = 0; k < stride; ++k) {
-          // We don't want to change value at counts[i],
-          // that is already belonging to the next stride. Thus - 1.
+          /* We don't want to change value at counts[i],
+             that is already belonging to the next stride. Thus - 1. */
           counts[i - k - 1] = static_cast<uint32_t>(count);
         }
       }
       stride = 0;
       sum = 0;
       if (i < length - 2) {
-        // All interesting strides have a count of at least 4,
-        // at least when non-zeros.
+        /* All interesting strides have a count of at least 4, */
+        /* at least when non-zeros. */
         limit = 256 * (counts[i] + counts[i + 1] + counts[i + 2]) / 3 + 420;
       } else if (i < length) {
         limit = 256 * counts[i];
@@ -387,7 +386,7 @@ void WriteHuffmanTree(const uint8_t* depth,
                       uint8_t* extra_bits_data) {
   uint8_t previous_value = 8;
 
-  // Throw away trailing zeros.
+  /* Throw away trailing zeros. */
   size_t new_length = length;
   for (size_t i = 0; i < length; ++i) {
     if (depth[length - i - 1] == 0) {
@@ -397,17 +396,17 @@ void WriteHuffmanTree(const uint8_t* depth,
     }
   }
 
-  // First gather statistics on if it is a good idea to do rle.
+  /* First gather statistics on if it is a good idea to do rle. */
   bool use_rle_for_non_zero = false;
   bool use_rle_for_zero = false;
   if (length > 50) {
-    // Find rle coding for longer codes.
-    // Shorter codes seem not to benefit from rle.
+    /* Find rle coding for longer codes.
+       Shorter codes seem not to benefit from rle. */
     DecideOverRleUse(depth, new_length,
                      &use_rle_for_non_zero, &use_rle_for_zero);
   }
 
-  // Actual rle coding.
+  /* Actual rle coding. */
   for (size_t i = 0; i < new_length;) {
     const uint8_t value = depth[i];
     size_t reps = 1;
@@ -432,7 +431,7 @@ void WriteHuffmanTree(const uint8_t* depth,
 namespace {
 
 uint16_t ReverseBits(int num_bits, uint16_t bits) {
-  static const size_t kLut[16] = {  // Pre-reversed 4-bit values.
+  static const size_t kLut[16] = {  /* Pre-reversed 4-bit values. */
     0x0, 0x8, 0x4, 0xc, 0x2, 0xa, 0x6, 0xe,
     0x1, 0x9, 0x5, 0xd, 0x3, 0xb, 0x7, 0xf
   };
@@ -451,8 +450,8 @@ uint16_t ReverseBits(int num_bits, uint16_t bits) {
 void ConvertBitDepthsToSymbols(const uint8_t *depth,
                                size_t len,
                                uint16_t *bits) {
-  // In Brotli, all bit depths are [1..15]
-  // 0 bit depth means that the symbol does not exist.
+  /* In Brotli, all bit depths are [1..15]
+     0 bit depth means that the symbol does not exist. */
   const int kMaxBits = 16;  // 0..15 are values for bits
   uint16_t bl_count[kMaxBits] = { 0 };
   {

@@ -4,7 +4,7 @@
    See file LICENSE for detail or copy at https://opensource.org/licenses/MIT
 */
 
-// Functions for clustering similar histograms together.
+/* Functions for clustering similar histograms together. */
 
 #ifndef BROTLI_ENC_CLUSTER_H_
 #define BROTLI_ENC_CLUSTER_H_
@@ -328,4 +328,4 @@ void ClusterHistograms(const std::vector<HistogramType>& in,
 
 }  // namespace brotli
 
-#endif  // BROTLI_ENC_CLUSTER_H_
+#endif  /* BROTLI_ENC_CLUSTER_H_ */

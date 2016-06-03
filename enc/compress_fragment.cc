@@ -4,13 +4,13 @@
    See file LICENSE for detail or copy at https://opensource.org/licenses/MIT
 */
 
-// Function for fast encoding of an input fragment, independently from the input
-// history. This function uses one-pass processing: when we find a backward
-// match, we immediately emit the corresponding command and literal codes to
-// the bit stream.
-//
-// Adapted from the CompressFragment() function in
-// https://github.com/google/snappy/blob/master/snappy.cc
+/* Function for fast encoding of an input fragment, independently from the input
+   history. This function uses one-pass processing: when we find a backward
+   match, we immediately emit the corresponding command and literal codes to
+   the bit stream.
+
+   Adapted from the CompressFragment() function in
+   https://github.com/google/snappy/blob/master/snappy.cc */
 
 #include "./compress_fragment.h"
 
@@ -27,12 +27,12 @@
 
 namespace brotli {
 
-// kHashMul32 multiplier has these properties:
-// * The multiplier must be odd. Otherwise we may lose the highest bit.
-// * No long streaks of 1s or 0s.
-// * There is no effort to ensure that it is a prime, the oddity is enough
-//   for this use.
-// * The number has been tuned heuristically against compression benchmarks.
+/* kHashMul32 multiplier has these properties:
+   * The multiplier must be odd. Otherwise we may lose the highest bit.
+   * No long streaks of 1s or 0s.
+   * There is no effort to ensure that it is a prime, the oddity is enough
+     for this use.
+   * The number has been tuned heuristically against compression benchmarks. */
 static const uint32_t kHashMul32 = 0x1e35a7bd;
 
 static inline uint32_t Hash(const uint8_t* p, size_t shift) {
@@ -52,12 +52,12 @@ static inline int IsMatch(const uint8_t* p1, const uint8_t* p2) {
           p1[4] == p2[4]);
 }
 
-// Builds a literal prefix code into "depths" and "bits" based on the statistics
-// of the "input" string and stores it into the bit stream.
-// Note that the prefix code here is built from the pre-LZ77 input, therefore
-// we can only approximate the statistics of the actual literal stream.
-// Moreover, for long inputs we build a histogram from a sample of the input
-// and thus have to assign a non-zero depth for each literal.
+/* Builds a literal prefix code into "depths" and "bits" based on the statistics
+   of the "input" string and stores it into the bit stream.
+   Note that the prefix code here is built from the pre-LZ77 input, therefore
+   we can only approximate the statistics of the actual literal stream.
+   Moreover, for long inputs we build a histogram from a sample of the input
+   and thus have to assign a non-zero depth for each literal. */
 static void BuildAndStoreLiteralPrefixCode(const uint8_t* input,
                                            const size_t input_size,
                                            uint8_t depths[256],
@@ -72,8 +72,8 @@ static void BuildAndStoreLiteralPrefixCode(const uint8_t* input,
     }
     histogram_total = input_size;
     for (size_t i = 0; i < 256; ++i) {
-      // We weigh the first 11 samples with weight 3 to account for the
-      // balancing effect of the LZ77 phase on the histogram.
+      /* We weigh the first 11 samples with weight 3 to account for the
+         balancing effect of the LZ77 phase on the histogram. */
       const uint32_t adjust = 2 * std::min(histogram[i], 11u);
       histogram[i] += adjust;
       histogram_total += adjust;
@@ -85,11 +85,11 @@ static void BuildAndStoreLiteralPrefixCode(const uint8_t* input,
     }
     histogram_total = (input_size + kSampleRate - 1) / kSampleRate;
     for (size_t i = 0; i < 256; ++i) {
-      // We add 1 to each population count to avoid 0 bit depths (since this is
-      // only a sample and we don't know if the symbol appears or not), and we
-      // weigh the first 11 samples with weight 3 to account for the balancing
-      // effect of the LZ77 phase on the histogram (more frequent symbols are
-      // more likely to be in backward references instead as literals).
+      /* We add 1 to each population count to avoid 0 bit depths (since this is
+         only a sample and we don't know if the symbol appears or not), and we
+         weigh the first 11 samples with weight 3 to account for the balancing
+         effect of the LZ77 phase on the histogram (more frequent symbols are
+         more likely to be in backward references instead as literals). */
       const uint32_t adjust = 1 + 2 * std::min(histogram[i], 11u);
       histogram[i] += adjust;
       histogram_total += adjust;
@@ -100,23 +100,23 @@ static void BuildAndStoreLiteralPrefixCode(const uint8_t* input,
                                depths, bits, storage_ix, storage);
 }
 
-// Builds a command and distance prefix code (each 64 symbols) into "depth" and
-// "bits" based on "histogram" and stores it into the bit stream.
+/* Builds a command and distance prefix code (each 64 symbols) into "depth" and
+   "bits" based on "histogram" and stores it into the bit stream. */
 static void BuildAndStoreCommandPrefixCode(const uint32_t histogram[128],
                                            uint8_t depth[128],
                                            uint16_t bits[128],
                                            size_t* storage_ix,
                                            uint8_t* storage) {
-  // Tree size for building a tree over 64 symbols is 2 * 64 + 1.
+  /* Tree size for building a tree over 64 symbols is 2 * 64 + 1. */
   static const size_t kTreeSize = 129;
   HuffmanTree tree[kTreeSize];
   CreateHuffmanTree(histogram, 64, 15, tree, depth);
   CreateHuffmanTree(&histogram[64], 64, 14, tree, &depth[64]);
-  // We have to jump through a few hoopes here in order to compute
-  // the command bits because the symbols are in a different order than in
-  // the full alphabet. This looks complicated, but having the symbols
-  // in this order in the command bits saves a few branches in the Emit*
-  // functions.
+  /* We have to jump through a few hoopes here in order to compute
+     the command bits because the symbols are in a different order than in
+     the full alphabet. This looks complicated, but having the symbols
+     in this order in the command bits saves a few branches in the Emit*
+     functions. */
   uint8_t cmd_depth[64];
   uint16_t cmd_bits[64];
   memcpy(cmd_depth, depth, 24);
@@ -134,7 +134,7 @@ static void BuildAndStoreCommandPrefixCode(const uint32_t histogram[128],
   memcpy(bits + 56, cmd_bits + 56, 16);
   ConvertBitDepthsToSymbols(&depth[64], 64, &bits[64]);
   {
-    // Create the bit length array for the full command alphabet.
+    /* Create the bit length array for the full command alphabet. */
     uint8_t cmd_depth[704] = { 0 };
     memcpy(cmd_depth, depth, 8);
     memcpy(cmd_depth + 64, depth + 8, 8);
@@ -151,7 +151,7 @@ static void BuildAndStoreCommandPrefixCode(const uint32_t histogram[128],
   StoreHuffmanTree(&depth[64], 64, tree, storage_ix, storage);
 }
 
-// REQUIRES: insertlen < 6210
+/* REQUIRES: insertlen < 6210 */
 inline void EmitInsertLen(size_t insertlen,
                           const uint8_t depth[128],
                           const uint16_t bits[128],
@@ -299,21 +299,21 @@ inline void EmitLiterals(const uint8_t* input, const size_t len,
   }
 }
 
-// REQUIRES: len <= 1 << 20.
+/* REQUIRES: len <= 1 << 20. */
 static void StoreMetaBlockHeader(
     size_t len, bool is_uncompressed, size_t* storage_ix, uint8_t* storage) {
-  // ISLAST
+  /* ISLAST */
   WriteBits(1, 0, storage_ix, storage);
   if (len <= (1U << 16)) {
-    // MNIBBLES is 4
+    /* MNIBBLES is 4 */
     WriteBits(2, 0, storage_ix, storage);
     WriteBits(16, len - 1, storage_ix, storage);
   } else {
-    // MNIBBLES is 5
+    /* MNIBBLES is 5 */
     WriteBits(2, 1, storage_ix, storage);
     WriteBits(20, len - 1, storage_ix, storage);
   }
-  // ISUNCOMPRESSED
+  /* ISUNCOMPRESSED */
   WriteBits(1, is_uncompressed, storage_ix, storage);
 }
 
@@ -406,11 +406,12 @@ void BrotliCompressFragmentFast(const uint8_t* input, size_t input_size,
     return;
   }
 
-  // "next_emit" is a pointer to the first byte that is not covered by a
-  // previous copy. Bytes between "next_emit" and the start of the next copy or
-  // the end of the input will be emitted as literal bytes.
+  /* "next_emit" is a pointer to the first byte that is not covered by a
+     previous copy. Bytes between "next_emit" and the start of the next copy or
+     the end of the input will be emitted as literal bytes. */
   const uint8_t* next_emit = input;
-  // Save the start of the first block for position and distance computations.
+  /* Save the start of the first block for position and distance computations.
+  */
   const uint8_t* base_ip = input;
 
   static const size_t kFirstBlockSize = 3 << 15;
@@ -419,8 +420,8 @@ void BrotliCompressFragmentFast(const uint8_t* input, size_t input_size,
   const uint8_t* metablock_start = input;
   size_t block_size = std::min(input_size, kFirstBlockSize);
   size_t total_block_size = block_size;
-  // Save the bit position of the MLEN field of the meta-block header, so that
-  // we can update it later if we decide to extend this meta-block.
+  /* Save the bit position of the MLEN field of the meta-block header, so that
+     we can update it later if we decide to extend this meta-block. */
   size_t mlen_storage_ix = *storage_ix + 3;
   StoreMetaBlockHeader(block_size, 0, storage_ix, storage);
   // No block splits, no contexts.
@@ -439,10 +440,10 @@ void BrotliCompressFragmentFast(const uint8_t* input, size_t input_size,
             storage_ix, storage);
 
  emit_commands:
-  // Initialize the command and distance histograms. We will gather
-  // statistics of command and distance codes during the processing
-  // of this block and use it to update the command and distance
-  // prefix codes for the next block.
+  /* Initialize the command and distance histograms. We will gather
+     statistics of command and distance codes during the processing
+     of this block and use it to update the command and distance
+     prefix codes for the next block. */
   uint32_t cmd_histo[128] = {
     0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 1, 1, 1, 1, 1,
     1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1,
@@ -466,31 +467,31 @@ void BrotliCompressFragmentFast(const uint8_t* input, size_t input_size,
   const size_t kInputMarginBytes = 16;
   const size_t kMinMatchLen = 5;
   if (PREDICT_TRUE(block_size >= kInputMarginBytes)) {
-    // For the last block, we need to keep a 16 bytes margin so that we can be
-    // sure that all distances are at most window size - 16.
-    // For all other blocks, we only need to keep a margin of 5 bytes so that
-    // we don't go over the block size with a copy.
+    /* For the last block, we need to keep a 16 bytes margin so that we can be
+       sure that all distances are at most window size - 16.
+       For all other blocks, we only need to keep a margin of 5 bytes so that
+       we don't go over the block size with a copy. */
     const size_t len_limit = std::min(block_size - kMinMatchLen,
                                       input_size - kInputMarginBytes);
     const uint8_t* ip_limit = input + len_limit;
 
     for (uint32_t next_hash = Hash(++ip, shift); ; ) {
       assert(next_emit < ip);
-      // Step 1: Scan forward in the input looking for a 5-byte-long match.
-      // If we get close to exhausting the input then goto emit_remainder.
-      //
-      // Heuristic match skipping: If 32 bytes are scanned with no matches
-      // found, start looking only at every other byte. If 32 more bytes are
-      // scanned, look at every third byte, etc.. When a match is found,
-      // immediately go back to looking at every byte. This is a small loss
-      // (~5% performance, ~0.1% density) for compressible data due to more
-      // bookkeeping, but for non-compressible data (such as JPEG) it's a huge
-      // win since the compressor quickly "realizes" the data is incompressible
-      // and doesn't bother looking for matches everywhere.
-      //
-      // The "skip" variable keeps track of how many bytes there are since the
-      // last match; dividing it by 32 (ie. right-shifting by five) gives the
-      // number of bytes to move ahead for each iteration.
+      /* Step 1: Scan forward in the input looking for a 5-byte-long match.
+         If we get close to exhausting the input then goto emit_remainder.
+
+         Heuristic match skipping: If 32 bytes are scanned with no matches
+         found, start looking only at every other byte. If 32 more bytes are
+         scanned, look at every third byte, etc.. When a match is found,
+         immediately go back to looking at every byte. This is a small loss
+         (~5% performance, ~0.1% density) for compressible data due to more
+         bookkeeping, but for non-compressible data (such as JPEG) it's a huge
+         win since the compressor quickly "realizes" the data is incompressible
+         and doesn't bother looking for matches everywhere.
+
+         The "skip" variable keeps track of how many bytes there are since the
+         last match; dividing it by 32 (ie. right-shifting by five) gives the
+         number of bytes to move ahead for each iteration. */
       uint32_t skip = 32;
 
       const uint8_t* next_ip = ip;
@@ -519,15 +520,15 @@ void BrotliCompressFragmentFast(const uint8_t* input, size_t input_size,
         table[hash] = static_cast<int>(ip - base_ip);
       } while (PREDICT_TRUE(!IsMatch(ip, candidate)));
 
-      // Step 2: Emit the found match together with the literal bytes from
-      // "next_emit" to the bit stream, and then see if we can find a next macth
-      // immediately afterwards. Repeat until we find no match for the input
-      // without emitting some literal bytes.
+      /* Step 2: Emit the found match together with the literal bytes from
+         "next_emit" to the bit stream, and then see if we can find a next macth
+         immediately afterwards. Repeat until we find no match for the input
+         without emitting some literal bytes. */
       uint64_t input_bytes;
 
       {
-        // We have a 5-byte match at ip, and we need to emit bytes in
-        // [next_emit, ip).
+        /* We have a 5-byte match at ip, and we need to emit bytes in
+           [next_emit, ip). */
         const uint8_t* base = ip;
         size_t matched = 5 + FindMatchLengthWithLimit(
             candidate + 5, ip + 5, static_cast<size_t>(ip_end - ip) - 5);
@@ -567,9 +568,9 @@ void BrotliCompressFragmentFast(const uint8_t* input, size_t input_size,
         if (PREDICT_FALSE(ip >= ip_limit)) {
           goto emit_remainder;
         }
-        // We could immediately start working at ip now, but to improve
-        // compression we first update "table" with the hashes of some positions
-        // within the last copy.
+        /* We could immediately start working at ip now, but to improve
+           compression we first update "table" with the hashes of some positions
+           within the last copy. */
         input_bytes = BROTLI_UNALIGNED_LOAD64(ip - 3);
         uint32_t prev_hash = HashBytesAtOffset(input_bytes, 0, shift);
         table[prev_hash] = static_cast<int>(ip - base_ip - 3);
@@ -584,8 +585,8 @@ void BrotliCompressFragmentFast(const uint8_t* input, size_t input_size,
       }
 
       while (IsMatch(ip, candidate)) {
-        // We have a 5-byte match at ip, and no need to emit any literal bytes
-        // prior to ip.
+        /* We have a 5-byte match at ip, and no need to emit any literal bytes
+           prior to ip. */
         const uint8_t* base = ip;
         size_t matched = 5 + FindMatchLengthWithLimit(
             candidate + 5, ip + 5, static_cast<size_t>(ip_end - ip) - 5);
@@ -601,9 +602,9 @@ void BrotliCompressFragmentFast(const uint8_t* input, size_t input_size,
         if (PREDICT_FALSE(ip >= ip_limit)) {
           goto emit_remainder;
         }
-        // We could immediately start working at ip now, but to improve
-        // compression we first update "table" with the hashes of some positions
-        // within the last copy.
+        /* We could immediately start working at ip now, but to improve
+           compression we first update "table" with the hashes of some positions
+           within the last copy. */
         input_bytes = BROTLI_UNALIGNED_LOAD64(ip - 3);
         uint32_t prev_hash = HashBytesAtOffset(input_bytes, 0, shift);
         table[prev_hash] = static_cast<int>(ip - base_ip - 3);
@@ -627,22 +628,22 @@ void BrotliCompressFragmentFast(const uint8_t* input, size_t input_size,
   input_size -= block_size;
   block_size = std::min(input_size, kMergeBlockSize);
 
-  // Decide if we want to continue this meta-block instead of emitting the
-  // last insert-only command.
+  /* Decide if we want to continue this meta-block instead of emitting the
+     last insert-only command. */
   if (input_size > 0 &&
       total_block_size + block_size <= (1 << 20) &&
       ShouldMergeBlock(input, block_size, lit_depth)) {
     assert(total_block_size > (1 << 16));
-    // Update the size of the current meta-block and continue emitting commands.
-    // We can do this because the current size and the new size both have 5
-    // nibbles.
+    /* Update the size of the current meta-block and continue emitting commands.
+       We can do this because the current size and the new size both have 5
+       nibbles. */
     total_block_size += block_size;
     UpdateBits(20, static_cast<uint32_t>(total_block_size - 1),
                mlen_storage_ix, storage);
     goto emit_commands;
   }
 
-  // Emit the remaining bytes as literals.
+  /* Emit the remaining bytes as literals. */
   if (next_emit < ip_end) {
     const size_t insert = static_cast<size_t>(ip_end - next_emit);
     if (PREDICT_TRUE(insert < 6210)) {
@@ -663,17 +664,17 @@ void BrotliCompressFragmentFast(const uint8_t* input, size_t input_size,
   next_emit = ip_end;
 
 next_block:
-  // If we have more data, write a new meta-block header and prefix codes and
-  // then continue emitting commands.
+  /* If we have more data, write a new meta-block header and prefix codes and
+     then continue emitting commands. */
   if (input_size > 0) {
     metablock_start = input;
     block_size = std::min(input_size, kFirstBlockSize);
     total_block_size = block_size;
-    // Save the bit position of the MLEN field of the meta-block header, so that
-    // we can update it later if we decide to extend this meta-block.
+    /* Save the bit position of the MLEN field of the meta-block header, so that
+       we can update it later if we decide to extend this meta-block. */
     mlen_storage_ix = *storage_ix + 3;
     StoreMetaBlockHeader(block_size, 0, storage_ix, storage);
-    // No block splits, no contexts.
+    /* No block splits, no contexts. */
     WriteBits(13, 0, storage_ix, storage);
     memset(lit_depth, 0, sizeof(lit_depth));
     memset(lit_bits, 0, sizeof(lit_bits));
@@ -685,12 +686,12 @@ next_block:
   }
 
   if (is_last) {
-    WriteBits(1, 1, storage_ix, storage);  // islast
-    WriteBits(1, 1, storage_ix, storage);  // isempty
+    WriteBits(1, 1, storage_ix, storage);  /* islast */
+    WriteBits(1, 1, storage_ix, storage);  /* isempty */
     *storage_ix = (*storage_ix + 7u) & ~7u;
   } else {
-    // If this is not the last block, update the command and distance prefix
-    // codes for the next block and store the compressed forms.
+    /* If this is not the last block, update the command and distance prefix
+       codes for the next block and store the compressed forms. */
     cmd_code[0] = 0;
     *cmd_code_numbits = 0;
     BuildAndStoreCommandPrefixCode(cmd_histo, cmd_depth, cmd_bits,

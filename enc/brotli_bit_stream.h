@@ -4,14 +4,14 @@
    See file LICENSE for detail or copy at https://opensource.org/licenses/MIT
 */
 
-// Functions to convert brotli-related data structures into the
-// brotli bit stream. The functions here operate under
-// assumption that there is enough space in the storage, i.e., there are
-// no out-of-range checks anywhere.
-//
-// These functions do bit addressing into a byte array. The byte array
-// is called "storage" and the index to the bit is called storage_ix
-// in function arguments.
+/* Functions to convert brotli-related data structures into the
+   brotli bit stream. The functions here operate under
+   assumption that there is enough space in the storage, i.e., there are
+   no out-of-range checks anywhere.
+
+   These functions do bit addressing into a byte array. The byte array
+   is called "storage" and the index to the bit is called storage_ix
+   in function arguments. */
 
 #ifndef BROTLI_ENC_BROTLI_BIT_STREAM_H_
 #define BROTLI_ENC_BROTLI_BIT_STREAM_H_
@@ -24,8 +24,8 @@
 
 namespace brotli {
 
-// All Store functions here will use a storage_ix, which is always the bit
-// position for the current storage.
+/* All Store functions here will use a storage_ix, which is always the bit
+   position for the current storage. */
 
 // Stores a number between 0 and 255.
 void StoreVarLenUint8(size_t n, size_t* storage_ix, uint8_t* storage);
@@ -114,8 +114,8 @@ void StoreBlockSwitch(const BlockSplitCode& code,
                       size_t* storage_ix,
                       uint8_t* storage);
 
-// REQUIRES: length > 0
-// REQUIRES: length <= (1 << 24)
+/* REQUIRES: length > 0 */
+/* REQUIRES: length <= (1 << 24) */
 void StoreMetaBlock(const uint8_t* input,
                     size_t start_pos,
                     size_t length,
@@ -132,10 +132,10 @@ void StoreMetaBlock(const uint8_t* input,
                     size_t *storage_ix,
                     uint8_t *storage);
 
-// Stores the meta-block without doing any block splitting, just collects
-// one histogram per block category and uses that for entropy coding.
-// REQUIRES: length > 0
-// REQUIRES: length <= (1 << 24)
+/* Stores the meta-block without doing any block splitting, just collects
+   one histogram per block category and uses that for entropy coding.
+   REQUIRES: length > 0
+   REQUIRES: length <= (1 << 24) */
 void StoreMetaBlockTrivial(const uint8_t* input,
                            size_t start_pos,
                            size_t length,
@@ -146,10 +146,10 @@ void StoreMetaBlockTrivial(const uint8_t* input,
                            size_t *storage_ix,
                            uint8_t *storage);
 
-// Same as above, but uses static prefix codes for histograms with a only a few
-// symbols, and uses static code length prefix codes for all other histograms.
-// REQUIRES: length > 0
-// REQUIRES: length <= (1 << 24)
+/* Same as above, but uses static prefix codes for histograms with a only a few
+   symbols, and uses static code length prefix codes for all other histograms.
+   REQUIRES: length > 0
+   REQUIRES: length <= (1 << 24) */
 void StoreMetaBlockFast(const uint8_t* input,
                         size_t start_pos,
                         size_t length,
@@ -160,10 +160,10 @@ void StoreMetaBlockFast(const uint8_t* input,
                         size_t *storage_ix,
                         uint8_t *storage);
 
-// This is for storing uncompressed blocks (simple raw storage of
-// bytes-as-bytes).
-// REQUIRES: length > 0
-// REQUIRES: length <= (1 << 24)
+/* This is for storing uncompressed blocks (simple raw storage of
+   bytes-as-bytes).
+   REQUIRES: length > 0
+   REQUIRES: length <= (1 << 24) */
 void StoreUncompressedMetaBlock(bool final_block,
                                 const uint8_t* input,
                                 size_t position, size_t mask,
@@ -171,9 +171,9 @@ void StoreUncompressedMetaBlock(bool final_block,
                                 size_t* storage_ix,
                                 uint8_t* storage);
 
-// Stores an empty metadata meta-block and syncs to a byte boundary.
+/* Stores an empty metadata meta-block and syncs to a byte boundary. */
 void StoreSyncMetaBlock(size_t* storage_ix, uint8_t* storage);
 
 }  // namespace brotli
 
-#endif  // BROTLI_ENC_BROTLI_BIT_STREAM_H_
+#endif  /* BROTLI_ENC_BROTLI_BIT_STREAM_H_ */

@@ -4,7 +4,7 @@
    See file LICENSE for detail or copy at https://opensource.org/licenses/MIT
 */
 
-// Block split point selection utilities.
+/* Block split point selection utilities. */
 
 #include "./block_splitter.h"
 
@@ -42,7 +42,7 @@ void CopyLiteralsToByteArray(const Command* cmds,
                              const size_t offset,
                              const size_t mask,
                              std::vector<uint8_t>* literals) {
-  // Count how many we have.
+  /* Count how many we have. */
   size_t total_length = 0;
   for (size_t i = 0; i < num_commands; ++i) {
     total_length += cmds[i].insert_len_;
@@ -456,11 +456,11 @@ void SplitBlock(const Command* cmds,
                 BlockSplit* insert_and_copy_split,
                 BlockSplit* dist_split) {
   {
-    // Create a continuous array of literals.
+    /* Create a continuous array of literals. */
     std::vector<uint8_t> literals;
     CopyLiteralsToByteArray(cmds, num_commands, data, pos, mask, &literals);
-    // Create the block split on the array of literals.
-    // Literal histograms have alphabet size 256.
+    /* Create the block split on the array of literals.
+       Literal histograms have alphabet size 256. */
     SplitByteVector<256>(
         literals,
         kSymbolsPerLiteralHistogram, kMaxLiteralHistograms,
@@ -469,12 +469,12 @@ void SplitBlock(const Command* cmds,
   }
 
   {
-    // Compute prefix codes for commands.
+    /* Compute prefix codes for commands. */
     std::vector<uint16_t> insert_and_copy_codes(num_commands);
     for (size_t i = 0; i < num_commands; ++i) {
       insert_and_copy_codes[i] = cmds[i].cmd_prefix_;
     }
-    // Create the block split on the array of command prefixes.
+    /* Create the block split on the array of command prefixes. */
     SplitByteVector<kNumCommandPrefixes>(
         insert_and_copy_codes,
         kSymbolsPerCommandHistogram, kMaxCommandHistograms,
@@ -483,7 +483,7 @@ void SplitBlock(const Command* cmds,
   }
 
   {
-    // Create a continuous array of distance prefixes.
+    /* Create a continuous array of distance prefixes. */
     std::vector<uint16_t> distance_prefixes(num_commands);
     size_t pos = 0;
     for (size_t i = 0; i < num_commands; ++i) {
@@ -493,7 +493,7 @@ void SplitBlock(const Command* cmds,
       }
     }
     distance_prefixes.resize(pos);
-    // Create the block split on the array of distance prefixes.
+    /* Create the block split on the array of distance prefixes. */
     SplitByteVector<kNumDistancePrefixes>(
         distance_prefixes,
         kSymbolsPerDistanceHistogram, kMaxCommandHistograms,

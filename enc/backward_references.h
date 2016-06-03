@@ -4,7 +4,7 @@
    See file LICENSE for detail or copy at https://opensource.org/licenses/MIT
 */
 
-// Function to find backward reference copies.
+/* Function to find backward reference copies. */
 
 #ifndef BROTLI_ENC_BACKWARD_REFERENCES_H_
 #define BROTLI_ENC_BACKWARD_REFERENCES_H_
@@ -17,10 +17,10 @@
 
 namespace brotli {
 
-// "commands" points to the next output command to write to, "*num_commands" is
-// initially the total amount of commands output by previous
-// CreateBackwardReferences calls, and must be incremented by the amount written
-// by this call.
+/* "commands" points to the next output command to write to, "*num_commands" is
+   initially the total amount of commands output by previous
+   CreateBackwardReferences calls, and must be incremented by the amount written
+   by this call. */
 void CreateBackwardReferences(size_t num_bytes,
                               size_t position,
                               bool is_last,
@@ -66,31 +66,32 @@ struct ZopfliNode {
     return copy_length() + insert_length;
   }
 
-  // best length to get up to this byte (not including this byte itself)
-  // highest 8 bit is used to reconstruct the length code
+  /* best length to get up to this byte (not including this byte itself)
+     highest 8 bit is used to reconstruct the length code */
   uint32_t length;
-  // distance associated with the length
-  // highest 7 bit contains distance short code + 1 (or zero if no short code)
+  /* distance associated with the length
+     highest 7 bit contains distance short code + 1 (or zero if no short code)
+  */
   uint32_t distance;
-  // number of literal inserts before this copy
+  /* number of literal inserts before this copy */
   uint32_t insert_length;
-  // smallest cost to get to this byte from the beginning, as found so far
+    /* Smallest cost to get to this byte from the beginning, as found so far. */
   float cost;
 };
 
-// Computes the shortest path of commands from position to at most
-// position + num_bytes.
-//
-// On return, path->size() is the number of commands found and path[i] is the
-// length of the ith command (copy length plus insert length).
-// Note that the sum of the lengths of all commands can be less than num_bytes.
-//
-// On return, the nodes[0..num_bytes] array will have the following
-// "ZopfliNode array invariant":
-// For each i in [1..num_bytes], if nodes[i].cost < kInfinity, then
-//   (1) nodes[i].copy_length() >= 2
-//   (2) nodes[i].command_length() <= i and
-//   (3) nodes[i - nodes[i].command_length()].cost < kInfinity
+/* Computes the shortest path of commands from position to at most
+   position + num_bytes.
+
+   On return, path->size() is the number of commands found and path[i] is the
+   length of the ith command (copy length plus insert length).
+   Note that the sum of the lengths of all commands can be less than num_bytes.
+
+   On return, the nodes[0..num_bytes] array will have the following
+   "ZopfliNode array invariant":
+   For each i in [1..num_bytes], if nodes[i].cost < kInfinity, then
+     (1) nodes[i].copy_length() >= 2
+     (2) nodes[i].command_length() <= i and
+     (3) nodes[i - nodes[i].command_length()].cost < kInfinity */
 void ZopfliComputeShortestPath(size_t num_bytes,
                                size_t position,
                                const uint8_t* ringbuffer,
@@ -113,4 +114,4 @@ void ZopfliCreateCommands(const size_t num_bytes,
 
 }  // namespace brotli
 
-#endif  // BROTLI_ENC_BACKWARD_REFERENCES_H_
+#endif  /* BROTLI_ENC_BACKWARD_REFERENCES_H_ */

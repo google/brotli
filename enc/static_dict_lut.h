@@ -4,7 +4,7 @@
    See file LICENSE for detail or copy at https://opensource.org/licenses/MIT
 */
 
-// Lookup table for static dictionary and transforms.
+/* Lookup table for static dictionary and transforms. */
 
 #ifndef BROTLI_ENC_DICTIONARY_LUT_H_
 #define BROTLI_ENC_DICTIONARY_LUT_H_
@@ -13,8 +13,8 @@
 
 namespace brotli {
 
-static const int kDictNumBits = 15
-;static const uint32_t kDictHashMul32 = 0x1e35a7bd;
+static const int kDictNumBits = 15;
+static const uint32_t kDictHashMul32 = 0x1e35a7bd;
 
 struct DictWord {
   uint8_t len;
@@ -12052,4 +12052,4 @@ static const DictWord kStaticDictionaryWords[] = {
 
 }  // namespace brotli
 
-#endif  // BROTLI_ENC_DICTIONARY_LUT_H_
+#endif  /* BROTLI_ENC_STATIC_DICT_LUT_H_ */

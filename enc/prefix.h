@@ -4,8 +4,8 @@
    See file LICENSE for detail or copy at https://opensource.org/licenses/MIT
 */
 
-// Functions for encoding of integers into prefix codes the amount of extra
-// bits, and the actual values of the extra bits.
+/* Functions for encoding of integers into prefix codes the amount of extra
+   bits, and the actual values of the extra bits. */
 
 #ifndef BROTLI_ENC_PREFIX_H_
 #define BROTLI_ENC_PREFIX_H_
@@ -76,4 +76,4 @@ inline void PrefixEncodeCopyDistance(size_t distance_code,
 
 }  // namespace brotli
 
-#endif  // BROTLI_ENC_PREFIX_H_
+#endif  /* BROTLI_ENC_PREFIX_H_ */

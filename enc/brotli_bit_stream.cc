@@ -4,9 +4,9 @@
    See file LICENSE for detail or copy at https://opensource.org/licenses/MIT
 */
 
-// Brotli bit stream functions to support the low level format. There are no
-// compression algorithms here, just the right ordering of bits to match the
-// specs.
+/* Brotli bit stream functions to support the low level format. There are no
+   compression algorithms here, just the right ordering of bits to match the
+   specs. */
 
 #include "./brotli_bit_stream.h"
 
@@ -16,6 +16,7 @@
 #include <limits>
 #include <vector>
 
+#include "../common/types.h"
 #include "./bit_cost.h"
 #include "./context.h"
 #include "./entropy_encode.h"
@@ -34,9 +35,9 @@ static const size_t kContextMapAlphabetSize = 256 + 16;
 // Block type alphabet has 256 block id symbols plus 2 special symbols.
 static const size_t kBlockTypeAlphabetSize = 256 + 2;
 
-// nibblesbits represents the 2 bits to encode MNIBBLES (0-3)
-// REQUIRES: length > 0
-// REQUIRES: length <= (1 << 24)
+/* nibblesbits represents the 2 bits to encode MNIBBLES (0-3)
+   REQUIRES: length > 0
+   REQUIRES: length <= (1 << 24) */
 void EncodeMlen(size_t length, uint64_t* bits,
                 size_t* numbits, uint64_t* nibblesbits) {
   assert(length > 0);
@@ -76,13 +77,16 @@ void StoreVarLenUint8(size_t n, size_t* storage_ix, uint8_t* storage) {
   }
 }
 
+/* Stores the compressed meta-block header.
+   REQUIRES: length > 0
+   REQUIRES: length <= (1 << 24) */
 void StoreCompressedMetaBlockHeader(bool final_block,
                                     size_t length,
                                     size_t* storage_ix,
                                     uint8_t* storage) {
-  // Write ISLAST bit.
+  /* Write ISLAST bit. */
   WriteBits(1, final_block, storage_ix, storage);
-  // Write ISEMPTY bit.
+  /* Write ISEMPTY bit. */
   if (final_block) {
     WriteBits(1, 0, storage_ix, storage);
   }
@@ -95,15 +99,19 @@ void StoreCompressedMetaBlockHeader(bool final_block,
   WriteBits(nlenbits, lenbits, storage_ix, storage);
 
   if (!final_block) {
-    // Write ISUNCOMPRESSED bit.
+    /* Write ISUNCOMPRESSED bit. */
     WriteBits(1, 0, storage_ix, storage);
   }
 }
 
+/* Stores the uncompressed meta-block header.
+   REQUIRES: length > 0
+   REQUIRES: length <= (1 << 24) */
 void StoreUncompressedMetaBlockHeader(size_t length,
                                       size_t* storage_ix,
                                       uint8_t* storage) {
-  // Write ISLAST bit. Uncompressed block cannot be the last one, so set to 0.
+  /* Write ISLAST bit.
+     Uncompressed block cannot be the last one, so set to 0. */
   WriteBits(1, 0, storage_ix, storage);
   uint64_t lenbits;
   size_t nlenbits;
@@ -111,7 +119,7 @@ void StoreUncompressedMetaBlockHeader(size_t length,
   EncodeMlen(length, &lenbits, &nlenbits, &nibblesbits);
   WriteBits(2, nibblesbits, storage_ix, storage);
   WriteBits(nlenbits, lenbits, storage_ix, storage);
-  // Write ISUNCOMPRESSED bit.
+  /* Write ISUNCOMPRESSED bit. */
   WriteBits(1, 1, storage_ix, storage);
 }
 
@@ -123,16 +131,16 @@ void StoreHuffmanTreeOfHuffmanTreeToBitMask(
   static const uint8_t kStorageOrder[kCodeLengthCodes] = {
     1, 2, 3, 4, 0, 5, 17, 6, 16, 7, 8, 9, 10, 11, 12, 13, 14, 15
   };
-  // The bit lengths of the Huffman code over the code length alphabet
-  // are compressed with the following static Huffman code:
-  //   Symbol   Code
-  //   ------   ----
-  //   0          00
-  //   1        1110
-  //   2         110
-  //   3          01
-  //   4          10
-  //   5        1111
+  /* The bit lengths of the Huffman code over the code length alphabet
+     are compressed with the following static Huffman code:
+       Symbol   Code
+       ------   ----
+       0          00
+       1        1110
+       2         110
+       3          01
+       4          10
+       5        1111 */
   static const uint8_t kHuffmanBitLengthHuffmanCodeSymbols[6] = {
      0, 7, 3, 2, 1, 15
   };
@@ -140,7 +148,7 @@ void StoreHuffmanTreeOfHuffmanTreeToBitMask(
     2, 4, 3, 2, 2, 4
   };
 
-  // Throw away trailing zeros:
+  /* Throw away trailing zeros: */
   size_t codes_to_store = kCodeLengthCodes;
   if (num_codes > 1) {
     for (; codes_to_store > 0; --codes_to_store) {
@@ -149,12 +157,12 @@ void StoreHuffmanTreeOfHuffmanTreeToBitMask(
       }
     }
   }
-  size_t skip_some = 0;  // skips none.
+  size_t skip_some = 0;  /* skips none. */
   if (code_length_bitdepth[kStorageOrder[0]] == 0 &&
       code_length_bitdepth[kStorageOrder[1]] == 0) {
-    skip_some = 2;  // skips two.
+    skip_some = 2;  /* skips two. */
     if (code_length_bitdepth[kStorageOrder[2]] == 0) {
-      skip_some = 3;  // skips three.
+      skip_some = 3;  /* skips three. */
     }
   }
   WriteBits(2, skip_some, storage_ix, storage);
@@ -177,7 +185,7 @@ static void StoreHuffmanTreeToBitMask(
     size_t ix = huffman_tree[i];
     WriteBits(code_length_bitdepth[ix], code_length_bitdepth_symbols[ix],
               storage_ix, storage);
-    // Extra bits
+    /* Extra bits */
     switch (ix) {
       case 16:
         WriteBits(2, huffman_tree_extra_bits[i], storage_ix, storage);
@@ -194,11 +202,11 @@ static void StoreSimpleHuffmanTree(const uint8_t* depths,
                                    size_t num_symbols,
                                    size_t max_bits,
                                    size_t *storage_ix, uint8_t *storage) {
-  // value of 1 indicates a simple Huffman code
+  /* value of 1 indicates a simple Huffman code */
   WriteBits(2, 1, storage_ix, storage);
-  WriteBits(2, num_symbols - 1, storage_ix, storage);  // NSYM - 1
+  WriteBits(2, num_symbols - 1, storage_ix, storage);  /* NSYM - 1 */
 
-  // Sort
+    /* Sort */
   for (size_t i = 0; i < num_symbols; i++) {
     for (size_t j = i + 1; j < num_symbols; j++) {
       if (depths[symbols[j]] < depths[symbols[i]]) {
@@ -219,19 +227,19 @@ static void StoreSimpleHuffmanTree(const uint8_t* depths,
     WriteBits(max_bits, symbols[1], storage_ix, storage);
     WriteBits(max_bits, symbols[2], storage_ix, storage);
     WriteBits(max_bits, symbols[3], storage_ix, storage);
-    // tree-select
+    /* tree-select */
     WriteBits(1, depths[symbols[0]] == 1 ? 1 : 0, storage_ix, storage);
   }
 }
 
-// num = alphabet size
-// depths = symbol depths
+/* num = alphabet size
+   depths = symbol depths */
 void StoreHuffmanTree(const uint8_t* depths, size_t num,
                       HuffmanTree* tree,
                       size_t *storage_ix, uint8_t *storage) {
-  // Write the Huffman tree into the brotli-representation.
-  // The command alphabet is the largest, so this allocation will fit all
-  // alphabets.
+  /* Write the Huffman tree into the brotli-representation.
+     The command alphabet is the largest, so this allocation will fit all
+     alphabets. */
   assert(num <= kNumCommandPrefixes);
   uint8_t huffman_tree[kNumCommandPrefixes];
   uint8_t huffman_tree_extra_bits[kNumCommandPrefixes];
@@ -239,7 +247,7 @@ void StoreHuffmanTree(const uint8_t* depths, size_t num,
   WriteHuffmanTree(depths, num, &huffman_tree_size, huffman_tree,
                    huffman_tree_extra_bits);
 
-  // Calculate the statistics of the Huffman tree in brotli-representation.
+  /* Calculate the statistics of the Huffman tree in brotli-representation. */
   uint32_t huffman_tree_histogram[kCodeLengthCodes] = { 0 };
   for (size_t i = 0; i < huffman_tree_size; ++i) {
     ++huffman_tree_histogram[huffman_tree[i]];
@@ -259,8 +267,8 @@ void StoreHuffmanTree(const uint8_t* depths, size_t num,
     }
   }
 
-  // Calculate another Huffman tree to use for compressing both the
-  // earlier Huffman tree with.
+  /* Calculate another Huffman tree to use for compressing both the
+     earlier Huffman tree with. */
   uint8_t code_length_bitdepth[kCodeLengthCodes] = { 0 };
   uint16_t code_length_bitdepth_symbols[kCodeLengthCodes] = { 0 };
   CreateHuffmanTree(&huffman_tree_histogram[0], kCodeLengthCodes,
@@ -268,7 +276,7 @@ void StoreHuffmanTree(const uint8_t* depths, size_t num,
   ConvertBitDepthsToSymbols(code_length_bitdepth, kCodeLengthCodes,
                             &code_length_bitdepth_symbols[0]);
 
-  // Now, we have all the data, let's start storing it
+  /* Now, we have all the data, let's start storing it */
   StoreHuffmanTreeOfHuffmanTreeToBitMask(num_codes, code_length_bitdepth,
                                          storage_ix, storage);
 
@@ -276,7 +284,7 @@ void StoreHuffmanTree(const uint8_t* depths, size_t num,
     code_length_bitdepth[code] = 0;
   }
 
-  // Store the real huffman tree now.
+  /* Store the real huffman tree now. */
   StoreHuffmanTreeToBitMask(huffman_tree_size,
                             huffman_tree,
                             huffman_tree_extra_bits,
@@ -285,6 +293,8 @@ void StoreHuffmanTree(const uint8_t* depths, size_t num,
                             storage_ix, storage);
 }
 
+/* Builds a Huffman tree from histogram[0:length] into depth[0:length] and
+   bits[0:length] and stores the encoded tree to the bit stream. */
 void BuildAndStoreHuffmanTree(const uint32_t *histogram,
                               const size_t length,
                               HuffmanTree* tree,
@@ -379,13 +389,13 @@ void BuildAndStoreHuffmanTreeFast(const uint32_t *histogram,
     }
     const int n = static_cast<int>(node - tree);
     std::sort(tree, node, SortHuffmanTree);
-    // The nodes are:
-    // [0, n): the sorted leaf nodes that we start with.
-    // [n]: we add a sentinel here.
-    // [n + 1, 2n): new parent nodes are added here, starting from
-    //              (n+1). These are naturally in ascending order.
-    // [2n]: we add a sentinel at the end as well.
-    // There will be (2n+1) elements at the end.
+        /* The nodes are:
+           [0, n): the sorted leaf nodes that we start with.
+           [n]: we add a sentinel here.
+           [n + 1, 2n): new parent nodes are added here, starting from
+                        (n+1). These are naturally in ascending order.
+           [2n]: we add a sentinel at the end as well.
+           There will be (2n+1) elements at the end. */
     const HuffmanTree sentinel(std::numeric_limits<int>::max(), -1, -1);
     *node++ = sentinel;
     *node++ = sentinel;
@@ -408,18 +418,17 @@ void BuildAndStoreHuffmanTreeFast(const uint32_t *histogram,
         right = j;
         ++j;
       }
-      // The sentinel node becomes the parent node.
+          /* The sentinel node becomes the parent node. */
       node[-1].total_count_ =
           tree[left].total_count_ + tree[right].total_count_;
       node[-1].index_left_ = static_cast<int16_t>(left);
       node[-1].index_right_or_value_ = static_cast<int16_t>(right);
-      // Add back the last sentinel node.
+          /* Add back the last sentinel node. */
       *node++ = sentinel;
     }
     SetDepth(tree[2 * n - 1], &tree[0], depth, 0);
-    // We need to pack the Huffman tree in 14 bits.
-    // If this was not successful, add fake entities to the lowest values
-    // and retry.
+          /* We need to pack the Huffman tree in 14 bits. If this was not
+             successful, add fake entities to the lowest values and retry. */
     if (PREDICT_TRUE(*std::max_element(&depth[0], &depth[length]) <= 14)) {
       break;
     }
@@ -427,11 +436,11 @@ void BuildAndStoreHuffmanTreeFast(const uint32_t *histogram,
   free(tree);
   ConvertBitDepthsToSymbols(depth, length, bits);
   if (count <= 4) {
-    // value of 1 indicates a simple Huffman code
+    /* value of 1 indicates a simple Huffman code */
     WriteBits(2, 1, storage_ix, storage);
-    WriteBits(2, count - 1, storage_ix, storage);  // NSYM - 1
+    WriteBits(2, count - 1, storage_ix, storage);  /* NSYM - 1 */
 
-    // Sort
+    /* Sort */
     for (size_t i = 0; i < count; i++) {
       for (size_t j = i + 1; j < count; j++) {
         if (depth[symbols[j]] < depth[symbols[i]]) {
@@ -452,14 +461,14 @@ void BuildAndStoreHuffmanTreeFast(const uint32_t *histogram,
       WriteBits(max_bits, symbols[1], storage_ix, storage);
       WriteBits(max_bits, symbols[2], storage_ix, storage);
       WriteBits(max_bits, symbols[3], storage_ix, storage);
-      // tree-select
+      /* tree-select */
       WriteBits(1, depth[symbols[0]] == 1 ? 1 : 0, storage_ix, storage);
     }
   } else {
-    // Complex Huffman Tree
+    /* Complex Huffman Tree */
     StoreStaticCodeLengthCode(storage_ix, storage);
 
-    // Actual rle coding.
+    /* Actual rle coding. */
     uint8_t previous_value = 8;
     for (size_t i = 0; i < length;) {
       const uint8_t value = depth[i];
@@ -531,12 +540,12 @@ static void MoveToFrontTransform(const uint32_t* __restrict v_in,
   }
 }
 
-// Finds runs of zeros in v[0..in_size) and replaces them with a prefix code of
-// the run length plus extra bits (lower 9 bits is the prefix code and the rest
-// are the extra bits). Non-zero values in v[] are shifted by
-// *max_length_prefix. Will not create prefix codes bigger than the initial
-// value of *max_run_length_prefix. The prefix code of run length L is simply
-// Log2Floor(L) and the number of extra bits is the same as the prefix code.
+/* Finds runs of zeros in v[0..in_size) and replaces them with a prefix code of
+   the run length plus extra bits (lower 9 bits is the prefix code and the rest
+   are the extra bits). Non-zero values in v[] are shifted by
+   *max_length_prefix. Will not create prefix codes bigger than the initial
+   value of *max_run_length_prefix. The prefix code of run length L is simply
+   Log2Floor(L) and the number of extra bits is the same as the prefix code. */
 static void RunLengthCodeZeros(const size_t in_size,
                                uint32_t* __restrict v,
                                size_t* __restrict out_size,
@@ -630,6 +639,7 @@ void EncodeContextMap(const std::vector<uint32_t>& context_map,
   delete[] rle_symbols;
 }
 
+/* Stores the block switch command with index block_ix to the bit stream. */
 void StoreBlockSwitch(const BlockSplitCode& code,
                       const size_t block_ix,
                       size_t* storage_ix,
@@ -646,6 +656,8 @@ void StoreBlockSwitch(const BlockSplitCode& code,
             storage_ix, storage);
 }
 
+/* Builds a BlockSplitCode data structure from the block split given by the
+   vector of block types and block lengths and stores it to the bit stream. */
 static void BuildAndStoreBlockSplitCode(const std::vector<uint8_t>& types,
                                         const std::vector<uint32_t>& lengths,
                                         const size_t num_types,
@@ -695,6 +707,7 @@ static void BuildAndStoreBlockSplitCode(const std::vector<uint8_t>& types,
   }
 }
 
+/* Stores a context map where the histogram type is always the block type. */
 void StoreTrivialContextMap(size_t num_types,
                             size_t context_bits,
                             HuffmanTree* tree,
@@ -711,7 +724,7 @@ void StoreTrivialContextMap(size_t num_types,
     memset(histogram, 0, alphabet_size * sizeof(histogram[0]));
     memset(depths, 0, alphabet_size * sizeof(depths[0]));
     memset(bits, 0, alphabet_size * sizeof(bits[0]));
-    // Write RLEMAX.
+    /* Write RLEMAX. */
     WriteBits(1, 1, storage_ix, storage);
     WriteBits(4, repeat_code - 1, storage_ix, storage);
     histogram[repeat_code] = static_cast<uint32_t>(num_types);
@@ -728,12 +741,12 @@ void StoreTrivialContextMap(size_t num_types,
       WriteBits(depths[repeat_code], bits[repeat_code], storage_ix, storage);
       WriteBits(repeat_code, repeat_bits, storage_ix, storage);
     }
-    // Write IMTF (inverse-move-to-front) bit.
+    /* Write IMTF (inverse-move-to-front) bit. */
     WriteBits(1, 1, storage_ix, storage);
   }
 }
 
-// Manages the encoding of one block category (literal, command or distance).
+/* Manages the encoding of one block category (literal, command or distance). */
 class BlockEncoder {
  public:
   BlockEncoder(size_t alphabet_size,
@@ -748,8 +761,8 @@ class BlockEncoder {
         block_len_(block_lengths.empty() ? 0 : block_lengths[0]),
         entropy_ix_(0) {}
 
-  // Creates entropy codes of block lengths and block types and stores them
-  // to the bit stream.
+/* Creates entropy codes of block lengths and block types and stores them
+   to the bit stream. */
   void BuildAndStoreBlockSwitchEntropyCodes(HuffmanTree* tree,
                                             size_t* storage_ix,
                                             uint8_t* storage) {
@@ -776,8 +789,8 @@ class BlockEncoder {
     }
   }
 
-  // Stores the next symbol with the entropy code of the current block type.
-  // Updates the block type and block length at block boundaries.
+/* Stores the next symbol with the entropy code of the current block type.
+   Updates the block type and block length at block boundaries. */
   void StoreSymbol(size_t symbol, size_t* storage_ix, uint8_t* storage) {
     if (block_len_ == 0) {
       ++block_ix_;
@@ -790,9 +803,9 @@ class BlockEncoder {
     WriteBits(depths_[ix], bits_[ix], storage_ix, storage);
   }
 
-  // Stores the next symbol with the entropy code of the current block type and
-  // context value.
-  // Updates the block type and block length at block boundaries.
+/* Stores the next symbol with the entropy code of the current block type and
+   context value.
+   Updates the block type and block length at block boundaries. */
   template<int kContextBits>
   void StoreSymbolWithContext(size_t symbol, size_t context,
                               const std::vector<uint32_t>& context_map,
@@ -1132,8 +1145,8 @@ void StoreMetaBlockFast(const uint8_t* input,
   }
 }
 
-// This is for storing uncompressed blocks (simple raw storage of
-// bytes-as-bytes).
+/* This is for storing uncompressed blocks (simple raw storage of
+   bytes-as-bytes). */
 void StoreUncompressedMetaBlock(bool final_block,
                                 const uint8_t * __restrict input,
                                 size_t position, size_t mask,
@@ -1154,15 +1167,15 @@ void StoreUncompressedMetaBlock(bool final_block,
   memcpy(&storage[*storage_ix >> 3], &input[masked_pos], len);
   *storage_ix += len << 3;
 
-  // We need to clear the next 4 bytes to continue to be
-  // compatible with WriteBits.
+  /* We need to clear the next 4 bytes to continue to be
+     compatible with BrotliWriteBits. */
   brotli::WriteBitsPrepareStorage(*storage_ix, storage);
 
-  // Since the uncompressed block itself may not be the final block, add an
-  // empty one after this.
+  /* Since the uncompressed block itself may not be the final block, add an
+     empty one after this. */
   if (final_block) {
-    brotli::WriteBits(1, 1, storage_ix, storage);  // islast
-    brotli::WriteBits(1, 1, storage_ix, storage);  // isempty
+    brotli::WriteBits(1, 1, storage_ix, storage);  /* islast */
+    brotli::WriteBits(1, 1, storage_ix, storage);  /* isempty */
     JumpToByteBoundary(storage_ix, storage);
   }
 }

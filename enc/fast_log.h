@@ -4,7 +4,7 @@
    See file LICENSE for detail or copy at https://opensource.org/licenses/MIT
 */
 
-// Utilities for fast computation of logarithms.
+/* Utilities for fast computation of logarithms. */
 
 #ifndef BROTLI_ENC_FAST_LOG_H_
 #define BROTLI_ENC_FAST_LOG_H_
@@ -26,10 +26,10 @@ static inline uint32_t Log2FloorNonZero(size_t n) {
 #endif
 }
 
-// A lookup table for small values of log2(int) to be used in entropy
-// computation.
-//
-// ", ".join(["%.16ff" % x for x in [0.0]+[log2(x) for x in range(1, 256)]])
+/* A lookup table for small values of log2(int) to be used in entropy
+   computation.
+
+   ", ".join(["%.16ff" % x for x in [0.0]+[log2(x) for x in range(1, 256)]]) */
 static const float kLog2Table[] = {
   0.0000000000000000f, 0.0000000000000000f, 1.0000000000000000f,
   1.5849625007211563f, 2.0000000000000000f, 2.3219280948873622f,
@@ -119,14 +119,15 @@ static const float kLog2Table[] = {
   7.9943534368588578f
 };
 
-// Faster logarithm for small integers, with the property of log2(0) == 0.
+/* Faster logarithm for small integers, with the property of log2(0) == 0. */
 static inline double FastLog2(size_t v) {
   if (v < sizeof(kLog2Table) / sizeof(kLog2Table[0])) {
     return kLog2Table[v];
   }
-#if defined(_MSC_VER) && _MSC_VER <= 1700
-  // Visual Studio 2012 does not have the log2() function defined, so we use
-  // log() and a multiplication instead.
+#if (defined(_MSC_VER) && _MSC_VER <= 1600) || \
+    (defined(__ANDROID_API__) && __ANDROID_API__ < 18)
+  /* Visual Studio 2010 and Android API levels < 18 do not have the log2()
+   * function defined, so we use log() and a multiplication instead. */
   static const double kLog2Inv = 1.4426950408889634f;
   return log(static_cast<double>(v)) * kLog2Inv;
 #else
@@ -136,4 +137,4 @@ static inline double FastLog2(size_t v) {
 
 }  // namespace brotli
 
-#endif  // BROTLI_ENC_FAST_LOG_H_
+#endif  /* BROTLI_ENC_FAST_LOG_H_ */
