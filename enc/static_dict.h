@@ -4,7 +4,7 @@
    See file LICENSE for detail or copy at https://opensource.org/licenses/MIT
 */
 
-// Class to model the static dictionary.
+/* Class to model the static dictionary. */
 
 #ifndef BROTLI_ENC_STATIC_DICT_H_
 #define BROTLI_ENC_STATIC_DICT_H_
@@ -16,12 +16,13 @@ namespace brotli {
 static const size_t kMaxDictionaryMatchLen = 37;
 static const uint32_t kInvalidMatch = 0xfffffff;
 
-// Matches data against static dictionary words, and for each length l,
-// for which a match is found, updates matches[l] to be the minimum possible
-//   (distance << 5) + len_code.
-// Prerequisites:
-//   matches array is at least kMaxDictionaryMatchLen + 1 long
-//   all elements are initialized to kInvalidMatch
+/* Matches data against static dictionary words, and for each length l,
+   for which a match is found, updates matches[l] to be the minimum possible
+     (distance << 5) + len_code.
+   Returns 1 if matches have been found, otherwise 0.
+   Prerequisites:
+     matches array is at least BROTLI_MAX_STATIC_DICTIONARY_MATCH_LEN + 1 long
+     all elements are initialized to kInvalidMatch */
 bool FindAllStaticDictionaryMatches(const uint8_t* data,
                                     size_t min_length,
                                     size_t max_length,
@@ -29,4 +30,4 @@ bool FindAllStaticDictionaryMatches(const uint8_t* data,
 
 }  // namespace brotli
 
-#endif  // BROTLI_ENC_STATIC_DICT_H_
+#endif  /* BROTLI_ENC_STATIC_DICT_H_ */

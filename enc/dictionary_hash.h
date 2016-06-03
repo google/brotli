@@ -4,7 +4,7 @@
    See file LICENSE for detail or copy at https://opensource.org/licenses/MIT
 */
 
-// Hash table on the 4-byte prefixes of static dictionary words.
+/* Hash table on the 4-byte prefixes of static dictionary words. */
 
 #ifndef BROTLI_ENC_DICTIONARY_HASH_H_
 #define BROTLI_ENC_DICTIONARY_HASH_H_
@@ -4114,4 +4114,4 @@ static const uint16_t kStaticDictionaryHash[] = {
 
 }  // namespace brotli
 
-#endif  // BROTLI_ENC_DICTIONARY_HASH_H_
+#endif  /* BROTLI_ENC_DICTIONARY_HASH_H_ */

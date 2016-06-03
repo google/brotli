@@ -4,11 +4,12 @@
    See file LICENSE for detail or copy at https://opensource.org/licenses/MIT
 */
 
-// Algorithms for distributing the literals and commands of a metablock between
-// block types and contexts.
+/* Algorithms for distributing the literals and commands of a metablock between
+   block types and contexts. */
 
 #include "./metablock.h"
 
+#include "../common/types.h"
 #include "./block_splitter.h"
 #include "./cluster.h"
 #include "./context.h"
@@ -55,7 +56,7 @@ void BuildMetaBlock(const uint8_t* ringbuffer,
                   &mb->command_histograms,
                   &distance_histograms);
 
-  // Histogram ids need to fit in one byte.
+  /* Histogram ids need to fit in one byte. */
   static const size_t kMaxNumberOfHistograms = 256;
 
   ClusterHistograms(literal_histograms,
@@ -201,32 +202,32 @@ class BlockSplitter {
  private:
   static const uint16_t kMaxBlockTypes = 256;
 
-  // Alphabet size of particular block category.
+  /* Alphabet size of particular block category. */
   const size_t alphabet_size_;
-  // We collect at least this many symbols for each block.
+  /* We collect at least this many symbols for each block. */
   const size_t min_block_size_;
-  // We merge histograms A and B if
-  //   entropy(A+B) < entropy(A) + entropy(B) + split_threshold_,
-  // where A is the current histogram and B is the histogram of the last or the
-  // second last block type.
+  /* We merge histograms A and B if
+       entropy(A+B) < entropy(A) + entropy(B) + split_threshold_,
+     where A is the current histogram and B is the histogram of the last or the
+     second last block type. */
   const double split_threshold_;
 
   size_t num_blocks_;
-  BlockSplit* split_;  // not owned
-  std::vector<HistogramType>* histograms_;  // not owned
+  BlockSplit* split_;  /* not owned */
+  std::vector<HistogramType>* histograms_;  /* not owned */
 
-  // The number of symbols that we want to collect before deciding on whether
-  // or not to merge the block with a previous one or emit a new block.
+  /* The number of symbols that we want to collect before deciding on whether
+     or not to merge the block with a previous one or emit a new block. */
   size_t target_block_size_;
-  // The number of symbols in the current histogram.
+  /* The number of symbols in the current histogram. */
   size_t block_size_;
-  // Offset of the current histogram.
+  /* Offset of the current histogram. */
   size_t curr_histogram_ix_;
-  // Offset of the histograms of the previous two block types.
+  /* Offset of the histograms of the previous two block types. */
   size_t last_histogram_ix_[2];
-  // Entropy of the previous two block types.
+  /* Entropy of the previous two block types. */
   double last_entropy_[2];
-  // The number of times we merged the current block with the last one.
+  /* The number of times we merged the current block with the last one. */
   size_t merge_last_count_;
 };
 
@@ -314,10 +315,10 @@ class ContextBlockSplitter {
     }
   }
 
-  // Does either of three things:
-  //   (1) emits the current block with a new block type;
-  //   (2) emits the current block with the type of the second last block;
-  //   (3) merges the current block with the last block.
+/* Does either of three things:
+     (1) emits the current block with a new block type;
+     (2) emits the current block with the type of the second last block;
+     (3) merges the current block with the last block. */
   void FinishBlock(bool is_final) {
     if (block_size_ < min_block_size_) {
       block_size_ = min_block_size_;
@@ -336,10 +337,10 @@ class ContextBlockSplitter {
       curr_histogram_ix_ += num_contexts_;
       block_size_ = 0;
     } else if (block_size_ > 0) {
-      // Try merging the set of histograms for the current block type with the
-      // respective set of histograms for the last and second last block types.
-      // Decide over the split based on the total reduction of entropy across
-      // all contexts.
+    /* Try merging the set of histograms for the current block type with the
+       respective set of histograms for the last and second last block types.
+       Decide over the split based on the total reduction of entropy across
+       all contexts. */
       std::vector<double> entropy(num_contexts_);
       std::vector<HistogramType> combined_histo(2 * num_contexts_);
       std::vector<double> combined_entropy(2 * num_contexts_);

@@ -4,7 +4,7 @@
    See file LICENSE for detail or copy at https://opensource.org/licenses/MIT
 */
 
-// Functions to estimate the bit cost of Huffman trees.
+/* Functions to estimate the bit cost of Huffman trees. */
 
 #ifndef BROTLI_ENC_BIT_COST_H_
 #define BROTLI_ENC_BIT_COST_H_
@@ -42,7 +42,7 @@ static inline double BitsEntropy(const uint32_t *population, size_t size) {
   size_t sum;
   double retval = ShannonEntropy(population, size, &sum);
   if (retval < sum) {
-    // At least one bit per literal is needed.
+    /* At least one bit per literal is needed. */
     retval = static_cast<double>(sum);
   }
   return retval;
@@ -158,4 +158,4 @@ double PopulationCost(const Histogram<kSize>& histogram) {
 
 }  // namespace brotli
 
-#endif  // BROTLI_ENC_BIT_COST_H_
+#endif  /* BROTLI_ENC_BIT_COST_H_ */

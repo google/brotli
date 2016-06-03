@@ -4,11 +4,11 @@
    See file LICENSE for detail or copy at https://opensource.org/licenses/MIT
 */
 
-// Function for fast encoding of an input fragment, independently from the input
-// history. This function uses two-pass processing: in the first pass we save
-// the found backward matches and literal bytes into a buffer, and in the
-// second pass we emit them into the bit stream using prefix codes built based
-// on the actual command and literal byte histograms.
+/* Function for fast encoding of an input fragment, independently from the input
+   history. This function uses two-pass processing: in the first pass we save
+   the found backward matches and literal bytes into a buffer, and in the
+   second pass we emit them into the bit stream using prefix codes built based
+   on the actual command and literal byte histograms. */
 
 #ifndef BROTLI_ENC_COMPRESS_FRAGMENT_TWO_PASS_H_
 #define BROTLI_ENC_COMPRESS_FRAGMENT_TWO_PASS_H_
@@ -19,16 +19,16 @@ namespace brotli {
 
 static const size_t kCompressFragmentTwoPassBlockSize = 1 << 17;
 
-// Compresses "input" string to the "*storage" buffer as one or more complete
-// meta-blocks, and updates the "*storage_ix" bit position.
-//
-// If "is_last" is true, emits an additional empty last meta-block.
-//
-// REQUIRES: "input_size" is greater than zero, or "is_last" is true.
-// REQUIRES: "command_buf" and "literal_buf" point to at least
-//            kCompressFragmentTwoPassBlockSize long arrays.
-// REQUIRES: All elements in "table[0..table_size-1]" are initialized to zero.
-// REQUIRES: "table_size" is a power of two
+/* Compresses "input" string to the "*storage" buffer as one or more complete
+   meta-blocks, and updates the "*storage_ix" bit position.
+
+   If "is_last" is 1, emits an additional empty last meta-block.
+
+   REQUIRES: "input_size" is greater than zero, or "is_last" is 1.
+   REQUIRES: "command_buf" and "literal_buf" point to at least
+              kCompressFragmentTwoPassBlockSize long arrays.
+   REQUIRES: All elements in "table[0..table_size-1]" are initialized to zero.
+   REQUIRES: "table_size" is a power of two */
 void BrotliCompressFragmentTwoPass(const uint8_t* input, size_t input_size,
                                    bool is_last,
                                    uint32_t* command_buf, uint8_t* literal_buf,
@@ -37,4 +37,4 @@ void BrotliCompressFragmentTwoPass(const uint8_t* input, size_t input_size,
 
 }  // namespace brotli
 
-#endif  // BROTLI_ENC_COMPRESS_FRAGMENT_TWO_PASS_H_
+#endif  /* BROTLI_ENC_COMPRESS_FRAGMENT_TWO_PASS_H_ */

@@ -4,11 +4,11 @@
    See file LICENSE for detail or copy at https://opensource.org/licenses/MIT
 */
 
-// Function for fast encoding of an input fragment, independently from the input
-// history. This function uses two-pass processing: in the first pass we save
-// the found backward matches and literal bytes into a buffer, and in the
-// second pass we emit them into the bit stream using prefix codes built based
-// on the actual command and literal byte histograms.
+/* Function for fast encoding of an input fragment, independently from the input
+   history. This function uses two-pass processing: in the first pass we save
+   the found backward matches and literal bytes into a buffer, and in the
+   second pass we emit them into the bit stream using prefix codes built based
+   on the actual command and literal byte histograms. */
 
 #include "./compress_fragment_two_pass.h"
 
@@ -25,12 +25,12 @@
 
 namespace brotli {
 
-// kHashMul32 multiplier has these properties:
-// * The multiplier must be odd. Otherwise we may lose the highest bit.
-// * No long streaks of 1s or 0s.
-// * There is no effort to ensure that it is a prime, the oddity is enough
-//   for this use.
-// * The number has been tuned heuristically against compression benchmarks.
+/* kHashMul32 multiplier has these properties:
+   * The multiplier must be odd. Otherwise we may lose the highest bit.
+   * No long streaks of 1s or 0s.
+   * There is no effort to ensure that it is a prime, the oddity is enough
+     for this use.
+   * The number has been tuned heuristically against compression benchmarks. */
 static const uint32_t kHashMul32 = 0x1e35a7bd;
 
 static inline uint32_t Hash(const uint8_t* p, size_t shift) {
@@ -51,22 +51,22 @@ static inline int IsMatch(const uint8_t* p1, const uint8_t* p2) {
           p1[5] == p2[5]);
 }
 
-// Builds a command and distance prefix code (each 64 symbols) into "depth" and
-// "bits" based on "histogram" and stores it into the bit stream.
+/* Builds a command and distance prefix code (each 64 symbols) into "depth" and
+   "bits" based on "histogram" and stores it into the bit stream. */
 static void BuildAndStoreCommandPrefixCode(
     const uint32_t histogram[128],
     uint8_t depth[128], uint16_t bits[128],
     size_t* storage_ix, uint8_t* storage) {
-  // Tree size for building a tree over 64 symbols is 2 * 64 + 1.
+  /* Tree size for building a tree over 64 symbols is 2 * 64 + 1. */
   static const size_t kTreeSize = 129;
   HuffmanTree tree[kTreeSize];
   CreateHuffmanTree(histogram, 64, 15, tree, depth);
   CreateHuffmanTree(&histogram[64], 64, 14, tree, &depth[64]);
-  // We have to jump through a few hoopes here in order to compute
-  // the command bits because the symbols are in a different order than in
-  // the full alphabet. This looks complicated, but having the symbols
-  // in this order in the command bits saves a few branches in the Emit*
-  // functions.
+  /* We have to jump through a few hoopes here in order to compute
+     the command bits because the symbols are in a different order than in
+     the full alphabet. This looks complicated, but having the symbols
+     in this order in the command bits saves a few branches in the Emit*
+     functions. */
   uint8_t cmd_depth[64];
   uint16_t cmd_bits[64];
   memcpy(cmd_depth, depth + 24, 24);
@@ -84,7 +84,7 @@ static void BuildAndStoreCommandPrefixCode(
   memcpy(bits + 56, cmd_bits + 48, 16);
   ConvertBitDepthsToSymbols(&depth[64], 64, &bits[64]);
   {
-    // Create the bit length array for the full command alphabet.
+    /* Create the bit length array for the full command alphabet. */
     uint8_t cmd_depth[704] = { 0 };
     memcpy(cmd_depth, depth + 24, 8);
     memcpy(cmd_depth + 64, depth + 32, 8);
@@ -202,21 +202,21 @@ inline void EmitDistance(uint32_t distance, uint32_t** commands) {
   ++(*commands);
 }
 
-// REQUIRES: len <= 1 << 20.
+/* REQUIRES: len <= 1 << 20. */
 static void StoreMetaBlockHeader(
     size_t len, bool is_uncompressed, size_t* storage_ix, uint8_t* storage) {
-  // ISLAST
+  /* ISLAST */
   WriteBits(1, 0, storage_ix, storage);
   if (len <= (1U << 16)) {
-    // MNIBBLES is 4
+    /* MNIBBLES is 4 */
     WriteBits(2, 0, storage_ix, storage);
     WriteBits(16, len - 1, storage_ix, storage);
   } else {
-    // MNIBBLES is 5
+    /* MNIBBLES is 5 */
     WriteBits(2, 1, storage_ix, storage);
     WriteBits(20, len - 1, storage_ix, storage);
   }
-  // ISUNCOMPRESSED
+  /* ISUNCOMPRESSED */
   WriteBits(1, is_uncompressed, storage_ix, storage);
 }
 
@@ -224,7 +224,7 @@ static void CreateCommands(const uint8_t* input, size_t block_size,
                            size_t input_size, const uint8_t* base_ip,
                            int* table, size_t table_size,
                            uint8_t** literals, uint32_t** commands) {
-  // "ip" is the input pointer.
+  /* "ip" is the input pointer. */
   const uint8_t* ip = input;
   assert(table_size);
   assert(table_size <= (1u << 31));
@@ -233,40 +233,40 @@ static void CreateCommands(const uint8_t* input, size_t block_size,
   assert(table_size - 1 == static_cast<size_t>(
       MAKE_UINT64_T(0xFFFFFFFF, 0xFFFFFF) >> shift));
   const uint8_t* ip_end = input + block_size;
-  // "next_emit" is a pointer to the first byte that is not covered by a
-  // previous copy. Bytes between "next_emit" and the start of the next copy or
-  // the end of the input will be emitted as literal bytes.
+  /* "next_emit" is a pointer to the first byte that is not covered by a
+     previous copy. Bytes between "next_emit" and the start of the next copy or
+     the end of the input will be emitted as literal bytes. */
   const uint8_t* next_emit = input;
 
   int last_distance = -1;
   const size_t kInputMarginBytes = 16;
   const size_t kMinMatchLen = 6;
   if (PREDICT_TRUE(block_size >= kInputMarginBytes)) {
-    // For the last block, we need to keep a 16 bytes margin so that we can be
-    // sure that all distances are at most window size - 16.
-    // For all other blocks, we only need to keep a margin of 5 bytes so that
-    // we don't go over the block size with a copy.
+    /* For the last block, we need to keep a 16 bytes margin so that we can be
+       sure that all distances are at most window size - 16.
+       For all other blocks, we only need to keep a margin of 5 bytes so that
+       we don't go over the block size with a copy. */
     const size_t len_limit = std::min(block_size - kMinMatchLen,
                                       input_size - kInputMarginBytes);
     const uint8_t* ip_limit = input + len_limit;
 
     for (uint32_t next_hash = Hash(++ip, shift); ; ) {
       assert(next_emit < ip);
-      // Step 1: Scan forward in the input looking for a 6-byte-long match.
-      // If we get close to exhausting the input then goto emit_remainder.
-      //
-      // Heuristic match skipping: If 32 bytes are scanned with no matches
-      // found, start looking only at every other byte. If 32 more bytes are
-      // scanned, look at every third byte, etc.. When a match is found,
-      // immediately go back to looking at every byte. This is a small loss
-      // (~5% performance, ~0.1% density) for compressible data due to more
-      // bookkeeping, but for non-compressible data (such as JPEG) it's a huge
-      // win since the compressor quickly "realizes" the data is incompressible
-      // and doesn't bother looking for matches everywhere.
-      //
-      // The "skip" variable keeps track of how many bytes there are since the
-      // last match; dividing it by 32 (ie. right-shifting by five) gives the
-      // number of bytes to move ahead for each iteration.
+      /* Step 1: Scan forward in the input looking for a 6-byte-long match.
+         If we get close to exhausting the input then goto emit_remainder.
+
+         Heuristic match skipping: If 32 bytes are scanned with no matches
+         found, start looking only at every other byte. If 32 more bytes are
+         scanned, look at every third byte, etc.. When a match is found,
+         immediately go back to looking at every byte. This is a small loss
+         (~5% performance, ~0.1% density) for compressible data due to more
+         bookkeeping, but for non-compressible data (such as JPEG) it's a huge
+         win since the compressor quickly "realizes" the data is incompressible
+         and doesn't bother looking for matches everywhere.
+
+         The "skip" variable keeps track of how many bytes there are since the
+         last match; dividing it by 32 (ie. right-shifting by five) gives the
+         number of bytes to move ahead for each iteration. */
       uint32_t skip = 32;
 
       const uint8_t* next_ip = ip;
@@ -295,15 +295,15 @@ static void CreateCommands(const uint8_t* input, size_t block_size,
         table[hash] = static_cast<int>(ip - base_ip);
       } while (PREDICT_TRUE(!IsMatch(ip, candidate)));
 
-      // Step 2: Emit the found match together with the literal bytes from
-      // "next_emit", and then see if we can find a next macth immediately
-      // afterwards. Repeat until we find no match for the input
-      // without emitting some literal bytes.
+      /* Step 2: Emit the found match together with the literal bytes from
+         "next_emit", and then see if we can find a next macth immediately
+         afterwards. Repeat until we find no match for the input
+         without emitting some literal bytes. */
       uint64_t input_bytes;
 
       {
-        // We have a 6-byte match at ip, and we need to emit bytes in
-        // [next_emit, ip).
+        /* We have a 6-byte match at ip, and we need to emit bytes in
+           [next_emit, ip). */
         const uint8_t* base = ip;
         size_t matched = 6 + FindMatchLengthWithLimit(
             candidate + 6, ip + 6, static_cast<size_t>(ip_end - ip) - 6);
@@ -327,9 +327,9 @@ static void CreateCommands(const uint8_t* input, size_t block_size,
         if (PREDICT_FALSE(ip >= ip_limit)) {
           goto emit_remainder;
         }
-        // We could immediately start working at ip now, but to improve
-        // compression we first update "table" with the hashes of some positions
-        // within the last copy.
+          /* We could immediately start working at ip now, but to improve
+             compression we first update "table" with the hashes of some
+             positions within the last copy. */
         input_bytes = BROTLI_UNALIGNED_LOAD64(ip - 5);
         uint32_t prev_hash = HashBytesAtOffset(input_bytes, 0, shift);
         table[prev_hash] = static_cast<int>(ip - base_ip - 5);
@@ -349,8 +349,8 @@ static void CreateCommands(const uint8_t* input, size_t block_size,
       }
 
       while (IsMatch(ip, candidate)) {
-        // We have a 6-byte match at ip, and no need to emit any
-        // literal bytes prior to ip.
+        /* We have a 6-byte match at ip, and no need to emit any
+           literal bytes prior to ip. */
         const uint8_t* base = ip;
         size_t matched = 6 + FindMatchLengthWithLimit(
             candidate + 6, ip + 6, static_cast<size_t>(ip_end - ip) - 6);
@@ -364,9 +364,9 @@ static void CreateCommands(const uint8_t* input, size_t block_size,
         if (PREDICT_FALSE(ip >= ip_limit)) {
           goto emit_remainder;
         }
-        // We could immediately start working at ip now, but to improve
-        // compression we first update "table" with the hashes of some positions
-        // within the last copy.
+          /* We could immediately start working at ip now, but to improve
+             compression we first update "table" with the hashes of some
+             positions within the last copy. */
         input_bytes = BROTLI_UNALIGNED_LOAD64(ip - 5);
         uint32_t prev_hash = HashBytesAtOffset(input_bytes, 0, shift);
         table[prev_hash] = static_cast<int>(ip - base_ip - 5);
@@ -391,7 +391,7 @@ static void CreateCommands(const uint8_t* input, size_t block_size,
 
 emit_remainder:
   assert(next_emit <= ip_end);
-  // Emit the remaining bytes as literals.
+  /* Emit the remaining bytes as literals. */
   if (next_emit < ip_end) {
     const uint32_t insert = static_cast<uint32_t>(ip_end - next_emit);
     EmitInsertLen(insert, commands);
@@ -483,7 +483,8 @@ void BrotliCompressFragmentTwoPass(const uint8_t* input, size_t input_size,
                                    uint32_t* command_buf, uint8_t* literal_buf,
                                    int* table, size_t table_size,
                                    size_t* storage_ix, uint8_t* storage) {
-  // Save the start of the first block for position and distance computations.
+  /* Save the start of the first block for position and distance computations.
+  */
   const uint8_t* base_ip = input;
 
   while (input_size > 0) {
@@ -496,14 +497,14 @@ void BrotliCompressFragmentTwoPass(const uint8_t* input, size_t input_size,
     const size_t num_commands = static_cast<size_t>(commands - command_buf);
     if (ShouldCompress(input, block_size, num_literals)) {
       StoreMetaBlockHeader(block_size, 0, storage_ix, storage);
-      // No block splits, no contexts.
+      /* No block splits, no contexts. */
       WriteBits(13, 0, storage_ix, storage);
       StoreCommands(literal_buf, num_literals, command_buf, num_commands,
                     storage_ix, storage);
     } else {
-      // Since we did not find many backward references and the entropy of
-      // the data is close to 8 bits, we can simply emit an uncompressed block.
-      // This makes compression speed of uncompressible data about 3x faster.
+      /* Since we did not find many backward references and the entropy of
+         the data is close to 8 bits, we can simply emit an uncompressed block.
+         This makes compression speed of uncompressible data about 3x faster. */
       StoreMetaBlockHeader(block_size, 1, storage_ix, storage);
       *storage_ix = (*storage_ix + 7u) & ~7u;
       memcpy(&storage[*storage_ix >> 3], input, block_size);
@@ -515,8 +516,8 @@ void BrotliCompressFragmentTwoPass(const uint8_t* input, size_t input_size,
   }
 
   if (is_last) {
-    WriteBits(1, 1, storage_ix, storage);  // islast
-    WriteBits(1, 1, storage_ix, storage);  // isempty
+    WriteBits(1, 1, storage_ix, storage);  /* islast */
+    WriteBits(1, 1, storage_ix, storage);  /* isempty */
     *storage_ix = (*storage_ix + 7u) & ~7u;
   }
 }

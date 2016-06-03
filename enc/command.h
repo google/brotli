@@ -4,7 +4,7 @@
    See file LICENSE for detail or copy at https://opensource.org/licenses/MIT
 */
 
-// This class models a sequence of literals and a backward reference copy.
+/* This class models a sequence of literals and a backward reference copy. */
 
 #ifndef BROTLI_ENC_COMMAND_H_
 #define BROTLI_ENC_COMMAND_H_
@@ -63,8 +63,8 @@ static inline uint16_t CombineLengthCodes(
   if (use_last_distance && inscode < 8 && copycode < 16) {
     return (copycode < 8) ? bits64 : (bits64 | 64);
   } else {
-    // "To convert an insert-and-copy length code to an insert length code and
-    // a copy length code, the following table can be used"
+    /* "To convert an insert-and-copy length code to an insert length code and
+       a copy length code, the following table can be used" */
     static const uint16_t cells[9] = { 128u, 192u, 384u, 256u, 320u, 512u,
                                        448u, 576u, 640u };
     return cells[(copycode >> 3) + 3 * (inscode >> 3)] | bits64;
@@ -153,4 +153,4 @@ struct Command {
 
 }  // namespace brotli
 
-#endif  // BROTLI_ENC_COMMAND_H_
+#endif  /* BROTLI_ENC_COMMAND_H_ */

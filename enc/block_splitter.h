@@ -4,7 +4,7 @@
    See file LICENSE for detail or copy at https://opensource.org/licenses/MIT
 */
 
-// Block split point selection utilities.
+/* Block split point selection utilities. */
 
 #ifndef BROTLI_ENC_BLOCK_SPLITTER_H_
 #define BROTLI_ENC_BLOCK_SPLITTER_H_
@@ -58,4 +58,4 @@ void SplitBlock(const Command* cmds,
 
 }  // namespace brotli
 
-#endif  // BROTLI_ENC_BLOCK_SPLITTER_H_
+#endif  /* BROTLI_ENC_BLOCK_SPLITTER_H_ */

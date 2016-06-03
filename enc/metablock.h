@@ -4,14 +4,15 @@
    See file LICENSE for detail or copy at https://opensource.org/licenses/MIT
 */
 
-// Algorithms for distributing the literals and commands of a metablock between
-// block types and contexts.
+/* Algorithms for distributing the literals and commands of a metablock between
+   block types and contexts. */
 
 #ifndef BROTLI_ENC_METABLOCK_H_
 #define BROTLI_ENC_METABLOCK_H_
 
 #include <vector>
 
+#include "../common/types.h"
 #include "./command.h"
 #include "./histogram.h"
 
@@ -36,7 +37,7 @@ struct MetaBlockSplit {
   std::vector<HistogramDistance> distance_histograms;
 };
 
-// Uses the slow shortest-path block splitter and does context clustering.
+/* Uses the slow shortest-path block splitter and does context clustering. */
 void BuildMetaBlock(const uint8_t* ringbuffer,
                     const size_t pos,
                     const size_t mask,
@@ -47,8 +48,8 @@ void BuildMetaBlock(const uint8_t* ringbuffer,
                     ContextType literal_context_mode,
                     MetaBlockSplit* mb);
 
-// Uses a fast greedy block splitter that tries to merge current block with the
-// last or the second last block and does not do any context modeling.
+/* Uses a fast greedy block splitter that tries to merge current block with the
+   last or the second last block and does not do any context modeling. */
 void BuildMetaBlockGreedy(const uint8_t* ringbuffer,
                           size_t pos,
                           size_t mask,
@@ -56,9 +57,9 @@ void BuildMetaBlockGreedy(const uint8_t* ringbuffer,
                           size_t n_commands,
                           MetaBlockSplit* mb);
 
-// Uses a fast greedy block splitter that tries to merge current block with the
-// last or the second last block and uses a static context clustering which
-// is the same for all block types.
+/* Uses a fast greedy block splitter that tries to merge current block with the
+   last or the second last block and uses a static context clustering which
+   is the same for all block types. */
 void BuildMetaBlockGreedyWithContexts(const uint8_t* ringbuffer,
                                       size_t pos,
                                       size_t mask,
@@ -77,4 +78,4 @@ void OptimizeHistograms(size_t num_direct_distance_codes,
 
 }  // namespace brotli
 
-#endif  // BROTLI_ENC_METABLOCK_H_
+#endif  /* BROTLI_ENC_METABLOCK_H_ */
