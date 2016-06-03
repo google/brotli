@@ -13,9 +13,10 @@
 #include <stdlib.h>  /* free, malloc */
 #include <string.h>  /* memcpy, memset */
 
+#include "../common/constants.h"
+#include "../common/dictionary.h"
 #include "./bit_reader.h"
 #include "./context.h"
-#include "./dictionary.h"
 #include "./huffman.h"
 #include "./port.h"
 #include "./prefix.h"
@@ -34,19 +35,10 @@ extern "C" {
   BROTLI_LOG(("[%s] %s[%lu] = %lu\n", __func__, #array_name,        \
          (unsigned long)(idx), (unsigned long)array_name[idx]))
 
-static const uint32_t kDefaultCodeLength = 8;
-static const uint32_t kCodeLengthRepeatCode = 16;
-static const uint32_t kNumLiteralCodes = 256;
-static const uint32_t kNumInsertAndCopyCodes = 704;
-static const uint32_t kNumBlockLengthCodes = 26;
-static const int kLiteralContextBits = 6;
-static const int kDistanceContextBits = 2;
-
 #define HUFFMAN_TABLE_BITS 8U
 #define HUFFMAN_TABLE_MASK 0xff
 
-#define CODE_LENGTH_CODES 18
-static const uint8_t kCodeLengthCodeOrder[CODE_LENGTH_CODES] = {
+static const uint8_t kCodeLengthCodeOrder[BROTLI_CODE_LENGTH_CODES] = {
   1, 2, 3, 4, 0, 5, 17, 6, 16, 7, 8, 9, 10, 11, 12, 13, 14, 15,
 };
 
@@ -58,8 +50,6 @@ static const uint8_t kCodeLengthPrefixLength[16] = {
 static const uint8_t kCodeLengthPrefixValue[16] = {
   0, 4, 3, 2, 0, 4, 3, 1, 0, 4, 3, 2, 0, 4, 3, 5,
 };
-
-#define NUM_DISTANCE_SHORT_CODES 16
 
 BrotliState* BrotliCreateState(
     brotli_alloc_func alloc_func, brotli_free_func free_func, void* opaque) {
@@ -478,12 +468,14 @@ static BROTLI_INLINE void ProcessSingleCodeLength(uint32_t code_len,
 
 /* Process repeated symbol code length.
     A) Check if it is the extension of previous repeat sequence; if the decoded
-       value is not kCodeLengthRepeatCode, then it is a new symbol-skip
+       value is not BROTLI_REPEAT_PREVIOUS_CODE_LENGTH, then it is a new
+       symbol-skip
     B) Update repeat variable
     C) Check if operation is feasible (fits alphapet)
     D) For each symbol do the same operations as in ProcessSingleCodeLength
 
-   PRECONDITION: code_len == kCodeLengthRepeatCode or kCodeLengthRepeatCode + 1
+   PRECONDITION: code_len == BROTLI_REPEAT_PREVIOUS_CODE_LENGTH or
+                 code_len == BROTLI_REPEAT_ZERO_CODE_LENGTH
  */
 static BROTLI_INLINE void ProcessRepeatedCodeLength(uint32_t code_len,
     uint32_t repeat_delta, uint32_t alphabet_size, uint32_t* symbol,
@@ -491,9 +483,11 @@ static BROTLI_INLINE void ProcessRepeatedCodeLength(uint32_t code_len,
     uint32_t* repeat_code_len, uint16_t* symbol_lists,
     uint16_t* code_length_histo, int* next_symbol) {
   uint32_t old_repeat;
-  uint32_t new_len = 0;
-  if (code_len == kCodeLengthRepeatCode) {
+  uint32_t extra_bits = 3;  /* for BROTLI_REPEAT_ZERO_CODE_LENGTH */
+  uint32_t new_len = 0;  /* for BROTLI_REPEAT_ZERO_CODE_LENGTH */
+  if (code_len == BROTLI_REPEAT_PREVIOUS_CODE_LENGTH) {
     new_len = *prev_code_len;
+    extra_bits = 2;
   }
   if (*repeat_code_len != new_len) {
     *repeat = 0;
@@ -502,7 +496,7 @@ static BROTLI_INLINE void ProcessRepeatedCodeLength(uint32_t code_len,
   old_repeat = *repeat;
   if (*repeat > 0) {
     *repeat -= 2;
-    *repeat <<= code_len - 14U;
+    *repeat <<= extra_bits;
   }
   *repeat += repeat_delta + 3U;
   repeat_delta = *repeat - old_repeat;
@@ -561,13 +555,15 @@ static BrotliErrorCode ReadSymbolCodeLengths(
         BitMask(BROTLI_HUFFMAN_MAX_CODE_LENGTH_CODE_LENGTH);
     BrotliDropBits(br, p->bits);  /* Use 1..5 bits */
     code_len = p->value;  /* code_len == 0..17 */
-    if (code_len < kCodeLengthRepeatCode) {
+    if (code_len < BROTLI_REPEAT_PREVIOUS_CODE_LENGTH) {
       ProcessSingleCodeLength(code_len, &symbol, &repeat, &space,
           &prev_code_len, symbol_lists, code_length_histo, next_symbol);
     } else { /* code_len == 16..17, extra_bits == 2..3 */
+      uint32_t extra_bits =
+          (code_len == BROTLI_REPEAT_PREVIOUS_CODE_LENGTH) ? 2 : 3;
       uint32_t repeat_delta =
-          (uint32_t)BrotliGetBitsUnmasked(br) & BitMask(code_len - 14U);
-      BrotliDropBits(br, code_len - 14U);
+          (uint32_t)BrotliGetBitsUnmasked(br) & BitMask(extra_bits);
+      BrotliDropBits(br, extra_bits);
       ProcessRepeatedCodeLength(code_len, repeat_delta, alphabet_size,
           &symbol, &repeat, &space, &prev_code_len, &repeat_code_len,
           symbol_lists, code_length_histo, next_symbol);
@@ -591,7 +587,7 @@ static BrotliErrorCode SafeReadSymbolCodeLengths(
     p += bits & BitMask(BROTLI_HUFFMAN_MAX_CODE_LENGTH_CODE_LENGTH);
     if (p->bits > available_bits) goto pullMoreInput;
     code_len = p->value; /* code_len == 0..17 */
-    if (code_len < kCodeLengthRepeatCode) {
+    if (code_len < BROTLI_REPEAT_PREVIOUS_CODE_LENGTH) {
       BrotliDropBits(br, p->bits);
       ProcessSingleCodeLength(code_len, &s->symbol, &s->repeat, &s->space,
           &s->prev_code_len, s->symbol_lists, s->code_length_histo,
@@ -623,7 +619,7 @@ static BrotliErrorCode ReadCodeLengthCodeLengths(BrotliState* s) {
   uint32_t num_codes = s->repeat;
   unsigned space = s->space;
   uint32_t i = s->sub_loop_counter;
-  for (; i < CODE_LENGTH_CODES; ++i) {
+  for (; i < BROTLI_CODE_LENGTH_CODES; ++i) {
     const uint8_t code_len_idx = kCodeLengthCodeOrder[i];
     uint32_t ix;
     uint32_t v;
@@ -755,7 +751,7 @@ Complex: /* Decode Huffman-coded code lengths. */
       }
 
       s->symbol = 0;
-      s->prev_code_len = kDefaultCodeLength;
+      s->prev_code_len = BROTLI_INITIAL_REPEATED_CODE_LENGTH;
       s->repeat = 0;
       s->repeat_code_len = 0;
       s->space = 32768;
@@ -1070,11 +1066,11 @@ static BROTLI_INLINE void DetectTrivialLiteralBlockTypes(BrotliState* s) {
   size_t i;
   for (i = 0; i < 8; ++i) s->trivial_literal_contexts[i] = 0;
   for (i = 0; i < s->num_block_types[0]; i++) {
-    size_t offset = i << kLiteralContextBits;
+    size_t offset = i << BROTLI_LITERAL_CONTEXT_BITS;
     size_t error = 0;
     size_t sample = s->context_map[offset];
     size_t j;
-    for (j = 0; j < (1u << kLiteralContextBits);) {
+    for (j = 0; j < (1u << BROTLI_LITERAL_CONTEXT_BITS);) {
       BROTLI_REPEAT(4, error |= s->context_map[offset + j++] ^ sample;)
     }
     if (error == 0) {
@@ -1087,7 +1083,7 @@ static BROTLI_INLINE void PrepareLiteralDecoding(BrotliState* s) {
   uint8_t context_mode;
   size_t trivial;
   uint32_t block_type = s->block_type_rb[1];
-  uint32_t context_offset = block_type << kLiteralContextBits;
+  uint32_t context_offset = block_type << BROTLI_LITERAL_CONTEXT_BITS;
   s->context_map_slice = s->context_map + context_offset;
   trivial = s->trivial_literal_contexts[block_type >> 5];
   s->trivial_literal_context = (trivial >> (block_type & 31)) & 1;
@@ -1141,8 +1137,8 @@ static BROTLI_INLINE int DecodeDistanceBlockSwitchInternal(int safe,
   if (!DecodeBlockTypeAndLength(safe, s, 2)) {
     return 0;
   }
-  s->dist_context_map_slice =
-      s->dist_context_map + (s->block_type_rb[5] << kDistanceContextBits);
+  s->dist_context_map_slice = s->dist_context_map +
+      (s->block_type_rb[5] << BROTLI_DISTANCE_CONTEXT_BITS);
   s->dist_htree_index = s->dist_context_map_slice[s->distance_context];
   return 1;
 }
@@ -1440,7 +1436,7 @@ static BROTLI_INLINE int ReadDistanceInternal(int safe,
           ((offset + (int)bits) << s->distance_postfix_bits) + postfix;
     }
   }
-  s->distance_code = s->distance_code - NUM_DISTANCE_SHORT_CODES + 1;
+  s->distance_code = s->distance_code - BROTLI_NUM_DISTANCE_SHORT_CODES + 1;
   --s->block_length[2];
   return 1;
 }
@@ -2041,7 +2037,7 @@ BrotliResult BrotliDecompressStream(size_t* available_in,
       }
       case BROTLI_STATE_HUFFMAN_CODE_2: {
         int tree_offset = s->loop_counter * BROTLI_HUFFMAN_MAX_SIZE_26;
-        result = ReadHuffmanCode(kNumBlockLengthCodes,
+        result = ReadHuffmanCode(BROTLI_NUM_BLOCK_LEN_SYMBOLS,
             &s->block_len_trees[tree_offset], NULL, s);
         if (result != BROTLI_SUCCESS) break;
         s->state = BROTLI_STATE_HUFFMAN_CODE_3;
@@ -2067,8 +2063,8 @@ BrotliResult BrotliDecompressStream(size_t* available_in,
         }
         s->distance_postfix_bits = bits & BitMask(2);
         bits >>= 2;
-        s->num_direct_distance_codes =
-            NUM_DISTANCE_SHORT_CODES + (bits << s->distance_postfix_bits);
+        s->num_direct_distance_codes = BROTLI_NUM_DISTANCE_SHORT_CODES +
+            (bits << s->distance_postfix_bits);
         BROTLI_LOG_UINT(s->num_direct_distance_codes);
         BROTLI_LOG_UINT(s->distance_postfix_bits);
         s->distance_postfix_mask = (int)BitMask(s->distance_postfix_bits);
@@ -2091,7 +2087,7 @@ BrotliResult BrotliDecompressStream(size_t* available_in,
         /* No break, continue to next state */
       case BROTLI_STATE_CONTEXT_MAP_1:
         result = DecodeContextMap(
-            s->num_block_types[0] << kLiteralContextBits,
+            s->num_block_types[0] << BROTLI_LITERAL_CONTEXT_BITS,
             &s->num_literal_htrees, &s->context_map, s);
         if (result != BROTLI_SUCCESS) {
           break;
@@ -2104,15 +2100,16 @@ BrotliResult BrotliDecompressStream(size_t* available_in,
           uint32_t num_distance_codes =
               s->num_direct_distance_codes + (48U << s->distance_postfix_bits);
           result = DecodeContextMap(
-              s->num_block_types[2] << kDistanceContextBits,
+              s->num_block_types[2] << BROTLI_DISTANCE_CONTEXT_BITS,
               &s->num_dist_htrees, &s->dist_context_map, s);
           if (result != BROTLI_SUCCESS) {
             break;
           }
-          BrotliHuffmanTreeGroupInit(s, &s->literal_hgroup, kNumLiteralCodes,
+          BrotliHuffmanTreeGroupInit(s, &s->literal_hgroup,
+                                     BROTLI_NUM_LITERAL_SYMBOLS,
                                      s->num_literal_htrees);
           BrotliHuffmanTreeGroupInit(s, &s->insert_copy_hgroup,
-                                     kNumInsertAndCopyCodes,
+                                     BROTLI_NUM_COMMAND_SYMBOLS,
                                      s->num_block_types[1]);
           BrotliHuffmanTreeGroupInit(s, &s->distance_hgroup, num_distance_codes,
                                      s->num_dist_htrees);

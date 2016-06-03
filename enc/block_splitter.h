@@ -11,9 +11,9 @@
 
 #include <vector>
 
+#include "../common/types.h"
 #include "./command.h"
 #include "./metablock.h"
-#include "./types.h"
 
 namespace brotli {
 

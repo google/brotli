@@ -8,7 +8,7 @@
 
 #include "./utf8_util.h"
 
-#include "./types.h"
+#include "../common/types.h"
 
 namespace brotli {
 

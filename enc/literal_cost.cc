@@ -9,10 +9,11 @@
 #include "./literal_cost.h"
 
 #include <math.h>
+
 #include <algorithm>
 
+#include "../common/types.h"
 #include "./fast_log.h"
-#include "./types.h"
 #include "./utf8_util.h"
 
 namespace brotli {

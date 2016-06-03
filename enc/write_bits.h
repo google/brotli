@@ -12,8 +12,8 @@
 #include <assert.h>
 #include <stdio.h>
 
+#include "../common/types.h"
 #include "./port.h"
-#include "./types.h"
 
 namespace brotli {
 

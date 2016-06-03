@@ -17,12 +17,12 @@
 #include <algorithm>
 #include <cstring>
 
+#include "../common/types.h"
 #include "./brotli_bit_stream.h"
 #include "./entropy_encode.h"
 #include "./fast_log.h"
 #include "./find_match_length.h"
 #include "./port.h"
-#include "./types.h"
 #include "./write_bits.h"
 
 namespace brotli {

@@ -11,8 +11,8 @@
 
 #include <cstdlib>  /* free, realloc */
 
+#include "../common/types.h"
 #include "./port.h"
-#include "./types.h"
 
 namespace brotli {
 

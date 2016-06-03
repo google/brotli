@@ -8,8 +8,8 @@
 
 #include <stdlib.h>  /* free, malloc */
 
+#include "../common/types.h"
 #include "./huffman.h"
-#include "./types.h"
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {

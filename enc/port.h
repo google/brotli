@@ -11,7 +11,8 @@
 
 #include <assert.h>
 #include <string.h>
-#include "./types.h"
+
+#include "../common/types.h"
 
 #if defined OS_LINUX || defined OS_CYGWIN
 #include <endian.h>

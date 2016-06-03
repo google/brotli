@@ -9,12 +9,12 @@
 #include "./entropy_encode.h"
 
 #include <algorithm>
-#include <limits>
 #include <cstdlib>
+#include <limits>
 
+#include "../common/types.h"
 #include "./histogram.h"
 #include "./port.h"
-#include "./types.h"
 
 namespace brotli {
 

@@ -9,7 +9,7 @@
 #ifndef BROTLI_ENC_DICTIONARY_LUT_H_
 #define BROTLI_ENC_DICTIONARY_LUT_H_
 
-#include "./types.h"
+#include "../common/types.h"
 
 namespace brotli {
 
