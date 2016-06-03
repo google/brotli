@@ -4,7 +4,7 @@
    See file LICENSE for detail or copy at https://opensource.org/licenses/MIT
 */
 
-// Static entropy codes used for faster meta-block encoding.
+/* Static entropy codes used for faster meta-block encoding. */
 
 #ifndef BROTLI_ENC_ENTROPY_ENCODE_STATIC_H_
 #define BROTLI_ENC_ENTROPY_ENCODE_STATIC_H_
@@ -569,4 +569,4 @@ inline void StoreStaticDistanceHuffmanTree(size_t* storage_ix,
 
 }  // namespace brotli
 
-#endif  // BROTLI_ENC_ENTROPY_ENCODE_STATIC_H_
+#endif  /* BROTLI_ENC_ENTROPY_ENCODE_STATIC_H_ */

@@ -4,7 +4,7 @@
    See file LICENSE for detail or copy at https://opensource.org/licenses/MIT
 */
 
-// Function to find backward reference copies.
+/* Function to find backward reference copies. */
 
 #include "./backward_references.h"
 
@@ -12,16 +12,17 @@
 #include <limits>
 #include <vector>
 
+#include "../common/types.h"
 #include "./command.h"
 #include "./fast_log.h"
 #include "./literal_cost.h"
 
 namespace brotli {
 
-// The maximum length for which the zopflification uses distinct distances.
+/* The maximum length for which the zopflification uses distinct distances. */
 static const uint16_t kMaxZopfliLen = 325;
 
-// Histogram based cost model for zopflification.
+/* Histogram based cost model for zopflification. */
 class ZopfliCostModel {
  public:
   ZopfliCostModel(void) : min_cost_cmd_(kInfinity) {}
@@ -178,9 +179,9 @@ inline size_t ComputeDistanceCode(size_t distance,
   return distance + 15;
 }
 
-// REQUIRES: len >= 2, start_pos <= pos
-// REQUIRES: cost < kInfinity, nodes[start_pos].cost < kInfinity
-// Maintains the "ZopfliNode array invariant".
+/* REQUIRES: len >= 2, start_pos <= pos */
+/* REQUIRES: cost < kInfinity, nodes[start_pos].cost < kInfinity */
+/* Maintains the "ZopfliNode array invariant". */
 inline void UpdateZopfliNode(ZopfliNode* nodes, size_t pos, size_t start_pos,
                              size_t len, size_t len_code, size_t dist,
                              size_t short_code, float cost) {
@@ -191,7 +192,7 @@ inline void UpdateZopfliNode(ZopfliNode* nodes, size_t pos, size_t start_pos,
   next.cost = cost;
 }
 
-// Maintains the smallest 2^k cost difference together with their positions
+/* Maintains the smallest 8 cost difference together with their positions */
 class StartPosQueue {
  public:
   struct PosData {
@@ -212,8 +213,8 @@ class StartPosQueue {
     ++idx_;
     size_t len = size();
     q_[offset] = posdata;
-    /* Restore the sorted order. In the list of |len| items at most |len - 1|
-       adjacent element comparisons / swaps are required. */
+  /* Restore the sorted order. In the list of |len| items at most |len - 1|
+     adjacent element comparisons / swaps are required. */
     for (size_t i = 1; i < len; ++i) {
       if (q_[offset & mask_].costdiff > q_[(offset + 1) & mask_].costdiff) {
         std::swap(q_[offset & mask_], q_[(offset + 1) & mask_]);
@@ -234,14 +235,14 @@ class StartPosQueue {
   size_t idx_;
 };
 
-// Returns the minimum possible copy length that can improve the cost of any
-// future position.
+/* Returns the minimum possible copy length that can improve the cost of any */
+/* future position. */
 static size_t ComputeMinimumCopyLength(const StartPosQueue& queue,
                                        const ZopfliNode* nodes,
                                        const ZopfliCostModel& model,
                                        const size_t num_bytes,
                                        const size_t pos) {
-  // Compute the minimum possible cost of reaching any future position.
+  /* Compute the minimum possible cost of reaching any future position. */
   const size_t start0 = queue.GetStartPosData(0).pos;
   float min_cost = (nodes[start0].cost +
                     model.GetLiteralCosts(start0, pos) +
@@ -250,13 +251,13 @@ static size_t ComputeMinimumCopyLength(const StartPosQueue& queue,
   size_t next_len_bucket = 4;
   size_t next_len_offset = 10;
   while (pos + len <= num_bytes && nodes[pos + len].cost <= min_cost) {
-    // We already reached (pos + len) with no more cost than the minimum
-    // possible cost of reaching anything from this pos, so there is no point in
-    // looking for lengths <= len.
+    /* We already reached (pos + len) with no more cost than the minimum
+       possible cost of reaching anything from this pos, so there is no point in
+       looking for lengths <= len. */
     ++len;
     if (len == next_len_offset) {
-      // We reached the next copy length code bucket, so we add one more
-      // extra bit to the minimum cost.
+      /* We reached the next copy length code bucket, so we add one more
+         extra bit to the minimum cost. */
       min_cost += static_cast<float>(1.0);
       next_len_offset += next_len_bucket;
       next_len_bucket *= 2;
@@ -265,13 +266,13 @@ static size_t ComputeMinimumCopyLength(const StartPosQueue& queue,
   return len;
 }
 
-// Fills in dist_cache[0..3] with the last four distances (as defined by
-// Section 4. of the Spec) that would be used at (block_start + pos) if we
-// used the shortest path of commands from block_start, computed from
-// nodes[0..pos]. The last four distances at block_start are in
-// starting_dist_cach[0..3].
-// REQUIRES: nodes[pos].cost < kInfinity
-// REQUIRES: nodes[0..pos] satisfies that "ZopfliNode array invariant".
+/* Fills in dist_cache[0..3] with the last four distances (as defined by
+   Section 4. of the Spec) that would be used at (block_start + pos) if we
+   used the shortest path of commands from block_start, computed from
+   nodes[0..pos]. The last four distances at block_start are in
+   starting_dist_cach[0..3].
+   REQUIRES: nodes[pos].cost < kInfinity
+   REQUIRES: nodes[0..pos] satisfies that "ZopfliNode array invariant". */
 static void ComputeDistanceCache(const size_t block_start,
                                  const size_t pos,
                                  const size_t max_backward,
@@ -280,21 +281,21 @@ static void ComputeDistanceCache(const size_t block_start,
                                  int* dist_cache) {
   int idx = 0;
   size_t p = pos;
-  // Because of prerequisite, does at most (pos + 1) / 2 iterations.
+  /* Because of prerequisite, does at most (pos + 1) / 2 iterations. */
   while (idx < 4 && p > 0) {
     const size_t clen = nodes[p].copy_length();
     const size_t ilen = nodes[p].insert_length;
     const size_t dist = nodes[p].copy_distance();
-    // Since block_start + p is the end position of the command, the copy part
-    // starts from block_start + p - clen. Distances that are greater than this
-    // or greater than max_backward are static dictionary references, and do
-    // not update the last distances. Also distance code 0 (last distance)
-    // does not update the last distances.
+    /* Since block_start + p is the end position of the command, the copy part
+       starts from block_start + p - clen. Distances that are greater than this
+       or greater than max_backward are static dictionary references, and do
+       not update the last distances. Also distance code 0 (last distance)
+       does not update the last distances. */
     if (dist + clen <= block_start + p && dist <= max_backward &&
         nodes[p].distance_code() > 0) {
       dist_cache[idx++] = static_cast<int>(dist);
     }
-    // Because of prerequisite, p >= clen + ilen >= 2.
+    /* Because of prerequisite, p >= clen + ilen >= 2. */
     p -= clen + ilen;
   }
   for (; idx < 4; ++idx) {
@@ -330,15 +331,15 @@ static void UpdateNodes(const size_t num_bytes,
   const size_t min_len = ComputeMinimumCopyLength(
       *queue, nodes, *model, num_bytes, pos);
 
-  // Go over the command starting positions in order of increasing cost
-  // difference.
+  /* Go over the command starting positions in order of increasing cost
+     difference. */
   for (size_t k = 0; k < 5 && k < queue->size(); ++k) {
     const StartPosQueue::PosData& posdata = queue->GetStartPosData(k);
     const size_t start = posdata.pos;
     const float start_costdiff = posdata.costdiff;
 
-    // Look for last distance matches using the distance cache from this
-    // starting position.
+    /* Look for last distance matches using the distance cache from this
+       starting position. */
     size_t best_len = min_len - 1;
     for (size_t j = 0; j < kNumDistanceShortCodes; ++j) {
       const size_t idx = kDistanceCacheIndex[j];
@@ -374,23 +375,23 @@ static void UpdateNodes(const size_t num_bytes,
       }
     }
 
-    // At higher iterations look only for new last distance matches, since
-    // looking only for new command start positions with the same distances
-    // does not help much.
+    /* At higher iterations look only for new last distance matches, since
+       looking only for new command start positions with the same distances
+       does not help much. */
     if (k >= 2) continue;
 
-    // Loop through all possible copy lengths at this position.
+      /* Loop through all possible copy lengths at this position. */
     size_t len = min_len;
     for (size_t j = 0; j < num_matches; ++j) {
       BackwardMatch match = matches[j];
       size_t dist = match.distance;
       bool is_dictionary_match = dist > max_distance;
-      // We already tried all possible last distance matches, so we can use
-      // normal distance code here.
+        /* We already tried all possible last distance matches, so we can use
+           normal distance code here. */
       size_t dist_code = dist + 15;
-      // Try all copy lengths up until the maximum copy length corresponding
-      // to this distance. If the distance refers to the static dictionary, or
-      // the maximum length is long enough, try only one maximum length.
+        /* Try all copy lengths up until the maximum copy length corresponding
+           to this distance. If the distance refers to the static dictionary, or
+           the maximum length is long enough, try only one maximum length. */
       size_t max_len = match.length();
       if (len < max_len && (is_dictionary_match || max_len > kMaxZopfliLen)) {
         len = max_len;
@@ -487,8 +488,8 @@ static void ZopfliIterate(size_t num_bytes,
                 max_backward_limit, dist_cache, num_matches[i],
                 &matches[cur_match_pos], &model, &queue, &nodes[0]);
     cur_match_pos += num_matches[i];
-    // The zopflification can be too slow in case of very long lengths, so in
-    // such case skip it all, it does not cost a lot of compression ratio.
+    /* The zopflification can be too slow in case of very long lengths, so in
+       such case skip it all, it does not cost a lot of compression ratio. */
     if (num_matches[i] == 1 &&
         matches[cur_match_pos - 1].length() > kMaxZopfliLen) {
       i += matches[cur_match_pos - 1].length() - 1;

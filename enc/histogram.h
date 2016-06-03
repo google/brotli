@@ -4,7 +4,7 @@
    See file LICENSE for detail or copy at https://opensource.org/licenses/MIT
 */
 
-// Models the histograms of literals, commands and distance codes.
+/* Models the histograms of literals, commands and distance codes. */
 
 #ifndef BROTLI_ENC_HISTOGRAM_H_
 #define BROTLI_ENC_HISTOGRAM_H_
@@ -92,4 +92,4 @@ void BuildHistograms(
 
 }  // namespace brotli
 
-#endif  // BROTLI_ENC_HISTOGRAM_H_
+#endif  /* BROTLI_ENC_HISTOGRAM_H_ */

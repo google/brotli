@@ -4,7 +4,7 @@
    See file LICENSE for detail or copy at https://opensource.org/licenses/MIT
 */
 
-// Implementation of Brotli compressor.
+/* Implementation of Brotli compressor. */
 
 #include "./encode.h"
 
@@ -36,8 +36,8 @@ namespace brotli {
 static const int kMinQualityForBlockSplit = 4;
 static const int kMinQualityForContextModeling = 5;
 static const int kMinQualityForOptimizeHistograms = 4;
-// For quality 2 there is no block splitting, so we buffer at most this much
-// literals and commands.
+/* For quality 2 there is no block splitting, so we buffer at most this much
+   literals and commands. */
 static const size_t kMaxNumDelayedSymbols = 0x2fff;
 
 #define COPY_ARRAY(dst, src) memcpy(dst, src, sizeof(src));
@@ -95,10 +95,10 @@ static size_t HashTableSize(size_t max_table_size, size_t input_size) {
 int* BrotliCompressor::GetHashTable(int quality,
                                     size_t input_size,
                                     size_t* table_size) {
-  // Use smaller hash table when input.size() is smaller, since we
-  // fill the table, incurring O(hash table size) overhead for
-  // compression, and if the input is short, we won't need that
-  // many hash table entries anyway.
+  /* Use smaller hash table when input.size() is smaller, since we
+     fill the table, incurring O(hash table size) overhead for
+     compression, and if the input is short, we won't need that
+     many hash table entries anyway. */
   const size_t max_table_size = MaxHashTableSize(quality);
   assert(max_table_size >= 256);
   size_t htsize = HashTableSize(max_table_size, input_size);
@@ -135,7 +135,7 @@ static void EncodeWindowBits(int lgwin, uint8_t* last_byte,
   }
 }
 
-// Initializes the command and distance prefix codes for the first block.
+/* Initializes the command and distance prefix codes for the first block. */
 static void InitCommandPrefixCodes(uint8_t cmd_depths[128],
                                    uint16_t cmd_bits[128],
                                    uint8_t cmd_code[512],
@@ -167,8 +167,8 @@ static void InitCommandPrefixCodes(uint8_t cmd_depths[128],
   COPY_ARRAY(cmd_depths, kDefaultCommandDepths);
   COPY_ARRAY(cmd_bits, kDefaultCommandBits);
 
-  // Initialize the pre-compressed form of the command and distance prefix
-  // codes.
+  /* Initialize the pre-compressed form of the command and distance prefix
+     codes. */
   static const uint8_t kDefaultCommandCode[] = {
     0xff, 0x77, 0xd5, 0xbf, 0xe7, 0xde, 0xea, 0x9e, 0x51, 0x5d, 0xde, 0xc6,
     0x70, 0x57, 0xbc, 0x58, 0x58, 0x58, 0xd8, 0xd8, 0x58, 0xd5, 0xcb, 0x8c,
@@ -181,13 +181,13 @@ static void InitCommandPrefixCodes(uint8_t cmd_depths[128],
   *cmd_code_numbits = kDefaultCommandCodeNumBits;
 }
 
-// Decide about the context map based on the ability of the prediction
-// ability of the previous byte UTF8-prefix on the next byte. The
-// prediction ability is calculated as shannon entropy. Here we need
-// shannon entropy instead of 'BitsEntropy' since the prefix will be
-// encoded with the remaining 6 bits of the following byte, and
-// BitsEntropy will assume that symbol to be stored alone using Huffman
-// coding.
+/* Decide about the context map based on the ability of the prediction
+   ability of the previous byte UTF8-prefix on the next byte. The
+   prediction ability is calculated as shannon entropy. Here we need
+   shannon entropy instead of 'BitsEntropy' since the prefix will be
+   encoded with the remaining 6 bits of the following byte, and
+   BitsEntropy will assume that symbol to be stored alone using Huffman
+   coding. */
 static void ChooseContextMap(int quality,
                              uint32_t* bigram_histo,
                              size_t* num_literal_contexts,
@@ -232,11 +232,11 @@ static void ChooseContextMap(int quality,
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
   };
   if (quality < 7) {
-    // 3 context models is a bit slower, don't use it at lower qualities.
+    /* 3 context models is a bit slower, don't use it at lower qualities. */
     entropy3 = entropy1 * 10;
   }
-  // If expected savings by symbol are less than 0.2 bits, skip the
-  // context modeling -- in exchange for faster decoding speed.
+  /* If expected savings by symbol are less than 0.2 bits, skip the
+     context modeling -- in exchange for faster decoding speed. */
   if (entropy1 - entropy2 < 0.2 &&
       entropy1 - entropy3 < 0.2) {
     *num_literal_contexts = 1;
@@ -261,9 +261,9 @@ static void DecideOverLiteralContextModeling(
   if (quality < kMinQualityForContextModeling || length < 64) {
     return;
   }
-  // Gather bigram data of the UTF8 byte prefixes. To make the analysis of
-  // UTF8 data faster we only examine 64 byte long strides at every 4kB
-  // intervals.
+    /* Gather bigram data of the UTF8 byte prefixes. To make the analysis of
+       UTF8 data faster we only examine 64 byte long strides at every 4kB
+       intervals. */
   const size_t end_pos = start_pos + length;
   uint32_t bigram_prefix_histo[9] = { 0 };
   for (; start_pos + 64 <= end_pos; start_pos += 4096) {
@@ -325,7 +325,7 @@ static void WriteMetaBlockInternal(const uint8_t* data,
                                    size_t* storage_ix,
                                    uint8_t* storage) {
   if (bytes == 0) {
-    // Write the ISLAST and ISEMPTY bits.
+    /* Write the ISLAST and ISEMPTY bits. */
     WriteBits(2, 3, storage_ix, storage);
     *storage_ix = (*storage_ix + 7u) & ~7u;
     return;
@@ -333,8 +333,8 @@ static void WriteMetaBlockInternal(const uint8_t* data,
 
   if (!ShouldCompress(data, mask, last_flush_pos, bytes,
                       num_literals, num_commands)) {
-    // Restore the distance cache, as its last update by
-    // CreateBackwardReferences is now unused.
+    /* Restore the distance cache, as its last update by
+       CreateBackwardReferences is now unused. */
     memcpy(dist_cache, saved_dist_cache, 4 * sizeof(dist_cache[0]));
     StoreUncompressedMetaBlock(is_last, data,
                                WrapPosition(last_flush_pos), mask, bytes,
@@ -416,7 +416,7 @@ static void WriteMetaBlockInternal(const uint8_t* data,
                    storage_ix, storage);
   }
   if (bytes + 4 < (*storage_ix >> 3)) {
-    // Restore the distance cache and last byte.
+    /* Restore the distance cache and last byte. */
     memcpy(dist_cache, saved_dist_cache, 4 * sizeof(dist_cache[0]));
     storage[0] = last_byte;
     *storage_ix = last_byte_bits;
@@ -444,7 +444,7 @@ BrotliCompressor::BrotliCompressor(BrotliParams params)
       command_buf_(NULL),
       literal_buf_(NULL),
       is_last_block_emitted_(0) {
-  // Sanitize params.
+  /* Sanitize params. */
   params_.quality = std::max(0, params_.quality);
   if (params_.lgwin < kMinWindowBits) {
     params_.lgwin = kMinWindowBits;
@@ -465,18 +465,18 @@ BrotliCompressor::BrotliCompressor(BrotliParams params)
                                std::max(kMinInputBlockBits, params_.lgblock));
   }
 
-  // Initialize input and literal cost ring buffers.
-  // We allocate at least lgwin + 1 bits for the ring buffer so that the newly
-  // added block fits there completely and we still get lgwin bits and at least
-  // read_block_size_bits + 1 bits because the copy tail length needs to be
-  // smaller than ringbuffer size.
+  /* Initialize input and literal cost ring buffers.
+     We allocate at least lgwin + 1 bits for the ring buffer so that the newly
+     added block fits there completely and we still get lgwin bits and at least
+     read_block_size_bits + 1 bits because the copy tail length needs to be
+     smaller than ringbuffer size. */
   int ringbuffer_bits = std::max(params_.lgwin + 1, params_.lgblock + 1);
   ringbuffer_ = new RingBuffer(ringbuffer_bits, params_.lgblock);
 
   commands_ = 0;
   cmd_alloc_size_ = 0;
 
-  // Initialize last byte with stream header.
+  /* Initialize last byte with stream header. */
   EncodeWindowBits(params_.lgwin, &last_byte_, &last_byte_bits_);
 
   // Initialize distance cache.
@@ -496,7 +496,7 @@ BrotliCompressor::BrotliCompressor(BrotliParams params)
     literal_buf_ = new uint8_t[kCompressFragmentTwoPassBlockSize];
   }
 
-  // Initialize hashers.
+  /* Initialize hashers. */
   hash_type_ = std::min(10, params_.quality);
   hashers_->Init(hash_type_);
 }
@@ -516,48 +516,49 @@ void BrotliCompressor::CopyInputToRingBuffer(const size_t input_size,
   ringbuffer_->Write(input_buffer, input_size);
   input_pos_ += input_size;
 
-  // TL;DR: If needed, initialize 7 more bytes in the ring buffer to make the
-  // hashing not depend on uninitialized data. This makes compression
-  // deterministic and it prevents uninitialized memory warnings in Valgrind.
-  // Even without erasing, the output would be valid (but nondeterministic).
-  //
-  // Background information: The compressor stores short (at most 8 bytes)
-  // substrings of the input already read in a hash table, and detects
-  // repetitions by looking up such substrings in the hash table. If it
-  // can find a substring, it checks whether the substring is really there
-  // in the ring buffer (or it's just a hash collision). Should the hash
-  // table become corrupt, this check makes sure that the output is
-  // still valid, albeit the compression ratio would be bad.
-  //
-  // The compressor populates the hash table from the ring buffer as it's
-  // reading new bytes from the input. However, at the last few indexes of
-  // the ring buffer, there are not enough bytes to build full-length
-  // substrings from. Since the hash table always contains full-length
-  // substrings, we erase with dummy 0s here to make sure that those
-  // substrings will contain 0s at the end instead of uninitialized
-  // data.
-  //
-  // Please note that erasing is not necessary (because the
-  // memory region is already initialized since he ring buffer
-  // has a `tail' that holds a copy of the beginning,) so we
-  // skip erasing if we have already gone around at least once in
-  // the ring buffer.
+  /* TL;DR: If needed, initialize 7 more bytes in the ring buffer to make the
+     hashing not depend on uninitialized data. This makes compression
+     deterministic and it prevents uninitialized memory warnings in Valgrind.
+     Even without erasing, the output would be valid (but nondeterministic).
+
+     Background information: The compressor stores short (at most 8 bytes)
+     substrings of the input already read in a hash table, and detects
+     repetitions by looking up such substrings in the hash table. If it
+     can find a substring, it checks whether the substring is really there
+     in the ring buffer (or it's just a hash collision). Should the hash
+     table become corrupt, this check makes sure that the output is
+     still valid, albeit the compression ratio would be bad.
+
+     The compressor populates the hash table from the ring buffer as it's
+     reading new bytes from the input. However, at the last few indexes of
+     the ring buffer, there are not enough bytes to build full-length
+     substrings from. Since the hash table always contains full-length
+     substrings, we erase with dummy 0s here to make sure that those
+     substrings will contain 0s at the end instead of uninitialized
+     data.
+
+     Please note that erasing is not necessary (because the
+     memory region is already initialized since he ring buffer
+     has a `tail' that holds a copy of the beginning,) so we
+     skip erasing if we have already gone around at least once in
+     the ring buffer.
+
+     Only clear during the first round of ringbuffer writes. On
+     subsequent rounds data in the ringbuffer would be affected. */
   size_t pos = ringbuffer_->position();
-  // Only clear during the first round of ringbuffer writes. On
-  // subsequent rounds data in the ringbuffer would be affected.
   if (pos <= ringbuffer_->mask()) {
-    // This is the first time when the ring buffer is being written.
-    // We clear 7 bytes just after the bytes that have been copied from
-    // the input buffer.
-    //
-    // The ringbuffer has a "tail" that holds a copy of the beginning,
-    // but only once the ring buffer has been fully written once, i.e.,
-    // pos <= mask. For the first time, we need to write values
-    // in this tail (where index may be larger than mask), so that
-    // we have exactly defined behavior and don't read un-initialized
-    // memory. Due to performance reasons, hashing reads data using a
-    // LOAD64, which can go 7 bytes beyond the bytes written in the
-    // ringbuffer.
+    /* This is the first time when the ring buffer is being written.
+       We clear 7 bytes just after the bytes that have been copied from
+       the input buffer.
+
+       The ringbuffer has a "tail" that holds a copy of the beginning,
+       but only once the ring buffer has been fully written once, i.e.,
+       pos <= mask. For the first time, we need to write values
+       in this tail (where index may be larger than mask), so that
+       we have exactly defined behavior and don't read un-initialized
+       memory. Due to performance reasons, hashing reads data using a
+       LOAD64, which can go 7 bytes beyond the bytes written in the
+       ringbuffer. */
     memset(ringbuffer_->start() + pos, 0, 7);
   }
 }
@@ -595,8 +596,8 @@ bool BrotliCompressor::WriteBrotliData(const bool is_last,
 
   if (params_.quality <= 1) {
     if (delta == 0 && !is_last) {
-      // We have no new input data and we don't have to finish the stream, so
-      // nothing to do.
+      /* We have no new input data and we don't have to finish the stream, so
+         nothing to do. */
       *out_size = 0;
       return true;
     }
@@ -630,11 +631,11 @@ bool BrotliCompressor::WriteBrotliData(const bool is_last,
     return true;
   }
 
-  // Theoretical max number of commands is 1 per 2 bytes.
+    /* Theoretical max number of commands is 1 per 2 bytes. */
   size_t newsize = num_commands_ + bytes / 2 + 1;
   if (newsize > cmd_alloc_size_) {
-    // Reserve a bit more memory to allow merging with a next block
-    // without realloc: that would impact speed.
+      /* Reserve a bit more memory to allow merging with a next block
+         without realloc: that would impact speed. */
     newsize += (bytes / 4) + 16;
     cmd_alloc_size_ = newsize;
     commands_ =
@@ -662,13 +663,13 @@ bool BrotliCompressor::WriteBrotliData(const bool is_last,
       num_literals_ < max_literals &&
       num_commands_ < max_commands &&
       input_pos_ + input_block_size() <= last_flush_pos_ + max_length) {
-    // Merge with next input block. Everything will happen later.
+      /* Merge with next input block. Everything will happen later. */
     last_processed_pos_ = input_pos_;
     *out_size = 0;
     return true;
   }
 
-  // Create the last insert-only command.
+  /* Create the last insert-only command. */
   if (last_insert_len_ > 0) {
     brotli::Command cmd(last_insert_len_);
     commands_[num_commands_++] = cmd;
@@ -677,8 +678,8 @@ bool BrotliCompressor::WriteBrotliData(const bool is_last,
   }
 
   if (!is_last && input_pos_ == last_flush_pos_) {
-    // We have no new input data and we don't have to finish the stream, so
-    // nothing to do.
+    /* We have no new input data and we don't have to finish the stream, so
+       nothing to do. */
     *out_size = 0;
     return true;
   }
@@ -708,8 +709,8 @@ bool BrotliCompressor::WriteBrotliData(const bool is_last,
   }
   num_commands_ = 0;
   num_literals_ = 0;
-  // Save the state of the distance cache in case we need to restore it for
-  // emitting an uncompressed block.
+    /* Save the state of the distance cache in case we need to restore it for
+       emitting an uncompressed block. */
   memcpy(saved_dist_cache_, dist_cache_, sizeof(dist_cache_));
   *output = &storage[0];
   *out_size = storage_ix >> 3;
@@ -829,14 +830,14 @@ static int BrotliCompressBufferQuality10(int lgwin,
       ZopfliComputeShortestPath(block_size, block_start, input_buffer, mask,
                                 max_backward_limit, dist_cache,
                                 hasher, nodes, &path);
-      // We allocate a command buffer in the first iteration of this loop that
-      // will be likely big enough for the whole metablock, so that for most
-      // inputs we will not have to reallocate in later iterations. We do the
-      // allocation here and not before the loop, because if the input is small,
-      // this will be allocated after the zopfli cost model is freed, so this
-      // will not increase peak memory usage.
-      // TODO: If the first allocation is too small, increase command
-      // buffer size exponentially.
+      /* We allocate a command buffer in the first iteration of this loop that
+         will be likely big enough for the whole metablock, so that for most
+         inputs we will not have to reallocate in later iterations. We do the
+         allocation here and not before the loop, because if the input is small,
+         this will be allocated after the zopfli cost model is freed, so this
+         will not increase peak memory usage.
+         TODO: If the first allocation is too small, increase command
+         buffer size exponentially. */
       size_t new_cmd_alloc_size = std::max(expected_num_commands,
                                            num_commands + path.size() + 1);
       if (cmd_alloc_size != new_cmd_alloc_size) {
@@ -868,15 +869,15 @@ static int BrotliCompressBufferQuality10(int lgwin,
     size_t storage_ix = last_byte_bits;
 
     if (metablock_size == 0) {
-      // Write the ISLAST and ISEMPTY bits.
+      /* Write the ISLAST and ISEMPTY bits. */
       storage = new uint8_t[16];
       storage[0] = last_byte;
       WriteBits(2, 3, &storage_ix, storage);
       storage_ix = (storage_ix + 7u) & ~7u;
     } else if (!ShouldCompress(input_buffer, mask, metablock_start,
                                metablock_size, num_literals, num_commands)) {
-      // Restore the distance cache, as its last update by
-      // CreateBackwardReferences is now unused.
+      /* Restore the distance cache, as its last update by
+         CreateBackwardReferences is now unused. */
       memcpy(dist_cache, saved_dist_cache, 4 * sizeof(dist_cache[0]));
       storage = new uint8_t[metablock_size + 16];
       storage[0] = last_byte;
@@ -914,7 +915,7 @@ static int BrotliCompressBufferQuality10(int lgwin,
                      mb,
                      &storage_ix, storage);
       if (metablock_size + 4 < (storage_ix >> 3)) {
-        // Restore the distance cache and last byte.
+        /* Restore the distance cache and last byte. */
         memcpy(dist_cache, saved_dist_cache, 4 * sizeof(dist_cache[0]));
         storage[0] = last_byte;
         storage_ix = last_byte_bits;
@@ -928,8 +929,8 @@ static int BrotliCompressBufferQuality10(int lgwin,
     metablock_start += metablock_size;
     prev_byte = input_buffer[metablock_start - 1];
     prev_byte2 = input_buffer[metablock_start - 2];
-    // Save the state of the distance cache in case we need to restore it for
-    // emitting an uncompressed block.
+    /* Save the state of the distance cache in case we need to restore it for
+       emitting an uncompressed block. */
     memcpy(saved_dist_cache, dist_cache, 4 * sizeof(dist_cache[0]));
 
     const size_t out_size = storage_ix >> 3;
@@ -955,17 +956,17 @@ int BrotliCompressBuffer(BrotliParams params,
                          size_t* encoded_size,
                          uint8_t* encoded_buffer) {
   if (*encoded_size == 0) {
-    // Output buffer needs at least one byte.
+    /* Output buffer needs at least one byte. */
     return 0;
   }
   if (input_size == 0) {
-    // Handle the special case of empty input.
+    /* Handle the special case of empty input. */
     *encoded_size = 1;
     *encoded_buffer = 6;
     return 1;
   }
   if (params.quality == 10) {
-    // TODO: Implement this direct path for all quality levels.
+    /* TODO: Implement this direct path for all quality levels. */
     const int lgwin = std::min(24, std::max(16, params.lgwin));
     return BrotliCompressBufferQuality10(lgwin, input_size, input_buffer,
                                          encoded_size, encoded_buffer);

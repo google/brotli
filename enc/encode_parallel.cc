@@ -4,7 +4,7 @@
    See file LICENSE for detail or copy at https://opensource.org/licenses/MIT
 */
 
-// Implementation of parallel Brotli compressor.
+/* Implementation of parallel Brotli compressor. */
 
 #include "./encode_parallel.h"
 
@@ -63,33 +63,33 @@ bool WriteMetaBlockParallel(const BrotliParams& params,
     return false;
   }
 
-  // Copy prefix + next input block into a continuous area.
+  /* Copy prefix + next input block into a continuous area. */
   uint32_t input_pos = prefix_size;
-  // CreateBackwardReferences reads up to 3 bytes past the end of input if the
-  // mask points past the end of input.
-  // FindMatchLengthWithLimit could do another 8 bytes look-forward.
+  /* CreateBackwardReferences reads up to 3 bytes past the end of input if the
+     mask points past the end of input.
+     FindMatchLengthWithLimit could do another 8 bytes look-forward. */
   std::vector<uint8_t> input(prefix_size + input_size + 4 + 8);
   memcpy(&input[0], prefix_buffer, prefix_size);
   memcpy(&input[input_pos], input_buffer, input_size);
-  // Since we don't have a ringbuffer, masking is a no-op.
-  // We use one less bit than the full range because some of the code uses
-  // mask + 1 as the size of the ringbuffer.
+  /* Since we don't have a ringbuffer, masking is a no-op.
+     We use one less bit than the full range because some of the code uses
+     mask + 1 as the size of the ringbuffer. */
   const uint32_t mask = std::numeric_limits<uint32_t>::max() >> 1;
 
   uint8_t prev_byte = input_pos > 0 ? input[(input_pos - 1) & mask] : 0;
   uint8_t prev_byte2 = input_pos > 1 ? input[(input_pos - 2) & mask] : 0;
 
-  // Decide about UTF8 mode.
+  /* Decide about UTF8 mode. */
   static const double kMinUTF8Ratio = 0.75;
   bool utf8_mode = IsMostlyUTF8(&input[0], input_pos, mask, input_size,
                                 kMinUTF8Ratio);
 
-  // Initialize hashers.
+  /* Initialize hashers. */
   int hash_type = std::min(10, params.quality);
   Hashers* hashers = new Hashers();
   hashers->Init(hash_type);
 
-  // Compute backward references.
+  /* Compute backward references. */
   size_t last_insert_len = 0;
   size_t num_commands = 0;
   size_t num_literals = 0;
@@ -119,7 +119,7 @@ bool WriteMetaBlockParallel(const BrotliParams& params,
   }
   assert(num_commands != 0);
 
-  // Build the meta-block.
+  /* Build the meta-block. */
   MetaBlockSplit mb;
   uint32_t num_direct_distance_codes =
       params.mode == BrotliParams::MODE_FONT ? 12 : 0;
@@ -141,7 +141,7 @@ bool WriteMetaBlockParallel(const BrotliParams& params,
                    &mb);
   }
 
-  // Set up the temporary output storage.
+  /* Set up the temporary output storage. */
   const size_t max_out_size = 2 * input_size + 500;
   std::vector<uint8_t> storage(max_out_size);
   uint8_t first_byte = 0;
@@ -161,7 +161,7 @@ bool WriteMetaBlockParallel(const BrotliParams& params,
   storage[0] = static_cast<uint8_t>(first_byte);
   size_t storage_ix = first_byte_bits;
 
-  // Store the meta-block to the temporary output.
+  /* Store the meta-block to the temporary output. */
   StoreMetaBlock(&input[0], input_pos, input_size, mask,
                  prev_byte, prev_byte2,
                  is_last,
@@ -173,14 +173,14 @@ bool WriteMetaBlockParallel(const BrotliParams& params,
                  &storage_ix, &storage[0]);
   free(commands);
 
-  // If this is not the last meta-block, store an empty metadata
-  // meta-block so that the meta-block will end at a byte boundary.
+  /* If this is not the last meta-block, store an empty metadata
+     meta-block so that the meta-block will end at a byte boundary. */
   if (!is_last) {
     StoreSyncMetaBlock(&storage_ix, &storage[0]);
   }
 
-  // If the compressed data is too large, fall back to an uncompressed
-  // meta-block.
+  /* If the compressed data is too large, fall back to an uncompressed
+     meta-block. */
   size_t output_size = storage_ix >> 3;
   if (input_size + 4 < output_size) {
     storage[0] = static_cast<uint8_t>(first_byte);
@@ -191,7 +191,7 @@ bool WriteMetaBlockParallel(const BrotliParams& params,
     output_size = storage_ix >> 3;
   }
 
-  // Copy the temporary output with size-check to the output.
+  /* Copy the temporary output with size-check to the output. */
   if (output_size > *encoded_size) {
     return false;
   }
@@ -200,7 +200,7 @@ bool WriteMetaBlockParallel(const BrotliParams& params,
   return true;
 }
 
-}  // namespace
+}  /* namespace */
 
 int BrotliCompressBufferParallel(BrotliParams params,
                                  size_t input_size,
@@ -208,15 +208,15 @@ int BrotliCompressBufferParallel(BrotliParams params,
                                  size_t* encoded_size,
                                  uint8_t* encoded_buffer) {
   if (*encoded_size == 0) {
-    // Output buffer needs at least one byte.
+    /* Output buffer needs at least one byte. */
     return 0;
-  } else  if (input_size == 0) {
+  } else if (input_size == 0) {
     encoded_buffer[0] = 6;
     *encoded_size = 1;
     return 1;
   }
 
-  // Sanitize params.
+  /* Sanitize params. */
   if (params.lgwin < kMinWindowBits) {
     params.lgwin = kMinWindowBits;
   } else if (params.lgwin > kMaxWindowBits) {
@@ -237,7 +237,7 @@ int BrotliCompressBufferParallel(BrotliParams params,
 
   std::vector<std::vector<uint8_t> > compressed_pieces;
 
-  // Compress block-by-block independently.
+  /* Compress block-by-block independently. */
   for (size_t pos = 0; pos < input_size; ) {
     uint32_t input_block_size =
         static_cast<uint32_t>(std::min(max_input_block_size, input_size - pos));
@@ -261,7 +261,7 @@ int BrotliCompressBufferParallel(BrotliParams params,
     pos += input_block_size;
   }
 
-  // Piece together the output.
+  /* Piece together the output. */
   size_t out_pos = 0;
   for (size_t i = 0; i < compressed_pieces.size(); ++i) {
     const std::vector<uint8_t>& out = compressed_pieces[i];
@@ -276,4 +276,4 @@ int BrotliCompressBufferParallel(BrotliParams params,
   return true;
 }
 
-}  // namespace brotli
+}  /* namespace brotli */

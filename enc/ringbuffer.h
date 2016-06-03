@@ -4,7 +4,7 @@
    See file LICENSE for detail or copy at https://opensource.org/licenses/MIT
 */
 
-// Sliding window over the input data.
+/* Sliding window over the input data. */
 
 #ifndef BROTLI_ENC_RINGBUFFER_H_
 #define BROTLI_ENC_RINGBUFFER_H_
@@ -16,15 +16,15 @@
 
 namespace brotli {
 
-// A RingBuffer(window_bits, tail_bits) contains `1 << window_bits' bytes of
-// data in a circular manner: writing a byte writes it to:
-//   `position() % (1 << window_bits)'.
-// For convenience, the RingBuffer array contains another copy of the
-// first `1 << tail_bits' bytes:
-//   buffer_[i] == buffer_[i + (1 << window_bits)], if i < (1 << tail_bits),
-// and another copy of the last two bytes:
-//   buffer_[-1] == buffer_[(1 << window_bits) - 1] and
-//   buffer_[-2] == buffer_[(1 << window_bits) - 2].
+/* A RingBuffer(window_bits, tail_bits) contains `1 << window_bits' bytes of
+   data in a circular manner: writing a byte writes it to:
+     `position() % (1 << window_bits)'.
+   For convenience, the RingBuffer array contains another copy of the
+   first `1 << tail_bits' bytes:
+     buffer_[i] == buffer_[i + (1 << window_bits)], if i < (1 << tail_bits),
+   and another copy of the last two bytes:
+     buffer_[-1] == buffer_[(1 << window_bits) - 1] and
+     buffer_[-2] == buffer_[(1 << window_bits) - 2]. */
 class RingBuffer {
  public:
   RingBuffer(int window_bits, int tail_bits)
@@ -41,8 +41,8 @@ class RingBuffer {
     free(data_);
   }
 
-  // Allocates or re-allocates data_ to the given length + plus some slack
-  // region before and after. Fills the slack regions with zeros.
+/* Allocates or re-allocates data_ to the given length + plus some slack
+   region before and after. Fills the slack regions with zeros. */
   inline void InitBuffer(const uint32_t buflen) {
     static const size_t kSlackForEightByteHashingEverywhere = 7;
     cur_size_ = buflen;
@@ -55,41 +55,41 @@ class RingBuffer {
     }
   }
 
-  // Push bytes into the ring buffer.
+/* Push bytes into the ring buffer. */
   void Write(const uint8_t *bytes, size_t n) {
     if (pos_ == 0 && n < tail_size_) {
-      // Special case for the first write: to process the first block, we don't
-      // need to allocate the whole ringbuffer and we don't need the tail
-      // either. However, we do this memory usage optimization only if the
-      // first write is less than the tail size, which is also the input block
-      // size, otherwise it is likely that other blocks will follow and we
-      // will need to reallocate to the full size anyway.
+    /* Special case for the first write: to process the first block, we don't
+       need to allocate the whole ringbuffer and we don't need the tail
+       either. However, we do this memory usage optimization only if the
+       first write is less than the tail size, which is also the input block
+       size, otherwise it is likely that other blocks will follow and we
+       will need to reallocate to the full size anyway. */
       pos_ = static_cast<uint32_t>(n);
       InitBuffer(pos_);
       memcpy(buffer_, bytes, n);
       return;
     }
     if (cur_size_ < total_size_) {
-      // Lazily allocate the full buffer.
+    /* Lazily allocate the full buffer. */
       InitBuffer(total_size_);
-      // Initialize the last two bytes to zero, so that we don't have to worry
-      // later when we copy the last two bytes to the first two positions.
+    /* Initialize the last two bytes to zero, so that we don't have to worry
+       later when we copy the last two bytes to the first two positions. */
       buffer_[size_ - 2] = 0;
       buffer_[size_ - 1] = 0;
     }
     const size_t masked_pos = pos_ & mask_;
-    // The length of the writes is limited so that we do not need to worry
-    // about a write
+    /* The length of the writes is limited so that we do not need to worry
+       about a write */
     WriteTail(bytes, n);
     if (PREDICT_TRUE(masked_pos + n <= size_)) {
-      // A single write fits.
+      /* A single write fits. */
       memcpy(&buffer_[masked_pos], bytes, n);
     } else {
-      // Split into two writes.
-      // Copy into the end of the buffer, including the tail buffer.
+      /* Split into two writes.
+         Copy into the end of the buffer, including the tail buffer. */
       memcpy(&buffer_[masked_pos], bytes,
              std::min(n, total_size_ - masked_pos));
-      // Copy into the beginning of the buffer
+      /* Copy into the beginning of the buffer */
       memcpy(&buffer_[0], bytes + (size_ - masked_pos),
              n - (size_ - masked_pos));
     }
@@ -142,4 +142,4 @@ class RingBuffer {
 
 }  // namespace brotli
 
-#endif  // BROTLI_ENC_RINGBUFFER_H_
+#endif  /* BROTLI_ENC_RINGBUFFER_H_ */

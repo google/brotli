@@ -4,7 +4,7 @@
    See file LICENSE for detail or copy at https://opensource.org/licenses/MIT
 */
 
-// API for Brotli compression
+/* API for Brotli compression. */
 
 #ifndef BROTLI_ENC_ENCODE_H_
 #define BROTLI_ENC_ENCODE_H_
@@ -38,23 +38,23 @@ struct BrotliParams {
         enable_context_modeling(true) {}
 
   enum Mode {
-    // Default compression mode. The compressor does not know anything in
-    // advance about the properties of the input.
+  /* Default compression mode. The compressor does not know anything in
+     advance about the properties of the input. */
     MODE_GENERIC = 0,
-    // Compression mode for UTF-8 format text input.
+  /* Compression mode for UTF-8 format text input. */
     MODE_TEXT = 1,
-    // Compression mode used in WOFF 2.0.
+  /* Compression mode used in WOFF 2.0. */
     MODE_FONT = 2
   };
   Mode mode;
 
-  // Controls the compression-speed vs compression-density tradeoffs. The higher
-  // the quality, the slower the compression. Range is 0 to 11.
+  /* Controls the compression-speed vs compression-density tradeoffs. The higher
+     the |quality|, the slower the compression. Range is 0 to 11. */
   int quality;
-  // Base 2 logarithm of the sliding window size. Range is 10 to 24.
+  /* Base 2 logarithm of the sliding window size. Range is 10 to 24. */
   int lgwin;
-  // Base 2 logarithm of the maximum input block size. Range is 16 to 24.
-  // If set to 0, the value will be set based on the quality.
+  /* Base 2 logarithm of the maximum input block size. Range is 16 to 24.
+     If set to 0, the value will be set based on the quality. */
   int lgblock;
 
   // These settings are deprecated and will be ignored.
@@ -207,4 +207,4 @@ int BrotliCompressWithCustomDictionary(size_t dictsize, const uint8_t* dict,
 
 }  // namespace brotli
 
-#endif  // BROTLI_ENC_ENCODE_H_
+#endif  /* BROTLI_ENC_ENCODE_H_ */
