@@ -1,4 +1,6 @@
 include CONTRIBUTING.md
+include common/*.c
+include common/*.h
 include dec/*.c
 include dec/*.h
 include dec/Makefile
