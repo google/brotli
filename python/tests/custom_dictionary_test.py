@@ -34,3 +34,8 @@ for filename in INPUTS.splitlines():
                         uncompressed, "--custom-dictionary", filename], env=TEST_ENV)
             if diff_q(filename, uncompressed) != 0:
                 sys.exit(1)
+            try:
+                os.unlink(compressed)
+                os.unlink(uncompressed)
+            except OSError:
+                pass

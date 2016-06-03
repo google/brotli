@@ -48,8 +48,8 @@ install:
   # upgrade pip to avoid out-of-date warnings
   - "pip install --disable-pip-version-check --user --upgrade pip"
 
-  # install wheel to build compiled packages
-  - "pip install --upgrade wheel"
+  # install/upgrade setuptools and wheel to build packages
+  - "pip install --upgrade setuptools wheel"
 
 build: false
 
@@ -57,12 +57,15 @@ test_script:
   - "%WITH_COMPILER% python setup.py build_ext test"
 
 after_test:
-  # if tests are successful, create binary packages for the project
+  # if tests are successful, create binary and source packages for the project
   - "%WITH_COMPILER% pip wheel -w dist ."
+  - "%WITH_COMPILER% python setup.py sdist --formats=gztar,zip"
 
 artifacts:
   # archive the generated packages in the ci.appveyor.com build report
-  - path: dist\*
+  - path: dist\*.whl
+  - path: dist\*.zip
+  - path: dist\*.tar.gz
 
 # For info, see: http://www.appveyor.com/docs/deployment/github
 
