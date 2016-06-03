@@ -11,9 +11,8 @@
 #ifndef BROTLI_ENC_ENCODE_PARALLEL_H_
 #define BROTLI_ENC_ENCODE_PARALLEL_H_
 
-
+#include "../common/types.h"
 #include "./encode.h"
-#include "./types.h"
 
 namespace brotli {
 

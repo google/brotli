@@ -11,8 +11,9 @@
 
 #include <stdio.h>
 #include <string>
+
+#include "../common/types.h"
 #include "./port.h"
-#include "./types.h"
 
 namespace brotli {
 

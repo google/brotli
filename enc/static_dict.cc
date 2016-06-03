@@ -8,7 +8,7 @@
 
 #include <algorithm>
 
-#include "./dictionary.h"
+#include "../common/dictionary.h"
 #include "./find_match_length.h"
 #include "./static_dict_lut.h"
 #include "./transform.h"

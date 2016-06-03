@@ -9,9 +9,10 @@
 #ifndef BROTLI_DEC_STATE_H_
 #define BROTLI_DEC_STATE_H_
 
+#include "../common/constants.h"
+#include "../common/types.h"
 #include "./bit_reader.h"
 #include "./huffman.h"
-#include "./types.h"
 #include "./port.h"
 
 #if defined(__cplusplus) || defined(c_plusplus)
@@ -173,10 +174,10 @@ struct BrotliStateStruct {
   uint16_t* symbol_lists;
   /* Storage from symbol_lists. */
   uint16_t symbols_lists_array[BROTLI_HUFFMAN_MAX_CODE_LENGTH + 1 +
-                               BROTLI_HUFFMAN_MAX_CODE_LENGTHS_SIZE];
+                               BROTLI_NUM_COMMAND_SYMBOLS];
   /* Tails of symbol chains. */
   int next_symbol[32];
-  uint8_t code_length_code_lengths[18];
+  uint8_t code_length_code_lengths[BROTLI_CODE_LENGTH_CODES];
   /* Population counts for the code lengths */
   uint16_t code_length_histo[16];
 

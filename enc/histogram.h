@@ -12,11 +12,12 @@
 #include <cstring>
 #include <limits>
 #include <vector>
-#include "./context.h"
+
+#include "../common/types.h"
 #include "./command.h"
+#include "./context.h"
 #include "./fast_log.h"
 #include "./prefix.h"
-#include "./types.h"
 
 namespace brotli {
 

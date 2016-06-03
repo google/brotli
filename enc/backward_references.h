@@ -11,9 +11,9 @@
 
 #include <vector>
 
-#include "./hash.h"
+#include "../common/types.h"
 #include "./command.h"
-#include "./types.h"
+#include "./hash.h"
 
 namespace brotli {
 

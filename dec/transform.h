@@ -9,8 +9,8 @@
 #ifndef BROTLI_DEC_TRANSFORM_H_
 #define BROTLI_DEC_TRANSFORM_H_
 
+#include "../common/types.h"
 #include "./port.h"
-#include "./types.h"
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {

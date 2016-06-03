@@ -10,8 +10,8 @@
 #include "./metablock.h"
 
 #include "./block_splitter.h"
-#include "./context.h"
 #include "./cluster.h"
+#include "./context.h"
 #include "./histogram.h"
 
 namespace brotli {

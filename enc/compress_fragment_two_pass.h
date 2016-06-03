@@ -13,7 +13,7 @@
 #ifndef BROTLI_ENC_COMPRESS_FRAGMENT_TWO_PASS_H_
 #define BROTLI_ENC_COMPRESS_FRAGMENT_TWO_PASS_H_
 
-#include "./types.h"
+#include "../common/types.h"
 
 namespace brotli {
 

@@ -11,10 +11,12 @@
 #define BROTLI_ENC_HASH_H_
 
 #include <sys/types.h>
+
 #include <algorithm>
 #include <cstring>
 #include <limits>
 
+#include "../common/types.h"
 #include "./dictionary_hash.h"
 #include "./fast_log.h"
 #include "./find_match_length.h"
@@ -22,7 +24,6 @@
 #include "./prefix.h"
 #include "./static_dict.h"
 #include "./transform.h"
-#include "./types.h"
 
 namespace brotli {
 

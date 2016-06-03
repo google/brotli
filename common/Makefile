@@ -1,10 +1,10 @@
-#brotli/dec
+#brotli/common
 
 include ../shared.mk
 
 CFLAGS += -Wall
 
-OBJS = bit_reader.o decode.o huffman.o state.o
+OBJS = dictionary.o
 
 all : $(OBJS)
 

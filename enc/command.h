@@ -9,9 +9,9 @@
 #ifndef BROTLI_ENC_COMMAND_H_
 #define BROTLI_ENC_COMMAND_H_
 
+#include "../common/types.h"
 #include "./fast_log.h"
 #include "./prefix.h"
-#include "./types.h"
 
 namespace brotli {
 
