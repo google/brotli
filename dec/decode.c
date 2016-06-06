@@ -170,7 +170,7 @@ static BROTLI_NOINLINE BrotliErrorCode DecodeVarLenUint8(BrotliState* s,
       return BROTLI_SUCCESS;
 
     default:
-      return BROTLI_FAILURE(BROTLI_ERROR_UNREACHABLE_1);
+      return BROTLI_FAILURE(BROTLI_ERROR_UNREACHABLE);
   }
 }
 
@@ -287,7 +287,7 @@ static BrotliErrorCode BROTLI_NOINLINE DecodeMetaBlockLength(
         return BROTLI_SUCCESS;
 
       default:
-        return BROTLI_FAILURE(BROTLI_ERROR_UNREACHABLE_2);
+        return BROTLI_FAILURE(BROTLI_ERROR_UNREACHABLE);
     }
   }
 }
@@ -786,7 +786,7 @@ Complex: /* Decode Huffman-coded code lengths. */
     }
 
     default:
-      return BROTLI_FAILURE(BROTLI_ERROR_UNREACHABLE_3);
+      return BROTLI_FAILURE(BROTLI_ERROR_UNREACHABLE);
   }
 }
 
@@ -1019,7 +1019,7 @@ rleCode:
       return BROTLI_SUCCESS;
     }
     default:
-      return BROTLI_FAILURE(BROTLI_ERROR_UNREACHABLE_4);
+      return BROTLI_FAILURE(BROTLI_ERROR_UNREACHABLE);
   }
 }
 
@@ -1546,7 +1546,7 @@ static BROTLI_INLINE BrotliErrorCode ProcessCommandsInternal(int safe,
   } else if (s->state == BROTLI_STATE_COMMAND_POST_WRAP_COPY) {
     goto CommandPostWrapCopy;
   } else {
-    return BROTLI_FAILURE(BROTLI_ERROR_UNREACHABLE_5);
+    return BROTLI_FAILURE(BROTLI_ERROR_UNREACHABLE);
   }
 
 CommandBegin:
@@ -2141,7 +2141,7 @@ BrotliResult BrotliDecompressStream(size_t* available_in,
               break;
             default:
               return SaveErrorCode(s,
-                  BROTLI_FAILURE(BROTLI_ERROR_UNREACHABLE_6));
+                  BROTLI_FAILURE(BROTLI_ERROR_UNREACHABLE));
           }
           result = HuffmanTreeGroupDecode(hgroup, s);
         }
@@ -2243,6 +2243,18 @@ void BrotliSetCustomDictionary(
 
 BrotliErrorCode BrotliGetErrorCode(const BrotliState* s) {
   return (BrotliErrorCode)s->error_code;
+}
+
+const char* BrotliErrorString(BrotliErrorCode c) {
+  switch (c) {
+#define _BROTLI_ERROR_CODE_CASE(PREFIX, NAME, CODE) \
+    case BROTLI ## PREFIX ## NAME: return #NAME;
+#define _BROTLI_NOTHING
+    BROTLI_ERROR_CODES_LIST(_BROTLI_ERROR_CODE_CASE, _BROTLI_NOTHING)
+#undef _BROTLI_ERROR_CODE_CASE
+#undef _BROTLI_NOTHING
+    default: return "INVALID";
+  }
 }
 
 #if defined(__cplusplus) || defined(c_plusplus)
