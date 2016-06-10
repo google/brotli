@@ -134,7 +134,9 @@ OR:
 #define ATTRIBUTE_ALWAYS_INLINE
 #endif
 
-#if BROTLI_MODERN_COMPILER || __has_attribute(visibility)
+#if defined(_WIN32) || defined(__CYGWIN__)
+#define ATTRIBUTE_VISIBILITY_HIDDEN
+#elif BROTLI_MODERN_COMPILER || __has_attribute(visibility)
 #define ATTRIBUTE_VISIBILITY_HIDDEN __attribute__ ((visibility ("hidden")))
 #else
 #define ATTRIBUTE_VISIBILITY_HIDDEN
