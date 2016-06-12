@@ -52,6 +52,13 @@ static inline int ms_open(const char *filename, int oflag, int pmode) {
 }
 #endif  /* WIN32 */
 
+#ifdef _WIN32
+# include <io.h>
+# include <fcntl.h>
+# define SET_BINARY_MODE(handle) setmode((handle), O_BINARY)
+#else
+# define SET_BINARY_MODE(handle) ((void)0)
+#endif
 
 static bool ParseQuality(const char* s, int* quality) {
   if (s[0] >= '0' && s[0] <= '9') {
@@ -165,7 +172,8 @@ error:
 
 static FILE* OpenInputFile(const char* input_path) {
   if (input_path == 0) {
-    return fdopen(STDIN_FILENO, "rb");
+    SET_BINARY_MODE(stdin);
+    return stdin;
   }
   FILE* f = fopen(input_path, "rb");
   if (f == 0) {
@@ -177,7 +185,8 @@ static FILE* OpenInputFile(const char* input_path) {
 
 static FILE *OpenOutputFile(const char *output_path, const int force) {
   if (output_path == 0) {
-    return fdopen(STDOUT_FILENO, "wb");
+    SET_BINARY_MODE(stdout);
+    return stdout;
   }
   int excl = force ? 0 : O_EXCL;
   int fd = open(output_path, O_CREAT | excl | O_WRONLY | O_TRUNC,
