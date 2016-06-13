@@ -1,6 +1,7 @@
 #define PY_SSIZE_T_CLEAN 1
 #include <Python.h>
 #include <bytesobject.h>
+#include <vector>
 #include "../enc/encode.h"
 #include "../dec/decode.h"
 #include "../tools/version.h"
@@ -9,8 +10,6 @@
 #define PyInt_Check PyLong_Check
 #define PyInt_AsLong PyLong_AsLong
 #endif
-
-using namespace brotli;
 
 static PyObject *BrotliError;
 
@@ -23,7 +22,7 @@ static int as_bounded_int(PyObject *o, int* result, int lower_bound, int upper_b
   return 1;
 }
 
-static int mode_convertor(PyObject *o, BrotliParams::Mode *mode) {
+static int mode_convertor(PyObject *o, BrotliEncoderMode *mode) {
   if (!PyInt_Check(o)) {
     PyErr_SetString(BrotliError, "Invalid mode");
     return 0;
@@ -34,10 +33,10 @@ static int mode_convertor(PyObject *o, BrotliParams::Mode *mode) {
     PyErr_SetString(BrotliError, "Invalid mode");
     return 0;
   }
-  *mode = (BrotliParams::Mode) mode_value;
-  if (*mode != BrotliParams::MODE_GENERIC &&
-      *mode != BrotliParams::MODE_TEXT &&
-      *mode != BrotliParams::MODE_FONT) {
+  *mode = (BrotliEncoderMode) mode_value;
+  if (*mode != BROTLI_MODE_GENERIC &&
+      *mode != BROTLI_MODE_TEXT &&
+      *mode != BROTLI_MODE_FONT) {
     PyErr_SetString(BrotliError, "Invalid mode");
     return 0;
   }
@@ -116,9 +115,10 @@ PyDoc_STRVAR(compress__doc__,
 
 static PyObject* brotli_compress(PyObject *self, PyObject *args, PyObject *keywds) {
   PyObject *ret = NULL;
-  uint8_t *input, *output, *custom_dictionary;
-  size_t length, output_length, custom_dictionary_length;
-  BrotliParams::Mode mode = (BrotliParams::Mode) -1;
+  uint8_t *input, *output = NULL, *custom_dictionary, *next_out;
+  const uint8_t *next_in;
+  size_t length, output_length, custom_dictionary_length, available_in, available_out;
+  BrotliEncoderMode mode = (BrotliEncoderMode) -1;
   int quality = -1;
   int lgwin = -1;
   int lgblock = -1;
@@ -142,35 +142,37 @@ static PyObject* brotli_compress(PyObject *self, PyObject *args, PyObject *keywd
     return NULL;
 
   output_length = length + (length >> 2) + 10240;
+  BrotliEncoderState* enc = BrotliEncoderCreateInstance(0, 0, 0);
+  if (!enc) {
+    ok = false;
+    goto end;
+  }
   output = new uint8_t[output_length];
 
-  BrotliParams params;
   if ((int) mode != -1)
-    params.mode = mode;
+    BrotliEncoderSetParameter(enc, BROTLI_PARAM_MODE, (uint32_t)mode);
   if (quality != -1)
-    params.quality = quality;
+    BrotliEncoderSetParameter(enc, BROTLI_PARAM_QUALITY, (uint32_t)quality);
   if (lgwin != -1)
-    params.lgwin = lgwin;
+    BrotliEncoderSetParameter(enc, BROTLI_PARAM_LGWIN, (uint32_t)lgwin);
   if (lgblock != -1)
-    params.lgblock = lgblock;
+    BrotliEncoderSetParameter(enc, BROTLI_PARAM_LGBLOCK, (uint32_t)lgblock);
 
-  if (custom_dictionary_length == 0) {
-    ok = BrotliCompressBuffer(params, length, input,
-                              &output_length, output);
-  } else {
-    uint8_t *custom_dictionary_start = custom_dictionary;
-    BrotliMemIn in(input, length);
-    BrotliMemOut out(output, output_length);
-    size_t sliding_window_size = ((size_t)1) << params.lgwin;
-    if (custom_dictionary_length > sliding_window_size) {
-      custom_dictionary_start += custom_dictionary_length - sliding_window_size;
-      custom_dictionary_length = sliding_window_size;
-    }
-    ok = BrotliCompressWithCustomDictionary(custom_dictionary_length,
-        custom_dictionary_start, params, &in, &out);
-    output_length = out.position();
+  if (custom_dictionary_length != 0) {
+    BrotliEncoderSetCustomDictionary(enc, custom_dictionary_length,
+                                     custom_dictionary);
   }
+  available_out = output_length;
+  next_out = output;
+  available_in = length;
+  next_in = input;
+  BrotliEncoderCompressStream(enc, BROTLI_OPERATION_FINISH,
+                              &available_in, &next_in,
+                              &available_out, &next_out, 0);
+  ok = BrotliEncoderIsFinished(enc);
 
+end:
+  BrotliEncoderDestroyInstance(enc);
   if (ok) {
     ret = PyBytes_FromStringAndSize((char*)output, output_length);
   } else {
@@ -291,9 +293,9 @@ PyMODINIT_FUNC INIT_BROTLI(void) {
     PyModule_AddObject(m, "error", BrotliError);
   }
 
-  PyModule_AddIntConstant(m, "MODE_GENERIC", (int) BrotliParams::MODE_GENERIC);
-  PyModule_AddIntConstant(m, "MODE_TEXT", (int) BrotliParams::MODE_TEXT);
-  PyModule_AddIntConstant(m, "MODE_FONT", (int) BrotliParams::MODE_FONT);
+  PyModule_AddIntConstant(m, "MODE_GENERIC", (int) BROTLI_MODE_GENERIC);
+  PyModule_AddIntConstant(m, "MODE_TEXT", (int) BROTLI_MODE_TEXT);
+  PyModule_AddIntConstant(m, "MODE_FONT", (int) BROTLI_MODE_FONT);
 
   PyModule_AddStringConstant(m, "__version__", BROTLI_VERSION);
 
