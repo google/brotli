@@ -13,7 +13,6 @@
 #include <string>
 
 #include "../common/types.h"
-#include "./port.h"
 
 namespace brotli {
 

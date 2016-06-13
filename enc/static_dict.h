@@ -10,10 +10,13 @@
 #define BROTLI_ENC_STATIC_DICT_H_
 
 #include "../common/types.h"
+#include "./port.h"
 
-namespace brotli {
+#if defined(__cplusplus) || defined(c_plusplus)
+extern "C" {
+#endif
 
-static const size_t kMaxDictionaryMatchLen = 37;
+#define BROTLI_MAX_STATIC_DICTIONARY_MATCH_LEN 37
 static const uint32_t kInvalidMatch = 0xfffffff;
 
 /* Matches data against static dictionary words, and for each length l,
@@ -23,11 +26,13 @@ static const uint32_t kInvalidMatch = 0xfffffff;
    Prerequisites:
      matches array is at least BROTLI_MAX_STATIC_DICTIONARY_MATCH_LEN + 1 long
      all elements are initialized to kInvalidMatch */
-bool FindAllStaticDictionaryMatches(const uint8_t* data,
-                                    size_t min_length,
-                                    size_t max_length,
-                                    uint32_t* matches);
+BROTLI_INTERNAL int BrotliFindAllStaticDictionaryMatches(const uint8_t* data,
+                                                         size_t min_length,
+                                                         size_t max_length,
+                                                         uint32_t* matches);
 
-}  // namespace brotli
+#if defined(__cplusplus) || defined(c_plusplus)
+}  /* extern "C" */
+#endif
 
 #endif  /* BROTLI_ENC_STATIC_DICT_H_ */

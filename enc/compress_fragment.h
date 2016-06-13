@@ -13,8 +13,12 @@
 #define BROTLI_ENC_COMPRESS_FRAGMENT_H_
 
 #include "../common/types.h"
+#include "./memory.h"
+#include "./port.h"
 
-namespace brotli {
+#if defined(__cplusplus) || defined(c_plusplus)
+extern "C" {
+#endif
 
 /* Compresses "input" string to the "*storage" buffer as one or more complete
    meta-blocks, and updates the "*storage_ix" bit position.
@@ -35,13 +39,20 @@ namespace brotli {
    REQUIRES: "input_size" is greater than zero, or "is_last" is 1.
    REQUIRES: All elements in "table[0..table_size-1]" are initialized to zero.
    REQUIRES: "table_size" is a power of two */
-void BrotliCompressFragmentFast(const uint8_t* input, size_t input_size,
-                                bool is_last,
-                                int* table, size_t table_size,
-                                uint8_t cmd_depth[128], uint16_t cmd_bits[128],
-                                size_t* cmd_code_numbits, uint8_t* cmd_code,
-                                size_t* storage_ix, uint8_t* storage);
+BROTLI_INTERNAL void BrotliCompressFragmentFast(MemoryManager* m,
+                                                const uint8_t* input,
+                                                size_t input_size,
+                                                int is_last,
+                                                int* table, size_t table_size,
+                                                uint8_t cmd_depth[128],
+                                                uint16_t cmd_bits[128],
+                                                size_t* cmd_code_numbits,
+                                                uint8_t* cmd_code,
+                                                size_t* storage_ix,
+                                                uint8_t* storage);
 
-}  // namespace brotli
+#if defined(__cplusplus) || defined(c_plusplus)
+}  /* extern "C" */
+#endif
 
 #endif  /* BROTLI_ENC_COMPRESS_FRAGMENT_H_ */

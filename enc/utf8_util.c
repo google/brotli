@@ -10,11 +10,12 @@
 
 #include "../common/types.h"
 
-namespace brotli {
+#if defined(__cplusplus) || defined(c_plusplus)
+extern "C" {
+#endif
 
-namespace {
-
-size_t ParseAsUTF8(int* symbol, const uint8_t* input, size_t size) {
+static size_t BrotliParseAsUTF8(
+    int* symbol, const uint8_t* input, size_t size) {
   /* ASCII */
   if ((input[0] & 0x80) == 0) {
     *symbol = input[0];
@@ -63,21 +64,21 @@ size_t ParseAsUTF8(int* symbol, const uint8_t* input, size_t size) {
   return 1;
 }
 
-}  // namespace
-
 /* Returns 1 if at least min_fraction of the data is UTF8-encoded.*/
-bool IsMostlyUTF8(const uint8_t* data, const size_t pos, const size_t mask,
-                  const size_t length, const double min_fraction) {
+int BrotliIsMostlyUTF8(const uint8_t* data, const size_t pos,
+    const size_t mask, const size_t length, const double min_fraction) {
   size_t size_utf8 = 0;
   size_t i = 0;
   while (i < length) {
     int symbol;
-    size_t bytes_read = ParseAsUTF8(
-        &symbol, &data[(pos + i) & mask], length - i);
+    size_t bytes_read =
+        BrotliParseAsUTF8(&symbol, &data[(pos + i) & mask], length - i);
     i += bytes_read;
     if (symbol < 0x110000) size_utf8 += bytes_read;
   }
-  return size_utf8 > min_fraction * static_cast<double>(length);
+  return (size_utf8 > min_fraction * (double)length) ? 1 : 0;
 }
 
-}  // namespace brotli
+#if defined(__cplusplus) || defined(c_plusplus)
+}  /* extern "C" */
+#endif

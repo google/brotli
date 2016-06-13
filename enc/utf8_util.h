@@ -10,17 +10,23 @@
 #define BROTLI_ENC_UTF8_UTIL_H_
 
 #include "../common/types.h"
+#include "./port.h"
 
-namespace brotli {
+#if defined(__cplusplus) || defined(c_plusplus)
+extern "C" {
+#endif
 
 static const double kMinUTF8Ratio = 0.75;
 
 /* Returns 1 if at least min_fraction of the bytes between pos and
    pos + length in the (data, mask) ringbuffer is UTF8-encoded, otherwise
    returns 0. */
-bool IsMostlyUTF8(const uint8_t* data, const size_t pos, const size_t mask,
-                  const size_t length, const double min_fraction);
+BROTLI_INTERNAL int BrotliIsMostlyUTF8(
+    const uint8_t* data, const size_t pos, const size_t mask,
+    const size_t length, const double min_fraction);
 
-}  // namespace brotli
+#if defined(__cplusplus) || defined(c_plusplus)
+}  /* extern "C" */
+#endif
 
 #endif  /* BROTLI_ENC_UTF8_UTIL_H_ */

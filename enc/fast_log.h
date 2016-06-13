@@ -9,16 +9,18 @@
 #ifndef BROTLI_ENC_FAST_LOG_H_
 #define BROTLI_ENC_FAST_LOG_H_
 
-#include <assert.h>
 #include <math.h>
 
 #include "../common/types.h"
+#include "../common/port.h"
 
-namespace brotli {
+#if defined(__cplusplus) || defined(c_plusplus)
+extern "C" {
+#endif
 
-static inline uint32_t Log2FloorNonZero(size_t n) {
+static BROTLI_INLINE uint32_t Log2FloorNonZero(size_t n) {
 #ifdef __GNUC__
-  return 31u ^ static_cast<uint32_t>(__builtin_clz(static_cast<uint32_t>(n)));
+  return 31u ^ (uint32_t)__builtin_clz((uint32_t)n);
 #else
   uint32_t result = 0;
   while (n >>= 1) result++;
@@ -120,7 +122,7 @@ static const float kLog2Table[] = {
 };
 
 /* Faster logarithm for small integers, with the property of log2(0) == 0. */
-static inline double FastLog2(size_t v) {
+static BROTLI_INLINE double FastLog2(size_t v) {
   if (v < sizeof(kLog2Table) / sizeof(kLog2Table[0])) {
     return kLog2Table[v];
   }
@@ -129,12 +131,14 @@ static inline double FastLog2(size_t v) {
   /* Visual Studio 2010 and Android API levels < 18 do not have the log2()
    * function defined, so we use log() and a multiplication instead. */
   static const double kLog2Inv = 1.4426950408889634f;
-  return log(static_cast<double>(v)) * kLog2Inv;
+  return log((double)v) * kLog2Inv;
 #else
-  return log2(static_cast<double>(v));
+  return log2((double)v);
 #endif
 }
 
-}  // namespace brotli
+#if defined(__cplusplus) || defined(c_plusplus)
+}  /* extern "C" */
+#endif
 
 #endif  /* BROTLI_ENC_FAST_LOG_H_ */

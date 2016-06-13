@@ -9,12 +9,15 @@
 #ifndef BROTLI_ENC_RINGBUFFER_H_
 #define BROTLI_ENC_RINGBUFFER_H_
 
-#include <cstdlib>  /* free, realloc */
+#include <string.h>  /* memcpy */
 
 #include "../common/types.h"
+#include "./memory.h"
 #include "./port.h"
 
-namespace brotli {
+#if defined(__cplusplus) || defined(c_plusplus)
+extern "C" {
+#endif
 
 /* A RingBuffer(window_bits, tail_bits) contains `1 << window_bits' bytes of
    data in a circular manner: writing a byte writes it to:
@@ -25,121 +28,130 @@ namespace brotli {
    and another copy of the last two bytes:
      buffer_[-1] == buffer_[(1 << window_bits) - 1] and
      buffer_[-2] == buffer_[(1 << window_bits) - 2]. */
-class RingBuffer {
- public:
-  RingBuffer(int window_bits, int tail_bits)
-      : size_(1u << window_bits),
-        mask_((1u << window_bits) - 1),
-        tail_size_(1u << tail_bits),
-        total_size_(size_ + tail_size_),
-        cur_size_(0),
-        pos_(0),
-        data_(0),
-        buffer_(0) {}
-
-  ~RingBuffer(void) {
-    free(data_);
-  }
-
-/* Allocates or re-allocates data_ to the given length + plus some slack
-   region before and after. Fills the slack regions with zeros. */
-  inline void InitBuffer(const uint32_t buflen) {
-    static const size_t kSlackForEightByteHashingEverywhere = 7;
-    cur_size_ = buflen;
-    data_ = static_cast<uint8_t*>(realloc(
-        data_, 2 + buflen + kSlackForEightByteHashingEverywhere));
-    buffer_ = data_ + 2;
-    buffer_[-2] = buffer_[-1] = 0;
-    for (size_t i = 0; i < kSlackForEightByteHashingEverywhere; ++i) {
-      buffer_[cur_size_ + i] = 0;
-    }
-  }
-
-/* Push bytes into the ring buffer. */
-  void Write(const uint8_t *bytes, size_t n) {
-    if (pos_ == 0 && n < tail_size_) {
-    /* Special case for the first write: to process the first block, we don't
-       need to allocate the whole ringbuffer and we don't need the tail
-       either. However, we do this memory usage optimization only if the
-       first write is less than the tail size, which is also the input block
-       size, otherwise it is likely that other blocks will follow and we
-       will need to reallocate to the full size anyway. */
-      pos_ = static_cast<uint32_t>(n);
-      InitBuffer(pos_);
-      memcpy(buffer_, bytes, n);
-      return;
-    }
-    if (cur_size_ < total_size_) {
-    /* Lazily allocate the full buffer. */
-      InitBuffer(total_size_);
-    /* Initialize the last two bytes to zero, so that we don't have to worry
-       later when we copy the last two bytes to the first two positions. */
-      buffer_[size_ - 2] = 0;
-      buffer_[size_ - 1] = 0;
-    }
-    const size_t masked_pos = pos_ & mask_;
-    /* The length of the writes is limited so that we do not need to worry
-       about a write */
-    WriteTail(bytes, n);
-    if (PREDICT_TRUE(masked_pos + n <= size_)) {
-      /* A single write fits. */
-      memcpy(&buffer_[masked_pos], bytes, n);
-    } else {
-      /* Split into two writes.
-         Copy into the end of the buffer, including the tail buffer. */
-      memcpy(&buffer_[masked_pos], bytes,
-             std::min(n, total_size_ - masked_pos));
-      /* Copy into the beginning of the buffer */
-      memcpy(&buffer_[0], bytes + (size_ - masked_pos),
-             n - (size_ - masked_pos));
-    }
-    buffer_[-2] = buffer_[size_ - 2];
-    buffer_[-1] = buffer_[size_ - 1];
-    pos_ += static_cast<uint32_t>(n);
-    if (pos_ > (1u << 30)) {  /* Wrap, but preserve not-a-first-lap feature. */
-      pos_ = (pos_ & ((1u << 30) - 1)) | (1u << 30);
-    }
-  }
-
-  void Reset(void) {
-    pos_ = 0;
-  }
-
-  // Logical cursor position in the ring buffer.
-  uint32_t position(void) const { return pos_; }
-
-  // Bit mask for getting the physical position for a logical position.
-  uint32_t mask(void) const { return mask_; }
-
-  uint8_t *start(void) { return &buffer_[0]; }
-  const uint8_t *start(void) const { return &buffer_[0]; }
-
- private:
-  void WriteTail(const uint8_t *bytes, size_t n) {
-    const size_t masked_pos = pos_ & mask_;
-    if (PREDICT_FALSE(masked_pos < tail_size_)) {
-      // Just fill the tail buffer with the beginning data.
-      const size_t p = size_ + masked_pos;
-      memcpy(&buffer_[p], bytes, std::min(n, tail_size_ - masked_pos));
-    }
-  }
-
-  // Size of the ringbuffer is (1 << window_bits) + tail_size_.
+typedef struct RingBuffer {
+  /* Size of the ringbuffer is (1 << window_bits) + tail_size_. */
   const uint32_t size_;
   const uint32_t mask_;
   const uint32_t tail_size_;
   const uint32_t total_size_;
 
   uint32_t cur_size_;
-  // Position to write in the ring buffer.
+  /* Position to write in the ring buffer. */
   uint32_t pos_;
-  // The actual ring buffer containing the copy of the last two bytes, the data,
-  // and the copy of the beginning as a tail.
+  /* The actual ring buffer containing the copy of the last two bytes, the data,
+     and the copy of the beginning as a tail. */
   uint8_t *data_;
-  // The start of the ringbuffer.
+  /* The start of the ringbuffer. */
   uint8_t *buffer_;
-};
+} RingBuffer;
 
-}  // namespace brotli
+static BROTLI_INLINE void RingBufferInit(RingBuffer* rb) {
+  rb->cur_size_ = 0;
+  rb->pos_ = 0;
+  rb->data_ = 0;
+  rb->buffer_ = 0;
+}
+
+static BROTLI_INLINE void RingBufferSetup(
+    int window_bits, int tail_bits, RingBuffer* rb) {
+  *(uint32_t*)&rb->size_ = 1u << window_bits;
+  *(uint32_t*)&rb->mask_ = (1u << window_bits) - 1;
+  *(uint32_t*)&rb->tail_size_ = 1u << tail_bits;
+  *(uint32_t*)&rb->total_size_ = rb->size_ + rb->tail_size_;
+}
+
+static BROTLI_INLINE void RingBufferFree(MemoryManager* m, RingBuffer* rb) {
+  BROTLI_FREE(m, rb->data_);
+}
+
+/* Allocates or re-allocates data_ to the given length + plus some slack
+   region before and after. Fills the slack regions with zeros. */
+static BROTLI_INLINE void RingBufferInitBuffer(
+    MemoryManager* m, const uint32_t buflen, RingBuffer* rb) {
+  static const size_t kSlackForEightByteHashingEverywhere = 7;
+  uint8_t* new_data = BROTLI_ALLOC(
+      m, uint8_t, 2 + buflen + kSlackForEightByteHashingEverywhere);
+  size_t i;
+  if (BROTLI_IS_OOM(m)) return;
+  if (rb->data_) {
+    memcpy(new_data, rb->data_,
+        2 + rb->cur_size_ + kSlackForEightByteHashingEverywhere);
+    BROTLI_FREE(m, rb->data_);
+  }
+  rb->data_ = new_data;
+  rb->cur_size_ = buflen;
+  rb->buffer_ = rb->data_ + 2;
+  rb->buffer_[-2] = rb->buffer_[-1] = 0;
+  for (i = 0; i < kSlackForEightByteHashingEverywhere; ++i) {
+    rb->buffer_[rb->cur_size_ + i] = 0;
+  }
+}
+
+static BROTLI_INLINE void RingBufferWriteTail(
+    const uint8_t *bytes, size_t n, RingBuffer* rb) {
+  const size_t masked_pos = rb->pos_ & rb->mask_;
+  if (PREDICT_FALSE(masked_pos < rb->tail_size_)) {
+    /* Just fill the tail buffer with the beginning data. */
+    const size_t p = rb->size_ + masked_pos;
+    memcpy(&rb->buffer_[p], bytes,
+        BROTLI_MIN(size_t, n, rb->tail_size_ - masked_pos));
+  }
+}
+
+/* Push bytes into the ring buffer. */
+static BROTLI_INLINE void RingBufferWrite(
+    MemoryManager* m, const uint8_t *bytes, size_t n, RingBuffer* rb) {
+  if (rb->pos_ == 0 && n < rb->tail_size_) {
+    /* Special case for the first write: to process the first block, we don't
+       need to allocate the whole ringbuffer and we don't need the tail
+       either. However, we do this memory usage optimization only if the
+       first write is less than the tail size, which is also the input block
+       size, otherwise it is likely that other blocks will follow and we
+       will need to reallocate to the full size anyway. */
+    rb->pos_ = (uint32_t)n;
+    RingBufferInitBuffer(m, rb->pos_, rb);
+    if (BROTLI_IS_OOM(m)) return;
+    memcpy(rb->buffer_, bytes, n);
+    return;
+  }
+  if (rb->cur_size_ < rb->total_size_) {
+    /* Lazily allocate the full buffer. */
+    RingBufferInitBuffer(m, rb->total_size_, rb);
+    if (BROTLI_IS_OOM(m)) return;
+    /* Initialize the last two bytes to zero, so that we don't have to worry
+       later when we copy the last two bytes to the first two positions. */
+    rb->buffer_[rb->size_ - 2] = 0;
+    rb->buffer_[rb->size_ - 1] = 0;
+  }
+  {
+    const size_t masked_pos = rb->pos_ & rb->mask_;
+    /* The length of the writes is limited so that we do not need to worry
+       about a write */
+    RingBufferWriteTail(bytes, n, rb);
+    if (PREDICT_TRUE(masked_pos + n <= rb->size_)) {
+      /* A single write fits. */
+      memcpy(&rb->buffer_[masked_pos], bytes, n);
+    } else {
+      /* Split into two writes.
+         Copy into the end of the buffer, including the tail buffer. */
+      memcpy(&rb->buffer_[masked_pos], bytes,
+             BROTLI_MIN(size_t, n, rb->total_size_ - masked_pos));
+      /* Copy into the beginning of the buffer */
+      memcpy(&rb->buffer_[0], bytes + (rb->size_ - masked_pos),
+             n - (rb->size_ - masked_pos));
+    }
+  }
+  rb->buffer_[-2] = rb->buffer_[rb->size_ - 2];
+  rb->buffer_[-1] = rb->buffer_[rb->size_ - 1];
+  rb->pos_ += (uint32_t)n;
+  if (rb->pos_ > (1u << 30)) {
+    /* Wrap, but preserve not-a-first-lap feature. */
+    rb->pos_ = (rb->pos_ & ((1u << 30) - 1)) | (1u << 30);
+  }
+}
+
+#if defined(__cplusplus) || defined(c_plusplus)
+}  /* extern "C" */
+#endif
 
 #endif  /* BROTLI_ENC_RINGBUFFER_H_ */

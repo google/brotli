@@ -15,9 +15,10 @@
 #include <cstring>
 #include <ctime>
 #include <string>
+#include <vector>
 
 #include "../dec/decode.h"
-#include "../enc/compressor.h"
+#include "../enc/encode.h"
 
 #if !defined(_WIN32)
 #include <unistd.h>
@@ -52,7 +53,6 @@ static inline int ms_open(const char *filename, int oflag, int pmode) {
 }
 #endif  /* WIN32 */
 
-
 static bool ParseQuality(const char* s, int* quality) {
   if (s[0] >= '0' && s[0] <= '9') {
     *quality = s[0] - '0';
@@ -68,6 +68,7 @@ static bool ParseQuality(const char* s, int* quality) {
 static void ParseArgv(int argc, char **argv,
                       char **input_path,
                       char **output_path,
+                      char **dictionary_path,
                       int *force,
                       int *quality,
                       int *decompress,
@@ -125,6 +126,13 @@ static void ParseArgv(int argc, char **argv,
         *output_path = argv[k + 1];
         ++k;
         continue;
+      } else if (!strcmp("--custom-dictionary", argv[k])) {
+        if (*dictionary_path != 0) {
+          goto error;
+        }
+        *dictionary_path = argv[k + 1];
+        ++k;
+        continue;
       } else if (!strcmp("--quality", argv[k]) ||
                  !strcmp("-q", argv[k])) {
         if (!ParseQuality(argv[k + 1], quality)) {
@@ -158,7 +166,7 @@ error:
   fprintf(stderr,
           "Usage: %s [--force] [--quality n] [--decompress]"
           " [--input filename] [--output filename] [--repeat iters]"
-          " [--verbose] [--window n]\n",
+          " [--verbose] [--window n] [--custom-dictionary filename]\n",
           argv[0]);
   exit(1);
 }
@@ -196,7 +204,7 @@ static FILE *OpenOutputFile(const char *output_path, const int force) {
   return fdopen(fd, "wb");
 }
 
-static int64_t FileSize(char *path) {
+static int64_t FileSize(const char *path) {
   FILE *f = fopen(path, "rb");
   if (f == NULL) {
     return -1;
@@ -212,13 +220,50 @@ static int64_t FileSize(char *path) {
   return retval;
 }
 
+static std::vector<uint8_t> ReadDictionary(const char* path) {
+  FILE *f = fopen(path, "rb");
+  if (f == NULL) {
+    perror("fopen");
+    exit(1);
+  }
+
+  int64_t file_size = FileSize(path);
+  if (file_size == -1) {
+    fprintf(stderr, "could not get size of dictionary file");
+    exit(1);
+  }
+
+  static const int kMaxDictionarySize = (1 << 24) - 16;
+  if (file_size > kMaxDictionarySize) {
+    fprintf(stderr, "dictionary is larger than maximum allowed: %d\n",
+            kMaxDictionarySize);
+    exit(1);
+  }
+
+  std::vector<uint8_t> buffer;
+  buffer.resize(static_cast<size_t>(file_size));
+  size_t bytes_read = fread(buffer.data(), sizeof(uint8_t), buffer.size(), f);
+  if (bytes_read != buffer.size()) {
+    fprintf(stderr, "could not read dictionary\n");
+    exit(1);
+  }
+  fclose(f);
+  return buffer;
+}
+
 static const size_t kFileBufferSize = 65536;
 
-static void Decompresss(FILE* fin, FILE* fout) {
+static int Decompress(FILE* fin, FILE* fout, const char* dictionary_path) {
+  /* Dictionary should be kept during first rounds of decompression. */
+  std::vector<uint8_t> dictionary;
   BrotliState* s = BrotliCreateState(NULL, NULL, NULL);
   if (!s) {
     fprintf(stderr, "out of memory\n");
-    exit(1);
+    return 0;
+  }
+  if (dictionary_path != NULL) {
+    dictionary = ReadDictionary(dictionary_path);
+    BrotliSetCustomDictionary(dictionary.size(), dictionary.data(), s);
   }
   uint8_t* input = new uint8_t[kFileBufferSize];
   uint8_t* output = new uint8_t[kFileBufferSize];
@@ -259,47 +304,109 @@ static void Decompresss(FILE* fin, FILE* fout) {
   BrotliDestroyState(s);
   if ((result == BROTLI_RESULT_NEEDS_MORE_OUTPUT) || ferror(fout)) {
     fprintf(stderr, "failed to write output\n");
-    exit(1);
+    return 0;
   } else if (result != BROTLI_RESULT_SUCCESS) { /* Error or needs more input. */
     fprintf(stderr, "corrupt input\n");
-    exit(1);
+    return 0;
   }
+  return 1;
+}
+
+static int Compress(int quality, int lgwin, FILE* fin, FILE* fout,
+    const char *dictionary_path) {
+  BrotliEncoderState* s = BrotliEncoderCreateInstance(0, 0, 0);
+  uint8_t* buffer = reinterpret_cast<uint8_t*>(malloc(kFileBufferSize << 1));
+  uint8_t* input = buffer;
+  uint8_t* output = buffer + kFileBufferSize;
+  size_t available_in = 0;
+  const uint8_t* next_in = NULL;
+  size_t available_out = kFileBufferSize;
+  uint8_t* next_out = output;
+  int is_eof = 0;
+  int is_ok = 1;
+
+  if (!s || !buffer) {
+    is_ok = 0;
+    goto finish;
+  }
+
+  BrotliEncoderSetParameter(s, BROTLI_PARAM_QUALITY, (uint32_t)quality);
+  BrotliEncoderSetParameter(s, BROTLI_PARAM_LGWIN, (uint32_t)lgwin);
+  if (dictionary_path != NULL) {
+    std::vector<uint8_t> dictionary = ReadDictionary(dictionary_path);
+    BrotliEncoderSetCustomDictionary(s, dictionary.size(),
+        reinterpret_cast<const uint8_t*>(dictionary.data()));
+  }
+
+  while (1) {
+    if (available_in == 0 && !is_eof) {
+      available_in = fread(input, 1, kFileBufferSize, fin);
+      next_in = input;
+      if (ferror(fin)) break;
+      is_eof = feof(fin);
+    }
+
+    if (!BrotliEncoderCompressStream(s,
+        is_eof ? BROTLI_OPERATION_FINISH : BROTLI_OPERATION_PROCESS,
+        &available_in, &next_in, &available_out, &next_out, NULL)) {
+      is_ok = 0;
+      break;
+    }
+
+    if (available_out != kFileBufferSize) {
+      size_t out_size = kFileBufferSize - available_out;
+      fwrite(output, 1, out_size, fout);
+      if (ferror(fout)) break;
+      available_out = kFileBufferSize;
+      next_out = output;
+    }
+
+    if (BrotliEncoderIsFinished(s)) break;
+  }
+
+finish:
+  free(buffer);
+  BrotliEncoderDestroyInstance(s);
+
+  if (!is_ok) {
+    /* Should detect OOM? */
+    fprintf(stderr, "failed to compress data\n");
+    return 0;
+  } else if (ferror(fout)) {
+    fprintf(stderr, "failed to write output\n");
+    return 0;
+  } else if (ferror(fin)) {
+    fprintf(stderr, "failed to read input\n");
+    return 0;
+  }
+  return 1;
 }
 
 int main(int argc, char** argv) {
   char *input_path = 0;
   char *output_path = 0;
+  char *dictionary_path = 0;
   int force = 0;
   int quality = 11;
   int decompress = 0;
   int repeat = 1;
   int verbose = 0;
   int lgwin = 0;
-  ParseArgv(argc, argv, &input_path, &output_path, &force,
+  ParseArgv(argc, argv, &input_path, &output_path, &dictionary_path, &force,
             &quality, &decompress, &repeat, &verbose, &lgwin);
   const clock_t clock_start = clock();
   for (int i = 0; i < repeat; ++i) {
     FILE* fin = OpenInputFile(input_path);
     FILE* fout = OpenOutputFile(output_path, force);
+    int is_ok = false;
     if (decompress) {
-      Decompresss(fin, fout);
+      is_ok = Decompress(fin, fout, dictionary_path);
     } else {
-      brotli::BrotliParams params;
-      params.lgwin = lgwin;
-      params.quality = quality;
-      try {
-        brotli::BrotliFileIn in(fin, 1 << 16);
-        brotli::BrotliFileOut out(fout);
-        if (!BrotliCompress(params, &in, &out)) {
-          fprintf(stderr, "compression failed\n");
-          unlink(output_path);
-          exit(1);
-        }
-      } catch (std::bad_alloc&) {
-        fprintf(stderr, "not enough memory\n");
-        unlink(output_path);
-        exit(1);
-      }
+      is_ok = Compress(quality, lgwin, fin, fout, dictionary_path);
+    }
+    if (!is_ok) {
+      unlink(output_path);
+      exit(1);
     }
     if (fclose(fin) != 0) {
       perror("fclose");
