@@ -11,7 +11,9 @@
 
 #include "../common/types.h"
 
-namespace brotli {
+#if defined(__cplusplus) || defined(c_plusplus)
+extern "C" {
+#endif
 
 static const uint16_t kStaticDictionaryHash[] = {
   0x7d48, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
@@ -4112,6 +4114,8 @@ static const uint16_t kStaticDictionaryHash[] = {
   0x0000, 0x0000, 0x0d88, 0x4ac5, 0x0000, 0x0000, 0x0000, 0x0000,
 };
 
-}  // namespace brotli
+#if defined(__cplusplus) || defined(c_plusplus)
+}  /* extern "C" */
+#endif
 
 #endif  /* BROTLI_ENC_DICTIONARY_HASH_H_ */

@@ -62,13 +62,13 @@
    but note: the FPU still sends unaligned loads and stores to a trap handler!
 */
 
-#define BROTLI_UNALIGNED_LOAD32(_p) (*reinterpret_cast<const uint32_t *>(_p))
-#define BROTLI_UNALIGNED_LOAD64(_p) (*reinterpret_cast<const uint64_t *>(_p))
+#define BROTLI_UNALIGNED_LOAD32(_p) (*(const uint32_t *)(_p))
+#define BROTLI_UNALIGNED_LOAD64(_p) (*(const uint64_t *)(_p))
 
 #define BROTLI_UNALIGNED_STORE32(_p, _val) \
-  (*reinterpret_cast<uint32_t *>(_p) = (_val))
+  (*(uint32_t *)(_p) = (_val))
 #define BROTLI_UNALIGNED_STORE64(_p, _val) \
-  (*reinterpret_cast<uint64_t *>(_p) = (_val))
+  (*(uint64_t *)(_p) = (_val))
 
 #elif defined(__arm__) && \
   !defined(__ARM_ARCH_5__) && \
@@ -87,17 +87,17 @@
    do an unaligned read and rotate the words around a bit, or do the reads very
    slowly (trip through kernel mode). */
 
-#define BROTLI_UNALIGNED_LOAD32(_p) (*reinterpret_cast<const uint32_t *>(_p))
+#define BROTLI_UNALIGNED_LOAD32(_p) (*(const uint32_t *)(_p))
 #define BROTLI_UNALIGNED_STORE32(_p, _val) \
-  (*reinterpret_cast<uint32_t *>(_p) = (_val))
+  (*(uint32_t *)(_p) = (_val))
 
-static inline uint64_t BROTLI_UNALIGNED_LOAD64(const void *p) {
+static BROTLI_INLINE uint64_t BROTLI_UNALIGNED_LOAD64(const void *p) {
   uint64_t t;
   memcpy(&t, p, sizeof t);
   return t;
 }
 
-static inline void BROTLI_UNALIGNED_STORE64(void *p, uint64_t v) {
+static BROTLI_INLINE void BROTLI_UNALIGNED_STORE64(void *p, uint64_t v) {
   memcpy(p, &v, sizeof v);
 }
 
@@ -106,26 +106,63 @@ static inline void BROTLI_UNALIGNED_STORE64(void *p, uint64_t v) {
 /* These functions are provided for architectures that don't support */
 /* unaligned loads and stores. */
 
-static inline uint32_t BROTLI_UNALIGNED_LOAD32(const void *p) {
+static BROTLI_INLINE uint32_t BROTLI_UNALIGNED_LOAD32(const void *p) {
   uint32_t t;
   memcpy(&t, p, sizeof t);
   return t;
 }
 
-static inline uint64_t BROTLI_UNALIGNED_LOAD64(const void *p) {
+static BROTLI_INLINE uint64_t BROTLI_UNALIGNED_LOAD64(const void *p) {
   uint64_t t;
   memcpy(&t, p, sizeof t);
   return t;
 }
 
-static inline void BROTLI_UNALIGNED_STORE32(void *p, uint32_t v) {
+static BROTLI_INLINE void BROTLI_UNALIGNED_STORE32(void *p, uint32_t v) {
   memcpy(p, &v, sizeof v);
 }
 
-static inline void BROTLI_UNALIGNED_STORE64(void *p, uint64_t v) {
+static BROTLI_INLINE void BROTLI_UNALIGNED_STORE64(void *p, uint64_t v) {
   memcpy(p, &v, sizeof v);
 }
 
 #endif
+
+#if !defined(__cplusplus) && !defined(c_plusplus) && __STDC_VERSION__ >= 199901L
+#define BROTLI_RESTRICT restrict
+#elif BROTLI_GCC_VERSION > 295 || defined(__llvm__)
+#define BROTLI_RESTRICT __restrict
+#else
+#define BROTLI_RESTRICT
+#endif
+
+#define _TEMPLATE(T)                                                           \
+  static BROTLI_INLINE T brotli_min_ ## T (T a, T b) { return a < b ? a : b; } \
+  static BROTLI_INLINE T brotli_max_ ## T (T a, T b) { return a > b ? a : b; }
+_TEMPLATE(double) _TEMPLATE(float) _TEMPLATE(int)
+_TEMPLATE(size_t) _TEMPLATE(uint32_t) _TEMPLATE(uint8_t)
+#undef _TEMPLATE
+#define BROTLI_MIN(T, A, B) (brotli_min_ ## T((A), (B)))
+#define BROTLI_MAX(T, A, B) (brotli_max_ ## T((A), (B)))
+
+#define BROTLI_SWAP(T, A, I, J) { \
+  T __brotli_swap_tmp = (A)[(I)]; \
+  (A)[(I)] = (A)[(J)];            \
+  (A)[(J)] = __brotli_swap_tmp;   \
+}
+
+#define BROTLI_ENSURE_CAPACITY(M, T, A, C, R) {  \
+  if (C < (R)) {                                 \
+    size_t _new_size = (C == 0) ? (R) : C;       \
+    T* new_array;                                \
+    while (_new_size < (R)) _new_size *= 2;      \
+    new_array = BROTLI_ALLOC((M), T, _new_size); \
+    if (!BROTLI_IS_OOM(m))                       \
+      memcpy(new_array, A, C * sizeof(T));       \
+    BROTLI_FREE((M), A);                         \
+    A = new_array;                               \
+    C = _new_size;                               \
+  }                                              \
+}
 
 #endif  /* BROTLI_ENC_PORT_H_ */

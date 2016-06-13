@@ -9,29 +9,30 @@
 #ifndef BROTLI_ENC_ENTROPY_ENCODE_H_
 #define BROTLI_ENC_ENTROPY_ENCODE_H_
 
-#include <string.h>
-
 #include "../common/types.h"
-#include "./histogram.h"
-#include "./prefix.h"
+#include "./port.h"
 
-namespace brotli {
+#if defined(__cplusplus) || defined(c_plusplus)
+extern "C" {
+#endif
 
 /* A node of a Huffman tree. */
-struct HuffmanTree {
-  HuffmanTree() {}
-  HuffmanTree(uint32_t count, int16_t left, int16_t right)
-      : total_count_(count),
-        index_left_(left),
-        index_right_or_value_(right) {
-  }
+typedef struct HuffmanTree {
   uint32_t total_count_;
   int16_t index_left_;
   int16_t index_right_or_value_;
-};
+} HuffmanTree;
 
-void SetDepth(const HuffmanTree &p, HuffmanTree *pool,
-              uint8_t *depth, uint8_t level);
+static BROTLI_INLINE void InitHuffmanTree(HuffmanTree* self, uint32_t count,
+    int16_t left, int16_t right) {
+  self->total_count_ = count;
+  self->index_left_ = left;
+  self->index_right_or_value_ = right;
+}
+
+/* Returns 1 is assignment of depths succeded, otherwise 0. */
+BROTLI_INTERNAL int BrotliSetDepth(
+    int p, HuffmanTree* pool, uint8_t* depth, int max_depth);
 
 /* This function will create a Huffman tree.
 
@@ -45,11 +46,11 @@ void SetDepth(const HuffmanTree &p, HuffmanTree *pool,
    be at least 2 * length + 1 long.
 
    See http://en.wikipedia.org/wiki/Huffman_coding */
-void CreateHuffmanTree(const uint32_t *data,
-                       const size_t length,
-                       const int tree_limit,
-                       HuffmanTree* tree,
-                       uint8_t *depth);
+BROTLI_INTERNAL void BrotliCreateHuffmanTree(const uint32_t *data,
+                                             const size_t length,
+                                             const int tree_limit,
+                                             HuffmanTree* tree,
+                                             uint8_t *depth);
 
 /* Change the population counts in a way that the consequent
    Huffman tree compression, especially its rle-part will be more
@@ -58,48 +59,63 @@ void CreateHuffmanTree(const uint32_t *data,
    length contains the size of the histogram.
    counts contains the population counts.
    good_for_rle is a buffer of at least length size */
-void OptimizeHuffmanCountsForRle(size_t length, uint32_t* counts,
-                                 uint8_t* good_for_rle);
+BROTLI_INTERNAL void BrotliOptimizeHuffmanCountsForRle(
+    size_t length, uint32_t* counts, uint8_t* good_for_rle);
 
 /* Write a Huffman tree from bit depths into the bitstream representation
    of a Huffman tree. The generated Huffman tree is to be compressed once
    more using a Huffman tree */
-void WriteHuffmanTree(const uint8_t* depth,
-                      size_t num,
-                      size_t* tree_size,
-                      uint8_t* tree,
-                      uint8_t* extra_bits_data);
+BROTLI_INTERNAL void BrotliWriteHuffmanTree(const uint8_t* depth,
+                                            size_t num,
+                                            size_t* tree_size,
+                                            uint8_t* tree,
+                                            uint8_t* extra_bits_data);
 
 /* Get the actual bit values for a tree of bit depths. */
-void ConvertBitDepthsToSymbols(const uint8_t *depth,
-                               size_t len,
-                               uint16_t *bits);
+BROTLI_INTERNAL void BrotliConvertBitDepthsToSymbols(const uint8_t *depth,
+                                                     size_t len,
+                                                     uint16_t *bits);
 
-template<int kSize>
-struct EntropyCode {
-  // How many bits for symbol.
-  uint8_t depth_[kSize];
-  // Actual bits used to represent the symbol.
-  uint16_t bits_[kSize];
-  // How many non-zero depth.
-  int count_;
-  // First four symbols with non-zero depth.
-  int symbols_[4];
-};
+/* Input size optimized Shell sort. */
+typedef int (*HuffmanTreeComparator)(const HuffmanTree*, const HuffmanTree*);
+static BROTLI_INLINE void SortHuffmanTreeItems(HuffmanTree* items,
+    const size_t n, HuffmanTreeComparator comparator) {
+  static const size_t gaps[] = {132, 57, 23, 10, 4, 1};
+  if (n < 13) {
+    /* Insertion sort. */
+    size_t i;
+    for (i = 1; i < n; ++i) {
+      HuffmanTree tmp = items[i];
+      size_t k = i;
+      size_t j = i - 1;
+      while (comparator(&tmp, &items[j])) {
+        items[k] = items[j];
+        k = j;
+        if (!j--) break;
+      }
+      items[k] = tmp;
+    }
+    return;
+  } else {
+    /* Shell sort. */
+    int g = n < 57 ? 2 : 0;
+    for (; g < 6; ++g) {
+      size_t gap = gaps[g];
+      size_t i;
+      for (i = gap; i < n; ++i) {
+        size_t j = i;
+        HuffmanTree tmp = items[i];
+        for (; j >= gap && comparator(&tmp, &items[j - gap]); j -= gap) {
+          items[j] = items[j - gap];
+        }
+        items[j] = tmp;
+      }
+    }
+  }
+}
 
-static const int kCodeLengthCodes = 18;
-
-// Literal entropy code.
-typedef EntropyCode<256> EntropyCodeLiteral;
-// Prefix entropy codes.
-typedef EntropyCode<kNumCommandPrefixes> EntropyCodeCommand;
-typedef EntropyCode<kNumDistancePrefixes> EntropyCodeDistance;
-typedef EntropyCode<kNumBlockLenPrefixes> EntropyCodeBlockLength;
-// Context map entropy code, 256 Huffman tree indexes + 16 run length codes.
-typedef EntropyCode<272> EntropyCodeContextMap;
-// Block type entropy code, 256 block types + 2 special symbols.
-typedef EntropyCode<258> EntropyCodeBlockType;
-
-}  // namespace brotli
+#if defined(__cplusplus) || defined(c_plusplus)
+}  /* extern "C" */
+#endif
 
 #endif  /* BROTLI_ENC_ENTROPY_ENCODE_H_ */
