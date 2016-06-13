@@ -29,7 +29,11 @@ extern "C" {
 static const uint16_t kMaxZopfliLenQuality10 = 150;
 static const uint16_t kMaxZopfliLenQuality11 = 325;
 
+#ifdef INFINITY
 static const float kInfinity = INFINITY;
+#else
+static const float kInfinity = 3.4028e38f;
+#endif
 
 void BrotliInitZopfliNodes(ZopfliNode* array, size_t length) {
   ZopfliNode stub;
