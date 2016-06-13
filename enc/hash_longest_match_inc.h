@@ -255,8 +255,9 @@ static BROTLI_INLINE int FN(FindLongestMatch)(HashLongestMatch* self,
                                        &kBrotliDictionary[offset], len);
           if (matchlen + kCutoffTransformsCount > len && matchlen > 0) {
             const size_t transform_id = kCutoffTransforms[len - matchlen];
-            const size_t word_id = dist +
-                transform_id * (1u << kBrotliDictionarySizeBitsByLength[len]);
+            const size_t transform_step =
+                (size_t)1 << kBrotliDictionarySizeBitsByLength[len];
+            const size_t word_id = dist + transform_id * transform_step;
             const size_t backward = max_backward + word_id + 1;
             double score = BackwardReferenceScore(matchlen, backward);
             if (best_score < score) {
