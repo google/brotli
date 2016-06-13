@@ -9,53 +9,42 @@
 #ifndef BROTLI_ENC_BLOCK_SPLITTER_H_
 #define BROTLI_ENC_BLOCK_SPLITTER_H_
 
-#include <vector>
-
 #include "../common/types.h"
 #include "./command.h"
-#include "./metablock.h"
+#include "./memory.h"
+#include "./port.h"
 
-namespace brotli {
+#if defined(__cplusplus) || defined(c_plusplus)
+extern "C" {
+#endif
 
-struct BlockSplitIterator {
-  explicit BlockSplitIterator(const BlockSplit& split)
-      : split_(split), idx_(0), type_(0), length_(0) {
-    if (!split.lengths.empty()) {
-      length_ = split.lengths[0];
-    }
-  }
+typedef struct BlockSplit {
+  size_t num_types;  /* Amount of distinct types */
+  size_t num_blocks;  /* Amount of values in types and length */
+  uint8_t* types;
+  uint32_t* lengths;
 
-  void Next(void) {
-    if (length_ == 0) {
-      ++idx_;
-      type_ = split_.types[idx_];
-      length_ = split_.lengths[idx_];
-    }
-    --length_;
-  }
+  size_t types_alloc_size;
+  size_t lengths_alloc_size;
+} BlockSplit;
 
-  const BlockSplit& split_;
-  size_t idx_;
-  size_t type_;
-  size_t length_;
-};
+BROTLI_INTERNAL void BrotliInitBlockSplit(BlockSplit* self);
+BROTLI_INTERNAL void BrotliDestroyBlockSplit(MemoryManager* m,
+                                             BlockSplit* self);
 
-void CopyLiteralsToByteArray(const Command* cmds,
-                             const size_t num_commands,
-                             const uint8_t* data,
-                             const size_t offset,
-                             const size_t mask,
-                             std::vector<uint8_t>* literals);
+BROTLI_INTERNAL void BrotliSplitBlock(MemoryManager* m,
+                                      const Command* cmds,
+                                      const size_t num_commands,
+                                      const uint8_t* data,
+                                      const size_t offset,
+                                      const size_t mask,
+                                      const int quality,
+                                      BlockSplit* literal_split,
+                                      BlockSplit* insert_and_copy_split,
+                                      BlockSplit* dist_split);
 
-void SplitBlock(const Command* cmds,
-                const size_t num_commands,
-                const uint8_t* data,
-                const size_t offset,
-                const size_t mask,
-                BlockSplit* literal_split,
-                BlockSplit* insert_and_copy_split,
-                BlockSplit* dist_split);
-
-}  // namespace brotli
+#if defined(__cplusplus) || defined(c_plusplus)
+}  /* extern "C" */
+#endif
 
 #endif  /* BROTLI_ENC_BLOCK_SPLITTER_H_ */

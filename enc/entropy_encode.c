@@ -8,36 +8,46 @@
 
 #include "./entropy_encode.h"
 
-#include <algorithm>
-#include <cstdlib>
-#include <limits>
+#include <string.h>  /* memset */
 
+#include "../common/constants.h"
 #include "../common/types.h"
-#include "./histogram.h"
 #include "./port.h"
 
-namespace brotli {
+#if defined(__cplusplus) || defined(c_plusplus)
+extern "C" {
+#endif
 
-void SetDepth(const HuffmanTree &p,
-              HuffmanTree *pool,
-              uint8_t *depth,
-              uint8_t level) {
-  if (p.index_left_ >= 0) {
-    ++level;
-    SetDepth(pool[p.index_left_], pool, depth, level);
-    SetDepth(pool[p.index_right_or_value_], pool, depth, level);
-  } else {
-    depth[p.index_right_or_value_] = level;
+int BrotliSetDepth(int p0, HuffmanTree* pool, uint8_t* depth, int max_depth) {
+  int stack[16];
+  int level = 0;
+  int p = p0;
+  assert(max_depth <= 15);
+  stack[0] = -1;
+  while (1) {
+    if (pool[p].index_left_ >= 0) {
+      level++;
+      if (level > max_depth) return 0;
+      stack[level] = pool[p].index_right_or_value_;
+      p = pool[p].index_left_;
+      continue;
+    } else {
+      depth[pool[p].index_right_or_value_] = (uint8_t)level;
+    }
+    while (level >= 0 && stack[level] == -1) level--;
+    if (level < 0) return 1;
+    p = stack[level];
+    stack[level] = -1;
   }
 }
 
 /* Sort the root nodes, least popular first. */
-static inline bool SortHuffmanTree(const HuffmanTree& v0,
-                                   const HuffmanTree& v1) {
-  if (v0.total_count_ != v1.total_count_) {
-    return v0.total_count_ < v1.total_count_;
+static inline int SortHuffmanTree(const HuffmanTree* v0,
+                                  const HuffmanTree* v1) {
+  if (v0->total_count_ != v1->total_count_) {
+    return (v0->total_count_ < v1->total_count_) ? 1 : 0;
   }
-  return v0.index_right_or_value_ > v1.index_right_or_value_;
+  return (v0->index_right_or_value_ > v1->index_right_or_value_) ? 1 : 0;
 }
 
 /* This function will create a Huffman tree.
@@ -55,31 +65,37 @@ static inline bool SortHuffmanTree(const HuffmanTree& v0,
    we are not planning to use this with extremely long blocks.
 
    See http://en.wikipedia.org/wiki/Huffman_coding */
-void CreateHuffmanTree(const uint32_t *data,
-                       const size_t length,
-                       const int tree_limit,
-                       HuffmanTree* tree,
-                       uint8_t *depth) {
+void BrotliCreateHuffmanTree(const uint32_t *data,
+                             const size_t length,
+                             const int tree_limit,
+                             HuffmanTree* tree,
+                             uint8_t *depth) {
+  uint32_t count_limit;
+  HuffmanTree sentinel;
+  InitHuffmanTree(&sentinel, BROTLI_UINT32_MAX, -1, -1);
   /* For block sizes below 64 kB, we never need to do a second iteration
      of this loop. Probably all of our block sizes will be smaller than
      that, so this loop is mostly of academic interest. If we actually
      would need this, we would be better off with the Katajainen algorithm. */
-  for (uint32_t count_limit = 1; ; count_limit *= 2) {
+  for (count_limit = 1; ; count_limit *= 2) {
     size_t n = 0;
-    for (size_t i = length; i != 0;) {
+    size_t i;
+    size_t j;
+    size_t k;
+    for (i = length; i != 0;) {
       --i;
       if (data[i]) {
-        const uint32_t count = std::max(data[i], count_limit);
-        tree[n++] = HuffmanTree(count, -1, static_cast<int16_t>(i));
+        const uint32_t count = BROTLI_MAX(uint32_t, data[i], count_limit);
+        InitHuffmanTree(&tree[n++], count, -1, (int16_t)i);
       }
     }
 
     if (n == 1) {
-      depth[tree[0].index_right_or_value_] = 1;      // Only one element.
+      depth[tree[0].index_right_or_value_] = 1;  /* Only one element. */
       break;
     }
 
-    std::sort(tree, tree + n, SortHuffmanTree);
+    SortHuffmanTreeItems(tree, n, SortHuffmanTree);
 
     /* The nodes are:
        [0, n): the sorted leaf nodes that we start with.
@@ -88,13 +104,12 @@ void CreateHuffmanTree(const uint32_t *data,
                     (n+1). These are naturally in ascending order.
        [2n]: we add a sentinel at the end as well.
        There will be (2n+1) elements at the end. */
-    const HuffmanTree sentinel(std::numeric_limits<uint32_t>::max(), -1, -1);
     tree[n] = sentinel;
     tree[n + 1] = sentinel;
 
-    size_t i = 0;      /* Points to the next leaf node. */
-    size_t j = n + 1;  /* Points to the next non-leaf node. */
-    for (size_t k = n - 1; k != 0; --k) {
+    i = 0;      /* Points to the next leaf node. */
+    j = n + 1;  /* Points to the next non-leaf node. */
+    for (k = n - 1; k != 0; --k) {
       size_t left, right;
       if (tree[i].total_count_ <= tree[j].total_count_) {
         left = i;
@@ -111,21 +126,21 @@ void CreateHuffmanTree(const uint32_t *data,
         ++j;
       }
 
+      {
         /* The sentinel node becomes the parent node. */
-      size_t j_end = 2 * n - k;
-      tree[j_end].total_count_ =
-          tree[left].total_count_ + tree[right].total_count_;
-      tree[j_end].index_left_ = static_cast<int16_t>(left);
-      tree[j_end].index_right_or_value_ = static_cast<int16_t>(right);
+        size_t j_end = 2 * n - k;
+        tree[j_end].total_count_ =
+            tree[left].total_count_ + tree[right].total_count_;
+        tree[j_end].index_left_ = (int16_t)left;
+        tree[j_end].index_right_or_value_ = (int16_t)right;
 
         /* Add back the last sentinel node. */
-      tree[j_end + 1] = sentinel;
+        tree[j_end + 1] = sentinel;
+      }
     }
-    SetDepth(tree[2 * n - 1], &tree[0], depth, 0);
-
+    if (BrotliSetDepth((int)(2 * n - 1), &tree[0], depth, tree_limit)) {
       /* We need to pack the Huffman tree in tree_limit bits. If this was not
          successful, add fake entities to the lowest values and retry. */
-    if (*std::max_element(&depth[0], &depth[length]) <= tree_limit) {
       break;
     }
   }
@@ -142,7 +157,7 @@ static void Reverse(uint8_t* v, size_t start, size_t end) {
   }
 }
 
-static void WriteHuffmanTreeRepetitions(
+static void BrotliWriteHuffmanTreeRepetitions(
     const uint8_t previous_value,
     const uint8_t value,
     size_t repetitions,
@@ -163,16 +178,17 @@ static void WriteHuffmanTreeRepetitions(
     --repetitions;
   }
   if (repetitions < 3) {
-    for (size_t i = 0; i < repetitions; ++i) {
+    size_t i;
+    for (i = 0; i < repetitions; ++i) {
       tree[*tree_size] = value;
       extra_bits_data[*tree_size] = 0;
       ++(*tree_size);
     }
   } else {
-    repetitions -= 3;
     size_t start = *tree_size;
-    while (true) {
-      tree[*tree_size] = 16;
+    repetitions -= 3;
+    while (1) {
+      tree[*tree_size] = BROTLI_REPEAT_PREVIOUS_CODE_LENGTH;
       extra_bits_data[*tree_size] = repetitions & 0x3;
       ++(*tree_size);
       repetitions >>= 2;
@@ -186,7 +202,7 @@ static void WriteHuffmanTreeRepetitions(
   }
 }
 
-static void WriteHuffmanTreeRepetitionsZeros(
+static void BrotliWriteHuffmanTreeRepetitionsZeros(
     size_t repetitions,
     size_t* tree_size,
     uint8_t* tree,
@@ -198,16 +214,17 @@ static void WriteHuffmanTreeRepetitionsZeros(
     --repetitions;
   }
   if (repetitions < 3) {
-    for (size_t i = 0; i < repetitions; ++i) {
+    size_t i;
+    for (i = 0; i < repetitions; ++i) {
       tree[*tree_size] = 0;
       extra_bits_data[*tree_size] = 0;
       ++(*tree_size);
     }
   } else {
-    repetitions -= 3;
     size_t start = *tree_size;
-    while (true) {
-      tree[*tree_size] = 17;
+    repetitions -= 3;
+    while (1) {
+      tree[*tree_size] = BROTLI_REPEAT_ZERO_CODE_LENGTH;
       extra_bits_data[*tree_size] = repetitions & 0x7;
       ++(*tree_size);
       repetitions >>= 3;
@@ -221,8 +238,8 @@ static void WriteHuffmanTreeRepetitionsZeros(
   }
 }
 
-void OptimizeHuffmanCountsForRle(size_t length, uint32_t* counts,
-                                 uint8_t* good_for_rle) {
+void BrotliOptimizeHuffmanCountsForRle(size_t length, uint32_t* counts,
+                                       uint8_t* good_for_rle) {
   size_t nonzero_count = 0;
   size_t stride;
   size_t limit;
@@ -260,8 +277,8 @@ void OptimizeHuffmanCountsForRle(size_t length, uint32_t* counts,
       /* Small histogram will model it well. */
       return;
     }
-    size_t zeros = length - nonzeros;
     if (smallest_nonzero < 4) {
+      size_t zeros = length - nonzeros;
       if (zeros < 6) {
         for (i = 1; i < length - 1; ++i) {
           if (counts[i - 1] != 0 && counts[i] == 0 && counts[i + 1] != 0) {
@@ -324,7 +341,7 @@ void OptimizeHuffmanCountsForRle(size_t length, uint32_t* counts,
         for (k = 0; k < stride; ++k) {
           /* We don't want to change value at counts[i],
              that is already belonging to the next stride. Thus - 1. */
-          counts[i - k - 1] = static_cast<uint32_t>(count);
+          counts[i - k - 1] = (uint32_t)count;
         }
       }
       stride = 0;
@@ -353,16 +370,18 @@ void OptimizeHuffmanCountsForRle(size_t length, uint32_t* counts,
 }
 
 static void DecideOverRleUse(const uint8_t* depth, const size_t length,
-                             bool *use_rle_for_non_zero,
-                             bool *use_rle_for_zero) {
+                             int *use_rle_for_non_zero,
+                             int *use_rle_for_zero) {
   size_t total_reps_zero = 0;
   size_t total_reps_non_zero = 0;
   size_t count_reps_zero = 1;
   size_t count_reps_non_zero = 1;
-  for (size_t i = 0; i < length;) {
+  size_t i;
+  for (i = 0; i < length;) {
     const uint8_t value = depth[i];
     size_t reps = 1;
-    for (size_t k = i + 1; k < length && depth[k] == value; ++k) {
+    size_t k;
+    for (k = i + 1; k < length && depth[k] == value; ++k) {
       ++reps;
     }
     if (reps >= 3 && value == 0) {
@@ -375,20 +394,24 @@ static void DecideOverRleUse(const uint8_t* depth, const size_t length,
     }
     i += reps;
   }
-  *use_rle_for_non_zero = total_reps_non_zero > count_reps_non_zero * 2;
-  *use_rle_for_zero = total_reps_zero > count_reps_zero * 2;
+  *use_rle_for_non_zero =
+      (total_reps_non_zero > count_reps_non_zero * 2) ? 1 : 0;
+  *use_rle_for_zero = (total_reps_zero > count_reps_zero * 2) ? 1 : 0;
 }
 
-void WriteHuffmanTree(const uint8_t* depth,
-                      size_t length,
-                      size_t* tree_size,
-                      uint8_t* tree,
-                      uint8_t* extra_bits_data) {
-  uint8_t previous_value = 8;
+void BrotliWriteHuffmanTree(const uint8_t* depth,
+                            size_t length,
+                            size_t* tree_size,
+                            uint8_t* tree,
+                            uint8_t* extra_bits_data) {
+  uint8_t previous_value = BROTLI_INITIAL_REPEATED_CODE_LENGTH;
+  size_t i;
+  int use_rle_for_non_zero = 0;
+  int use_rle_for_zero = 0;
 
   /* Throw away trailing zeros. */
   size_t new_length = length;
-  for (size_t i = 0; i < length; ++i) {
+  for (i = 0; i < length; ++i) {
     if (depth[length - i - 1] == 0) {
       --new_length;
     } else {
@@ -397,8 +420,6 @@ void WriteHuffmanTree(const uint8_t* depth,
   }
 
   /* First gather statistics on if it is a good idea to do rle. */
-  bool use_rle_for_non_zero = false;
-  bool use_rle_for_zero = false;
   if (length > 50) {
     /* Find rle coding for longer codes.
        Shorter codes seem not to benefit from rle. */
@@ -407,73 +428,73 @@ void WriteHuffmanTree(const uint8_t* depth,
   }
 
   /* Actual rle coding. */
-  for (size_t i = 0; i < new_length;) {
+  for (i = 0; i < new_length;) {
     const uint8_t value = depth[i];
     size_t reps = 1;
     if ((value != 0 && use_rle_for_non_zero) ||
         (value == 0 && use_rle_for_zero)) {
-      for (size_t k = i + 1; k < new_length && depth[k] == value; ++k) {
+      size_t k;
+      for (k = i + 1; k < new_length && depth[k] == value; ++k) {
         ++reps;
       }
     }
     if (value == 0) {
-      WriteHuffmanTreeRepetitionsZeros(reps, tree_size, tree, extra_bits_data);
+      BrotliWriteHuffmanTreeRepetitionsZeros(
+          reps, tree_size, tree, extra_bits_data);
     } else {
-      WriteHuffmanTreeRepetitions(previous_value,
-                                  value, reps, tree_size,
-                                  tree, extra_bits_data);
+      BrotliWriteHuffmanTreeRepetitions(previous_value,
+                                        value, reps, tree_size,
+                                        tree, extra_bits_data);
       previous_value = value;
     }
     i += reps;
   }
 }
 
-namespace {
-
-uint16_t ReverseBits(int num_bits, uint16_t bits) {
+static uint16_t BrotliReverseBits(size_t num_bits, uint16_t bits) {
   static const size_t kLut[16] = {  /* Pre-reversed 4-bit values. */
     0x0, 0x8, 0x4, 0xc, 0x2, 0xa, 0x6, 0xe,
     0x1, 0x9, 0x5, 0xd, 0x3, 0xb, 0x7, 0xf
   };
   size_t retval = kLut[bits & 0xf];
-  for (int i = 4; i < num_bits; i += 4) {
+  size_t i;
+  for (i = 4; i < num_bits; i += 4) {
     retval <<= 4;
-    bits = static_cast<uint16_t>(bits >> 4);
+    bits = (uint16_t)(bits >> 4);
     retval |= kLut[bits & 0xf];
   }
   retval >>= (-num_bits & 0x3);
-  return static_cast<uint16_t>(retval);
+  return (uint16_t)retval;
 }
 
-}  // namespace
+/* 0..15 are values for bits */
+#define MAX_HUFFMAN_BITS 16
 
-void ConvertBitDepthsToSymbols(const uint8_t *depth,
-                               size_t len,
-                               uint16_t *bits) {
+void BrotliConvertBitDepthsToSymbols(const uint8_t *depth,
+                                     size_t len,
+                                     uint16_t *bits) {
   /* In Brotli, all bit depths are [1..15]
      0 bit depth means that the symbol does not exist. */
-  const int kMaxBits = 16;  // 0..15 are values for bits
-  uint16_t bl_count[kMaxBits] = { 0 };
-  {
-    for (size_t i = 0; i < len; ++i) {
-      ++bl_count[depth[i]];
-    }
-    bl_count[0] = 0;
+  uint16_t bl_count[MAX_HUFFMAN_BITS] = { 0 };
+  uint16_t next_code[MAX_HUFFMAN_BITS];
+  size_t i;
+  int code = 0;
+  for (i = 0; i < len; ++i) {
+    ++bl_count[depth[i]];
   }
-  uint16_t next_code[kMaxBits];
+  bl_count[0] = 0;
   next_code[0] = 0;
-  {
-    int code = 0;
-    for (int bits = 1; bits < kMaxBits; ++bits) {
-      code = (code + bl_count[bits - 1]) << 1;
-      next_code[bits] = static_cast<uint16_t>(code);
-    }
+  for (i = 1; i < MAX_HUFFMAN_BITS; ++i) {
+    code = (code + bl_count[i - 1]) << 1;
+    next_code[i] = (uint16_t)code;
   }
-  for (size_t i = 0; i < len; ++i) {
+  for (i = 0; i < len; ++i) {
     if (depth[i]) {
-      bits[i] = ReverseBits(depth[i], next_code[depth[i]]++);
+      bits[i] = BrotliReverseBits(depth[i], next_code[depth[i]]++);
     }
   }
 }
 
-}  // namespace brotli
+#if defined(__cplusplus) || defined(c_plusplus)
+}  /* extern "C" */
+#endif

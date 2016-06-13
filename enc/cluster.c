@@ -6,10 +6,11 @@
 
 /* Functions for clustering similar histograms together. */
 
-#ifndef BROTLI_ENC_CLUSTER_H_
-#define BROTLI_ENC_CLUSTER_H_
+#include "./cluster.h"
 
 #include "../common/types.h"
+#include "./bit_cost.h"  /* BrotliPopulationCost */
+#include "./fast_log.h"
 #include "./histogram.h"
 #include "./memory.h"
 #include "./port.h"
@@ -18,14 +19,23 @@
 extern "C" {
 #endif
 
-typedef struct HistogramPair {
-  uint32_t idx1;
-  uint32_t idx2;
-  double cost_combo;
-  double cost_diff;
-} HistogramPair;
+static BROTLI_INLINE int HistogramPairIsLess(
+    const HistogramPair* p1, const HistogramPair* p2) {
+  if (p1->cost_diff != p2->cost_diff) {
+    return (p1->cost_diff > p2->cost_diff) ? 1 : 0;
+  }
+  return ((p1->idx2 - p1->idx1) > (p2->idx2 - p2->idx1)) ? 1 : 0;
+}
 
-#define CODE(X) /* Declaration */;
+/* Returns entropy reduction of the context map when we combine two clusters. */
+static BROTLI_INLINE double ClusterCostDiff(size_t size_a, size_t size_b) {
+  size_t size_c = size_a + size_b;
+  return (double)size_a * FastLog2(size_a) +
+    (double)size_b * FastLog2(size_b) -
+    (double)size_c * FastLog2(size_c);
+}
+
+#define CODE(X) X
 
 #define FN(X) X ## Literal
 #include "./cluster_inc.h"  /* NOLINT(build/include) */
@@ -44,5 +54,3 @@ typedef struct HistogramPair {
 #if defined(__cplusplus) || defined(c_plusplus)
 }  /* extern "C" */
 #endif
-
-#endif  /* BROTLI_ENC_CLUSTER_H_ */

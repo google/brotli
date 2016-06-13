@@ -10,8 +10,11 @@
 #define BROTLI_ENC_CONTEXT_H_
 
 #include "../common/types.h"
+#include "../common/port.h"
 
-namespace brotli {
+#if defined(__cplusplus) || defined(c_plusplus)
+extern "C" {
+#endif
 
 /* Second-order context lookup table for UTF8 byte streams.
 
@@ -151,29 +154,31 @@ static const uint8_t kSigned3BitContextLookup[] = {
   6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 7,
 };
 
-enum ContextType {
+typedef enum ContextType {
   CONTEXT_LSB6         = 0,
   CONTEXT_MSB6         = 1,
   CONTEXT_UTF8         = 2,
   CONTEXT_SIGNED       = 3
-};
+} ContextType;
 
-static inline uint8_t Context(uint8_t p1, uint8_t p2, ContextType mode) {
+static BROTLI_INLINE uint8_t Context(uint8_t p1, uint8_t p2, ContextType mode) {
   switch (mode) {
     case CONTEXT_LSB6:
       return p1 & 0x3f;
     case CONTEXT_MSB6:
-      return static_cast<uint8_t>(p1 >> 2);
+      return (uint8_t)(p1 >> 2);
     case CONTEXT_UTF8:
       return kUTF8ContextLookup[p1] | kUTF8ContextLookup[p2 + 256];
     case CONTEXT_SIGNED:
-      return static_cast<uint8_t>((kSigned3BitContextLookup[p1] << 3) +
-                                  kSigned3BitContextLookup[p2]);
+      return (uint8_t)((kSigned3BitContextLookup[p1] << 3) +
+                       kSigned3BitContextLookup[p2]);
     default:
       return 0;
   }
 }
 
-}  // namespace brotli
+#if defined(__cplusplus) || defined(c_plusplus)
+}  /* extern "C" */
+#endif
 
 #endif  /* BROTLI_ENC_CONTEXT_H_ */

@@ -9,212 +9,199 @@
 
 #include "./metablock.h"
 
+#include "../common/constants.h"
 #include "../common/types.h"
+#include "./bit_cost.h"
 #include "./block_splitter.h"
 #include "./cluster.h"
 #include "./context.h"
+#include "./entropy_encode.h"
 #include "./histogram.h"
+#include "./memory.h"
+#include "./port.h"
 
-namespace brotli {
+#if defined(__cplusplus) || defined(c_plusplus)
+extern "C" {
+#endif
 
-void BuildMetaBlock(const uint8_t* ringbuffer,
-                    const size_t pos,
-                    const size_t mask,
-                    uint8_t prev_byte,
-                    uint8_t prev_byte2,
-                    const Command* cmds,
-                    size_t num_commands,
-                    ContextType literal_context_mode,
-                    MetaBlockSplit* mb) {
-  SplitBlock(cmds, num_commands,
-             ringbuffer, pos, mask,
-             &mb->literal_split,
-             &mb->command_split,
-             &mb->distance_split);
-
-  std::vector<ContextType> literal_context_modes(mb->literal_split.num_types,
-                                                 literal_context_mode);
-
-  size_t num_literal_contexts =
-      mb->literal_split.num_types << kLiteralContextBits;
-  size_t num_distance_contexts =
-      mb->distance_split.num_types << kDistanceContextBits;
-  std::vector<HistogramLiteral> literal_histograms(num_literal_contexts);
-  mb->command_histograms.resize(mb->command_split.num_types);
-  std::vector<HistogramDistance> distance_histograms(num_distance_contexts);
-  BuildHistograms(cmds, num_commands,
-                  mb->literal_split,
-                  mb->command_split,
-                  mb->distance_split,
-                  ringbuffer,
-                  pos,
-                  mask,
-                  prev_byte,
-                  prev_byte2,
-                  literal_context_modes,
-                  &literal_histograms,
-                  &mb->command_histograms,
-                  &distance_histograms);
-
+void BrotliBuildMetaBlock(MemoryManager* m,
+                          const uint8_t* ringbuffer,
+                          const size_t pos,
+                          const size_t mask,
+                          const int quality,
+                          uint8_t prev_byte,
+                          uint8_t prev_byte2,
+                          const Command* cmds,
+                          size_t num_commands,
+                          ContextType literal_context_mode,
+                          MetaBlockSplit* mb) {
   /* Histogram ids need to fit in one byte. */
   static const size_t kMaxNumberOfHistograms = 256;
+  HistogramDistance* distance_histograms;
+  HistogramLiteral* literal_histograms;
+  ContextType* literal_context_modes;
+  size_t num_literal_contexts;
+  size_t num_distance_contexts;
+  size_t i;
 
-  ClusterHistograms(literal_histograms,
-                    1u << kLiteralContextBits,
-                    mb->literal_split.num_types,
-                    kMaxNumberOfHistograms,
-                    &mb->literal_histograms,
-                    &mb->literal_context_map);
+  BrotliSplitBlock(m, cmds, num_commands,
+                   ringbuffer, pos, mask, quality,
+                   &mb->literal_split,
+                   &mb->command_split,
+                   &mb->distance_split);
+  if (BROTLI_IS_OOM(m)) return;
 
-  ClusterHistograms(distance_histograms,
-                    1u << kDistanceContextBits,
-                    mb->distance_split.num_types,
-                    kMaxNumberOfHistograms,
-                    &mb->distance_histograms,
-                    &mb->distance_context_map);
+  literal_context_modes =
+      BROTLI_ALLOC(m, ContextType, mb->literal_split.num_types);
+  if (BROTLI_IS_OOM(m)) return;
+  for (i = 0; i < mb->literal_split.num_types; ++i) {
+    literal_context_modes[i] = literal_context_mode;
+  }
+
+  num_literal_contexts =
+      mb->literal_split.num_types << BROTLI_LITERAL_CONTEXT_BITS;
+  num_distance_contexts =
+      mb->distance_split.num_types << BROTLI_DISTANCE_CONTEXT_BITS;
+  literal_histograms = BROTLI_ALLOC(m, HistogramLiteral, num_literal_contexts);
+  if (BROTLI_IS_OOM(m)) return;
+  ClearHistogramsLiteral(literal_histograms, num_literal_contexts);
+
+  assert(mb->command_histograms == 0);
+  mb->command_histograms_size = mb->command_split.num_types;
+  mb->command_histograms =
+      BROTLI_ALLOC(m, HistogramCommand, mb->command_histograms_size);
+  if (BROTLI_IS_OOM(m)) return;
+  ClearHistogramsCommand(mb->command_histograms, mb->command_histograms_size);
+  distance_histograms =
+      BROTLI_ALLOC(m, HistogramDistance, num_distance_contexts);
+  if (BROTLI_IS_OOM(m)) return;
+  ClearHistogramsDistance(distance_histograms, num_distance_contexts);
+  BrotliBuildHistogramsWithContext(cmds, num_commands,
+      &mb->literal_split, &mb->command_split, &mb->distance_split,
+      ringbuffer, pos, mask, prev_byte, prev_byte2, literal_context_modes,
+      literal_histograms, mb->command_histograms, distance_histograms);
+  BROTLI_FREE(m, literal_context_modes);
+
+  assert(mb->literal_context_map == 0);
+  mb->literal_context_map_size =
+      mb->literal_split.num_types << BROTLI_LITERAL_CONTEXT_BITS;
+  mb->literal_context_map =
+      BROTLI_ALLOC(m, uint32_t, mb->literal_context_map_size);
+  if (BROTLI_IS_OOM(m)) return;
+  assert(mb->literal_histograms == 0);
+  mb->literal_histograms_size = mb->literal_context_map_size;
+  mb->literal_histograms =
+      BROTLI_ALLOC(m, HistogramLiteral, mb->literal_histograms_size);
+  if (BROTLI_IS_OOM(m)) return;
+  BrotliClusterHistogramsLiteral(m, literal_histograms,
+                                 mb->literal_context_map_size,
+                                 kMaxNumberOfHistograms,
+                                 mb->literal_histograms,
+                                 &mb->literal_histograms_size,
+                                 mb->literal_context_map);
+  if (BROTLI_IS_OOM(m)) return;
+  BROTLI_FREE(m, literal_histograms);
+
+  assert(mb->distance_context_map == 0);
+  mb->distance_context_map_size =
+      mb->distance_split.num_types << BROTLI_DISTANCE_CONTEXT_BITS;
+  mb->distance_context_map =
+      BROTLI_ALLOC(m, uint32_t, mb->distance_context_map_size);
+  if (BROTLI_IS_OOM(m)) return;
+  assert(mb->distance_histograms == 0);
+  mb->distance_histograms_size = mb->distance_context_map_size;
+  mb->distance_histograms =
+      BROTLI_ALLOC(m, HistogramDistance, mb->distance_histograms_size);
+  if (BROTLI_IS_OOM(m)) return;
+  BrotliClusterHistogramsDistance(m, distance_histograms,
+                                  mb->distance_context_map_size,
+                                  kMaxNumberOfHistograms,
+                                  mb->distance_histograms,
+                                  &mb->distance_histograms_size,
+                                  mb->distance_context_map);
+  if (BROTLI_IS_OOM(m)) return;
+  BROTLI_FREE(m, distance_histograms);
 }
 
-// Greedy block splitter for one block category (literal, command or distance).
-template<typename HistogramType>
-class BlockSplitter {
- public:
-  BlockSplitter(size_t alphabet_size,
-                size_t min_block_size,
-                double split_threshold,
-                size_t num_symbols,
-                BlockSplit* split,
-                std::vector<HistogramType>* histograms)
-      : alphabet_size_(alphabet_size),
-        min_block_size_(min_block_size),
-        split_threshold_(split_threshold),
-        num_blocks_(0),
-        split_(split),
-        histograms_(histograms),
-        target_block_size_(min_block_size),
-        block_size_(0),
-        curr_histogram_ix_(0),
-        merge_last_count_(0) {
-    size_t max_num_blocks = num_symbols / min_block_size + 1;
-    // We have to allocate one more histogram than the maximum number of block
-    // types for the current histogram when the meta-block is too big.
-    size_t max_num_types = std::min<size_t>(max_num_blocks, kMaxBlockTypes + 1);
-    split_->lengths.resize(max_num_blocks);
-    split_->types.resize(max_num_blocks);
-    histograms_->resize(max_num_types);
-    last_histogram_ix_[0] = last_histogram_ix_[1] = 0;
+#define FN(X) X ## Literal
+#include "./metablock_inc.h"  /* NOLINT(build/include) */
+#undef FN
+
+#define FN(X) X ## Command
+#include "./metablock_inc.h"  /* NOLINT(build/include) */
+#undef FN
+
+#define FN(X) X ## Distance
+#include "./metablock_inc.h"  /* NOLINT(build/include) */
+#undef FN
+
+void BrotliBuildMetaBlockGreedy(MemoryManager* m,
+                                const uint8_t* ringbuffer,
+                                size_t pos,
+                                size_t mask,
+                                const Command *commands,
+                                size_t n_commands,
+                                MetaBlockSplit* mb) {
+  BlockSplitterLiteral lit_blocks;
+  BlockSplitterCommand cmd_blocks;
+  BlockSplitterDistance dist_blocks;
+  size_t num_literals = 0;
+  size_t i;
+  for (i = 0; i < n_commands; ++i) {
+    num_literals += commands[i].insert_len_;
   }
 
-  // Adds the next symbol to the current histogram. When the current histogram
-  // reaches the target size, decides on merging the block.
-  void AddSymbol(size_t symbol) {
-    (*histograms_)[curr_histogram_ix_].Add(symbol);
-    ++block_size_;
-    if (block_size_ == target_block_size_) {
-      FinishBlock(/* is_final = */ false);
-    }
-  }
+  InitBlockSplitterLiteral(m, &lit_blocks, 256, 512, 400.0, num_literals,
+      &mb->literal_split, &mb->literal_histograms,
+      &mb->literal_histograms_size);
+  if (BROTLI_IS_OOM(m)) return;
+  InitBlockSplitterCommand(m, &cmd_blocks, BROTLI_NUM_COMMAND_SYMBOLS, 1024,
+      500.0, n_commands, &mb->command_split, &mb->command_histograms,
+      &mb->command_histograms_size);
+  if (BROTLI_IS_OOM(m)) return;
+  InitBlockSplitterDistance(m, &dist_blocks, 64, 512, 100.0, n_commands,
+      &mb->distance_split, &mb->distance_histograms,
+      &mb->distance_histograms_size);
+  if (BROTLI_IS_OOM(m)) return;
 
-  // Does either of three things:
-  //   (1) emits the current block with a new block type;
-  //   (2) emits the current block with the type of the second last block;
-  //   (3) merges the current block with the last block.
-  void FinishBlock(bool is_final) {
-    if (block_size_ < min_block_size_) {
-      block_size_ = min_block_size_;
+  for (i = 0; i < n_commands; ++i) {
+    const Command cmd = commands[i];
+    size_t j;
+    BlockSplitterAddSymbolCommand(&cmd_blocks, cmd.cmd_prefix_);
+    for (j = cmd.insert_len_; j != 0; --j) {
+      BlockSplitterAddSymbolLiteral(&lit_blocks, ringbuffer[pos & mask]);
+      ++pos;
     }
-    if (num_blocks_ == 0) {
-      // Create first block.
-      split_->lengths[0] = static_cast<uint32_t>(block_size_);
-      split_->types[0] = 0;
-      last_entropy_[0] =
-          BitsEntropy(&(*histograms_)[0].data_[0], alphabet_size_);
-      last_entropy_[1] = last_entropy_[0];
-      ++num_blocks_;
-      ++split_->num_types;
-      ++curr_histogram_ix_;
-      block_size_ = 0;
-    } else if (block_size_ > 0) {
-      double entropy = BitsEntropy(&(*histograms_)[curr_histogram_ix_].data_[0],
-                                   alphabet_size_);
-      HistogramType combined_histo[2];
-      double combined_entropy[2];
-      double diff[2];
-      for (size_t j = 0; j < 2; ++j) {
-        size_t last_histogram_ix = last_histogram_ix_[j];
-        combined_histo[j] = (*histograms_)[curr_histogram_ix_];
-        combined_histo[j].AddHistogram((*histograms_)[last_histogram_ix]);
-        combined_entropy[j] = BitsEntropy(
-            &combined_histo[j].data_[0], alphabet_size_);
-        diff[j] = combined_entropy[j] - entropy - last_entropy_[j];
-      }
-
-      if (split_->num_types < kMaxBlockTypes &&
-          diff[0] > split_threshold_ &&
-          diff[1] > split_threshold_) {
-        // Create new block.
-        split_->lengths[num_blocks_] = static_cast<uint32_t>(block_size_);
-        split_->types[num_blocks_] = static_cast<uint8_t>(split_->num_types);
-        last_histogram_ix_[1] = last_histogram_ix_[0];
-        last_histogram_ix_[0] = static_cast<uint8_t>(split_->num_types);
-        last_entropy_[1] = last_entropy_[0];
-        last_entropy_[0] = entropy;
-        ++num_blocks_;
-        ++split_->num_types;
-        ++curr_histogram_ix_;
-        block_size_ = 0;
-        merge_last_count_ = 0;
-        target_block_size_ = min_block_size_;
-      } else if (diff[1] < diff[0] - 20.0) {
-        // Combine this block with second last block.
-        split_->lengths[num_blocks_] = static_cast<uint32_t>(block_size_);
-        split_->types[num_blocks_] = split_->types[num_blocks_ - 2];
-        std::swap(last_histogram_ix_[0], last_histogram_ix_[1]);
-        (*histograms_)[last_histogram_ix_[0]] = combined_histo[1];
-        last_entropy_[1] = last_entropy_[0];
-        last_entropy_[0] = combined_entropy[1];
-        ++num_blocks_;
-        block_size_ = 0;
-        (*histograms_)[curr_histogram_ix_].Clear();
-        merge_last_count_ = 0;
-        target_block_size_ = min_block_size_;
-      } else {
-        // Combine this block with last block.
-        split_->lengths[num_blocks_ - 1] += static_cast<uint32_t>(block_size_);
-        (*histograms_)[last_histogram_ix_[0]] = combined_histo[0];
-        last_entropy_[0] = combined_entropy[0];
-        if (split_->num_types == 1) {
-          last_entropy_[1] = last_entropy_[0];
-        }
-        block_size_ = 0;
-        (*histograms_)[curr_histogram_ix_].Clear();
-        if (++merge_last_count_ > 1) {
-          target_block_size_ += min_block_size_;
-        }
-      }
-    }
-    if (is_final) {
-      (*histograms_).resize(split_->num_types);
-      split_->types.resize(num_blocks_);
-      split_->lengths.resize(num_blocks_);
+    pos += CommandCopyLen(&cmd);
+    if (CommandCopyLen(&cmd) && cmd.cmd_prefix_ >= 128) {
+      BlockSplitterAddSymbolDistance(&dist_blocks, cmd.dist_prefix_);
     }
   }
 
- private:
-  static const uint16_t kMaxBlockTypes = 256;
+  BlockSplitterFinishBlockLiteral(&lit_blocks, /* is_final = */ 1);
+  BlockSplitterFinishBlockCommand(&cmd_blocks, /* is_final = */ 1);
+  BlockSplitterFinishBlockDistance(&dist_blocks, /* is_final = */ 1);
+}
 
+/* Greedy block splitter for one block category (literal, command or distance).
+   Gathers histograms for all context buckets. */
+typedef struct ContextBlockSplitter {
   /* Alphabet size of particular block category. */
-  const size_t alphabet_size_;
+  size_t alphabet_size_;
+  size_t num_contexts_;
+  size_t max_block_types_;
   /* We collect at least this many symbols for each block. */
-  const size_t min_block_size_;
+  size_t min_block_size_;
   /* We merge histograms A and B if
        entropy(A+B) < entropy(A) + entropy(B) + split_threshold_,
      where A is the current histogram and B is the histogram of the last or the
      second last block type. */
-  const double split_threshold_;
+  double split_threshold_;
 
   size_t num_blocks_;
   BlockSplit* split_;  /* not owned */
-  std::vector<HistogramType>* histograms_;  /* not owned */
+  HistogramLiteral* histograms_;  /* not owned */
+  size_t* histograms_size_;  /* not owned */
 
   /* The number of symbols that we want to collect before deciding on whether
      or not to merge the block with a previous one or emit a new block. */
@@ -226,315 +213,302 @@ class BlockSplitter {
   /* Offset of the histograms of the previous two block types. */
   size_t last_histogram_ix_[2];
   /* Entropy of the previous two block types. */
-  double last_entropy_[2];
+  double* last_entropy_;
   /* The number of times we merged the current block with the last one. */
   size_t merge_last_count_;
-};
+} ContextBlockSplitter;
 
-void BuildMetaBlockGreedy(const uint8_t* ringbuffer,
-                          size_t pos,
-                          size_t mask,
-                          const Command *commands,
-                          size_t n_commands,
-                          MetaBlockSplit* mb) {
-  size_t num_literals = 0;
-  for (size_t i = 0; i < n_commands; ++i) {
-    num_literals += commands[i].insert_len_;
-  }
+static void InitContextBlockSplitter(
+    MemoryManager* m, ContextBlockSplitter* self, size_t alphabet_size,
+    size_t num_contexts, size_t min_block_size, double split_threshold,
+    size_t num_symbols, BlockSplit* split, HistogramLiteral** histograms,
+    size_t* histograms_size) {
+  size_t max_num_blocks = num_symbols / min_block_size + 1;
+  size_t max_num_types;
 
-  BlockSplitter<HistogramLiteral> lit_blocks(
-      256, 512, 400.0, num_literals,
-      &mb->literal_split, &mb->literal_histograms);
-  BlockSplitter<HistogramCommand> cmd_blocks(
-      kNumCommandPrefixes, 1024, 500.0, n_commands,
-      &mb->command_split, &mb->command_histograms);
-  BlockSplitter<HistogramDistance> dist_blocks(
-      64, 512, 100.0, n_commands,
-      &mb->distance_split, &mb->distance_histograms);
+  self->alphabet_size_ = alphabet_size;
+  self->num_contexts_ = num_contexts;
+  self->max_block_types_ = BROTLI_MAX_NUMBER_OF_BLOCK_TYPES / num_contexts;
+  self->min_block_size_ = min_block_size;
+  self->split_threshold_ = split_threshold;
+  self->num_blocks_ = 0;
+  self->split_ = split;
+  self->histograms_size_ = histograms_size;
+  self->target_block_size_ = min_block_size;
+  self->block_size_ = 0;
+  self->curr_histogram_ix_ = 0;
+  self->merge_last_count_ = 0;
 
-  for (size_t i = 0; i < n_commands; ++i) {
-    const Command cmd = commands[i];
-    cmd_blocks.AddSymbol(cmd.cmd_prefix_);
-    for (size_t j = cmd.insert_len_; j != 0; --j) {
-      lit_blocks.AddSymbol(ringbuffer[pos & mask]);
-      ++pos;
-    }
-    pos += cmd.copy_len();
-    if (cmd.copy_len() && cmd.cmd_prefix_ >= 128) {
-      dist_blocks.AddSymbol(cmd.dist_prefix_);
-    }
-  }
-
-  lit_blocks.FinishBlock(/* is_final = */ true);
-  cmd_blocks.FinishBlock(/* is_final = */ true);
-  dist_blocks.FinishBlock(/* is_final = */ true);
+  /* We have to allocate one more histogram than the maximum number of block
+     types for the current histogram when the meta-block is too big. */
+  max_num_types =
+      BROTLI_MIN(size_t, max_num_blocks, self->max_block_types_ + 1);
+  BROTLI_ENSURE_CAPACITY(m, uint8_t,
+      split->types, split->types_alloc_size, max_num_blocks);
+  BROTLI_ENSURE_CAPACITY(m, uint32_t,
+      split->lengths, split->lengths_alloc_size, max_num_blocks);
+  if (BROTLI_IS_OOM(m)) return;
+  split->num_blocks = max_num_blocks;
+  self->last_entropy_ = BROTLI_ALLOC(m, double, 2 * num_contexts);
+  if (BROTLI_IS_OOM(m)) return;
+  assert(*histograms == 0);
+  *histograms_size = max_num_types * num_contexts;
+  *histograms = BROTLI_ALLOC(m, HistogramLiteral, *histograms_size);
+  self->histograms_ = *histograms;
+  if (BROTLI_IS_OOM(m)) return;
+  /* Clear only current historgram. */
+  ClearHistogramsLiteral(&self->histograms_[0], num_contexts);
+  self->last_histogram_ix_[0] = self->last_histogram_ix_[1] = 0;
 }
 
-// Greedy block splitter for one block category (literal, command or distance).
-// Gathers histograms for all context buckets.
-template<typename HistogramType>
-class ContextBlockSplitter {
- public:
-  ContextBlockSplitter(size_t alphabet_size,
-                       size_t num_contexts,
-                       size_t min_block_size,
-                       double split_threshold,
-                       size_t num_symbols,
-                       BlockSplit* split,
-                       std::vector<HistogramType>* histograms)
-      : alphabet_size_(alphabet_size),
-        num_contexts_(num_contexts),
-        max_block_types_(kMaxBlockTypes / num_contexts),
-        min_block_size_(min_block_size),
-        split_threshold_(split_threshold),
-        num_blocks_(0),
-        split_(split),
-        histograms_(histograms),
-        target_block_size_(min_block_size),
-        block_size_(0),
-        curr_histogram_ix_(0),
-        last_entropy_(2 * num_contexts),
-        merge_last_count_(0) {
-    size_t max_num_blocks = num_symbols / min_block_size + 1;
-    // We have to allocate one more histogram than the maximum number of block
-    // types for the current histogram when the meta-block is too big.
-    size_t max_num_types = std::min(max_num_blocks, max_block_types_ + 1);
-    split_->lengths.resize(max_num_blocks);
-    split_->types.resize(max_num_blocks);
-    histograms_->resize(max_num_types * num_contexts);
-    last_histogram_ix_[0] = last_histogram_ix_[1] = 0;
-  }
-
-  // Adds the next symbol to the current block type and context. When the
-  // current block reaches the target size, decides on merging the block.
-  void AddSymbol(size_t symbol, size_t context) {
-    (*histograms_)[curr_histogram_ix_ + context].Add(symbol);
-    ++block_size_;
-    if (block_size_ == target_block_size_) {
-      FinishBlock(/* is_final = */ false);
-    }
-  }
+static void CleanupContextBlockSplitter(
+    MemoryManager* m, ContextBlockSplitter* self) {
+  BROTLI_FREE(m, self->last_entropy_);
+}
 
 /* Does either of three things:
      (1) emits the current block with a new block type;
      (2) emits the current block with the type of the second last block;
      (3) merges the current block with the last block. */
-  void FinishBlock(bool is_final) {
-    if (block_size_ < min_block_size_) {
-      block_size_ = min_block_size_;
+static void ContextBlockSplitterFinishBlock(
+    MemoryManager* m, ContextBlockSplitter* self, int is_final) {
+  BlockSplit* split = self->split_;
+  const size_t num_contexts = self->num_contexts_;
+  double* last_entropy = self->last_entropy_;
+  HistogramLiteral* histograms = self->histograms_;
+
+  if (self->block_size_ < self->min_block_size_) {
+    self->block_size_ = self->min_block_size_;
+  }
+  if (self->num_blocks_ == 0) {
+    size_t i;
+    /* Create first block. */
+    split->lengths[0] = (uint32_t)self->block_size_;
+    split->types[0] = 0;
+
+    for (i = 0; i < num_contexts; ++i) {
+      last_entropy[i] =
+          BitsEntropy(histograms[i].data_, self->alphabet_size_);
+      last_entropy[num_contexts + i] = last_entropy[i];
     }
-    if (num_blocks_ == 0) {
-      // Create first block.
-      split_->lengths[0] = static_cast<uint32_t>(block_size_);
-      split_->types[0] = 0;
-      for (size_t i = 0; i < num_contexts_; ++i) {
-        last_entropy_[i] =
-            BitsEntropy(&(*histograms_)[i].data_[0], alphabet_size_);
-        last_entropy_[num_contexts_ + i] = last_entropy_[i];
-      }
-      ++num_blocks_;
-      ++split_->num_types;
-      curr_histogram_ix_ += num_contexts_;
-      block_size_ = 0;
-    } else if (block_size_ > 0) {
+    ++self->num_blocks_;
+    ++split->num_types;
+    self->curr_histogram_ix_ += num_contexts;
+    if (self->curr_histogram_ix_ < *self->histograms_size_) {
+      ClearHistogramsLiteral(
+          &self->histograms_[self->curr_histogram_ix_], self->num_contexts_);
+    }
+    self->block_size_ = 0;
+  } else if (self->block_size_ > 0) {
     /* Try merging the set of histograms for the current block type with the
        respective set of histograms for the last and second last block types.
        Decide over the split based on the total reduction of entropy across
        all contexts. */
-      std::vector<double> entropy(num_contexts_);
-      std::vector<HistogramType> combined_histo(2 * num_contexts_);
-      std::vector<double> combined_entropy(2 * num_contexts_);
-      double diff[2] = { 0.0 };
-      for (size_t i = 0; i < num_contexts_; ++i) {
-        size_t curr_histo_ix = curr_histogram_ix_ + i;
-        entropy[i] = BitsEntropy(&(*histograms_)[curr_histo_ix].data_[0],
-                                 alphabet_size_);
-        for (size_t j = 0; j < 2; ++j) {
-          size_t jx = j * num_contexts_ + i;
-          size_t last_histogram_ix = last_histogram_ix_[j] + i;
-          combined_histo[jx] = (*histograms_)[curr_histo_ix];
-          combined_histo[jx].AddHistogram((*histograms_)[last_histogram_ix]);
-          combined_entropy[jx] = BitsEntropy(
-              &combined_histo[jx].data_[0], alphabet_size_);
-          diff[j] += combined_entropy[jx] - entropy[i] - last_entropy_[jx];
-        }
+    double* entropy = BROTLI_ALLOC(m, double, num_contexts);
+    HistogramLiteral* combined_histo =
+        BROTLI_ALLOC(m, HistogramLiteral, 2 * num_contexts);
+    double* combined_entropy = BROTLI_ALLOC(m, double, 2 * num_contexts);
+    double diff[2] = { 0.0 };
+    size_t i;
+    if (BROTLI_IS_OOM(m)) return;
+    for (i = 0; i < num_contexts; ++i) {
+      size_t curr_histo_ix = self->curr_histogram_ix_ + i;
+      size_t j;
+      entropy[i] = BitsEntropy(histograms[curr_histo_ix].data_,
+                               self->alphabet_size_);
+      for (j = 0; j < 2; ++j) {
+        size_t jx = j * num_contexts + i;
+        size_t last_histogram_ix = self->last_histogram_ix_[j] + i;
+        combined_histo[jx] = histograms[curr_histo_ix];
+        HistogramAddHistogramLiteral(&combined_histo[jx],
+            &histograms[last_histogram_ix]);
+        combined_entropy[jx] = BitsEntropy(
+            &combined_histo[jx].data_[0], self->alphabet_size_);
+        diff[j] += combined_entropy[jx] - entropy[i] - last_entropy[jx];
       }
+    }
 
-      if (split_->num_types < max_block_types_ &&
-          diff[0] > split_threshold_ &&
-          diff[1] > split_threshold_) {
-        // Create new block.
-        split_->lengths[num_blocks_] = static_cast<uint32_t>(block_size_);
-        split_->types[num_blocks_] = static_cast<uint8_t>(split_->num_types);
-        last_histogram_ix_[1] = last_histogram_ix_[0];
-        last_histogram_ix_[0] = split_->num_types * num_contexts_;
-        for (size_t i = 0; i < num_contexts_; ++i) {
-          last_entropy_[num_contexts_ + i] = last_entropy_[i];
-          last_entropy_[i] = entropy[i];
+    if (split->num_types < self->max_block_types_ &&
+        diff[0] > self->split_threshold_ &&
+        diff[1] > self->split_threshold_) {
+      /* Create new block. */
+      split->lengths[self->num_blocks_] = (uint32_t)self->block_size_;
+      split->types[self->num_blocks_] = (uint8_t)split->num_types;
+      self->last_histogram_ix_[1] = self->last_histogram_ix_[0];
+      self->last_histogram_ix_[0] = split->num_types * num_contexts;
+      for (i = 0; i < num_contexts; ++i) {
+        last_entropy[num_contexts + i] = last_entropy[i];
+        last_entropy[i] = entropy[i];
+      }
+      ++self->num_blocks_;
+      ++split->num_types;
+      self->curr_histogram_ix_ += num_contexts;
+      if (self->curr_histogram_ix_ < *self->histograms_size_) {
+        ClearHistogramsLiteral(
+            &self->histograms_[self->curr_histogram_ix_], self->num_contexts_);
+      }
+      self->block_size_ = 0;
+      self->merge_last_count_ = 0;
+      self->target_block_size_ = self->min_block_size_;
+    } else if (diff[1] < diff[0] - 20.0) {
+      /* Combine this block with second last block. */
+      split->lengths[self->num_blocks_] = (uint32_t)self->block_size_;
+      split->types[self->num_blocks_] = split->types[self->num_blocks_ - 2];
+      BROTLI_SWAP(size_t, self->last_histogram_ix_, 0, 1);
+      for (i = 0; i < num_contexts; ++i) {
+        histograms[self->last_histogram_ix_[0] + i] =
+            combined_histo[num_contexts + i];
+        last_entropy[num_contexts + i] = last_entropy[i];
+        last_entropy[i] = combined_entropy[num_contexts + i];
+        HistogramClearLiteral(&histograms[self->curr_histogram_ix_ + i]);
+      }
+      ++self->num_blocks_;
+      self->block_size_ = 0;
+      self->merge_last_count_ = 0;
+      self->target_block_size_ = self->min_block_size_;
+    } else {
+      /* Combine this block with last block. */
+      split->lengths[self->num_blocks_ - 1] += (uint32_t)self->block_size_;
+      for (i = 0; i < num_contexts; ++i) {
+        histograms[self->last_histogram_ix_[0] + i] = combined_histo[i];
+        last_entropy[i] = combined_entropy[i];
+        if (split->num_types == 1) {
+          last_entropy[num_contexts + i] = last_entropy[i];
         }
-        ++num_blocks_;
-        ++split_->num_types;
-        curr_histogram_ix_ += num_contexts_;
-        block_size_ = 0;
-        merge_last_count_ = 0;
-        target_block_size_ = min_block_size_;
-      } else if (diff[1] < diff[0] - 20.0) {
-        // Combine this block with second last block.
-        split_->lengths[num_blocks_] = static_cast<uint32_t>(block_size_);
-        split_->types[num_blocks_] = split_->types[num_blocks_ - 2];
-        std::swap(last_histogram_ix_[0], last_histogram_ix_[1]);
-        for (size_t i = 0; i < num_contexts_; ++i) {
-          (*histograms_)[last_histogram_ix_[0] + i] =
-              combined_histo[num_contexts_ + i];
-          last_entropy_[num_contexts_ + i] = last_entropy_[i];
-          last_entropy_[i] = combined_entropy[num_contexts_ + i];
-          (*histograms_)[curr_histogram_ix_ + i].Clear();
-        }
-        ++num_blocks_;
-        block_size_ = 0;
-        merge_last_count_ = 0;
-        target_block_size_ = min_block_size_;
-      } else {
-        // Combine this block with last block.
-        split_->lengths[num_blocks_ - 1] += static_cast<uint32_t>(block_size_);
-        for (size_t i = 0; i < num_contexts_; ++i) {
-          (*histograms_)[last_histogram_ix_[0] + i] = combined_histo[i];
-          last_entropy_[i] = combined_entropy[i];
-          if (split_->num_types == 1) {
-            last_entropy_[num_contexts_ + i] = last_entropy_[i];
-          }
-          (*histograms_)[curr_histogram_ix_ + i].Clear();
-        }
-        block_size_ = 0;
-        if (++merge_last_count_ > 1) {
-          target_block_size_ += min_block_size_;
-        }
+        HistogramClearLiteral(&histograms[self->curr_histogram_ix_ + i]);
+      }
+      self->block_size_ = 0;
+      if (++self->merge_last_count_ > 1) {
+        self->target_block_size_ += self->min_block_size_;
       }
     }
-    if (is_final) {
-      (*histograms_).resize(split_->num_types * num_contexts_);
-      split_->types.resize(num_blocks_);
-      split_->lengths.resize(num_blocks_);
-    }
+    BROTLI_FREE(m, combined_entropy);
+    BROTLI_FREE(m, combined_histo);
+    BROTLI_FREE(m, entropy);
   }
+  if (is_final) {
+    *self->histograms_size_ = split->num_types * num_contexts;
+    split->num_blocks = self->num_blocks_;
+  }
+}
 
- private:
-  static const int kMaxBlockTypes = 256;
+/* Adds the next symbol to the current block type and context. When the
+   current block reaches the target size, decides on merging the block. */
+static void ContextBlockSplitterAddSymbol(MemoryManager* m,
+    ContextBlockSplitter* self, size_t symbol, size_t context) {
+  HistogramAddLiteral(&self->histograms_[self->curr_histogram_ix_ + context],
+      symbol);
+  ++self->block_size_;
+  if (self->block_size_ == self->target_block_size_) {
+    ContextBlockSplitterFinishBlock(m, self, /* is_final = */ 0);
+    if (BROTLI_IS_OOM(m)) return;
+  }
+}
 
-  // Alphabet size of particular block category.
-  const size_t alphabet_size_;
-  const size_t num_contexts_;
-  const size_t max_block_types_;
-  // We collect at least this many symbols for each block.
-  const size_t min_block_size_;
-  // We merge histograms A and B if
-  //   entropy(A+B) < entropy(A) + entropy(B) + split_threshold_,
-  // where A is the current histogram and B is the histogram of the last or the
-  // second last block type.
-  const double split_threshold_;
-
-  size_t num_blocks_;
-  BlockSplit* split_;  // not owned
-  std::vector<HistogramType>* histograms_;  // not owned
-
-  // The number of symbols that we want to collect before deciding on whether
-  // or not to merge the block with a previous one or emit a new block.
-  size_t target_block_size_;
-  // The number of symbols in the current histogram.
-  size_t block_size_;
-  // Offset of the current histogram.
-  size_t curr_histogram_ix_;
-  // Offset of the histograms of the previous two block types.
-  size_t last_histogram_ix_[2];
-  // Entropy of the previous two block types.
-  std::vector<double> last_entropy_;
-  // The number of times we merged the current block with the last one.
-  size_t merge_last_count_;
-};
-
-void BuildMetaBlockGreedyWithContexts(const uint8_t* ringbuffer,
-                                      size_t pos,
-                                      size_t mask,
-                                      uint8_t prev_byte,
-                                      uint8_t prev_byte2,
-                                      ContextType literal_context_mode,
-                                      size_t num_contexts,
-                                      const uint32_t* static_context_map,
-                                      const Command *commands,
-                                      size_t n_commands,
-                                      MetaBlockSplit* mb) {
+void BrotliBuildMetaBlockGreedyWithContexts(MemoryManager* m,
+                                            const uint8_t* ringbuffer,
+                                            size_t pos,
+                                            size_t mask,
+                                            uint8_t prev_byte,
+                                            uint8_t prev_byte2,
+                                            ContextType literal_context_mode,
+                                            size_t num_contexts,
+                                            const uint32_t* static_context_map,
+                                            const Command *commands,
+                                            size_t n_commands,
+                                            MetaBlockSplit* mb) {
+  ContextBlockSplitter lit_blocks;
+  BlockSplitterCommand cmd_blocks;
+  BlockSplitterDistance dist_blocks;
   size_t num_literals = 0;
-  for (size_t i = 0; i < n_commands; ++i) {
+  size_t i;
+  for (i = 0; i < n_commands; ++i) {
     num_literals += commands[i].insert_len_;
   }
 
-  ContextBlockSplitter<HistogramLiteral> lit_blocks(
-      256, num_contexts, 512, 400.0, num_literals,
-      &mb->literal_split, &mb->literal_histograms);
-  BlockSplitter<HistogramCommand> cmd_blocks(
-      kNumCommandPrefixes, 1024, 500.0, n_commands,
-      &mb->command_split, &mb->command_histograms);
-  BlockSplitter<HistogramDistance> dist_blocks(
-      64, 512, 100.0, n_commands,
-      &mb->distance_split, &mb->distance_histograms);
+  InitContextBlockSplitter(m, &lit_blocks, 256, num_contexts, 512, 400.0,
+      num_literals, &mb->literal_split, &mb->literal_histograms,
+      &mb->literal_histograms_size);
+  if (BROTLI_IS_OOM(m)) return;
+  InitBlockSplitterCommand(m, &cmd_blocks, BROTLI_NUM_COMMAND_SYMBOLS, 1024,
+      500.0, n_commands, &mb->command_split, &mb->command_histograms,
+      &mb->command_histograms_size);
+  if (BROTLI_IS_OOM(m)) return;
+  InitBlockSplitterDistance(m, &dist_blocks, 64, 512, 100.0, n_commands,
+      &mb->distance_split, &mb->distance_histograms,
+      &mb->distance_histograms_size);
+  if (BROTLI_IS_OOM(m)) return;
 
-  for (size_t i = 0; i < n_commands; ++i) {
+  for (i = 0; i < n_commands; ++i) {
     const Command cmd = commands[i];
-    cmd_blocks.AddSymbol(cmd.cmd_prefix_);
-    for (size_t j = cmd.insert_len_; j != 0; --j) {
+    size_t j;
+    BlockSplitterAddSymbolCommand(&cmd_blocks, cmd.cmd_prefix_);
+    for (j = cmd.insert_len_; j != 0; --j) {
       size_t context = Context(prev_byte, prev_byte2, literal_context_mode);
       uint8_t literal = ringbuffer[pos & mask];
-      lit_blocks.AddSymbol(literal, static_context_map[context]);
+      ContextBlockSplitterAddSymbol(
+          m, &lit_blocks, literal, static_context_map[context]);
       prev_byte2 = prev_byte;
+      if (BROTLI_IS_OOM(m)) return;
       prev_byte = literal;
       ++pos;
     }
-    pos += cmd.copy_len();
-    if (cmd.copy_len()) {
+    pos += CommandCopyLen(&cmd);
+    if (CommandCopyLen(&cmd)) {
       prev_byte2 = ringbuffer[(pos - 2) & mask];
       prev_byte = ringbuffer[(pos - 1) & mask];
       if (cmd.cmd_prefix_ >= 128) {
-        dist_blocks.AddSymbol(cmd.dist_prefix_);
+        BlockSplitterAddSymbolDistance(&dist_blocks, cmd.dist_prefix_);
       }
     }
   }
 
-  lit_blocks.FinishBlock(/* is_final = */ true);
-  cmd_blocks.FinishBlock(/* is_final = */ true);
-  dist_blocks.FinishBlock(/* is_final = */ true);
+  ContextBlockSplitterFinishBlock(m, &lit_blocks, /* is_final = */ 1);
+  if (BROTLI_IS_OOM(m)) return;
+  CleanupContextBlockSplitter(m, &lit_blocks);
+  BlockSplitterFinishBlockCommand(&cmd_blocks, /* is_final = */ 1);
+  BlockSplitterFinishBlockDistance(&dist_blocks, /* is_final = */ 1);
 
-  mb->literal_context_map.resize(
-      mb->literal_split.num_types << kLiteralContextBits);
-  for (size_t i = 0; i < mb->literal_split.num_types; ++i) {
-    for (size_t j = 0; j < (1u << kLiteralContextBits); ++j) {
-      mb->literal_context_map[(i << kLiteralContextBits) + j] =
-          static_cast<uint32_t>(i * num_contexts) + static_context_map[j];
+  assert(mb->literal_context_map == 0);
+  mb->literal_context_map_size =
+      mb->literal_split.num_types << BROTLI_LITERAL_CONTEXT_BITS;
+  mb->literal_context_map =
+      BROTLI_ALLOC(m, uint32_t, mb->literal_context_map_size);
+  if (BROTLI_IS_OOM(m)) return;
+
+  for (i = 0; i < mb->literal_split.num_types; ++i) {
+    size_t j;
+    for (j = 0; j < (1u << BROTLI_LITERAL_CONTEXT_BITS); ++j) {
+      mb->literal_context_map[(i << BROTLI_LITERAL_CONTEXT_BITS) + j] =
+          (uint32_t)(i * num_contexts) + static_context_map[j];
     }
   }
 }
 
-void OptimizeHistograms(size_t num_direct_distance_codes,
-                        size_t distance_postfix_bits,
-                        MetaBlockSplit* mb) {
-  uint8_t* good_for_rle = new uint8_t[kNumCommandPrefixes];
-  for (size_t i = 0; i < mb->literal_histograms.size(); ++i) {
-    OptimizeHuffmanCountsForRle(256, &mb->literal_histograms[i].data_[0],
-                                good_for_rle);
+void BrotliOptimizeHistograms(size_t num_direct_distance_codes,
+                              size_t distance_postfix_bits,
+                              MetaBlockSplit* mb) {
+  uint8_t good_for_rle[BROTLI_NUM_COMMAND_SYMBOLS];
+  size_t num_distance_codes;
+  size_t i;
+  for (i = 0; i < mb->literal_histograms_size; ++i) {
+    BrotliOptimizeHuffmanCountsForRle(256, mb->literal_histograms[i].data_,
+                                      good_for_rle);
   }
-  for (size_t i = 0; i < mb->command_histograms.size(); ++i) {
-    OptimizeHuffmanCountsForRle(kNumCommandPrefixes,
-                                &mb->command_histograms[i].data_[0],
-                                good_for_rle);
+  for (i = 0; i < mb->command_histograms_size; ++i) {
+    BrotliOptimizeHuffmanCountsForRle(BROTLI_NUM_COMMAND_SYMBOLS,
+                                      mb->command_histograms[i].data_,
+                                      good_for_rle);
   }
-  size_t num_distance_codes =
-      kNumDistanceShortCodes + num_direct_distance_codes +
-      (48u << distance_postfix_bits);
-  for (size_t i = 0; i < mb->distance_histograms.size(); ++i) {
-    OptimizeHuffmanCountsForRle(num_distance_codes,
-                                &mb->distance_histograms[i].data_[0],
-                                good_for_rle);
+  num_distance_codes = BROTLI_NUM_DISTANCE_SHORT_CODES +
+      num_direct_distance_codes + (48u << distance_postfix_bits);
+  for (i = 0; i < mb->distance_histograms_size; ++i) {
+    BrotliOptimizeHuffmanCountsForRle(num_distance_codes,
+                                      mb->distance_histograms[i].data_,
+                                      good_for_rle);
   }
-  delete[] good_for_rle;
 }
 
-}  // namespace brotli
+#if defined(__cplusplus) || defined(c_plusplus)
+}  /* extern "C" */
+#endif

@@ -9,63 +9,37 @@
 #ifndef BROTLI_ENC_BACKWARD_REFERENCES_H_
 #define BROTLI_ENC_BACKWARD_REFERENCES_H_
 
-#include <vector>
-
 #include "../common/types.h"
 #include "./command.h"
 #include "./hash.h"
+#include "./memory.h"
+#include "./port.h"
 
-namespace brotli {
+#if defined(__cplusplus) || defined(c_plusplus)
+extern "C" {
+#endif
 
 /* "commands" points to the next output command to write to, "*num_commands" is
    initially the total amount of commands output by previous
    CreateBackwardReferences calls, and must be incremented by the amount written
    by this call. */
-void CreateBackwardReferences(size_t num_bytes,
-                              size_t position,
-                              bool is_last,
-                              const uint8_t* ringbuffer,
-                              size_t ringbuffer_mask,
-                              const int quality,
-                              const int lgwin,
-                              Hashers* hashers,
-                              int hash_type,
-                              int* dist_cache,
-                              size_t* last_insert_len,
-                              Command* commands,
-                              size_t* num_commands,
-                              size_t* num_literals);
+BROTLI_INTERNAL void BrotliCreateBackwardReferences(MemoryManager* m,
+                                                    size_t num_bytes,
+                                                    size_t position,
+                                                    int is_last,
+                                                    const uint8_t* ringbuffer,
+                                                    size_t ringbuffer_mask,
+                                                    const int quality,
+                                                    const int lgwin,
+                                                    Hashers* hashers,
+                                                    int hash_type,
+                                                    int* dist_cache,
+                                                    size_t* last_insert_len,
+                                                    Command* commands,
+                                                    size_t* num_commands,
+                                                    size_t* num_literals);
 
-static const float kInfinity = std::numeric_limits<float>::infinity();
-
-struct ZopfliNode {
-  ZopfliNode(void) : length(1),
-                     distance(0),
-                     insert_length(0),
-                     cost(kInfinity) {}
-
-  inline uint32_t copy_length() const {
-    return length & 0xffffff;
-  }
-
-  inline uint32_t length_code() const {
-    const uint32_t modifier = length >> 24;
-    return copy_length() + 9u - modifier;
-  }
-
-  inline uint32_t copy_distance() const {
-    return distance & 0x1ffffff;
-  }
-
-  inline uint32_t distance_code() const {
-    const uint32_t short_code = distance >> 25;
-    return short_code == 0 ? copy_distance() + 15 : short_code - 1;
-  }
-
-  inline uint32_t command_length() const {
-    return copy_length() + insert_length;
-  }
-
+typedef struct ZopfliNode {
   /* best length to get up to this byte (not including this byte itself)
      highest 8 bit is used to reconstruct the length code */
   uint32_t length;
@@ -75,9 +49,21 @@ struct ZopfliNode {
   uint32_t distance;
   /* number of literal inserts before this copy */
   uint32_t insert_length;
+
+  /* This union holds information used by dynamic-programming. During forward
+     pass |cost| it used to store the goal function. On path backtracing pass
+     |next| is assigned the offset to next node on the path. As |cost| is not
+     used after the forward pass, it shares the memory with |next|. */
+  union {
     /* Smallest cost to get to this byte from the beginning, as found so far. */
-  float cost;
-};
+    float cost;
+    /* Offset to the next node on the path. Equals to command_length() of the
+       next node on the path. For last node equals to BROTLI_UINT32_MAX */
+    uint32_t next;
+  } u;
+} ZopfliNode;
+
+BROTLI_INTERNAL void BrotliInitZopfliNodes(ZopfliNode* array, size_t length);
 
 /* Computes the shortest path of commands from position to at most
    position + num_bytes.
@@ -92,26 +78,28 @@ struct ZopfliNode {
      (1) nodes[i].copy_length() >= 2
      (2) nodes[i].command_length() <= i and
      (3) nodes[i - nodes[i].command_length()].cost < kInfinity */
-void ZopfliComputeShortestPath(size_t num_bytes,
-                               size_t position,
-                               const uint8_t* ringbuffer,
-                               size_t ringbuffer_mask,
-                               const size_t max_backward_limit,
-                               const int* dist_cache,
-                               Hashers::H10* hasher,
-                               ZopfliNode* nodes,
-                               std::vector<uint32_t>* path);
+BROTLI_INTERNAL size_t BrotliZopfliComputeShortestPath(
+    MemoryManager* m, size_t num_bytes, size_t position,
+    const uint8_t* ringbuffer, size_t ringbuffer_mask, const int quality,
+    const size_t max_backward_limit, const int* dist_cache, H10* hasher,
+    ZopfliNode* nodes);
 
-void ZopfliCreateCommands(const size_t num_bytes,
-                          const size_t block_start,
-                          const size_t max_backward_limit,
-                          const std::vector<uint32_t>& path,
-                          const ZopfliNode* nodes,
-                          int* dist_cache,
-                          size_t* last_insert_len,
-                          Command* commands,
-                          size_t* num_literals);
+BROTLI_INTERNAL void BrotliZopfliCreateCommands(const size_t num_bytes,
+                                                const size_t block_start,
+                                                const size_t max_backward_limit,
+                                                const ZopfliNode* nodes,
+                                                int* dist_cache,
+                                                size_t* last_insert_len,
+                                                Command* commands,
+                                                size_t* num_literals);
 
-}  // namespace brotli
+/* Maximum distance, see section 9.1. of the spec. */
+static BROTLI_INLINE size_t MaxBackwardLimit(int lgwin) {
+  return (1u << lgwin) - 16;
+}
+
+#if defined(__cplusplus) || defined(c_plusplus)
+}  /* extern "C" */
+#endif
 
 #endif  /* BROTLI_ENC_BACKWARD_REFERENCES_H_ */

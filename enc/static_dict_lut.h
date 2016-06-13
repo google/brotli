@@ -6,21 +6,23 @@
 
 /* Lookup table for static dictionary and transforms. */
 
-#ifndef BROTLI_ENC_DICTIONARY_LUT_H_
-#define BROTLI_ENC_DICTIONARY_LUT_H_
+#ifndef BROTLI_ENC_STATIC_DICT_LUT_H_
+#define BROTLI_ENC_STATIC_DICT_LUT_H_
 
 #include "../common/types.h"
 
-namespace brotli {
+#if defined(__cplusplus) || defined(c_plusplus)
+extern "C" {
+#endif
 
 static const int kDictNumBits = 15;
 static const uint32_t kDictHashMul32 = 0x1e35a7bd;
 
-struct DictWord {
+typedef struct DictWord {
   uint8_t len;
   uint8_t transform;
   uint16_t idx;
-};
+} DictWord;
 
 static const uint32_t kStaticDictionaryBuckets[] = {
  0x000002, 0x000000, 0x000000, 0x000000, 0x000000, 0x000000, 0x000000, 0x000000,
@@ -12050,6 +12052,8 @@ static const DictWord kStaticDictionaryWords[] = {
   { 12, 10,   542 }, { 14, 11,   410 }, {  9, 11,   660 }, { 10, 11,   347 },
 };
 
-}  // namespace brotli
+#if defined(__cplusplus) || defined(c_plusplus)
+}  /* extern "C" */
+#endif
 
 #endif  /* BROTLI_ENC_STATIC_DICT_LUT_H_ */
