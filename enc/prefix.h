@@ -29,7 +29,7 @@ static BROTLI_INLINE void PrefixEncodeCopyDistance(size_t distance_code,
     *extra_bits = 0;
     return;
   } else {
-    size_t dist = (1u << (postfix_bits + 2u)) +
+    size_t dist = ((size_t)1 << (postfix_bits + 2u)) +
         (distance_code - BROTLI_NUM_DISTANCE_SHORT_CODES - num_direct_codes);
     size_t bucket = Log2FloorNonZero(dist) - 1;
     size_t postfix_mask = (1u << postfix_bits) - 1;
