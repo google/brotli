@@ -130,7 +130,7 @@ static BROTLI_INLINE double FastLog2(size_t v) {
     (defined(__ANDROID_API__) && __ANDROID_API__ < 18)
   /* Visual Studio 2012 and Android API levels < 18 do not have the log2()
    * function defined, so we use log() and a multiplication instead. */
-  static const double kLog2Inv = 1.4426950408889634f;
+  static const double kLog2Inv = 1.4426950408889634;
   return log((double)v) * kLog2Inv;
 #else
   return log2((double)v);
