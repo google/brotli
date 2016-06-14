@@ -15,3 +15,5 @@ Brotli is open-sourced under the MIT License, see the LICENSE file.
 
 Brotli mailing list:
 https://groups.google.com/forum/#!forum/brotli
+
+[![Build Status](https://travis-ci.org/google/brotli.svg?branch=master)](https://travis-ci.org/google/brotli)
