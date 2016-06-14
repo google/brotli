@@ -60,9 +60,10 @@ static BROTLI_INLINE void BrotliWriteBits(size_t n_bits,
   /* implicit & 0xff is assumed for uint8_t arithmetics */
   uint8_t *array_pos = &array[*pos >> 3];
   const size_t bits_reserved_in_first_byte = (*pos & 7);
+  size_t bits_left_to_write;
   bits <<= bits_reserved_in_first_byte;
   *array_pos++ |= (uint8_t)bits;
-  for (size_t bits_left_to_write = n_bits + bits_reserved_in_first_byte;
+  for (bits_left_to_write = n_bits + bits_reserved_in_first_byte;
        bits_left_to_write >= 9;
        bits_left_to_write -= 8) {
     bits >>= 8;
