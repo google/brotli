@@ -79,31 +79,32 @@ static void EstimateBitCostsForLiteralsUTF8(size_t pos, size_t len, size_t mask,
   for (size_t i = 0; i < len; ++i) {
     if (i >= window_half) {
       // Remove a byte in the past.
-      size_t c = i < window_half + 1 ?
+      size_t past_c = i < window_half + 1 ?
           0 : data[(pos + i - window_half - 1) & mask];
-      size_t last_c = i < window_half + 2 ?
+      size_t past_last_c = i < window_half + 2 ?
           0 : data[(pos + i - window_half - 2) & mask];
-      size_t utf8_pos2 = UTF8Position(last_c, c, max_utf8);
-      --histogram[utf8_pos2][data[(pos + i - window_half) & mask]];
-      --in_window_utf8[utf8_pos2];
+      size_t past_utf8_pos2 = UTF8Position(past_last_c, past_c, max_utf8);
+      --histogram[past_utf8_pos2][data[(pos + i - window_half) & mask]];
+      --in_window_utf8[past_utf8_pos2];
     }
     if (i + window_half < len) {
       // Add a byte in the future.
-      size_t c = data[(pos + i + window_half - 1) & mask];
-      size_t last_c = data[(pos + i + window_half - 2) & mask];
-      size_t utf8_pos2 = UTF8Position(last_c, c, max_utf8);
-      ++histogram[utf8_pos2][data[(pos + i + window_half) & mask]];
-      ++in_window_utf8[utf8_pos2];
+      size_t future_c = data[(pos + i + window_half - 1) & mask];
+      size_t future_last_c = data[(pos + i + window_half - 2) & mask];
+      size_t future_utf8_pos2 = UTF8Position(future_last_c, future_c, max_utf8);
+      ++histogram[future_utf8_pos2][data[(pos + i + window_half) & mask]];
+      ++in_window_utf8[future_utf8_pos2];
     }
-    size_t c = i < 1 ? 0 : data[(pos + i - 1) & mask];
-    size_t last_c = i < 2 ? 0 : data[(pos + i - 2) & mask];
-    size_t utf8_pos = UTF8Position(last_c, c, max_utf8);
+    size_t current_c = i < 1 ? 0 : data[(pos + i - 1) & mask];
+    size_t current_last_c = i < 2 ? 0 : data[(pos + i - 2) & mask];
+    size_t current_utf8_pos = UTF8Position(current_last_c, current_c, max_utf8);
     size_t masked_pos = (pos + i) & mask;
-    size_t histo = histogram[utf8_pos][data[masked_pos]];
+    size_t histo = histogram[current_utf8_pos][data[masked_pos]];
     if (histo == 0) {
       histo = 1;
     }
-    double lit_cost = FastLog2(in_window_utf8[utf8_pos]) - FastLog2(histo);
+    double lit_cost =
+        FastLog2(in_window_utf8[current_utf8_pos]) - FastLog2(histo);
     lit_cost += 0.02905;
     if (lit_cost < 1.0) {
       lit_cost *= 0.5;
