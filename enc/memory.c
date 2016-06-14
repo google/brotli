@@ -11,7 +11,7 @@
 
 #include <assert.h>
 #include <stdlib.h>  /* exit, free, malloc */
-#include <strings.h>  /* memcpy */
+#include <string.h>  /* memcpy */
 
 #include "../common/types.h"
 #include "./port.h"

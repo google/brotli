@@ -122,7 +122,7 @@ static void StoreVarLenUint8(size_t n, size_t* storage_ix, uint8_t* storage) {
     size_t nbits = Log2FloorNonZero(n);
     BrotliWriteBits(1, 1, storage_ix, storage);
     BrotliWriteBits(3, nbits, storage_ix, storage);
-    BrotliWriteBits(nbits, n - (1u << nbits), storage_ix, storage);
+    BrotliWriteBits(nbits, n - ((size_t)1 << nbits), storage_ix, storage);
   }
 }
 
