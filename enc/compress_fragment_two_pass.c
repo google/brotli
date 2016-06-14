@@ -153,7 +153,7 @@ static BROTLI_INLINE void EmitCopyLen(size_t copylen, uint32_t** commands) {
     const size_t tail = copylen - 70;
     const size_t nbits = Log2FloorNonZero(tail);
     const size_t code = nbits + 52;
-    const size_t extra = tail - (1u << nbits);
+    const size_t extra = tail - ((size_t)1 << nbits);
     **commands = (uint32_t)(code | (extra << 8));
   } else {
     const size_t extra = copylen - 2118;
@@ -187,7 +187,7 @@ static BROTLI_INLINE void EmitCopyLenLastDistance(
     const size_t tail = copylen - 72;
     const size_t nbits = Log2FloorNonZero(tail);
     const size_t code = nbits + 52;
-    const size_t extra = tail - (1u << nbits);
+    const size_t extra = tail - ((size_t)1 << nbits);
     **commands = (uint32_t)(code | (extra << 8));
     ++(*commands);
     **commands = 64;

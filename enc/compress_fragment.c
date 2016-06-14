@@ -194,7 +194,7 @@ static BROTLI_INLINE void EmitInsertLen(size_t insertlen,
     const uint32_t nbits = Log2FloorNonZero(tail);
     const size_t code = nbits + 50;
     BrotliWriteBits(depth[code], bits[code], storage_ix, storage);
-    BrotliWriteBits(nbits, tail - (1u << nbits), storage_ix, storage);
+    BrotliWriteBits(nbits, tail - ((size_t)1 << nbits), storage_ix, storage);
     ++histo[code];
   } else {
     BrotliWriteBits(depth[61], bits[61], storage_ix, storage);
@@ -243,7 +243,7 @@ static BROTLI_INLINE void EmitCopyLen(size_t copylen,
     const uint32_t nbits = Log2FloorNonZero(tail);
     const size_t code = nbits + 28;
     BrotliWriteBits(depth[code], bits[code], storage_ix, storage);
-    BrotliWriteBits(nbits, tail - (1u << nbits), storage_ix, storage);
+    BrotliWriteBits(nbits, tail - ((size_t)1 << nbits), storage_ix, storage);
     ++histo[code];
   } else {
     BrotliWriteBits(depth[39], bits[39], storage_ix, storage);
@@ -282,7 +282,7 @@ static BROTLI_INLINE void EmitCopyLenLastDistance(size_t copylen,
     const uint32_t nbits = Log2FloorNonZero(tail);
     const size_t code = nbits + 28;
     BrotliWriteBits(depth[code], bits[code], storage_ix, storage);
-    BrotliWriteBits(nbits, tail - (1u << nbits), storage_ix, storage);
+    BrotliWriteBits(nbits, tail - ((size_t)1 << nbits), storage_ix, storage);
     BrotliWriteBits(depth[64], bits[64], storage_ix, storage);
     ++histo[code];
     ++histo[64];
