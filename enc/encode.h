@@ -69,9 +69,6 @@ typedef enum BrotliEncoderParameter {
   BROTLI_PARAM_LGBLOCK = 3
 } BrotliEncoderParameter;
 
-/* DEPRECATED */
-void BrotliEncoderParamsSetDefault(BrotliEncoderParams* params);
-
 /* A state can not be reused for multiple brotli streams. */
 typedef struct BrotliEncoderStateStruct BrotliEncoderState;
 
@@ -85,30 +82,9 @@ int BrotliEncoderSetParameter(
 BrotliEncoderState* BrotliEncoderCreateInstance(brotli_alloc_func alloc_func,
                                                 brotli_free_func free_func,
                                                 void* opaque);
-/* DEPRECATED */
-static inline BrotliEncoderState* BrotliEncoderCreateState(
-    const BrotliEncoderParams* params, brotli_alloc_func alloc_func,
-    brotli_free_func free_func, void* opaque) {
-  BrotliEncoderState* result = BrotliEncoderCreateInstance(
-      alloc_func, free_func, opaque);
-  if (!result) return result;
-  BrotliEncoderSetParameter(
-      result, BROTLI_PARAM_MODE, (uint32_t)params->mode);
-  BrotliEncoderSetParameter(
-      result, BROTLI_PARAM_QUALITY, (uint32_t)params->quality);
-  BrotliEncoderSetParameter(
-      result, BROTLI_PARAM_LGWIN, (uint32_t)params->lgwin);
-  BrotliEncoderSetParameter(
-      result, BROTLI_PARAM_LGBLOCK, (uint32_t)params->lgblock);
-  return result;
-}
 
 /* Deinitializes and frees BrotliEncoderState instance. */
 void BrotliEncoderDestroyInstance(BrotliEncoderState* state);
-/* DEPRECATED */
-static inline void BrotliEncoderDestroyState(BrotliEncoderState* state) {
-  BrotliEncoderDestroyInstance(state);
-}
 
 /* The maximum input size that can be processed at once. */
 size_t BrotliEncoderInputBlockSize(BrotliEncoderState* state);

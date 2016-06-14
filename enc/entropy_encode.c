@@ -42,8 +42,8 @@ int BrotliSetDepth(int p0, HuffmanTree* pool, uint8_t* depth, int max_depth) {
 }
 
 /* Sort the root nodes, least popular first. */
-static inline int SortHuffmanTree(const HuffmanTree* v0,
-                                  const HuffmanTree* v1) {
+static BROTLI_INLINE int SortHuffmanTree(const HuffmanTree* v0,
+                                         const HuffmanTree* v1) {
   if (v0->total_count_ != v1->total_count_) {
     return (v0->total_count_ < v1->total_count_) ? 1 : 0;
   }
@@ -463,7 +463,7 @@ static uint16_t BrotliReverseBits(size_t num_bits, uint16_t bits) {
     bits = (uint16_t)(bits >> 4);
     retval |= kLut[bits & 0xf];
   }
-  retval >>= (-num_bits & 0x3);
+  retval >>= ((0 - num_bits) & 0x3);
   return (uint16_t)retval;
 }
 

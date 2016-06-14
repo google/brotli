@@ -12,26 +12,28 @@
 
 namespace brotli {
 
-static void ConvertParams(const BrotliParams* from, BrotliEncoderParams* to) {
-  BrotliEncoderParamsSetDefault(to);
+static void SetParams(const BrotliParams* from, BrotliEncoderState* to) {
+  BrotliEncoderMode mode = BROTLI_MODE_GENERIC;
   if (from->mode == BrotliParams::MODE_TEXT) {
-    to->mode = BROTLI_MODE_TEXT;
+    mode = BROTLI_MODE_TEXT;
   } else if (from->mode == BrotliParams::MODE_FONT) {
-    to->mode = BROTLI_MODE_FONT;
+    mode = BROTLI_MODE_FONT;
   }
-  to->quality = from->quality;
-  to->lgwin = from->lgwin;
-  to->lgblock = from->lgblock;
+  BrotliEncoderSetParameter(to, BROTLI_PARAM_MODE, (uint32_t)mode);
+  BrotliEncoderSetParameter(to, BROTLI_PARAM_QUALITY, (uint32_t)from->quality);
+  BrotliEncoderSetParameter(to, BROTLI_PARAM_LGWIN, (uint32_t)from->lgwin);
+  BrotliEncoderSetParameter(to, BROTLI_PARAM_LGBLOCK, (uint32_t)from->lgblock);
 }
 
 BrotliCompressor::BrotliCompressor(BrotliParams params) {
-  BrotliEncoderParams encoder_params;
-  ConvertParams(&params, &encoder_params);
-  state_ = BrotliEncoderCreateState(&encoder_params, 0, 0, 0);
+  state_ = BrotliEncoderCreateInstance(0, 0, 0);
   if (state_ == 0) std::exit(EXIT_FAILURE);  /* OOM */
+  SetParams(&params, state_);
 }
 
-BrotliCompressor::~BrotliCompressor(void) { BrotliEncoderDestroyState(state_); }
+BrotliCompressor::~BrotliCompressor(void) {
+  BrotliEncoderDestroyInstance(state_);
+}
 
 bool BrotliCompressor::WriteMetaBlock(const size_t input_size,
                                       const uint8_t* input_buffer,
@@ -95,12 +97,11 @@ int BrotliCompressWithCustomDictionary(size_t dictsize, const uint8_t* dict,
   const uint8_t* next_in = NULL;
   size_t total_out = 0;
   bool end_of_input = false;
-  BrotliEncoderParams encoder_params;
   BrotliEncoderState* s;
 
-  ConvertParams(&params, &encoder_params);
-  s = BrotliEncoderCreateState(&encoder_params, 0, 0, 0);
+  s = BrotliEncoderCreateInstance(0, 0, 0);
   if (!s) return 0;
+  SetParams(&params, s);
   BrotliEncoderSetCustomDictionary(s, dictsize, dict);
   output_buffer = new uint8_t[kOutputBufferSize];
 
@@ -130,7 +131,7 @@ int BrotliCompressWithCustomDictionary(size_t dictsize, const uint8_t* dict,
   }
 
   delete[] output_buffer;
-  BrotliEncoderDestroyState(s);
+  BrotliEncoderDestroyInstance(s);
   return result ? 1 : 0;
 }
 

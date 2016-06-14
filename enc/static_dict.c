@@ -90,7 +90,7 @@ int BrotliFindAllStaticDictionaryMatches(const uint8_t* data,
     for (i = 0; i < num; ++i) {
       const DictWord w = kStaticDictionaryWords[offset + i];
       const size_t l = w.len;
-      const size_t n = 1u << kBrotliDictionarySizeBitsByLength[l];
+      const size_t n = (size_t)1 << kBrotliDictionarySizeBitsByLength[l];
       const size_t id = w.idx;
       if (w.transform == 0) {
         const size_t matchlen = DictMatchLength(data, id, l, max_length);
@@ -329,7 +329,7 @@ int BrotliFindAllStaticDictionaryMatches(const uint8_t* data,
     for (i = 0; i < num; ++i) {
       const DictWord w = kStaticDictionaryWords[offset + i];
       const size_t l = w.len;
-      const size_t n = 1u << kBrotliDictionarySizeBitsByLength[l];
+      const size_t n = (size_t)1 << kBrotliDictionarySizeBitsByLength[l];
       const size_t id = w.idx;
       if (w.transform == 0) {
         const uint8_t* s;
@@ -421,7 +421,7 @@ int BrotliFindAllStaticDictionaryMatches(const uint8_t* data,
       for (i = 0; i < num; ++i) {
         const DictWord w = kStaticDictionaryWords[offset + i];
         const size_t l = w.len;
-        const size_t n = 1u << kBrotliDictionarySizeBitsByLength[l];
+        const size_t n = (size_t)1 << kBrotliDictionarySizeBitsByLength[l];
         const size_t id = w.idx;
         if (w.transform == 0 && IsMatch(w, &data[2], max_length - 2)) {
           if (data[0] == 0xc2) {
@@ -450,7 +450,7 @@ int BrotliFindAllStaticDictionaryMatches(const uint8_t* data,
       for (i = 0; i < num; ++i) {
         const DictWord w = kStaticDictionaryWords[offset + i];
         const size_t l = w.len;
-        const size_t n = 1u << kBrotliDictionarySizeBitsByLength[l];
+        const size_t n = (size_t)1 << kBrotliDictionarySizeBitsByLength[l];
         const size_t id = w.idx;
         if (w.transform == 0 && IsMatch(w, &data[5], max_length - 5)) {
           AddMatch(id + (data[0] == ' ' ? 41 : 72) * n, l + 5, l, matches);
