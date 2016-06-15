@@ -12,8 +12,8 @@ testdata/alice29.txt
 testdata/asyoulik.txt
 testdata/lcet10.txt
 testdata/plrabn12.txt
-../enc/encode.cc
-../enc/dictionary.h
+../enc/encode.c
+../common/dictionary.h
 ../dec/decode.c
 %s
 """ % BRO

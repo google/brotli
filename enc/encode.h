@@ -4,206 +4,229 @@
    See file LICENSE for detail or copy at https://opensource.org/licenses/MIT
 */
 
-// API for Brotli compression
+/* API for Brotli compression. */
 
 #ifndef BROTLI_ENC_ENCODE_H_
 #define BROTLI_ENC_ENCODE_H_
 
-#include <string>
-#include <vector>
-#include "./command.h"
-#include "./hash.h"
-#include "./ringbuffer.h"
-#include "./static_dict.h"
-#include "./streams.h"
-#include "./types.h"
+#include "../common/types.h"
 
-namespace brotli {
+#if defined(__cplusplus) || defined(c_plusplus)
+extern "C" {
+#endif
 
-static const int kMaxWindowBits = 24;
-static const int kMinWindowBits = 10;
-static const int kMinInputBlockBits = 16;
-static const int kMaxInputBlockBits = 24;
+static const int kBrotliMaxWindowBits = 24;
+static const int kBrotliMinWindowBits = 10;
+static const int kBrotliMinInputBlockBits = 16;
+static const int kBrotliMaxInputBlockBits = 24;
 
-struct BrotliParams {
-  BrotliParams(void)
-      : mode(MODE_GENERIC),
-        quality(11),
-        lgwin(22),
-        lgblock(0),
-        enable_dictionary(true),
-        enable_transforms(false),
-        greedy_block_split(false),
-        enable_context_modeling(true) {}
+typedef enum BrotliEncoderMode {
+  /* Default compression mode. The compressor does not know anything in
+     advance about the properties of the input. */
+  BROTLI_MODE_GENERIC = 0,
+  /* Compression mode for UTF-8 format text input. */
+  BROTLI_MODE_TEXT = 1,
+  /* Compression mode used in WOFF 2.0. */
+  BROTLI_MODE_FONT = 2
+} BrotliEncoderMode;
 
-  enum Mode {
-    // Default compression mode. The compressor does not know anything in
-    // advance about the properties of the input.
-    MODE_GENERIC = 0,
-    // Compression mode for UTF-8 format text input.
-    MODE_TEXT = 1,
-    // Compression mode used in WOFF 2.0.
-    MODE_FONT = 2
-  };
-  Mode mode;
+#define BROTLI_DEFAULT_QUALITY 11
+#define BROTLI_DEFAULT_WINDOW 22
+#define BROTLI_DEFAULT_MODE BROTLI_MODE_GENERIC
 
-  // Controls the compression-speed vs compression-density tradeoffs. The higher
-  // the quality, the slower the compression. Range is 0 to 11.
+typedef enum BrotliEncoderOperation {
+  BROTLI_OPERATION_PROCESS = 0,
+  /* Request output stream to flush. Performed when input stream is depleted
+     and there is enough space in output stream. */
+  BROTLI_OPERATION_FLUSH = 1,
+  /* Request output stream to finish. Performed when input stream is depleted
+     and there is enough space in output stream. */
+  BROTLI_OPERATION_FINISH = 2
+} BrotliEncoderOperation;
+
+/* DEPRECATED */
+typedef struct BrotliEncoderParams {
+  BrotliEncoderMode mode;
+  /* Controls the compression-speed vs compression-density tradeoffs. The higher
+     the |quality|, the slower the compression. Range is 0 to 11. */
   int quality;
-  // Base 2 logarithm of the sliding window size. Range is 10 to 24.
+  /* Base 2 logarithm of the sliding window size. Range is 10 to 24. */
   int lgwin;
-  // Base 2 logarithm of the maximum input block size. Range is 16 to 24.
-  // If set to 0, the value will be set based on the quality.
+  /* Base 2 logarithm of the maximum input block size. Range is 16 to 24.
+     If set to 0, the value will be set based on the quality. */
   int lgblock;
+} BrotliEncoderParams;
 
-  // These settings are deprecated and will be ignored.
-  // All speed vs. size compromises are controlled by the quality param.
-  bool enable_dictionary;
-  bool enable_transforms;
-  bool greedy_block_split;
-  bool enable_context_modeling;
-};
+typedef enum BrotliEncoderParameter {
+  BROTLI_PARAM_MODE = 0,
+  /* Controls the compression-speed vs compression-density tradeoffs. The higher
+     the quality, the slower the compression. Range is 0 to 11. */
+  BROTLI_PARAM_QUALITY = 1,
+  /* Base 2 logarithm of the sliding window size. Range is 10 to 24. */
+  BROTLI_PARAM_LGWIN = 2,
+  /* Base 2 logarithm of the maximum input block size. Range is 16 to 24.
+     If set to 0, the value will be set based on the quality. */
+  BROTLI_PARAM_LGBLOCK = 3
+} BrotliEncoderParameter;
 
-// An instance can not be reused for multiple brotli streams.
-class BrotliCompressor {
- public:
-  explicit BrotliCompressor(BrotliParams params);
-  ~BrotliCompressor(void);
+/* A state can not be reused for multiple brotli streams. */
+typedef struct BrotliEncoderStateStruct BrotliEncoderState;
 
-  // The maximum input size that can be processed at once.
-  size_t input_block_size(void) const { return size_t(1) << params_.lgblock; }
+int BrotliEncoderSetParameter(
+    BrotliEncoderState* state, BrotliEncoderParameter p, uint32_t value);
 
-  // Encodes the data in input_buffer as a meta-block and writes it to
-  // encoded_buffer (*encoded_size should be set to the size of
-  // encoded_buffer) and sets *encoded_size to the number of bytes that
-  // was written. The input_size must be <= input_block_size().
-  // Returns 0 if there was an error and 1 otherwise.
-  bool WriteMetaBlock(const size_t input_size,
-                      const uint8_t* input_buffer,
-                      const bool is_last,
-                      size_t* encoded_size,
-                      uint8_t* encoded_buffer);
+/* Creates the instance of BrotliEncoderState and initializes it.
+   |alloc_func| and |free_func| MUST be both zero or both non-zero. In the case
+   they are both zero, default memory allocators are used. |opaque| is passed to
+   |alloc_func| and |free_func| when they are called. */
+BrotliEncoderState* BrotliEncoderCreateInstance(brotli_alloc_func alloc_func,
+                                                brotli_free_func free_func,
+                                                void* opaque);
 
-  // Writes a metadata meta-block containing the given input to encoded_buffer.
-  // *encoded_size should be set to the size of the encoded_buffer.
-  // Sets *encoded_size to the number of bytes that was written.
-  // Note that the given input data will not be part of the sliding window and
-  // thus no backward references can be made to this data from subsequent
-  // metablocks.
-  bool WriteMetadata(const size_t input_size,
-                     const uint8_t* input_buffer,
-                     const bool is_last,
-                     size_t* encoded_size,
-                     uint8_t* encoded_buffer);
+/* Deinitializes and frees BrotliEncoderState instance. */
+void BrotliEncoderDestroyInstance(BrotliEncoderState* state);
 
-  // Writes a zero-length meta-block with end-of-input bit set to the
-  // internal output buffer and copies the output buffer to encoded_buffer
-  // (*encoded_size should be set to the size of encoded_buffer) and sets
-  // *encoded_size to the number of bytes written. Returns false if there was
-  // an error and true otherwise.
-  bool FinishStream(size_t* encoded_size, uint8_t* encoded_buffer);
+/* The maximum input size that can be processed at once. */
+size_t BrotliEncoderInputBlockSize(BrotliEncoderState* state);
 
-  // Copies the given input data to the internal ring buffer of the compressor.
-  // No processing of the data occurs at this time and this function can be
-  // called multiple times before calling WriteBrotliData() to process the
-  // accumulated input. At most input_block_size() bytes of input data can be
-  // copied to the ring buffer, otherwise the next WriteBrotliData() will fail.
-  void CopyInputToRingBuffer(const size_t input_size,
-                             const uint8_t* input_buffer);
+/* Encodes the data in |input_buffer| as a meta-block and writes it to
+   |encoded_buffer| (|*encoded_size should| be set to the size of
+   |encoded_buffer|) and sets |*encoded_size| to the number of bytes that
+   was written. The |input_size| must not be greater than input_block_size().
+   Returns 0 if there was an error and 1 otherwise. */
+int BrotliEncoderWriteMetaBlock(BrotliEncoderState* state,
+                                const size_t input_size,
+                                const uint8_t* input_buffer, const int is_last,
+                                size_t* encoded_size, uint8_t* encoded_buffer);
 
-  // Processes the accumulated input data and sets *out_size to the length of
-  // the new output meta-block, or to zero if no new output meta-block was
-  // created (in this case the processed input data is buffered internally).
-  // If *out_size is positive, *output points to the start of the output data.
-  // If is_last or force_flush is true, an output meta-block is always created.
-  // Returns false if the size of the input data is larger than
-  // input_block_size().
-  bool WriteBrotliData(const bool is_last, const bool force_flush,
-                       size_t* out_size, uint8_t** output);
+/* Writes a metadata meta-block containing the given input to encoded_buffer.
+   |*encoded_size| should be set to the size of the encoded_buffer.
+   Sets |*encoded_size| to the number of bytes that was written.
+   Note that the given input data will not be part of the sliding window and
+   thus no backward references can be made to this data from subsequent
+   metablocks. |input_size| must not be greater than 2^24 and provided
+   |*encoded_size| must not be less than |input_size| + 6.
+   Returns 0 if there was an error and 1 otherwise. */
+int BrotliEncoderWriteMetadata(BrotliEncoderState* state,
+                               const size_t input_size,
+                               const uint8_t* input_buffer, const int is_last,
+                               size_t* encoded_size, uint8_t* encoded_buffer);
 
-  // Fills the new state with a dictionary for LZ77, warming up the ringbuffer,
-  // e.g. for custom static dictionaries for data formats.
-  // Not to be confused with the built-in transformable dictionary of Brotli.
-  // To decode, use BrotliSetCustomDictionary of the decoder with the same
-  // dictionary.
-  void BrotliSetCustomDictionary(size_t size, const uint8_t* dict);
+/* Writes a zero-length meta-block with end-of-input bit set to the
+   internal output buffer and copies the output buffer to |encoded_buffer|
+   (|*encoded_size| should be set to the size of |encoded_buffer|) and sets
+   |*encoded_size| to the number of bytes written.
+   Returns 0 if there was an error and 1 otherwise. */
+int BrotliEncoderFinishStream(BrotliEncoderState* state, size_t* encoded_size,
+                              uint8_t* encoded_buffer);
 
-  // No-op, but we keep it here for API backward-compatibility.
-  void WriteStreamHeader(void) {}
+/* Copies the given input data to the internal ring buffer of the compressor.
+   No processing of the data occurs at this time and this function can be
+   called multiple times before calling WriteBrotliData() to process the
+   accumulated input. At most input_block_size() bytes of input data can be
+   copied to the ring buffer, otherwise the next WriteBrotliData() will fail.
+ */
+void BrotliEncoderCopyInputToRingBuffer(BrotliEncoderState* state,
+                                        const size_t input_size,
+                                        const uint8_t* input_buffer);
 
- private:
-  uint8_t* GetBrotliStorage(size_t size);
+/* Processes the accumulated input data and sets |*out_size| to the length of
+   the new output meta-block, or to zero if no new output meta-block has been
+   created (in this case the processed input data is buffered internally).
+   If |*out_size| is positive, |*output| points to the start of the output
+   data. If |is_last| or |force_flush| is 1, an output meta-block is always
+   created. However, until |is_last| is 1 encoder may retain up to 7 bits
+   of the last byte of output. To force encoder to dump the remaining bits
+   use WriteMetadata() to append an empty meta-data block.
+   Returns 0 if the size of the input data is larger than
+   input_block_size(). */
+int BrotliEncoderWriteData(BrotliEncoderState* state, const int is_last,
+                           const int force_flush, size_t* out_size,
+                           uint8_t** output);
 
-  // Allocates and clears a hash table using memory in "*this",
-  // stores the number of buckets in "*table_size" and returns a pointer to
-  // the base of the hash table.
-  int* GetHashTable(int quality,
-                    size_t input_size, size_t* table_size);
+/* Fills the new state with a dictionary for LZ77, warming up the ringbuffer,
+   e.g. for custom static dictionaries for data formats.
+   Not to be confused with the built-in transformable dictionary of Brotli.
+   To decode, use BrotliSetCustomDictionary() of the decoder with the same
+   dictionary. */
+void BrotliEncoderSetCustomDictionary(BrotliEncoderState* state, size_t size,
+                                      const uint8_t* dict);
 
-  BrotliParams params_;
-  Hashers* hashers_;
-  int hash_type_;
-  uint64_t input_pos_;
-  RingBuffer* ringbuffer_;
-  size_t cmd_alloc_size_;
-  Command* commands_;
-  size_t num_commands_;
-  size_t num_literals_;
-  size_t last_insert_len_;
-  uint64_t last_flush_pos_;
-  uint64_t last_processed_pos_;
-  int dist_cache_[4];
-  int saved_dist_cache_[4];
-  uint8_t last_byte_;
-  uint8_t last_byte_bits_;
-  uint8_t prev_byte_;
-  uint8_t prev_byte2_;
-  size_t storage_size_;
-  uint8_t* storage_;
-  // Hash table for quality 0 mode.
-  int small_table_[1 << 10];  // 2KB
-  int* large_table_;          // Allocated only when needed
-  // Command and distance prefix codes (each 64 symbols, stored back-to-back)
-  // used for the next block in quality 0. The command prefix code is over a
-  // smaller alphabet with the following 64 symbols:
-  //    0 - 15: insert length code 0, copy length code 0 - 15, same distance
-  //   16 - 39: insert length code 0, copy length code 0 - 23
-  //   40 - 63: insert length code 0 - 23, copy length code 0
-  // Note that symbols 16 and 40 represent the same code in the full alphabet,
-  // but we do not use either of them in quality 0.
-  uint8_t cmd_depths_[128];
-  uint16_t cmd_bits_[128];
-  // The compressed form of the command and distance prefix codes for the next
-  // block in quality 0.
-  uint8_t cmd_code_[512];
-  size_t cmd_code_numbits_;
-  // Command and literal buffers for quality 1.
-  uint32_t* command_buf_;
-  uint8_t* literal_buf_;
-  
-  int is_last_block_emitted_;
-};
+/* Returns buffer size that is large enough to contain BrotliEncoderCompress
+   output for any input.
+   Returns 0 if result does not fit size_t. */
+size_t BrotliEncoderMaxCompressedSize(size_t input_size);
 
-// Compresses the data in input_buffer into encoded_buffer, and sets
-// *encoded_size to the compressed length.
-// Returns 0 if there was an error and 1 otherwise.
-int BrotliCompressBuffer(BrotliParams params,
-                         size_t input_size,
-                         const uint8_t* input_buffer,
-                         size_t* encoded_size,
-                         uint8_t* encoded_buffer);
+/* Compresses the data in |input_buffer| into |encoded_buffer|, and sets
+   |*encoded_size| to the compressed length.
+   BROTLI_DEFAULT_QUALITY, BROTLI_DEFAULT_WINDOW and BROTLI_DEFAULT_MODE should
+   be used as |quality|, |lgwin| and |mode| if there are no specific
+   requirements to encoder speed and compression ratio.
+   If compression fails, |*encoded_size| is set to 0.
+   If BrotliEncoderMaxCompressedSize(|input_size|) is not zero, then
+   |*encoded_size| is never set to the bigger value.
+   Returns 0 if there was an error and 1 otherwise. */
+int BrotliEncoderCompress(int quality, int lgwin, BrotliEncoderMode mode,
+                          size_t input_size, const uint8_t* input_buffer,
+                          size_t* encoded_size, uint8_t* encoded_buffer);
 
-// Same as above, but uses the specified input and output classes instead
-// of reading from and writing to pre-allocated memory buffers.
-int BrotliCompress(BrotliParams params, BrotliIn* in, BrotliOut* out);
+/* Progressively compress input stream and push produced bytes to output stream.
+   Internally workflow consists of 3 tasks:
+    * (optional) copy input data to internal buffer
+    * actually compress data and (optionally) store it to internal buffer
+    * (optional) copy compressed bytes from internal buffer to output stream
+   Whenever all 3 tasks can't move forward anymore, or error occurs, this
+   method returns.
 
-// Before compressing the data, sets a custom LZ77 dictionary with
-// BrotliCompressor::BrotliSetCustomDictionary.
-int BrotliCompressWithCustomDictionary(size_t dictsize, const uint8_t* dict,
-                                       BrotliParams params,
-                                       BrotliIn* in, BrotliOut* out);
+   |available_in| and |next_in| represent input stream; when X bytes of input
+   are consumed, X is subtracted from |available_in| and added to |next_in|.
+   |available_out| and |next_out| represent output stream; when Y bytes are
+   pushed to output, Y is subtracted from |available_out| and added to
+   |next_out|. |total_out|, if it is not a null-pointer, is assigned to the
+   total amount of bytes pushed by the instance of encoder to output.
+
+   |op| is used to perform flush or finish the stream.
+
+   Flushing the stream means forcing encoding of all input passed to encoder and
+   completing the current output block, so it could be fully decoded by stream
+   decoder. To perform flush |op| must be set to BROTLI_OPERATION_FLUSH. Under
+   some circumstances (e.g. lack of output stream capacity) this operation would
+   require several calls to BrotliEncoderCompressStream. The method must be
+   called again until both input stream is depleted and encoder has no more
+   output (see BrotliEncoderHasMoreOutput) after the method is called.
+
+   Finishing the stream means encoding of all input passed to encoder and
+   adding specific "final" marks, so stream decoder could determine that stream
+   is complete. To perform finish |op| must be set to BROTLI_OPERATION_FINISH.
+   Under some circumstances (e.g. lack of output stream capacity) this operation
+   would require several calls to BrotliEncoderCompressStream. The method must
+   be called again until both input stream is depleted and encoder has no more
+   output (see BrotliEncoderHasMoreOutput) after the method is called.
+
+   WARNING: when flushing and finishing, |op| should not change until operation
+   is complete; input stream should not be refilled as well.
+
+   Returns 0 if there was an error and 1 otherwise.
+*/
+int BrotliEncoderCompressStream(BrotliEncoderState* s,
+                                BrotliEncoderOperation op, size_t* available_in,
+                                const uint8_t** next_in, size_t* available_out,
+                                uint8_t** next_out, size_t* total_out);
+
+/* Check if encoder is in "finished" state, i.e. no more input is acceptable and
+   no more output will be produced.
+   Works only with BrotliEncoderCompressStream workflow.
+   Returns 1 if stream is finished and 0 otherwise. */
+int BrotliEncoderIsFinished(BrotliEncoderState* s);
+
+/* Check if encoder has more output bytes in internal buffer.
+   Works only with BrotliEncoderCompressStream workflow.
+   Returns 1 if has more output (in internal buffer) and 0 otherwise. */
+int BrotliEncoderHasMoreOutput(BrotliEncoderState* s);
 
 
-}  // namespace brotli
+#if defined(__cplusplus) || defined(c_plusplus)
+}  /* extern "C" */
+#endif
 
-#endif  // BROTLI_ENC_ENCODE_H_
+#endif  /* BROTLI_ENC_ENCODE_H_ */

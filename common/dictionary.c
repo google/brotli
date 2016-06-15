@@ -10,9 +10,17 @@
 extern "C" {
 #endif
 
-// In case of multiple definition linker error with dictionary.c from the
-// decoder: include only one of enc/dictionary.cc or dec/dictionary.c in a
-// target using both enc and dec.
+const uint32_t kBrotliDictionaryOffsetsByLength[] = {
+  0, 0, 0, 0, 0, 4096, 9216, 21504, 35840, 44032, 53248, 63488, 74752, 87040,
+  93696, 100864, 104704, 106752, 108928, 113536, 115968, 118528, 119872, 121280,
+  122016
+};
+
+const uint8_t kBrotliDictionarySizeBitsByLength[] = {
+  0, 0, 0, 0, 10, 10, 11, 11, 10, 10, 10, 10, 10,
+  9, 9, 8, 7, 7,  8,  7,  7,  6,  6,  5,  5,
+};
+
 const uint8_t kBrotliDictionary[122784] = {
   0x74, 0x69, 0x6d, 0x65, 0x64, 0x6f, 0x77, 0x6e, 0x6c, 0x69, 0x66, 0x65, 0x6c,
   0x65, 0x66, 0x74, 0x62, 0x61, 0x63, 0x6b, 0x63, 0x6f, 0x64, 0x65, 0x64, 0x61,
@@ -9462,5 +9470,5 @@ const uint8_t kBrotliDictionary[122784] = {
 };
 
 #if defined(__cplusplus) || defined(c_plusplus)
-}    /* extern "C" */
+}  /* extern "C" */
 #endif

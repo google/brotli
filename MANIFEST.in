@@ -1,8 +1,10 @@
 include CONTRIBUTING.md
+include common/*.c
+include common/*.h
 include dec/*.c
 include dec/*.h
 include dec/Makefile
-include enc/*.cc
+include enc/*.c
 include enc/*.h
 include enc/Makefile
 include LICENSE

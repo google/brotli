@@ -4,16 +4,15 @@
    See file LICENSE for detail or copy at https://opensource.org/licenses/MIT
 */
 
-// API for parallel Brotli compression
-// Note that this is only a proof of concept currently and not part of the
-// final API yet.
+/* API for parallel Brotli compression
+   Note that this is only a proof of concept currently and not part of the
+   final API yet. */
 
 #ifndef BROTLI_ENC_ENCODE_PARALLEL_H_
 #define BROTLI_ENC_ENCODE_PARALLEL_H_
 
-
-#include "./encode.h"
-#include "./types.h"
+#include "../common/types.h"
+#include "./compressor.h"
 
 namespace brotli {
 
@@ -23,6 +22,6 @@ int BrotliCompressBufferParallel(BrotliParams params,
                                  size_t* encoded_size,
                                  uint8_t* encoded_buffer);
 
-}  // namespace brotli
+}  /* namespace brotli */
 
-#endif  // BROTLI_ENC_ENCODE_PARALLEL_H_
+#endif  /* BROTLI_ENC_ENCODE_PARALLEL_H_ */

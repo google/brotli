@@ -4,22 +4,25 @@
    See file LICENSE for detail or copy at https://opensource.org/licenses/MIT
 */
 
-// Static entropy codes used for faster meta-block encoding.
+/* Static entropy codes used for faster meta-block encoding. */
 
 #ifndef BROTLI_ENC_ENTROPY_ENCODE_STATIC_H_
 #define BROTLI_ENC_ENTROPY_ENCODE_STATIC_H_
 
-#include "./prefix.h"
-#include "./types.h"
+#include "../common/constants.h"
+#include "../common/port.h"
+#include "../common/types.h"
 #include "./write_bits.h"
 
-namespace brotli {
+#if defined(__cplusplus) || defined(c_plusplus)
+extern "C" {
+#endif
 
 static const uint8_t kCodeLengthDepth[18] = {
   4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 5, 5, 0, 4, 4,
 };
 
-static const uint8_t kStaticCommandCodeDepth[kNumCommandPrefixes] = {
+static const uint8_t kStaticCommandCodeDepth[BROTLI_NUM_COMMAND_SYMBOLS] = {
    9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,
    9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,
    9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,  9,
@@ -77,11 +80,13 @@ static const uint32_t kCodeLengthBits[18] = {
   0, 8, 4, 12, 2, 10, 6, 14, 1, 9, 5, 13, 3, 15, 31, 0, 11, 7,
 };
 
-inline void StoreStaticCodeLengthCode(size_t* storage_ix, uint8_t* storage) {
-  WriteBits(40, MAKE_UINT64_T(0xff, 0x55555554), storage_ix, storage);
+static BROTLI_INLINE void StoreStaticCodeLengthCode(
+    size_t* storage_ix, uint8_t* storage) {
+  BrotliWriteBits(
+      40, MAKE_UINT64_T(0x0000ffU, 0x55555554U), storage_ix, storage);
 }
 
-static const uint64_t kZeroRepsBits[704] = {
+static const uint64_t kZeroRepsBits[BROTLI_NUM_COMMAND_SYMBOLS] = {
   0x00000000, 0x00000000, 0x00000000, 0x00000007, 0x00000017, 0x00000027,
   0x00000037, 0x00000047, 0x00000057, 0x00000067, 0x00000077, 0x00000770,
   0x00000b87, 0x00001387, 0x00001b87, 0x00002387, 0x00002b87, 0x00003387,
@@ -202,7 +207,7 @@ static const uint64_t kZeroRepsBits[704] = {
   0x06f9cb87, 0x08f9cb87,
 };
 
-static const uint32_t kZeroRepsDepth[704] = {
+static const uint32_t kZeroRepsDepth[BROTLI_NUM_COMMAND_SYMBOLS] = {
    0,  4,  8,  7,  7,  7,  7,  7,  7,  7,  7, 11, 14, 14, 14, 14,
   14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14,
   14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14,
@@ -249,7 +254,7 @@ static const uint32_t kZeroRepsDepth[704] = {
   28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28,
 };
 
-static const uint64_t kNonZeroRepsBits[704] = {
+static const uint64_t kNonZeroRepsBits[BROTLI_NUM_COMMAND_SYMBOLS] = {
   0x0000000b, 0x0000001b, 0x0000002b, 0x0000003b, 0x000002cb, 0x000006cb,
   0x00000acb, 0x00000ecb, 0x000002db, 0x000006db, 0x00000adb, 0x00000edb,
   0x000002eb, 0x000006eb, 0x00000aeb, 0x00000eeb, 0x000002fb, 0x000006fb,
@@ -370,7 +375,7 @@ static const uint64_t kNonZeroRepsBits[704] = {
   0x2baeb6db, 0x3baeb6db,
 };
 
-static const uint32_t kNonZeroRepsDepth[704] = {
+static const uint32_t kNonZeroRepsDepth[BROTLI_NUM_COMMAND_SYMBOLS] = {
    6,  6,  6,  6, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12,
   12, 12, 12, 12, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18,
   18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18,
@@ -417,47 +422,7 @@ static const uint32_t kNonZeroRepsDepth[704] = {
   30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30,
 };
 
-static const uint16_t kStaticLiteralCodeBits[256] = {
-    0,  128,   64,  192,   32,  160,   96,  224,
-   16,  144,   80,  208,   48,  176,  112,  240,
-    8,  136,   72,  200,   40,  168,  104,  232,
-   24,  152,   88,  216,   56,  184,  120,  248,
-    4,  132,   68,  196,   36,  164,  100,  228,
-   20,  148,   84,  212,   52,  180,  116,  244,
-   12,  140,   76,  204,   44,  172,  108,  236,
-   28,  156,   92,  220,   60,  188,  124,  252,
-    2,  130,   66,  194,   34,  162,   98,  226,
-   18,  146,   82,  210,   50,  178,  114,  242,
-   10,  138,   74,  202,   42,  170,  106,  234,
-   26,  154,   90,  218,   58,  186,  122,  250,
-    6,  134,   70,  198,   38,  166,  102,  230,
-   22,  150,   86,  214,   54,  182,  118,  246,
-   14,  142,   78,  206,   46,  174,  110,  238,
-   30,  158,   94,  222,   62,  190,  126,  254,
-    1,  129,   65,  193,   33,  161,   97,  225,
-   17,  145,   81,  209,   49,  177,  113,  241,
-    9,  137,   73,  201,   41,  169,  105,  233,
-   25,  153,   89,  217,   57,  185,  121,  249,
-    5,  133,   69,  197,   37,  165,  101,  229,
-   21,  149,   85,  213,   53,  181,  117,  245,
-   13,  141,   77,  205,   45,  173,  109,  237,
-   29,  157,   93,  221,   61,  189,  125,  253,
-    3,  131,   67,  195,   35,  163,   99,  227,
-   19,  147,   83,  211,   51,  179,  115,  243,
-   11,  139,   75,  203,   43,  171,  107,  235,
-   27,  155,   91,  219,   59,  187,  123,  251,
-    7,  135,   71,  199,   39,  167,  103,  231,
-   23,  151,   87,  215,   55,  183,  119,  247,
-   15,  143,   79,  207,   47,  175,  111,  239,
-   31,  159,   95,  223,   63,  191,  127,  255,
-};
-
-inline void StoreStaticLiteralHuffmanTree(size_t* storage_ix,
-                                          uint8_t* storage) {
-  WriteBits(32, 0x00010003U, storage_ix, storage);
-}
-
-static const uint16_t kStaticCommandCodeBits[kNumCommandPrefixes] = {
+static const uint16_t kStaticCommandCodeBits[BROTLI_NUM_COMMAND_SYMBOLS] = {
     0,  256,  128,  384,   64,  320,  192,  448,
    32,  288,  160,  416,   96,  352,  224,  480,
    16,  272,  144,  400,   80,  336,  208,  464,
@@ -548,10 +513,11 @@ static const uint16_t kStaticCommandCodeBits[kNumCommandPrefixes] = {
   255, 1279,  767, 1791,  511, 1535, 1023, 2047,
 };
 
-inline void StoreStaticCommandHuffmanTree(size_t* storage_ix,
-                                          uint8_t* storage) {
-  WriteBits(28, 0x0000000006307003U, storage_ix, storage);
-  WriteBits(31, 0x0000000009262441U, storage_ix, storage);
+static BROTLI_INLINE void StoreStaticCommandHuffmanTree(
+    size_t* storage_ix, uint8_t* storage) {
+  BrotliWriteBits(
+      56, MAKE_UINT64_T(0x926244U, 0x16307003U), storage_ix, storage);
+  BrotliWriteBits(3, 0x00000000U, storage_ix, storage);
 }
 
 static const uint16_t kStaticDistanceCodeBits[64] = {
@@ -561,12 +527,13 @@ static const uint16_t kStaticDistanceCodeBits[64] = {
    3, 35, 19, 51, 11, 43, 27, 59,  7, 39, 23, 55, 15, 47, 31, 63,
 };
 
-inline void StoreStaticDistanceHuffmanTree(size_t* storage_ix,
-                                           uint8_t* storage) {
-  WriteBits(18, 0x000000000001dc03U, storage_ix, storage);
-  WriteBits(10, 0x00000000000000daU, storage_ix, storage);
+static BROTLI_INLINE void StoreStaticDistanceHuffmanTree(
+    size_t* storage_ix, uint8_t* storage) {
+  BrotliWriteBits(28, 0x0369dc03U, storage_ix, storage);
 }
 
-}  // namespace brotli
+#if defined(__cplusplus) || defined(c_plusplus)
+}  /* extern "C" */
+#endif
 
-#endif  // BROTLI_ENC_ENTROPY_ENCODE_STATIC_H_
+#endif  /* BROTLI_ENC_ENTROPY_ENCODE_STATIC_H_ */

@@ -99,7 +99,7 @@
 #ifndef BROTLI_DEC_CONTEXT_H_
 #define BROTLI_DEC_CONTEXT_H_
 
-#include "./types.h"
+#include "../common/types.h"
 
 enum ContextType {
   CONTEXT_LSB6 = 0,

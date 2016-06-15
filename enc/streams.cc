@@ -4,14 +4,14 @@
    See file LICENSE for detail or copy at https://opensource.org/licenses/MIT
 */
 
-// Convience routines to make Brotli I/O classes from some memory containers and
-// files.
+/* Convience routines to make Brotli I/O classes from some memory containers and
+   files. */
 
 #include "./streams.h"
 
 #include <assert.h>
 #include <stdlib.h>
-#include <string.h>
+#include <string.h>  /* memcpy */
 
 namespace brotli {
 
@@ -26,7 +26,7 @@ void BrotliMemOut::Reset(void* buf, size_t len) {
   pos_ = 0;
 }
 
-// Brotli output routine: copy n bytes to the output buffer.
+/* Brotli output routine: copy n bytes to the output buffer. */
 bool BrotliMemOut::Write(const void *buf, size_t n) {
   if (n + pos_ > len_)
     return false;
@@ -47,7 +47,7 @@ void BrotliStringOut::Reset(std::string* buf, size_t max_size) {
   max_size_ = max_size;
 }
 
-// Brotli output routine: add n bytes to a string.
+/* Brotli output routine: add n bytes to a string. */
 bool BrotliStringOut::Write(const void *buf, size_t n) {
   if (buf_->size() + n > max_size_)
     return false;
@@ -66,7 +66,7 @@ void BrotliMemIn::Reset(const void* buf, size_t len) {
   pos_ = 0;
 }
 
-// Brotli input routine: read the next chunk of memory.
+/* Brotli input routine: read the next chunk of memory. */
 const void* BrotliMemIn::Read(size_t n, size_t* output) {
   if (pos_ == len_) {
     return NULL;
@@ -111,4 +111,4 @@ bool BrotliFileOut::Write(const void* buf, size_t n) {
   return true;
 }
 
-}  // namespace brotli
+}  /* namespace brotli */

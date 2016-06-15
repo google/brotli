@@ -4,14 +4,16 @@
    See file LICENSE for detail or copy at https://opensource.org/licenses/MIT
 */
 
-// Hash table on the 4-byte prefixes of static dictionary words.
+/* Hash table on the 4-byte prefixes of static dictionary words. */
 
 #ifndef BROTLI_ENC_DICTIONARY_HASH_H_
 #define BROTLI_ENC_DICTIONARY_HASH_H_
 
-#include "./types.h"
+#include "../common/types.h"
 
-namespace brotli {
+#if defined(__cplusplus) || defined(c_plusplus)
+extern "C" {
+#endif
 
 static const uint16_t kStaticDictionaryHash[] = {
   0x7d48, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
@@ -4112,6 +4114,8 @@ static const uint16_t kStaticDictionaryHash[] = {
   0x0000, 0x0000, 0x0d88, 0x4ac5, 0x0000, 0x0000, 0x0000, 0x0000,
 };
 
-}  // namespace brotli
+#if defined(__cplusplus) || defined(c_plusplus)
+}  /* extern "C" */
+#endif
 
-#endif  // BROTLI_ENC_DICTIONARY_HASH_H_
+#endif  /* BROTLI_ENC_DICTIONARY_HASH_H_ */

@@ -4,21 +4,27 @@
    See file LICENSE for detail or copy at https://opensource.org/licenses/MIT
 */
 
-// Literal cost model to allow backward reference replacement to be efficient.
+/* Literal cost model to allow backward reference replacement to be efficient.
+*/
 
 #ifndef BROTLI_ENC_LITERAL_COST_H_
 #define BROTLI_ENC_LITERAL_COST_H_
 
-#include "./types.h"
+#include "../common/types.h"
+#include "./port.h"
 
-namespace brotli {
+#if defined(__cplusplus) || defined(c_plusplus)
+extern "C" {
+#endif
 
-// Estimates how many bits the literals in the interval [pos, pos + len) in the
-// ringbuffer (data, mask) will take entropy coded and writes these estimates
-// to the cost[0..len) array.
-void EstimateBitCostsForLiterals(size_t pos, size_t len, size_t mask,
-                                 const uint8_t *data, float *cost);
+/* Estimates how many bits the literals in the interval [pos, pos + len) in the
+   ringbuffer (data, mask) will take entropy coded and writes these estimates
+   to the cost[0..len) array. */
+BROTLI_INTERNAL void BrotliEstimateBitCostsForLiterals(
+    size_t pos, size_t len, size_t mask, const uint8_t *data, float *cost);
 
-}  // namespace brotli
+#if defined(__cplusplus) || defined(c_plusplus)
+}  /* extern "C" */
+#endif
 
-#endif  // BROTLI_ENC_LITERAL_COST_H_
+#endif  /* BROTLI_ENC_LITERAL_COST_H_ */
