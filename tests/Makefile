@@ -17,3 +17,5 @@ clean :
 	rm -f testdata/*.{bro,unbro,uncompressed}
 	rm -f $(BROTLI)/{enc,dec,tools}/*.{un,}bro
 	$(MAKE) -C $(BROTLI)/tools clean
+
+.PHONY: all test deps clean

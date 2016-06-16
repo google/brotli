@@ -26,3 +26,5 @@ clean :
 	$(MAKE) -C $(BROTLI)/common clean
 	$(MAKE) -C $(BROTLI)/dec clean
 	$(MAKE) -C $(BROTLI)/enc clean
+
+.PHONY: all deps clean
