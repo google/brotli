@@ -5,7 +5,7 @@
 
 set -o errexit
 
-BRO=../tools/bro
+BRO=../bin/bro
 
 for file in testdata/*.compressed*; do
   echo "Testing decompression of file $file"
