@@ -3,10 +3,8 @@ include common/*.c
 include common/*.h
 include dec/*.c
 include dec/*.h
-include dec/Makefile
 include enc/*.c
 include enc/*.h
-include enc/Makefile
 include LICENSE
 include MANIFEST.in
 include python/bro.py
@@ -14,7 +12,5 @@ include python/brotlimodule.cc
 include python/README.md
 include README.md
 include setup.py
-include shared.mk
 include tools/bro.cc
-include tools/Makefile
 include tools/version.h
