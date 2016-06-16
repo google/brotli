@@ -14,6 +14,11 @@
 
 namespace brotli {
 
+static const int kMinWindowBits = kBrotliMinWindowBits;
+static const int kMaxWindowBits = kBrotliMaxWindowBits;
+static const int kMinInputBlockBits = kBrotliMinInputBlockBits;
+static const int kMaxInputBlockBits = kBrotliMaxInputBlockBits;
+
 struct BrotliParams {
   BrotliParams(void)
       : mode(MODE_GENERIC),
