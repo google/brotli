@@ -1,7 +1,5 @@
 #brotli/tests
 
-include ../shared.mk
-
 BROTLI = ..
 
 all: test
@@ -11,7 +9,7 @@ test: deps
 	./roundtrip_test.sh
 
 deps :
-	$(MAKE) -C $(BROTLI)/tools
+	$(MAKE) -C $(BROTLI) bro
 
 clean :
 	rm -f testdata/*.{bro,unbro,uncompressed}

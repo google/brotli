@@ -4,7 +4,7 @@
 
 set -o errexit
 
-BRO=../tools/bro
+BRO=../bin/bro
 INPUTS="""
 testdata/alice29.txt
 testdata/asyoulik.txt
