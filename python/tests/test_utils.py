@@ -25,7 +25,7 @@ platform_lib_name = "lib.{platform}-{version[0]}.{version[1]}".format(
     version=sys.version_info)
 
 # by default, distutils' build base is in the same location as setup.py
-build_base = os.path.abspath(os.path.join("..", "..", "build"))
+build_base = os.path.abspath(os.path.join("..", "..", "bin"))
 build_lib = os.path.join(build_base, platform_lib_name)
 
 # prepend build/lib to PYTHONPATH environment variable
