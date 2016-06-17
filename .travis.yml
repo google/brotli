@@ -14,7 +14,7 @@ install:
 - get_python_environment $INSTALL_TYPE $VERSION venv
 - pip install --upgrade wheel
 script:
-- python setup.py build_ext -b bin -t bin test
+- python setup.py build_ext test
 after_success:
 - pip wheel -w dist .
 before_deploy:
