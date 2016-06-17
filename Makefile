@@ -1,11 +1,11 @@
-include build/gmake/config.make
+include buildfiles/gmake/config.make
 
 TARGETS=all clean brotli_common brotli_dec brotli_enc bro help
 
 .PHONY: $(TARGETS) install
 
 $(TARGETS):
-	@${MAKE} -C build/gmake $@
+	@${MAKE} -C buildfiles/gmake $@
 
 install:
 	@echo "copy include and libraries to $(prefix)"

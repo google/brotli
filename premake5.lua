@@ -3,7 +3,7 @@ solution "brotli"
 configurations { "Release", "Debug" }
 platforms { "Static", "Shared" }
 targetdir "bin"
-location "build"
+location "buildfiles"
 flags "RelativeLinks"
 
 filter "configurations:Release"
@@ -21,7 +21,10 @@ filter { "platforms:Shared" }
 
 configuration { "gmake" }
   buildoptions { "-Wall -fno-omit-frame-pointer" }
-  location "build/gmake"
+  location "buildfiles/gmake"
+
+configuration "linux"
+  links "m"
 
 configuration { "macosx" }
   defines { "DOS_MACOSX" }
@@ -42,6 +45,6 @@ project "brotli_enc"
 
 project "bro"
   kind "ConsoleApp"
-  language "C++"
-  files { "tools/bro.cc" }
+  language "C"
+  files { "tools/bro.c" }
   links { "brotli_common", "brotli_dec", "brotli_enc" }

@@ -22,7 +22,7 @@ ifeq ($(config),release_static)
   ALL_CFLAGS += $(CFLAGS) $(ALL_CPPFLAGS) -O3 -Wall -fno-omit-frame-pointer
   ALL_CXXFLAGS += $(CXXFLAGS) $(ALL_CFLAGS)
   ALL_RESFLAGS += $(RESFLAGS) $(DEFINES) $(INCLUDES)
-  LIBS +=
+  LIBS += -lm
   LDDEPS +=
   ALL_LDFLAGS += $(LDFLAGS) -s
   LINKCMD = $(AR) -rcs "$@" $(OBJECTS)
@@ -49,7 +49,7 @@ ifeq ($(config),release_shared)
   ALL_CFLAGS += $(CFLAGS) $(ALL_CPPFLAGS) -O3 -fPIC -Wall -fno-omit-frame-pointer
   ALL_CXXFLAGS += $(CXXFLAGS) $(ALL_CFLAGS)
   ALL_RESFLAGS += $(RESFLAGS) $(DEFINES) $(INCLUDES)
-  LIBS +=
+  LIBS += -lm
   LDDEPS +=
   ALL_LDFLAGS += $(LDFLAGS) -s -shared
   LINKCMD = $(CC) -o "$@" $(OBJECTS) $(RESOURCES) $(ALL_LDFLAGS) $(LIBS)
@@ -76,7 +76,7 @@ ifeq ($(config),debug_static)
   ALL_CFLAGS += $(CFLAGS) $(ALL_CPPFLAGS) -g -Wall -fno-omit-frame-pointer
   ALL_CXXFLAGS += $(CXXFLAGS) $(ALL_CFLAGS)
   ALL_RESFLAGS += $(RESFLAGS) $(DEFINES) $(INCLUDES)
-  LIBS +=
+  LIBS += -lm
   LDDEPS +=
   ALL_LDFLAGS += $(LDFLAGS)
   LINKCMD = $(AR) -rcs "$@" $(OBJECTS)
@@ -103,7 +103,7 @@ ifeq ($(config),debug_shared)
   ALL_CFLAGS += $(CFLAGS) $(ALL_CPPFLAGS) -g -fPIC -Wall -fno-omit-frame-pointer
   ALL_CXXFLAGS += $(CXXFLAGS) $(ALL_CFLAGS)
   ALL_RESFLAGS += $(RESFLAGS) $(DEFINES) $(INCLUDES)
-  LIBS +=
+  LIBS += -lm
   LDDEPS +=
   ALL_LDFLAGS += $(LDFLAGS) -shared
   LINKCMD = $(CC) -o "$@" $(OBJECTS) $(RESOURCES) $(ALL_LDFLAGS) $(LIBS)

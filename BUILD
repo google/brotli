@@ -7,7 +7,7 @@ package(
 
 licenses(["notice"])  # MIT
 
-STRICT_COMPILER_OPTIONS = [
+STRICT_C_OPTIONS = [
     "--pedantic-errors",
     "-Wall",
     "-Wconversion",
@@ -15,13 +15,10 @@ STRICT_COMPILER_OPTIONS = [
     "-Wextra",
     "-Wlong-long",
     "-Wmissing-declarations",
+    "-Wmissing-prototypes",
     "-Wno-strict-aliasing",
     "-Wshadow",
     "-Wsign-compare",
-]
-
-STRICT_C_OPTIONS = STRICT_COMPILER_OPTIONS + [
-    "-Wmissing-prototypes",
 ]
 
 COMMON_HEADERS = [
@@ -139,8 +136,8 @@ cc_library(
 
 cc_binary(
     name = "bro",
-    srcs = ["tools/bro.cc"],
-    copts = STRICT_COMPILER_OPTIONS,
+    srcs = ["tools/bro.c"],
+    copts = STRICT_C_OPTIONS,
     deps = [
         ":brotli_dec",
         ":brotli_enc",
