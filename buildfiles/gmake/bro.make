@@ -22,10 +22,10 @@ ifeq ($(config),release_static)
   ALL_CFLAGS += $(CFLAGS) $(ALL_CPPFLAGS) -O3 -Wall -fno-omit-frame-pointer
   ALL_CXXFLAGS += $(CXXFLAGS) $(ALL_CFLAGS)
   ALL_RESFLAGS += $(RESFLAGS) $(DEFINES) $(INCLUDES)
-  LIBS += -Wl,--start-group -lbrotli_common -lbrotli_dec -lbrotli_enc -Wl,--end-group
+  LIBS += -Wl,--start-group -lbrotli_common -lbrotli_dec -lbrotli_enc -lm -Wl,--end-group
   LDDEPS += ../../bin/libbrotli_common.a ../../bin/libbrotli_dec.a ../../bin/libbrotli_enc.a
   ALL_LDFLAGS += $(LDFLAGS) -L../../bin -s
-  LINKCMD = $(CXX) -o "$@" $(OBJECTS) $(RESOURCES) $(ALL_LDFLAGS) $(LIBS)
+  LINKCMD = $(CC) -o "$@" $(OBJECTS) $(RESOURCES) $(ALL_LDFLAGS) $(LIBS)
   define PREBUILDCMDS
   endef
   define PRELINKCMDS
@@ -49,10 +49,10 @@ ifeq ($(config),release_shared)
   ALL_CFLAGS += $(CFLAGS) $(ALL_CPPFLAGS) -O3 -Wall -fno-omit-frame-pointer
   ALL_CXXFLAGS += $(CXXFLAGS) $(ALL_CFLAGS)
   ALL_RESFLAGS += $(RESFLAGS) $(DEFINES) $(INCLUDES)
-  LIBS += -Wl,--start-group -lbrotli_common -lbrotli_dec -lbrotli_enc -Wl,--end-group
+  LIBS += -Wl,--start-group -lbrotli_common -lbrotli_dec -lbrotli_enc -lm -Wl,--end-group
   LDDEPS += ../../bin/libbrotli_common.so ../../bin/libbrotli_dec.so ../../bin/libbrotli_enc.so
   ALL_LDFLAGS += $(LDFLAGS) -L../../bin -s
-  LINKCMD = $(CXX) -o "$@" $(OBJECTS) $(RESOURCES) $(ALL_LDFLAGS) $(LIBS)
+  LINKCMD = $(CC) -o "$@" $(OBJECTS) $(RESOURCES) $(ALL_LDFLAGS) $(LIBS)
   define PREBUILDCMDS
   endef
   define PRELINKCMDS
@@ -76,10 +76,10 @@ ifeq ($(config),debug_static)
   ALL_CFLAGS += $(CFLAGS) $(ALL_CPPFLAGS) -g -Wall -fno-omit-frame-pointer
   ALL_CXXFLAGS += $(CXXFLAGS) $(ALL_CFLAGS)
   ALL_RESFLAGS += $(RESFLAGS) $(DEFINES) $(INCLUDES)
-  LIBS += -Wl,--start-group -lbrotli_common -lbrotli_dec -lbrotli_enc -Wl,--end-group
+  LIBS += -Wl,--start-group -lbrotli_common -lbrotli_dec -lbrotli_enc -lm -Wl,--end-group
   LDDEPS += ../../bin/libbrotli_common.a ../../bin/libbrotli_dec.a ../../bin/libbrotli_enc.a
   ALL_LDFLAGS += $(LDFLAGS) -L../../bin
-  LINKCMD = $(CXX) -o "$@" $(OBJECTS) $(RESOURCES) $(ALL_LDFLAGS) $(LIBS)
+  LINKCMD = $(CC) -o "$@" $(OBJECTS) $(RESOURCES) $(ALL_LDFLAGS) $(LIBS)
   define PREBUILDCMDS
   endef
   define PRELINKCMDS
@@ -103,10 +103,10 @@ ifeq ($(config),debug_shared)
   ALL_CFLAGS += $(CFLAGS) $(ALL_CPPFLAGS) -g -Wall -fno-omit-frame-pointer
   ALL_CXXFLAGS += $(CXXFLAGS) $(ALL_CFLAGS)
   ALL_RESFLAGS += $(RESFLAGS) $(DEFINES) $(INCLUDES)
-  LIBS += -Wl,--start-group -lbrotli_common -lbrotli_dec -lbrotli_enc -Wl,--end-group
+  LIBS += -Wl,--start-group -lbrotli_common -lbrotli_dec -lbrotli_enc -lm -Wl,--end-group
   LDDEPS += ../../bin/libbrotli_common.so ../../bin/libbrotli_dec.so ../../bin/libbrotli_enc.so
   ALL_LDFLAGS += $(LDFLAGS) -L../../bin
-  LINKCMD = $(CXX) -o "$@" $(OBJECTS) $(RESOURCES) $(ALL_LDFLAGS) $(LIBS)
+  LINKCMD = $(CC) -o "$@" $(OBJECTS) $(RESOURCES) $(ALL_LDFLAGS) $(LIBS)
   define PREBUILDCMDS
   endef
   define PRELINKCMDS
@@ -174,12 +174,12 @@ ifneq (,$(PCH))
 $(OBJECTS): $(GCH) $(PCH)
 $(GCH): $(PCH)
 	@echo $(notdir $<)
-	$(SILENT) $(CXX) -x c++-header $(ALL_CXXFLAGS) -o "$@" -MF "$(@:%.gch=%.d)" -c "$<"
+	$(SILENT) $(CC) -x c-header $(ALL_CFLAGS) -o "$@" -MF "$(@:%.gch=%.d)" -c "$<"
 endif
 
-$(OBJDIR)/bro.o: ../../tools/bro.cc
+$(OBJDIR)/bro.o: ../../tools/bro.c
 	@echo $(notdir $<)
-	$(SILENT) $(CXX) $(ALL_CXXFLAGS) $(FORCE_INCLUDE) -o "$@" -MF "$(@:%.o=%.d)" -c "$<"
+	$(SILENT) $(CC) $(ALL_CFLAGS) $(FORCE_INCLUDE) -o "$@" -MF "$(@:%.o=%.d)" -c "$<"
 
 -include $(OBJECTS:%.o=%.d)
 ifneq (,$(PCH))

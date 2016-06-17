@@ -12,5 +12,5 @@ include python/brotlimodule.cc
 include python/README.md
 include README.md
 include setup.py
-include tools/bro.cc
+include tools/bro.c
 include tools/version.h

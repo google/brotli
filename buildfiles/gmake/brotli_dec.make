@@ -13,8 +13,8 @@ endif
 ifeq ($(config),release_static)
   RESCOMP = windres
   TARGETDIR = ../../bin
-  TARGET = $(TARGETDIR)/libbrotli_enc.a
-  OBJDIR = obj/Static/Release/brotli_enc
+  TARGET = $(TARGETDIR)/libbrotli_dec.a
+  OBJDIR = obj/Static/Release/brotli_dec
   DEFINES +=
   INCLUDES +=
   FORCE_INCLUDE +=
@@ -22,7 +22,7 @@ ifeq ($(config),release_static)
   ALL_CFLAGS += $(CFLAGS) $(ALL_CPPFLAGS) -O3 -Wall -fno-omit-frame-pointer
   ALL_CXXFLAGS += $(CXXFLAGS) $(ALL_CFLAGS)
   ALL_RESFLAGS += $(RESFLAGS) $(DEFINES) $(INCLUDES)
-  LIBS += -lbrotli_common
+  LIBS += -Wl,--start-group -lbrotli_common -lm -Wl,--end-group
   LDDEPS += ../../bin/libbrotli_common.a
   ALL_LDFLAGS += $(LDFLAGS) -L../../bin -s
   LINKCMD = $(AR) -rcs "$@" $(OBJECTS)
@@ -40,8 +40,8 @@ endif
 ifeq ($(config),release_shared)
   RESCOMP = windres
   TARGETDIR = ../../bin
-  TARGET = $(TARGETDIR)/libbrotli_enc.so
-  OBJDIR = obj/Shared/Release/brotli_enc
+  TARGET = $(TARGETDIR)/libbrotli_dec.so
+  OBJDIR = obj/Shared/Release/brotli_dec
   DEFINES +=
   INCLUDES +=
   FORCE_INCLUDE +=
@@ -49,7 +49,7 @@ ifeq ($(config),release_shared)
   ALL_CFLAGS += $(CFLAGS) $(ALL_CPPFLAGS) -O3 -fPIC -Wall -fno-omit-frame-pointer
   ALL_CXXFLAGS += $(CXXFLAGS) $(ALL_CFLAGS)
   ALL_RESFLAGS += $(RESFLAGS) $(DEFINES) $(INCLUDES)
-  LIBS += -lbrotli_common
+  LIBS += -Wl,--start-group -lbrotli_common -lm -Wl,--end-group
   LDDEPS += ../../bin/libbrotli_common.so
   ALL_LDFLAGS += $(LDFLAGS) -L../../bin -s -shared
   LINKCMD = $(CC) -o "$@" $(OBJECTS) $(RESOURCES) $(ALL_LDFLAGS) $(LIBS)
@@ -67,8 +67,8 @@ endif
 ifeq ($(config),debug_static)
   RESCOMP = windres
   TARGETDIR = ../../bin
-  TARGET = $(TARGETDIR)/libbrotli_enc.a
-  OBJDIR = obj/Static/Debug/brotli_enc
+  TARGET = $(TARGETDIR)/libbrotli_dec.a
+  OBJDIR = obj/Static/Debug/brotli_dec
   DEFINES +=
   INCLUDES +=
   FORCE_INCLUDE +=
@@ -76,7 +76,7 @@ ifeq ($(config),debug_static)
   ALL_CFLAGS += $(CFLAGS) $(ALL_CPPFLAGS) -g -Wall -fno-omit-frame-pointer
   ALL_CXXFLAGS += $(CXXFLAGS) $(ALL_CFLAGS)
   ALL_RESFLAGS += $(RESFLAGS) $(DEFINES) $(INCLUDES)
-  LIBS += -lbrotli_common
+  LIBS += -Wl,--start-group -lbrotli_common -lm -Wl,--end-group
   LDDEPS += ../../bin/libbrotli_common.a
   ALL_LDFLAGS += $(LDFLAGS) -L../../bin
   LINKCMD = $(AR) -rcs "$@" $(OBJECTS)
@@ -94,8 +94,8 @@ endif
 ifeq ($(config),debug_shared)
   RESCOMP = windres
   TARGETDIR = ../../bin
-  TARGET = $(TARGETDIR)/libbrotli_enc.so
-  OBJDIR = obj/Shared/Debug/brotli_enc
+  TARGET = $(TARGETDIR)/libbrotli_dec.so
+  OBJDIR = obj/Shared/Debug/brotli_dec
   DEFINES +=
   INCLUDES +=
   FORCE_INCLUDE +=
@@ -103,7 +103,7 @@ ifeq ($(config),debug_shared)
   ALL_CFLAGS += $(CFLAGS) $(ALL_CPPFLAGS) -g -fPIC -Wall -fno-omit-frame-pointer
   ALL_CXXFLAGS += $(CXXFLAGS) $(ALL_CFLAGS)
   ALL_RESFLAGS += $(RESFLAGS) $(DEFINES) $(INCLUDES)
-  LIBS += -lbrotli_common
+  LIBS += -Wl,--start-group -lbrotli_common -lm -Wl,--end-group
   LDDEPS += ../../bin/libbrotli_common.so
   ALL_LDFLAGS += $(LDFLAGS) -L../../bin -shared
   LINKCMD = $(CC) -o "$@" $(OBJECTS) $(RESOURCES) $(ALL_LDFLAGS) $(LIBS)
@@ -119,21 +119,10 @@ all: $(TARGETDIR) $(OBJDIR) prebuild prelink $(TARGET)
 endif
 
 OBJECTS := \
-	$(OBJDIR)/backward_references.o \
-	$(OBJDIR)/bit_cost.o \
-	$(OBJDIR)/block_splitter.o \
-	$(OBJDIR)/brotli_bit_stream.o \
-	$(OBJDIR)/cluster.o \
-	$(OBJDIR)/compress_fragment.o \
-	$(OBJDIR)/compress_fragment_two_pass.o \
-	$(OBJDIR)/encode.o \
-	$(OBJDIR)/entropy_encode.o \
-	$(OBJDIR)/histogram.o \
-	$(OBJDIR)/literal_cost.o \
-	$(OBJDIR)/memory.o \
-	$(OBJDIR)/metablock.o \
-	$(OBJDIR)/static_dict.o \
-	$(OBJDIR)/utf8_util.o \
+	$(OBJDIR)/bit_reader.o \
+	$(OBJDIR)/decode.o \
+	$(OBJDIR)/huffman.o \
+	$(OBJDIR)/state.o \
 
 RESOURCES := \
 
@@ -148,7 +137,7 @@ ifeq (/bin,$(findstring /bin,$(SHELL)))
 endif
 
 $(TARGET): $(GCH) ${CUSTOMFILES} $(OBJECTS) $(LDDEPS) $(RESOURCES)
-	@echo Linking brotli_enc
+	@echo Linking brotli_dec
 	$(SILENT) $(LINKCMD)
 	$(POSTBUILDCMDS)
 
@@ -169,7 +158,7 @@ else
 endif
 
 clean:
-	@echo Cleaning brotli_enc
+	@echo Cleaning brotli_dec
 ifeq (posix,$(SHELLTYPE))
 	$(SILENT) rm -f  $(TARGET)
 	$(SILENT) rm -rf $(OBJDIR)
@@ -191,49 +180,16 @@ $(GCH): $(PCH)
 	$(SILENT) $(CC) -x c-header $(ALL_CFLAGS) -o "$@" -MF "$(@:%.gch=%.d)" -c "$<"
 endif
 
-$(OBJDIR)/backward_references.o: ../../enc/backward_references.c
+$(OBJDIR)/bit_reader.o: ../../dec/bit_reader.c
 	@echo $(notdir $<)
 	$(SILENT) $(CC) $(ALL_CFLAGS) $(FORCE_INCLUDE) -o "$@" -MF "$(@:%.o=%.d)" -c "$<"
-$(OBJDIR)/bit_cost.o: ../../enc/bit_cost.c
+$(OBJDIR)/decode.o: ../../dec/decode.c
 	@echo $(notdir $<)
 	$(SILENT) $(CC) $(ALL_CFLAGS) $(FORCE_INCLUDE) -o "$@" -MF "$(@:%.o=%.d)" -c "$<"
-$(OBJDIR)/block_splitter.o: ../../enc/block_splitter.c
+$(OBJDIR)/huffman.o: ../../dec/huffman.c
 	@echo $(notdir $<)
 	$(SILENT) $(CC) $(ALL_CFLAGS) $(FORCE_INCLUDE) -o "$@" -MF "$(@:%.o=%.d)" -c "$<"
-$(OBJDIR)/brotli_bit_stream.o: ../../enc/brotli_bit_stream.c
-	@echo $(notdir $<)
-	$(SILENT) $(CC) $(ALL_CFLAGS) $(FORCE_INCLUDE) -o "$@" -MF "$(@:%.o=%.d)" -c "$<"
-$(OBJDIR)/cluster.o: ../../enc/cluster.c
-	@echo $(notdir $<)
-	$(SILENT) $(CC) $(ALL_CFLAGS) $(FORCE_INCLUDE) -o "$@" -MF "$(@:%.o=%.d)" -c "$<"
-$(OBJDIR)/compress_fragment.o: ../../enc/compress_fragment.c
-	@echo $(notdir $<)
-	$(SILENT) $(CC) $(ALL_CFLAGS) $(FORCE_INCLUDE) -o "$@" -MF "$(@:%.o=%.d)" -c "$<"
-$(OBJDIR)/compress_fragment_two_pass.o: ../../enc/compress_fragment_two_pass.c
-	@echo $(notdir $<)
-	$(SILENT) $(CC) $(ALL_CFLAGS) $(FORCE_INCLUDE) -o "$@" -MF "$(@:%.o=%.d)" -c "$<"
-$(OBJDIR)/encode.o: ../../enc/encode.c
-	@echo $(notdir $<)
-	$(SILENT) $(CC) $(ALL_CFLAGS) $(FORCE_INCLUDE) -o "$@" -MF "$(@:%.o=%.d)" -c "$<"
-$(OBJDIR)/entropy_encode.o: ../../enc/entropy_encode.c
-	@echo $(notdir $<)
-	$(SILENT) $(CC) $(ALL_CFLAGS) $(FORCE_INCLUDE) -o "$@" -MF "$(@:%.o=%.d)" -c "$<"
-$(OBJDIR)/histogram.o: ../../enc/histogram.c
-	@echo $(notdir $<)
-	$(SILENT) $(CC) $(ALL_CFLAGS) $(FORCE_INCLUDE) -o "$@" -MF "$(@:%.o=%.d)" -c "$<"
-$(OBJDIR)/literal_cost.o: ../../enc/literal_cost.c
-	@echo $(notdir $<)
-	$(SILENT) $(CC) $(ALL_CFLAGS) $(FORCE_INCLUDE) -o "$@" -MF "$(@:%.o=%.d)" -c "$<"
-$(OBJDIR)/memory.o: ../../enc/memory.c
-	@echo $(notdir $<)
-	$(SILENT) $(CC) $(ALL_CFLAGS) $(FORCE_INCLUDE) -o "$@" -MF "$(@:%.o=%.d)" -c "$<"
-$(OBJDIR)/metablock.o: ../../enc/metablock.c
-	@echo $(notdir $<)
-	$(SILENT) $(CC) $(ALL_CFLAGS) $(FORCE_INCLUDE) -o "$@" -MF "$(@:%.o=%.d)" -c "$<"
-$(OBJDIR)/static_dict.o: ../../enc/static_dict.c
-	@echo $(notdir $<)
-	$(SILENT) $(CC) $(ALL_CFLAGS) $(FORCE_INCLUDE) -o "$@" -MF "$(@:%.o=%.d)" -c "$<"
-$(OBJDIR)/utf8_util.o: ../../enc/utf8_util.c
+$(OBJDIR)/state.o: ../../dec/state.c
 	@echo $(notdir $<)
 	$(SILENT) $(CC) $(ALL_CFLAGS) $(FORCE_INCLUDE) -o "$@" -MF "$(@:%.o=%.d)" -c "$<"
 

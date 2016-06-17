@@ -8,14 +8,11 @@
 
 #include <fcntl.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <sys/stat.h>
 #include <sys/types.h>
-
-#include <cstdlib>
-#include <cstring>
-#include <ctime>
-#include <string>
-#include <vector>
+#include <time.h>
 
 #include "../dec/decode.h"
 #include "../enc/encode.h"
@@ -24,9 +21,11 @@
 #include <unistd.h>
 #else
 #include <io.h>
+#include <share.h>
 
-#define STDIN_FILENO _fileno(stdin)
-#define STDOUT_FILENO _fileno(stdout)
+#define MAKE_BINARY(FILENO) (_setmode((FILENO), _O_BINARY), (FILENO))
+#define STDIN_FILENO MAKE_BINARY(_fileno(stdin))
+#define STDOUT_FILENO MAKE_BINARY(_fileno(stdout))
 #define S_IRUSR S_IREAD
 #define S_IWUSR S_IWRITE
 #define fdopen _fdopen
@@ -40,29 +39,29 @@
 #define ftell _ftelli64
 #endif
 
-static inline FILE* ms_fopen(const char *filename, const char *mode) {
+static FILE* ms_fopen(const char *filename, const char *mode) {
   FILE* result = 0;
   fopen_s(&result, filename, mode);
   return result;
 }
 
-static inline int ms_open(const char *filename, int oflag, int pmode) {
+static int ms_open(const char *filename, int oflag, int pmode) {
   int result = -1;
   _sopen_s(&result, filename, oflag | O_BINARY, _SH_DENYNO, pmode);
   return result;
 }
 #endif  /* WIN32 */
 
-static bool ParseQuality(const char* s, int* quality) {
+static int ParseQuality(const char* s, int* quality) {
   if (s[0] >= '0' && s[0] <= '9') {
     *quality = s[0] - '0';
     if (s[1] >= '0' && s[1] <= '9') {
       *quality = *quality * 10 + s[1] - '0';
-      return s[2] == 0;
+      return (s[2] == 0) ? 1 : 0;
     }
-    return s[1] == 0;
+    return (s[1] == 0) ? 1 : 0;
   }
-  return false;
+  return 0;
 }
 
 static void ParseArgv(int argc, char **argv,
@@ -75,6 +74,7 @@ static void ParseArgv(int argc, char **argv,
                       int *repeat,
                       int *verbose,
                       int *lgwin) {
+  int k;
   *force = 0;
   *input_path = 0;
   *output_path = 0;
@@ -86,7 +86,7 @@ static void ParseArgv(int argc, char **argv,
     *decompress =
         argv0_len >= 5 && strcmp(&argv[0][argv0_len - 5], "unbro") == 0;
   }
-  for (int k = 1; k < argc; ++k) {
+  for (k = 1; k < argc; ++k) {
     if (!strcmp("--force", argv[k]) ||
         !strcmp("-f", argv[k])) {
       if (*force != 0) {
@@ -172,10 +172,11 @@ error:
 }
 
 static FILE* OpenInputFile(const char* input_path) {
+  FILE* f;
   if (input_path == 0) {
     return fdopen(STDIN_FILENO, "rb");
   }
-  FILE* f = fopen(input_path, "rb");
+  f = fopen(input_path, "rb");
   if (f == 0) {
     perror("fopen");
     exit(1);
@@ -184,12 +185,12 @@ static FILE* OpenInputFile(const char* input_path) {
 }
 
 static FILE *OpenOutputFile(const char *output_path, const int force) {
+  int fd;
   if (output_path == 0) {
     return fdopen(STDOUT_FILENO, "wb");
   }
-  int excl = force ? 0 : O_EXCL;
-  int fd = open(output_path, O_CREAT | excl | O_WRONLY | O_TRUNC,
-                S_IRUSR | S_IWUSR);
+  fd = open(output_path, O_CREAT | (force ? 0 : O_EXCL) | O_WRONLY | O_TRUNC,
+            S_IRUSR | S_IWUSR);
   if (fd < 0) {
     if (!force) {
       struct stat statbuf;
@@ -206,6 +207,7 @@ static FILE *OpenOutputFile(const char *output_path, const int force) {
 
 static int64_t FileSize(const char *path) {
   FILE *f = fopen(path, "rb");
+  int64_t retval;
   if (f == NULL) {
     return -1;
   }
@@ -213,37 +215,47 @@ static int64_t FileSize(const char *path) {
     fclose(f);
     return -1;
   }
-  int64_t retval = ftell(f);
+  retval = ftell(f);
   if (fclose(f) != 0) {
     return -1;
   }
   return retval;
 }
 
-static std::vector<uint8_t> ReadDictionary(const char* path) {
+/* Result ownersip is passed to caller.
+   |*dictionary_size| is set to resulting buffer size. */
+static uint8_t* ReadDictionary(const char* path, size_t* dictionary_size) {
+  static const int kMaxDictionarySize = (1 << 24) - 16;
   FILE *f = fopen(path, "rb");
+  int64_t file_size_64;
+  uint8_t* buffer;
+  size_t bytes_read;
+
   if (f == NULL) {
     perror("fopen");
     exit(1);
   }
 
-  int64_t file_size = FileSize(path);
-  if (file_size == -1) {
+  file_size_64 = FileSize(path);
+  if (file_size_64 == -1) {
     fprintf(stderr, "could not get size of dictionary file");
     exit(1);
   }
 
-  static const int kMaxDictionarySize = (1 << 24) - 16;
-  if (file_size > kMaxDictionarySize) {
+  if (file_size_64 > kMaxDictionarySize) {
     fprintf(stderr, "dictionary is larger than maximum allowed: %d\n",
             kMaxDictionarySize);
     exit(1);
   }
+  *dictionary_size = (size_t)file_size_64;
 
-  std::vector<uint8_t> buffer;
-  buffer.resize(static_cast<size_t>(file_size));
-  size_t bytes_read = fread(buffer.data(), sizeof(uint8_t), buffer.size(), f);
-  if (bytes_read != buffer.size()) {
+  buffer = (uint8_t*)malloc(*dictionary_size);
+  if (!buffer) {
+    fprintf(stderr, "could not read dictionary: out of memory\n");
+    exit(1);
+  }
+  bytes_read = fread(buffer, sizeof(uint8_t), *dictionary_size, f);
+  if (bytes_read != *dictionary_size) {
     fprintf(stderr, "could not read dictionary\n");
     exit(1);
   }
@@ -255,24 +267,33 @@ static const size_t kFileBufferSize = 65536;
 
 static int Decompress(FILE* fin, FILE* fout, const char* dictionary_path) {
   /* Dictionary should be kept during first rounds of decompression. */
-  std::vector<uint8_t> dictionary;
+  uint8_t* dictionary = NULL;
+  uint8_t* input;
+  uint8_t* output;
+  size_t total_out;
+  size_t available_in;
+  const uint8_t* next_in;
+  size_t available_out = kFileBufferSize;
+  uint8_t* next_out;
+  BrotliResult result = BROTLI_RESULT_ERROR;
   BrotliState* s = BrotliCreateState(NULL, NULL, NULL);
   if (!s) {
     fprintf(stderr, "out of memory\n");
     return 0;
   }
   if (dictionary_path != NULL) {
-    dictionary = ReadDictionary(dictionary_path);
-    BrotliSetCustomDictionary(dictionary.size(), dictionary.data(), s);
+    size_t dictionary_size = 0;
+    dictionary = ReadDictionary(dictionary_path, &dictionary_size);
+    BrotliSetCustomDictionary(dictionary_size, dictionary, s);
   }
-  uint8_t* input = new uint8_t[kFileBufferSize];
-  uint8_t* output = new uint8_t[kFileBufferSize];
-  size_t total_out;
-  size_t available_in;
-  const uint8_t* next_in;
-  size_t available_out = kFileBufferSize;
-  uint8_t* next_out = output;
-  BrotliResult result = BROTLI_RESULT_NEEDS_MORE_INPUT;
+  input = (uint8_t*)malloc(kFileBufferSize);
+  output = (uint8_t*)malloc(kFileBufferSize);
+  if (!input || !output) {
+    fprintf(stderr, "out of memory\n");
+    goto end;
+  }
+  next_out = output;
+  result = BROTLI_RESULT_NEEDS_MORE_INPUT;
   while (1) {
     if (result == BROTLI_RESULT_NEEDS_MORE_INPUT) {
       if (feof(fin)) {
@@ -297,25 +318,27 @@ static int Decompress(FILE* fin, FILE* fout, const char* dictionary_path) {
         &available_out, &next_out, &total_out, s);
   }
   if (next_out != output) {
-    fwrite(output, 1, static_cast<size_t>(next_out - output), fout);
+    fwrite(output, 1, (size_t)(next_out - output), fout);
   }
-  delete[] input;
-  delete[] output;
-  BrotliDestroyState(s);
+
   if ((result == BROTLI_RESULT_NEEDS_MORE_OUTPUT) || ferror(fout)) {
     fprintf(stderr, "failed to write output\n");
-    return 0;
   } else if (result != BROTLI_RESULT_SUCCESS) { /* Error or needs more input. */
     fprintf(stderr, "corrupt input\n");
-    return 0;
   }
-  return 1;
+
+end:
+  free(dictionary);
+  free(input);
+  free(output);
+  BrotliDestroyState(s);
+  return (result == BROTLI_RESULT_SUCCESS) ? 1 : 0;
 }
 
 static int Compress(int quality, int lgwin, FILE* fin, FILE* fout,
     const char *dictionary_path) {
   BrotliEncoderState* s = BrotliEncoderCreateInstance(0, 0, 0);
-  uint8_t* buffer = reinterpret_cast<uint8_t*>(malloc(kFileBufferSize << 1));
+  uint8_t* buffer = (uint8_t*)malloc(kFileBufferSize << 1);
   uint8_t* input = buffer;
   uint8_t* output = buffer + kFileBufferSize;
   size_t available_in = 0;
@@ -333,9 +356,10 @@ static int Compress(int quality, int lgwin, FILE* fin, FILE* fout,
   BrotliEncoderSetParameter(s, BROTLI_PARAM_QUALITY, (uint32_t)quality);
   BrotliEncoderSetParameter(s, BROTLI_PARAM_LGWIN, (uint32_t)lgwin);
   if (dictionary_path != NULL) {
-    std::vector<uint8_t> dictionary = ReadDictionary(dictionary_path);
-    BrotliEncoderSetCustomDictionary(s, dictionary.size(),
-        reinterpret_cast<const uint8_t*>(dictionary.data()));
+    size_t dictionary_size = 0;
+    uint8_t* dictionary = ReadDictionary(dictionary_path, &dictionary_size);
+    BrotliEncoderSetCustomDictionary(s, dictionary_size, dictionary);
+    free(dictionary);
   }
 
   while (1) {
@@ -392,13 +416,15 @@ int main(int argc, char** argv) {
   int repeat = 1;
   int verbose = 0;
   int lgwin = 0;
+  clock_t clock_start;
+  int i;
   ParseArgv(argc, argv, &input_path, &output_path, &dictionary_path, &force,
             &quality, &decompress, &repeat, &verbose, &lgwin);
-  const clock_t clock_start = clock();
-  for (int i = 0; i < repeat; ++i) {
+  clock_start = clock();
+  for (i = 0; i < repeat; ++i) {
     FILE* fin = OpenInputFile(input_path);
     FILE* fout = OpenOutputFile(output_path, force);
-    int is_ok = false;
+    int is_ok = 0;
     if (decompress) {
       is_ok = Decompress(fin, fout, dictionary_path);
     } else {
@@ -418,19 +444,20 @@ int main(int argc, char** argv) {
     }
   }
   if (verbose) {
-    const clock_t clock_end = clock();
-    double duration =
-        static_cast<double>(clock_end - clock_start) / CLOCKS_PER_SEC;
+    clock_t clock_end = clock();
+    double duration = (double)(clock_end - clock_start) / CLOCKS_PER_SEC;
+    int64_t uncompressed_size;
+    double uncompressed_bytes_in_MB;
     if (duration < 1e-9) {
       duration = 1e-9;
     }
-    int64_t uncompressed_size = FileSize(decompress ? output_path : input_path);
+    uncompressed_size = FileSize(decompress ? output_path : input_path);
     if (uncompressed_size == -1) {
       fprintf(stderr, "failed to determine uncompressed file size\n");
       exit(1);
     }
-    double uncompressed_bytes_in_MB =
-        static_cast<double>(repeat * uncompressed_size) / (1024.0 * 1024.0);
+    uncompressed_bytes_in_MB =
+        (double)(repeat * uncompressed_size) / (1024.0 * 1024.0);
     if (decompress) {
       printf("Brotli decompression speed: ");
     } else {

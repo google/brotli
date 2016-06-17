@@ -15,5 +15,5 @@ do
  esac
 done
 
-echo -e "prefix=$PREFIX" > ./build/gmake/config.make
-echo -e "version=$VERSION" >> ./build/gmake/config.make
+echo -e "prefix=$PREFIX" > ./buildfiles/gmake/config.make
+echo -e "version=$VERSION" >> ./buildfiles/gmake/config.make
