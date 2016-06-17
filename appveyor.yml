@@ -54,7 +54,7 @@ install:
 build: false
 
 test_script:
-  - "%WITH_COMPILER% python setup.py build_ext test"
+  - "%WITH_COMPILER% python setup.py build_ext -b bin -t bin test"
 
 after_test:
   # if tests are successful, create binary and source packages for the project
