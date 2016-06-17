@@ -58,7 +58,7 @@ test_script:
 
 after_test:
   # if tests are successful, create binary and source packages for the project
-  - "%WITH_COMPILER% pip wheel -w dist ."
+  - "%WITH_COMPILER% pip wheel -w dist -b bin ."
   - "%WITH_COMPILER% python setup.py sdist --formats=gztar,zip"
 
 artifacts:
