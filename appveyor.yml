@@ -54,11 +54,11 @@ install:
 build: false
 
 test_script:
-  - "%WITH_COMPILER% python setup.py build_ext test"
+  - "%WITH_COMPILER% python setup.py build_ext -b bin -t bin test"
 
 after_test:
   # if tests are successful, create binary and source packages for the project
-  - "%WITH_COMPILER% pip wheel -w dist ."
+  - "%WITH_COMPILER% pip wheel -w dist -b bin -v ."
   - "%WITH_COMPILER% python setup.py sdist --formats=gztar,zip"
 
 artifacts:
