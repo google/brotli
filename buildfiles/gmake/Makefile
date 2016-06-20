@@ -3,39 +3,29 @@
 .NOTPARALLEL:
 
 ifndef config
-  config=release_static
+  config=release
 endif
 
 ifndef verbose
   SILENT = @
 endif
 
-ifeq ($(config),release_static)
-  brotli_common_config = release_static
-  brotli_dec_config = release_static
-  brotli_enc_config = release_static
-  bro_config = release_static
+ifeq ($(config),release)
+  brotli_common_config = release
+  brotli_dec_config = release
+  brotli_enc_config = release
+  brotli_config = release
+  bro_config = release
 endif
-ifeq ($(config),release_shared)
-  brotli_common_config = release_shared
-  brotli_dec_config = release_shared
-  brotli_enc_config = release_shared
-  bro_config = release_shared
-endif
-ifeq ($(config),debug_static)
-  brotli_common_config = debug_static
-  brotli_dec_config = debug_static
-  brotli_enc_config = debug_static
-  bro_config = debug_static
-endif
-ifeq ($(config),debug_shared)
-  brotli_common_config = debug_shared
-  brotli_dec_config = debug_shared
-  brotli_enc_config = debug_shared
-  bro_config = debug_shared
+ifeq ($(config),debug)
+  brotli_common_config = debug
+  brotli_dec_config = debug
+  brotli_enc_config = debug
+  brotli_config = debug
+  bro_config = debug
 endif
 
-PROJECTS := brotli_common brotli_dec brotli_enc bro
+PROJECTS := brotli_common brotli_dec brotli_enc brotli bro
 
 .PHONY: all clean help $(PROJECTS) 
 
@@ -59,7 +49,13 @@ ifneq (,$(brotli_enc_config))
 	@${MAKE} --no-print-directory -C . -f brotli_enc.make config=$(brotli_enc_config)
 endif
 
-bro: brotli_common brotli_dec brotli_enc
+brotli:
+ifneq (,$(brotli_config))
+	@echo "==== Building brotli ($(brotli_config)) ===="
+	@${MAKE} --no-print-directory -C . -f brotli.make config=$(brotli_config)
+endif
+
+bro: brotli
 ifneq (,$(bro_config))
 	@echo "==== Building bro ($(bro_config)) ===="
 	@${MAKE} --no-print-directory -C . -f bro.make config=$(bro_config)
@@ -69,16 +65,15 @@ clean:
 	@${MAKE} --no-print-directory -C . -f brotli_common.make clean
 	@${MAKE} --no-print-directory -C . -f brotli_dec.make clean
 	@${MAKE} --no-print-directory -C . -f brotli_enc.make clean
+	@${MAKE} --no-print-directory -C . -f brotli.make clean
 	@${MAKE} --no-print-directory -C . -f bro.make clean
 
 help:
 	@echo "Usage: make [config=name] [target]"
 	@echo ""
 	@echo "CONFIGURATIONS:"
-	@echo "  release_static"
-	@echo "  release_shared"
-	@echo "  debug_static"
-	@echo "  debug_shared"
+	@echo "  release"
+	@echo "  debug"
 	@echo ""
 	@echo "TARGETS:"
 	@echo "   all (default)"
@@ -86,6 +81,7 @@ help:
 	@echo "   brotli_common"
 	@echo "   brotli_dec"
 	@echo "   brotli_enc"
+	@echo "   brotli"
 	@echo "   bro"
 	@echo ""
 	@echo "For more information, see http://industriousone.com/premake/quick-start"

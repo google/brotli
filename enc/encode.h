@@ -44,19 +44,6 @@ typedef enum BrotliEncoderOperation {
   BROTLI_OPERATION_FINISH = 2
 } BrotliEncoderOperation;
 
-/* DEPRECATED */
-typedef struct BrotliEncoderParams {
-  BrotliEncoderMode mode;
-  /* Controls the compression-speed vs compression-density tradeoffs. The higher
-     the |quality|, the slower the compression. Range is 0 to 11. */
-  int quality;
-  /* Base 2 logarithm of the sliding window size. Range is 10 to 24. */
-  int lgwin;
-  /* Base 2 logarithm of the maximum input block size. Range is 16 to 24.
-     If set to 0, the value will be set based on the quality. */
-  int lgblock;
-} BrotliEncoderParams;
-
 typedef enum BrotliEncoderParameter {
   BROTLI_PARAM_MODE = 0,
   /* Controls the compression-speed vs compression-density tradeoffs. The higher
