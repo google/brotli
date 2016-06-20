@@ -1,6 +1,6 @@
 include buildfiles/gmake/config.make
 
-TARGETS=all clean brotli_common brotli_dec brotli_enc bro help
+TARGETS=all clean brotli_common brotli_dec brotli_enc brotli bro help
 
 .PHONY: $(TARGETS) install
 

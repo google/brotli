@@ -1,0 +1,290 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 46;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		34622C418955A400782FDD627441CC002F0345C2BC279200 /* state.c in Sources */ = {isa = PBXBuildFile; fileRef = 78281D66338DA8005FABE0A2D7E044009C4E4E05EA189000 /* state.c */; };
+		7ABB312CD1465000E8B9AE3427D3B800A208AFC6004CD000 /* decode.c in Sources */ = {isa = PBXBuildFile; fileRef = 5E144196871068003595C68D8A813A00248918FE0BEDDE00 /* decode.c */; };
+		8C597841E78F400073EB547917211000BD0101E2F22E5000 /* huffman.c in Sources */ = {isa = PBXBuildFile; fileRef = 686BC908FCAED000266267CE9F9CF8009F7418652EC2D800 /* huffman.c */; };
+		AA6602AA3D207800E20EDFF7BE5A1804784D9DC6771440 /* libbrotli_common.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 91A382451F064000C17C9C493D29B800EFD7F22D6A8FD800 /* libbrotli_common.dylib */; };
+		D40EE94AB11CA8008A69BDFAADE6800FD0B01BFE4DD6800 /* bit_reader.c in Sources */ = {isa = PBXBuildFile; fileRef = 80207A3AC0B5280C585DCE1F47C380056C6514B391B0800 /* bit_reader.c */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		170D2BD2A0508700F013A857D1348000FDB35E26E44CB800 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = E2D6C8A71F291800E07371ADB260B00091799F8FBD973000 /* brotli_common.xcodeproj */;
+			proxyType = 2;
+			remoteGlobalIDString = 9835F75C5D978800ABAFBE1DB8D8D80090E66D6A8C332000;
+			remoteInfo = libbrotli_common.dylib;
+		};
+		197F6D08F28AFA00F285E98E236EF000259F5D36872810 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = E2D6C8A71F291800E07371ADB260B00091799F8FBD973000 /* brotli_common.xcodeproj */;
+			proxyType = 1;
+			remoteGlobalIDString = C5F4D23620A7F00E62CB04083D6300051F80AE5C08B5400;
+			remoteInfo = libbrotli_common.dylib;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		15E4FC09C0E29D00ED668100C4537000DC59D37145C01000 /* prefix.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = prefix.h; path = ../../dec/prefix.h; sourceTree = "<group>"; };
+		310C732BA377F600EF0311F1466620006814C287D58BFC00 /* huffman.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = huffman.h; path = ../../dec/huffman.h; sourceTree = "<group>"; };
+		54A4C2DD65AC4C002C2647D4691D1E001B199A44EA89C300 /* decode.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = decode.h; path = ../../dec/decode.h; sourceTree = "<group>"; };
+		5E144196871068003595C68D8A813A00248918FE0BEDDE00 /* decode.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = decode.c; path = ../../dec/decode.c; sourceTree = "<group>"; };
+		686BC908FCAED000266267CE9F9CF8009F7418652EC2D800 /* huffman.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = huffman.c; path = ../../dec/huffman.c; sourceTree = "<group>"; };
+		78281D66338DA8005FABE0A2D7E044009C4E4E05EA189000 /* state.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = state.c; path = ../../dec/state.c; sourceTree = "<group>"; };
+		7BAB352A0634880090191C30A9801000E6A998E1C450E000 /* port.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = port.h; path = ../../dec/port.h; sourceTree = "<group>"; };
+		80207A3AC0B5280C585DCE1F47C380056C6514B391B0800 /* bit_reader.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = bit_reader.c; path = ../../dec/bit_reader.c; sourceTree = "<group>"; };
+		B901AA77B606B000BB0FA813DC2CE000D01DD2074333D000 /* transform.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = transform.h; path = ../../dec/transform.h; sourceTree = "<group>"; };
+		BD5CF5CAA9F468007B5394904CE29400F4654526DC087000 /* context.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = context.h; path = ../../dec/context.h; sourceTree = "<group>"; };
+		E2D6C8A71F291800E07371ADB260B00091799F8FBD973000 /* libbrotli_common.dylib */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; name = "brotli_common.xcodeproj"; path = brotli_common.xcodeproj; sourceTree = SOURCE_ROOT; };
+		E9ED71C941A6B000A77147078A17980038B1BB70CEB66800 /* bit_reader.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = bit_reader.h; path = ../../dec/bit_reader.h; sourceTree = "<group>"; };
+		F3FDF2C570F1E000DB81B6021544800018242365277CC600 /* state.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = state.h; path = ../../dec/state.h; sourceTree = "<group>"; };
+		F7B1523FD690E800257F7031FECBA2008AEA3FEE6672F00 /* libbrotli_dec.dylib */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.dylib"; includeInIndex = 0; name = libbrotli_dec.dylib; path = libbrotli_dec.dylib; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		CA561B874C216800CC64192372479800E1724316D94E9000 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				AA6602AA3D207800E20EDFF7BE5A1804784D9DC6771440 /* libbrotli_common.dylib in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		277C853238B10600AA2F241EFC1CC800363BBD063AC06C00 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				91A382451F064000C17C9C493D29B800EFD7F22D6A8FD800 /* libbrotli_common.dylib */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		DE2FD571A6C938008E134D4D9B3FB000BA17F9BDEA135000 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				F7B1523FD690E800257F7031FECBA2008AEA3FEE6672F00 /* libbrotli_dec.dylib */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		DE2FDC7F9D9690008E13545B920D0800BA1800CBE0E0A800 /* Projects */ = {
+			isa = PBXGroup;
+			children = (
+				E2D6C8A71F291800E07371ADB260B00091799F8FBD973000 /* brotli_common.xcodeproj */,
+			);
+			name = Projects;
+			sourceTree = "<group>";
+		};
+		DEE7B4F33E6470001588939E2A557E00556A1D5D7C8D1800 /* brotli_dec */ = {
+			isa = PBXGroup;
+			children = (
+				80207A3AC0B5280C585DCE1F47C380056C6514B391B0800 /* bit_reader.c */,
+				E9ED71C941A6B000A77147078A17980038B1BB70CEB66800 /* bit_reader.h */,
+				BD5CF5CAA9F468007B5394904CE29400F4654526DC087000 /* context.h */,
+				5E144196871068003595C68D8A813A00248918FE0BEDDE00 /* decode.c */,
+				54A4C2DD65AC4C002C2647D4691D1E001B199A44EA89C300 /* decode.h */,
+				686BC908FCAED000266267CE9F9CF8009F7418652EC2D800 /* huffman.c */,
+				310C732BA377F600EF0311F1466620006814C287D58BFC00 /* huffman.h */,
+				7BAB352A0634880090191C30A9801000E6A998E1C450E000 /* port.h */,
+				15E4FC09C0E29D00ED668100C4537000DC59D37145C01000 /* prefix.h */,
+				78281D66338DA8005FABE0A2D7E044009C4E4E05EA189000 /* state.c */,
+				F3FDF2C570F1E000DB81B6021544800018242365277CC600 /* state.h */,
+				B901AA77B606B000BB0FA813DC2CE000D01DD2074333D000 /* transform.h */,
+				DE2FD571A6C938008E134D4D9B3FB000BA17F9BDEA135000 /* Products */,
+				DE2FDC7F9D9690008E13545B920D0800BA1800CBE0E0A800 /* Projects */,
+			);
+			name = brotli_dec;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		C1B09D77DA1210002FAF1A7F309F7800E8FE1C1109188800 /* brotli_dec */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = CA561B863A5CB000CC6419226082E000E1724315C789D800 /* Build configuration list for PBXNativeTarget "brotli_dec" */;
+			buildPhases = (
+				CA561B8ABC08E800CC641926E22F1800E172431A49361000 /* Resources */,
+				CA561B8B25B60000CC6419274BDC3000E172431AB2E32800 /* Sources */,
+				CA561B874C216800CC64192372479800E1724316D94E9000 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				278F7F6926694200AA421E55E9D50800364EB73D2878A800 /* PBXTargetDependency */,
+			);
+			name = brotli_dec;
+			productName = brotli_dec;
+			productReference = F7B1523FD690E800257F7031FECBA2008AEA3FEE6672F00 /* libbrotli_dec.dylib */;
+			productType = "com.apple.product-type.library.dynamic";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		08FB7793FE84155DC02AAC07 /* Project object */ = {
+			isa = PBXProject;
+			buildConfigurationList = 1DEB928908733DD80010E9CD /* Build configuration list for PBXProject "brotli_dec" */;
+			compatibilityVersion = "Xcode 3.2";
+			hasScannedForEncodings = 1;
+			mainGroup = DEE7B4F33E6470001588939E2A557E00556A1D5D7C8D1800 /* brotli_dec */;
+			projectDirPath = "";
+			projectReferences = (
+				{
+					ProductGroup = 277C853238B10600AA2F241EFC1CC800363BBD063AC06C00 /* Products */;
+					ProjectRef = E2D6C8A71F291800E07371ADB260B00091799F8FBD973000 /* brotli_common.xcodeproj */;
+				},
+			);
+			projectRoot = "";
+			targets = (
+				C1B09D77DA1210002FAF1A7F309F7800E8FE1C1109188800 /* libbrotli_dec.dylib */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXReferenceProxy section */
+		91A382451F064000C17C9C493D29B800EFD7F22D6A8FD800 /* libbrotli_common.dylib */ = {
+			isa = PBXReferenceProxy;
+			fileType = "compiled.mach-o.dylib";
+			path = libbrotli_common.dylib;
+			remoteRef = 170D2BD2A0508700F013A857D1348000FDB35E26E44CB800 /* PBXContainerItemProxy */;
+			sourceTree = BUILT_PRODUCTS_DIR;
+		};
+/* End PBXReferenceProxy section */
+
+/* Begin PBXResourcesBuildPhase section */
+		CA561B8ABC08E800CC641926E22F1800E172431A49361000 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		CA561B8B25B60000CC6419274BDC3000E172431AB2E32800 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				D40EE94AB11CA8008A69BDFAADE6800FD0B01BFE4DD6800 /* bit_reader.c in Sources */,
+				7ABB312CD1465000E8B9AE3427D3B800A208AFC6004CD000 /* decode.c in Sources */,
+				8C597841E78F400073EB547917211000BD0101E2F22E5000 /* huffman.c in Sources */,
+				34622C418955A400782FDD627441CC002F0345C2BC279200 /* state.c in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		278F7F6926694200AA421E55E9D50800364EB73D2878A800 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			name = libbrotli_common.dylib;
+			targetProxy = 197F6D08F28AFA00F285E98E236EF000259F5D36872810 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin PBXVariantGroup section */
+/* End PBXVariantGroup section */
+
+/* Begin XCBuildConfiguration section */
+		6DC841687FC7180050EC6471153DD800D2AD9E1E83DA3000 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CONFIGURATION_BUILD_DIR = ../../bin;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				EXECUTABLE_PREFIX = lib;
+				GCC_DYNAMIC_NO_PIC = NO;
+				INSTALL_PATH = /usr/local/lib;
+				PRODUCT_NAME = brotli_dec;
+			};
+			name = Release;
+		};
+		7BD368467CDDBC0053CF9317AB84100024BFACDD04C56C00 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ARCHS = "$(NATIVE_ARCH_ACTUAL)";
+				CONFIGURATION_BUILD_DIR = "$(SYMROOT)";
+				CONFIGURATION_TEMP_DIR = "$(OBJROOT)";
+				COPY_PHASE_STRIP = NO;
+				GCC_C_LANGUAGE_STANDARD = gnu99;
+				GCC_ENABLE_FIX_AND_CONTINUE = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					DOS_MACOSX,
+				);
+				GCC_SYMBOLS_PRIVATE_EXTERN = NO;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				OBJROOT = obj/Debug/brotli_dec;
+				ONLY_ACTIVE_ARCH = YES;
+				SYMROOT = ../../bin;
+			};
+			name = Debug;
+		};
+		BE9ACD7F1FA8F000864CF1569134080053AA91D740353000 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ARCHS = "$(NATIVE_ARCH_ACTUAL)";
+				CONFIGURATION_BUILD_DIR = "$(SYMROOT)";
+				CONFIGURATION_TEMP_DIR = "$(OBJROOT)";
+				GCC_C_LANGUAGE_STANDARD = gnu99;
+				GCC_OPTIMIZATION_LEVEL = 3;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					DOS_MACOSX,
+				);
+				GCC_SYMBOLS_PRIVATE_EXTERN = NO;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				OBJROOT = obj/Release/brotli_dec;
+				ONLY_ACTIVE_ARCH = NO;
+				STANDARD_C_PLUS_PLUS_LIBRARY_TYPE = static;
+				SYMROOT = ../../bin;
+			};
+			name = Release;
+		};
+		F10621297BB41000B894265DADAD600039854845278C9A00 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CONFIGURATION_BUILD_DIR = ../../bin;
+				EXECUTABLE_PREFIX = lib;
+				GCC_DYNAMIC_NO_PIC = NO;
+				INSTALL_PATH = /usr/local/lib;
+				PRODUCT_NAME = brotli_dec;
+			};
+			name = Debug;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		1DEB928908733DD80010E9CD /* Build configuration list for PBXProject "brotli_dec" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				BE9ACD7F1FA8F000864CF1569134080053AA91D740353000 /* Release */,
+				7BD368467CDDBC0053CF9317AB84100024BFACDD04C56C00 /* Debug */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		CA561B863A5CB000CC6419226082E000E1724315C789D800 /* Build configuration list for PBXNativeTarget "libbrotli_dec.dylib" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				6DC841687FC7180050EC6471153DD800D2AD9E1E83DA3000 /* Release */,
+				F10621297BB41000B894265DADAD600039854845278C9A00 /* Debug */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+};
+rootObject = 08FB7793FE84155DC02AAC07 /* Project object */;
+}

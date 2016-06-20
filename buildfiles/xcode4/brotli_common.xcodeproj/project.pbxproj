@@ -1,0 +1,208 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 46;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		F2F0AE68752FB000278860FD6EF16C001BECC6DDA8F06E00 /* dictionary.c in Sources */ = {isa = PBXBuildFile; fileRef = BFD6F1DB753620007D5AC719BDA70000E9B3B830245D300 /* dictionary.c */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		6BC98619E244AC00534D4956869748008FEFB6B998CF9000 /* types.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = types.h; path = ../../common/types.h; sourceTree = "<group>"; };
+		7BAB352A0634880090191C30A9801000E6A998E1C450E000 /* port.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = port.h; path = ../../common/port.h; sourceTree = "<group>"; };
+		9835F75C5D978800ABAFBE1DB8D8D80090E66D6A8C332000 /* libbrotli_common.dylib */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.dylib"; includeInIndex = 0; name = libbrotli_common.dylib; path = libbrotli_common.dylib; sourceTree = BUILT_PRODUCTS_DIR; };
+		A1C25C010AD178005F46313F53426000F086A5A897E13000 /* dictionary.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = dictionary.h; path = ../../common/dictionary.h; sourceTree = "<group>"; };
+		B051615D5E23B800B25F5EF98449E800C76D88ECEB50E000 /* constants.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = constants.h; path = ../../common/constants.h; sourceTree = "<group>"; };
+		BFD6F1DB753620007D5AC719BDA70000E9B3B830245D300 /* dictionary.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = dictionary.c; path = ../../common/dictionary.c; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		9FE39800EFEF1000DE21508467C7A80C731169A1EF59000 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		2CC07956215F3E00D97A51215A1A000065442395E9B13C00 /* brotli_common */ = {
+			isa = PBXGroup;
+			children = (
+				B051615D5E23B800B25F5EF98449E800C76D88ECEB50E000 /* constants.h */,
+				BFD6F1DB753620007D5AC719BDA70000E9B3B830245D300 /* dictionary.c */,
+				A1C25C010AD178005F46313F53426000F086A5A897E13000 /* dictionary.h */,
+				7BAB352A0634880090191C30A9801000E6A998E1C450E000 /* port.h */,
+				6BC98619E244AC00534D4956869748008FEFB6B998CF9000 /* types.h */,
+				DE2FD571A6C938008E134D4D9B3FB000BA17F9BDEA135000 /* Products */,
+			);
+			name = brotli_common;
+			sourceTree = "<group>";
+		};
+		DE2FD571A6C938008E134D4D9B3FB000BA17F9BDEA135000 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				9835F75C5D978800ABAFBE1DB8D8D80090E66D6A8C332000 /* libbrotli_common.dylib */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		C5F4D23620A7F00E62CB04083D6300051F80AE5C08B5400 /* brotli_common */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 9FE397FFDE2A5800DE2150734B7C300C73116990D30D800 /* Build configuration list for PBXNativeTarget "brotli_common" */;
+			buildPhases = (
+				9FE398045FD69000DE2150BB663FB00C731169D8EDD1000 /* Resources */,
+				9FE39804C983A800DE2150C20111480C731169DF88A2800 /* Sources */,
+				9FE39800EFEF1000DE21508467C7A80C731169A1EF59000 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = brotli_common;
+			productName = brotli_common;
+			productReference = 9835F75C5D978800ABAFBE1DB8D8D80090E66D6A8C332000 /* libbrotli_common.dylib */;
+			productType = "com.apple.product-type.library.dynamic";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		08FB7793FE84155DC02AAC07 /* Project object */ = {
+			isa = PBXProject;
+			buildConfigurationList = 1DEB928908733DD80010E9CD /* Build configuration list for PBXProject "brotli_common" */;
+			compatibilityVersion = "Xcode 3.2";
+			hasScannedForEncodings = 1;
+			mainGroup = 2CC07956215F3E00D97A51215A1A000065442395E9B13C00 /* brotli_common */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				C5F4D23620A7F00E62CB04083D6300051F80AE5C08B5400 /* libbrotli_common.dylib */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		9FE398045FD69000DE2150BB663FB00C731169D8EDD1000 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		9FE39804C983A800DE2150C20111480C731169DF88A2800 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				F2F0AE68752FB000278860FD6EF16C001BECC6DDA8F06E00 /* dictionary.c in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXVariantGroup section */
+/* End PBXVariantGroup section */
+
+/* Begin XCBuildConfiguration section */
+		3BDBC9691DBD6C0051F5302334D008005635609A24EC0000 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ARCHS = "$(NATIVE_ARCH_ACTUAL)";
+				CONFIGURATION_BUILD_DIR = "$(SYMROOT)";
+				CONFIGURATION_TEMP_DIR = "$(OBJROOT)";
+				GCC_C_LANGUAGE_STANDARD = gnu99;
+				GCC_OPTIMIZATION_LEVEL = 3;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					DOS_MACOSX,
+				);
+				GCC_SYMBOLS_PRIVATE_EXTERN = NO;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				OBJROOT = obj/Release/brotli_common;
+				ONLY_ACTIVE_ARCH = NO;
+				STANDARD_C_PLUS_PLUS_LIBRARY_TYPE = static;
+				SYMROOT = ../../bin;
+			};
+			name = Release;
+		};
+		7EDF4B619C925C00C687CF7CE0E1000080703ED823083800 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CONFIGURATION_BUILD_DIR = ../../bin;
+				EXECUTABLE_PREFIX = lib;
+				GCC_DYNAMIC_NO_PIC = NO;
+				INSTALL_PATH = /usr/local/lib;
+				PRODUCT_NAME = brotli_common;
+			};
+			name = Debug;
+		};
+		89934A6AAB68F0004789E9304E571400C09B99C6DD7CF000 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ARCHS = "$(NATIVE_ARCH_ACTUAL)";
+				CONFIGURATION_BUILD_DIR = "$(SYMROOT)";
+				CONFIGURATION_TEMP_DIR = "$(OBJROOT)";
+				COPY_PHASE_STRIP = NO;
+				GCC_C_LANGUAGE_STANDARD = gnu99;
+				GCC_ENABLE_FIX_AND_CONTINUE = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					DOS_MACOSX,
+				);
+				GCC_SYMBOLS_PRIVATE_EXTERN = NO;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				OBJROOT = obj/Debug/brotli_common;
+				ONLY_ACTIVE_ARCH = YES;
+				SYMROOT = ../../bin;
+			};
+			name = Debug;
+		};
+		D694DA2C515FD800AA6ED229E3EDA0008030855E4CC64800 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CONFIGURATION_BUILD_DIR = ../../bin;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				EXECUTABLE_PREFIX = lib;
+				GCC_DYNAMIC_NO_PIC = NO;
+				INSTALL_PATH = /usr/local/lib;
+				PRODUCT_NAME = brotli_common;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		1DEB928908733DD80010E9CD /* Build configuration list for PBXProject "brotli_common" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				3BDBC9691DBD6C0051F5302334D008005635609A24EC0000 /* Release */,
+				89934A6AAB68F0004789E9304E571400C09B99C6DD7CF000 /* Debug */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		9FE397FFDE2A5800DE2150734B7C300C73116990D30D800 /* Build configuration list for PBXNativeTarget "libbrotli_common.dylib" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				D694DA2C515FD800AA6ED229E3EDA0008030855E4CC64800 /* Release */,
+				7EDF4B619C925C00C687CF7CE0E1000080703ED823083800 /* Debug */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+};
+rootObject = 08FB7793FE84155DC02AAC07 /* Project object */;
+}

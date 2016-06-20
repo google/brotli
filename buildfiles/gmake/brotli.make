@@ -13,19 +13,19 @@ endif
 ifeq ($(config),release)
   RESCOMP = windres
   TARGETDIR = ../../bin
-  TARGET = $(TARGETDIR)/libbrotli_enc.so
-  OBJDIR = obj/Release/brotli_enc
+  TARGET = $(TARGETDIR)/libbrotli.a
+  OBJDIR = obj/Release/brotli
   DEFINES +=
   INCLUDES +=
   FORCE_INCLUDE +=
   ALL_CPPFLAGS += $(CPPFLAGS) -MMD -MP $(DEFINES) $(INCLUDES)
-  ALL_CFLAGS += $(CFLAGS) $(ALL_CPPFLAGS) -O3 -fPIC -Wall -fno-omit-frame-pointer
+  ALL_CFLAGS += $(CFLAGS) $(ALL_CPPFLAGS) -O3 -Wall -fno-omit-frame-pointer
   ALL_CXXFLAGS += $(CXXFLAGS) $(ALL_CFLAGS)
   ALL_RESFLAGS += $(RESFLAGS) $(DEFINES) $(INCLUDES)
-  LIBS += -Wl,--start-group -lbrotli_common -lm -Wl,--end-group
-  LDDEPS += ../../bin/libbrotli_common.so
-  ALL_LDFLAGS += $(LDFLAGS) -L../../bin -s -shared
-  LINKCMD = $(CC) -o "$@" $(OBJECTS) $(RESOURCES) $(ALL_LDFLAGS) $(LIBS)
+  LIBS += -lm
+  LDDEPS +=
+  ALL_LDFLAGS += $(LDFLAGS) -s
+  LINKCMD = $(AR) -rcs "$@" $(OBJECTS)
   define PREBUILDCMDS
   endef
   define PRELINKCMDS
@@ -40,19 +40,19 @@ endif
 ifeq ($(config),debug)
   RESCOMP = windres
   TARGETDIR = ../../bin
-  TARGET = $(TARGETDIR)/libbrotli_enc.so
-  OBJDIR = obj/Debug/brotli_enc
+  TARGET = $(TARGETDIR)/libbrotli.a
+  OBJDIR = obj/Debug/brotli
   DEFINES +=
   INCLUDES +=
   FORCE_INCLUDE +=
   ALL_CPPFLAGS += $(CPPFLAGS) -MMD -MP $(DEFINES) $(INCLUDES)
-  ALL_CFLAGS += $(CFLAGS) $(ALL_CPPFLAGS) -g -fPIC -Wall -fno-omit-frame-pointer
+  ALL_CFLAGS += $(CFLAGS) $(ALL_CPPFLAGS) -g -Wall -fno-omit-frame-pointer
   ALL_CXXFLAGS += $(CXXFLAGS) $(ALL_CFLAGS)
   ALL_RESFLAGS += $(RESFLAGS) $(DEFINES) $(INCLUDES)
-  LIBS += -Wl,--start-group -lbrotli_common -lm -Wl,--end-group
-  LDDEPS += ../../bin/libbrotli_common.so
-  ALL_LDFLAGS += $(LDFLAGS) -L../../bin -shared
-  LINKCMD = $(CC) -o "$@" $(OBJECTS) $(RESOURCES) $(ALL_LDFLAGS) $(LIBS)
+  LIBS += -lm
+  LDDEPS +=
+  ALL_LDFLAGS += $(LDFLAGS)
+  LINKCMD = $(AR) -rcs "$@" $(OBJECTS)
   define PREBUILDCMDS
   endef
   define PRELINKCMDS
@@ -65,6 +65,11 @@ all: $(TARGETDIR) $(OBJDIR) prebuild prelink $(TARGET)
 endif
 
 OBJECTS := \
+	$(OBJDIR)/dictionary.o \
+	$(OBJDIR)/bit_reader.o \
+	$(OBJDIR)/decode.o \
+	$(OBJDIR)/huffman.o \
+	$(OBJDIR)/state.o \
 	$(OBJDIR)/backward_references.o \
 	$(OBJDIR)/bit_cost.o \
 	$(OBJDIR)/block_splitter.o \
@@ -94,7 +99,7 @@ ifeq (/bin,$(findstring /bin,$(SHELL)))
 endif
 
 $(TARGET): $(GCH) ${CUSTOMFILES} $(OBJECTS) $(LDDEPS) $(RESOURCES)
-	@echo Linking brotli_enc
+	@echo Linking brotli
 	$(SILENT) $(LINKCMD)
 	$(POSTBUILDCMDS)
 
@@ -115,7 +120,7 @@ else
 endif
 
 clean:
-	@echo Cleaning brotli_enc
+	@echo Cleaning brotli
 ifeq (posix,$(SHELLTYPE))
 	$(SILENT) rm -f  $(TARGET)
 	$(SILENT) rm -rf $(OBJDIR)
@@ -137,6 +142,21 @@ $(GCH): $(PCH)
 	$(SILENT) $(CC) -x c-header $(ALL_CFLAGS) -o "$@" -MF "$(@:%.gch=%.d)" -c "$<"
 endif
 
+$(OBJDIR)/dictionary.o: ../../common/dictionary.c
+	@echo $(notdir $<)
+	$(SILENT) $(CC) $(ALL_CFLAGS) $(FORCE_INCLUDE) -o "$@" -MF "$(@:%.o=%.d)" -c "$<"
+$(OBJDIR)/bit_reader.o: ../../dec/bit_reader.c
+	@echo $(notdir $<)
+	$(SILENT) $(CC) $(ALL_CFLAGS) $(FORCE_INCLUDE) -o "$@" -MF "$(@:%.o=%.d)" -c "$<"
+$(OBJDIR)/decode.o: ../../dec/decode.c
+	@echo $(notdir $<)
+	$(SILENT) $(CC) $(ALL_CFLAGS) $(FORCE_INCLUDE) -o "$@" -MF "$(@:%.o=%.d)" -c "$<"
+$(OBJDIR)/huffman.o: ../../dec/huffman.c
+	@echo $(notdir $<)
+	$(SILENT) $(CC) $(ALL_CFLAGS) $(FORCE_INCLUDE) -o "$@" -MF "$(@:%.o=%.d)" -c "$<"
+$(OBJDIR)/state.o: ../../dec/state.c
+	@echo $(notdir $<)
+	$(SILENT) $(CC) $(ALL_CFLAGS) $(FORCE_INCLUDE) -o "$@" -MF "$(@:%.o=%.d)" -c "$<"
 $(OBJDIR)/backward_references.o: ../../enc/backward_references.c
 	@echo $(notdir $<)
 	$(SILENT) $(CC) $(ALL_CFLAGS) $(FORCE_INCLUDE) -o "$@" -MF "$(@:%.o=%.d)" -c "$<"

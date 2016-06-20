@@ -1,0 +1,261 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 46;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		AA3E9C5E42846800270913D843376400C250D740B7193800 /* bro.c in Sources */ = {isa = PBXBuildFile; fileRef = 9F004FB129E75000E2F520E379FAE800E7F941E9FC791800 /* bro.c */; };
+		BC1D634C9BA6480065BCB6A1908AA000D75A0579B35EB000 /* libbrotli.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 7AD4727551CEC0005E1330D14B6F1400D9FE3213BF02700 /* libbrotli.a */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		941712E7FCEC5800519AE826455D3C00E2DB5C8F89FC1000 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = C74EE30EF8F6880051D68E932DC39400845EEE384D3EB000 /* brotli.xcodeproj */;
+			proxyType = 2;
+			remoteGlobalIDString = 2AC44E67300C2A00E8BAED2CD2FA500061CC9DC362203000;
+			remoteInfo = libbrotli.a;
+		};
+		9689541E4F26C800540D295C9797B000E54D9DC5DC368000 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = C74EE30EF8F6880051D68E932DC39400845EEE384D3EB000 /* brotli.xcodeproj */;
+			proxyType = 1;
+			remoteGlobalIDString = 56A1ACDDE48A28001E53D0B556153F00EBB1713605166800;
+			remoteInfo = libbrotli.a;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		9F004FB129E75000E2F520E379FAE800E7F941E9FC791800 /* bro.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = bro.c; path = ../../tools/bro.c; sourceTree = "<group>"; };
+		B3163BFC4F39B800F70B0D2E9F4D5000FC0F2E3521CB8000 /* bro */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; name = bro; path = bro; sourceTree = BUILT_PRODUCTS_DIR; };
+		C74EE30EF8F6880051D68E932DC39400845EEE384D3EB000 /* libbrotli.a */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; name = "brotli.xcodeproj"; path = brotli.xcodeproj; sourceTree = SOURCE_ROOT; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		DD49D920DA05C80013EAB7CBC5F6D30053CC418B182E6C00 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				BC1D634C9BA6480065BCB6A1908AA000D75A0579B35EB000 /* libbrotli.a in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		59D22759A81A98009D9FD87A9306C000547340DADAEC8400 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				7AD4727551CEC0005E1330D14B6F1400D9FE3213BF02700 /* libbrotli.a */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		A073485D1FD220015022F30DD2DD2001BA741B736D05000 /* bro */ = {
+			isa = PBXGroup;
+			children = (
+				9F004FB129E75000E2F520E379FAE800E7F941E9FC791800 /* bro.c */,
+				DE2FD571A6C938008E134D4D9B3FB000BA17F9BDEA135000 /* Products */,
+				DE2FDC7F9D9690008E13545B920D0800BA1800CBE0E0A800 /* Projects */,
+			);
+			name = bro;
+			sourceTree = "<group>";
+		};
+		DE2FD571A6C938008E134D4D9B3FB000BA17F9BDEA135000 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				B3163BFC4F39B800F70B0D2E9F4D5000FC0F2E3521CB8000 /* bro */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		DE2FDC7F9D9690008E13545B920D0800BA1800CBE0E0A800 /* Projects */ = {
+			isa = PBXGroup;
+			children = (
+				C74EE30EF8F6880051D68E932DC39400845EEE384D3EB000 /* brotli.xcodeproj */,
+			);
+			name = Projects;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		3BBB6E3F80A2CE00E875460AB95D9800743F187F48F4CC00 /* bro */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = DD49D91FC841100013EAB7CAB4321B0053CC418A0669B400 /* Build configuration list for PBXNativeTarget "bro" */;
+			buildPhases = (
+				DD49D92449ED480013EAB7CF35DE530053CC418E8815EC00 /* Resources */,
+				DD49D924B39A600013EAB7CF9F8B6D0053CC418EF1C30800 /* Sources */,
+				DD49D920DA05C80013EAB7CBC5F6D30053CC418B182E6C00 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				59E5219095D2D4009DB2D2B180BEF80054863B11C8A4C400 /* PBXTargetDependency */,
+			);
+			name = bro;
+			productInstallPath = "$(HOME)/bin";
+			productName = bro;
+			productReference = B3163BFC4F39B800F70B0D2E9F4D5000FC0F2E3521CB8000 /* bro */;
+			productType = "com.apple.product-type.tool";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		08FB7793FE84155DC02AAC07 /* Project object */ = {
+			isa = PBXProject;
+			buildConfigurationList = 1DEB928908733DD80010E9CD /* Build configuration list for PBXProject "bro" */;
+			compatibilityVersion = "Xcode 3.2";
+			hasScannedForEncodings = 1;
+			mainGroup = A073485D1FD220015022F30DD2DD2001BA741B736D05000 /* bro */;
+			projectDirPath = "";
+			projectReferences = (
+				{
+					ProductGroup = 59D22759A81A98009D9FD87A9306C000547340DADAEC8400 /* Products */;
+					ProjectRef = C74EE30EF8F6880051D68E932DC39400845EEE384D3EB000 /* brotli.xcodeproj */;
+				},
+			);
+			projectRoot = "";
+			targets = (
+				3BBB6E3F80A2CE00E875460AB95D9800743F187F48F4CC00 /* bro */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXReferenceProxy section */
+		7AD4727551CEC0005E1330D14B6F1400D9FE3213BF02700 /* libbrotli.a */ = {
+			isa = PBXReferenceProxy;
+			fileType = archive.ar;
+			path = libbrotli.a;
+			remoteRef = 941712E7FCEC5800519AE826455D3C00E2DB5C8F89FC1000 /* PBXContainerItemProxy */;
+			sourceTree = BUILT_PRODUCTS_DIR;
+		};
+/* End PBXReferenceProxy section */
+
+/* Begin PBXResourcesBuildPhase section */
+		DD49D92449ED480013EAB7CF35DE530053CC418E8815EC00 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		DD49D924B39A600013EAB7CF9F8B6D0053CC418EF1C30800 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				AA3E9C5E42846800270913D843376400C250D740B7193800 /* bro.c in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		59E5219095D2D4009DB2D2B180BEF80054863B11C8A4C400 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			name = libbrotli.a;
+			targetProxy = 9689541E4F26C800540D295C9797B000E54D9DC5DC368000 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin PBXVariantGroup section */
+/* End PBXVariantGroup section */
+
+/* Begin XCBuildConfiguration section */
+		1CE6FA726FB2CC003300612C86C56800374091A376E16200 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CONFIGURATION_BUILD_DIR = ../../bin;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				GCC_DYNAMIC_NO_PIC = NO;
+				INSTALL_PATH = /usr/local/bin;
+				PRODUCT_NAME = bro;
+			};
+			name = Release;
+		};
+		5724788107CE6000B977AD96B431200077E2A47372B99800 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ARCHS = "$(NATIVE_ARCH_ACTUAL)";
+				CONFIGURATION_BUILD_DIR = "$(SYMROOT)";
+				CONFIGURATION_TEMP_DIR = "$(OBJROOT)";
+				COPY_PHASE_STRIP = NO;
+				GCC_C_LANGUAGE_STANDARD = gnu99;
+				GCC_ENABLE_FIX_AND_CONTINUE = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					DOS_MACOSX,
+				);
+				GCC_SYMBOLS_PRIVATE_EXTERN = NO;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				OBJROOT = obj/Debug/bro;
+				ONLY_ACTIVE_ARCH = YES;
+				SYMROOT = ../../bin;
+			};
+			name = Debug;
+		};
+		B270D6882955F800F665A7BA79699000FB69C8C0FBE7C000 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ARCHS = "$(NATIVE_ARCH_ACTUAL)";
+				CONFIGURATION_BUILD_DIR = "$(SYMROOT)";
+				CONFIGURATION_TEMP_DIR = "$(OBJROOT)";
+				GCC_C_LANGUAGE_STANDARD = gnu99;
+				GCC_OPTIMIZATION_LEVEL = 3;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					DOS_MACOSX,
+				);
+				GCC_SYMBOLS_PRIVATE_EXTERN = NO;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				OBJROOT = obj/Release/bro;
+				ONLY_ACTIVE_ARCH = NO;
+				STANDARD_C_PLUS_PLUS_LIBRARY_TYPE = static;
+				SYMROOT = ../../bin;
+			};
+			name = Release;
+		};
+		F52E5B2941DC0800B324F9EEE4CA28002C36AA8573F00A00 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CONFIGURATION_BUILD_DIR = ../../bin;
+				GCC_DYNAMIC_NO_PIC = NO;
+				INSTALL_PATH = /usr/local/bin;
+				PRODUCT_NAME = bro;
+			};
+			name = Debug;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		1DEB928908733DD80010E9CD /* Build configuration list for PBXProject "bro" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				B270D6882955F800F665A7BA79699000FB69C8C0FBE7C000 /* Release */,
+				5724788107CE6000B977AD96B431200077E2A47372B99800 /* Debug */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		DD49D91FC841100013EAB7CAB4321B0053CC418A0669B400 /* Build configuration list for PBXNativeTarget "bro" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				1CE6FA726FB2CC003300612C86C56800374091A376E16200 /* Release */,
+				F52E5B2941DC0800B324F9EEE4CA28002C36AA8573F00A00 /* Debug */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+};
+rootObject = 08FB7793FE84155DC02AAC07 /* Project object */;
+}
