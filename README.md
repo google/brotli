@@ -1,5 +1,4 @@
-brotli
-======
+### Introduction
 
 Brotli is a generic-purpose lossless compression algorithm that compresses data
 using a combination of a modern variant of the LZ77 algorithm, Huffman coding
@@ -17,3 +16,8 @@ Brotli mailing list:
 https://groups.google.com/forum/#!forum/brotli
 
 [![Build Status](https://travis-ci.org/google/brotli.svg?branch=master)](https://travis-ci.org/google/brotli)
+
+### Related projects
+Independent [decoder](https://github.com/madler/brotli) implementation by Mark Adler, based entirely on format specification.
+
+JavaScript port of brotli [decoder](https://github.com/devongovett/brotli.js). Could be used directly via `npm install brotli`
