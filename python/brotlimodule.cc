@@ -174,7 +174,7 @@ static PyObject* brotli_compress(PyObject *self, PyObject *args, PyObject *keywd
 end:
   BrotliEncoderDestroyInstance(enc);
   if (ok) {
-    ret = PyBytes_FromStringAndSize((char*)output, output_length);
+    ret = PyBytes_FromStringAndSize((char*)output, output_length - available_out);
   } else {
     PyErr_SetString(BrotliError, "BrotliCompressBuffer failed");
   }
