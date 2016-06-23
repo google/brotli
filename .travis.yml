@@ -1,32 +1,53 @@
-language:
-- objective-c
+language: c
+dist: trusty
+os:
+- linux
+- osx
+
 env:
   matrix:
-  - INSTALL_TYPE='system' VERSION=2.7
-  - INSTALL_TYPE='macpython' VERSION=2.7.10 CC=clang CXX=clang++
-  - INSTALL_TYPE='macpython' VERSION=3.4.3 CC=clang CXX=clang++
-  - INSTALL_TYPE='macpython' VERSION=3.5.0 CC=clang CXX=clang++
-  - INSTALL_TYPE='homebrew' VERSION=2.7.10
-  - INSTALL_TYPE='homebrew' VERSION=3.4.3
-  - INSTALL_TYPE='homebrew' VERSION=3.5.0
+  - BUILD_SYSTEM='python' INSTALL_TYPE='system' PYTHON_VERSION=2.7
+  - BUILD_SYSTEM='python' INSTALL_TYPE='macpython' PYTHON_VERSION=2.7.10 CC=clang CXX=clang++
+  - BUILD_SYSTEM='python' INSTALL_TYPE='macpython' PYTHON_VERSION=3.4.3 CC=clang CXX=clang++
+  - BUILD_SYSTEM='python' INSTALL_TYPE='macpython' PYTHON_VERSION=3.5.0 CC=clang CXX=clang++
+  - BUILD_SYSTEM='python' INSTALL_TYPE='homebrew' PYTHON_VERSION=2.7.10
+  - BUILD_SYSTEM='python' INSTALL_TYPE='homebrew' PYTHON_VERSION=3.4.3
+  - BUILD_SYSTEM='python' INSTALL_TYPE='homebrew' PYTHON_VERSION=3.5.0
+  - BUILD_SYSTEM='cmake' CC=gcc CXX=g++
+  - BUILD_SYSTEM='cmake' CC=clang CXX=clang++
+
+matrix:
+  exclude:
+  - os: linux
+    env: BUILD_SYSTEM='python' INSTALL_TYPE='macpython' PYTHON_VERSION=2.7.10 CC=clang CXX=clang++
+  - os: linux
+    env: BUILD_SYSTEM='python' INSTALL_TYPE='macpython' PYTHON_VERSION=3.4.3 CC=clang CXX=clang++
+  - os: linux
+    env: BUILD_SYSTEM='python' INSTALL_TYPE='macpython' PYTHON_VERSION=3.5.0 CC=clang CXX=clang++
+  - os: linux
+    env: BUILD_SYSTEM='python' INSTALL_TYPE='homebrew' PYTHON_VERSION=2.7.10
+  - os: linux
+    env: BUILD_SYSTEM='python' INSTALL_TYPE='homebrew' PYTHON_VERSION=3.4.3
+  - os: linux
+    env: BUILD_SYSTEM='python' INSTALL_TYPE='homebrew' PYTHON_VERSION=3.5.0
+
 install:
-- source terryfy/travis_tools.sh
-- get_python_environment $INSTALL_TYPE $VERSION venv
-- pip install --upgrade wheel
+- ./buildfiles/.travis.sh install
 script:
-- python setup.py build_ext test
+- ./buildfiles/.travis.sh script
 after_success:
-- pip wheel -w dist .
+- ./buildfiles/.travis.sh after_success
+
 before_deploy:
-- export WHEELS=$(ls ./dist/*.whl)
+- if [ "${BUILD_SYSTEM}" = "python" ]; then export WHEELS=$(ls ./dist/*.whl); fi
 
 deploy:
   provider: releases
   api_key:
     secure: YcCBi6W/w4dtKCa59Wfm8L5lGWvK7KxaFNDr3yh1Hz5aStXXf758pEMHGewnlbfbwuj5a3SjBb1nLp1M69OQJfxm442uXBaBKo52PM9PPbD7NjvbNIso73pqcSODXQXKuZxDFpEhfuDTVq3hUkUqiwhChWhrFucJsSL51i7qSss=
-  file:
-    - "${WHEELS}"
+  file: "${WHEELS}"
   skip_cleanup: true
   on:
-    repo: google/brotli
+    repo: "google/brotli"
     tags: true
+    condition: "${BUILD_SYSTEM} = python"
