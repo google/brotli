@@ -21,103 +21,47 @@ STRICT_C_OPTIONS = [
     "-Wsign-compare",
 ]
 
-COMMON_HEADERS = [
-    "common/constants.h",
-    "common/dictionary.h",
-    "common/port.h",
-    "common/types.h",
-]
+filegroup(
+    name = "common_headers",
+    srcs = glob(["common/*.h"]),
+)
 
-COMMON_SOURCES = [
-    "common/dictionary.c",
-]
+filegroup(
+    name = "common_sources",
+    srcs = glob(["common/*.c"]),
+)
 
-DEC_HEADERS = [
-    "dec/bit_reader.h",
-    "dec/context.h",
-    "dec/decode.h",
-    "dec/huffman.h",
-    "dec/port.h",
-    "dec/prefix.h",
-    "dec/state.h",
-    "dec/transform.h",
-]
+filegroup(
+    name = "dec_headers",
+    srcs = glob(["dec/*.h"]),
+)
 
-DEC_SOURCES = [
-    "dec/bit_reader.c",
-    "dec/decode.c",
-    "dec/huffman.c",
-    "dec/state.c",
-]
+filegroup(
+    name = "dec_sources",
+    srcs = glob(["dec/*.c"]),
+)
 
-ENC_HEADERS = [
-    "enc/backward_references.h",
-    "enc/backward_references_inc.h",
-    "enc/bit_cost.h",
-    "enc/bit_cost_inc.h",
-    "enc/block_encoder_inc.h",
-    "enc/block_splitter.h",
-    "enc/block_splitter_inc.h",
-    "enc/brotli_bit_stream.h",
-    "enc/cluster.h",
-    "enc/cluster_inc.h",
-    "enc/command.h",
-    "enc/compress_fragment.h",
-    "enc/compress_fragment_two_pass.h",
-    "enc/context.h",
-    "enc/dictionary_hash.h",
-    "enc/encode.h",
-    "enc/entropy_encode.h",
-    "enc/entropy_encode_static.h",
-    "enc/fast_log.h",
-    "enc/find_match_length.h",
-    "enc/hash.h",
-    "enc/hash_longest_match_inc.h",
-    "enc/hash_longest_match_quickly_inc.h",
-    "enc/histogram.h",
-    "enc/histogram_inc.h",
-    "enc/literal_cost.h",
-    "enc/memory.h",
-    "enc/metablock.h",
-    "enc/metablock_inc.h",
-    "enc/port.h",
-    "enc/prefix.h",
-    "enc/ringbuffer.h",
-    "enc/static_dict.h",
-    "enc/static_dict_lut.h",
-    "enc/utf8_util.h",
-    "enc/write_bits.h",
-]
+filegroup(
+    name = "enc_headers",
+    srcs = glob(["enc/*.h"]),
+)
 
-ENC_SOURCES = [
-    "enc/backward_references.c",
-    "enc/bit_cost.c",
-    "enc/block_splitter.c",
-    "enc/brotli_bit_stream.c",
-    "enc/cluster.c",
-    "enc/compress_fragment.c",
-    "enc/compress_fragment_two_pass.c",
-    "enc/encode.c",
-    "enc/entropy_encode.c",
-    "enc/histogram.c",
-    "enc/literal_cost.c",
-    "enc/memory.c",
-    "enc/metablock.c",
-    "enc/static_dict.c",
-    "enc/utf8_util.c",
-]
+filegroup(
+    name = "enc_sources",
+    srcs = glob(["enc/*.c"]),
+)
 
 cc_library(
     name = "brotli_common",
-    srcs = COMMON_SOURCES,
-    hdrs = COMMON_HEADERS,
+    srcs = [":common_sources"],
+    hdrs = [":common_headers"],
     copts = STRICT_C_OPTIONS,
 )
 
 cc_library(
     name = "brotli_dec",
-    srcs = DEC_SOURCES,
-    hdrs = DEC_HEADERS,
+    srcs = [":dec_sources"],
+    hdrs = [":dec_headers"],
     copts = STRICT_C_OPTIONS,
     deps = [
         ":brotli_common",
@@ -126,8 +70,8 @@ cc_library(
 
 cc_library(
     name = "brotli_enc",
-    srcs = ENC_SOURCES,
-    hdrs = ENC_HEADERS,
+    srcs = [":enc_sources"],
+    hdrs = [":enc_headers"],
     copts = STRICT_C_OPTIONS,
     deps = [
         ":brotli_common",
@@ -138,6 +82,7 @@ cc_binary(
     name = "bro",
     srcs = ["tools/bro.c"],
     copts = STRICT_C_OPTIONS,
+    linkstatic = 1,
     deps = [
         ":brotli_dec",
         ":brotli_enc",

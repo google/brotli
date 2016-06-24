@@ -4,6 +4,6 @@
 *.bro
 *.unbro
 bin/
-buildfiles/gmake/config.make
+buildfiles/
 **/obj/
 dist/

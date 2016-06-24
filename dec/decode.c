@@ -1268,27 +1268,36 @@ static BrotliErrorCode BROTLI_NOINLINE CopyUncompressedBlockToOutput(
 int BrotliDecompressedSize(size_t encoded_size,
                            const uint8_t* encoded_buffer,
                            size_t* decoded_size) {
+  size_t total_size = 0;
   BrotliState s;
-  int next_block_header;
+  BrotliBitReader* br;
   BrotliStateInit(&s);
-  s.br.next_in = encoded_buffer;
-  s.br.avail_in = encoded_size;
-  if (!BrotliWarmupBitReader(&s.br)) {
-    return 0;
+  br = &s.br;
+  *decoded_size = 0;
+  br->next_in = encoded_buffer;
+  br->avail_in = encoded_size;
+  if (!BrotliWarmupBitReader(br)) return 0;
+  DecodeWindowBits(br);
+  while (1) {
+    size_t block_size;
+    if (DecodeMetaBlockLength(&s, br) != BROTLI_SUCCESS) return 0;
+    block_size = (size_t)s.meta_block_remaining_len;
+    if (!s.is_metadata) {
+      if ((block_size + total_size) < total_size) return 0;
+      total_size += block_size;
+    }
+    if (s.is_last_metablock) {
+      *decoded_size = total_size;
+      return 1;
+    }
+    if (!s.is_uncompressed && !s.is_metadata) return 0;
+    if (!BrotliJumpToByteBoundary(br)) return 0;
+    BrotliBitReaderUnload(br);
+    if (br->avail_in < block_size) return 0;
+    br->avail_in -= block_size;
+    br->next_in += block_size;
+    if (!BrotliWarmupBitReader(br)) return 0;
   }
-  DecodeWindowBits(&s.br);
-  if (DecodeMetaBlockLength(&s, &s.br) != BROTLI_SUCCESS) {
-    return 0;
-  }
-  *decoded_size = (size_t)s.meta_block_remaining_len;
-  if (s.is_last_metablock) {
-    return 1;
-  }
-  if (!s.is_uncompressed || !BrotliJumpToByteBoundary(&s.br)) {
-    return 0;
-  }
-  next_block_header = BrotliPeekByte(&s.br, (size_t)s.meta_block_remaining_len);
-  return (next_block_header != -1) && ((next_block_header & 3) == 3);
 }
 
 /* Calculates the smallest feasible ring buffer.

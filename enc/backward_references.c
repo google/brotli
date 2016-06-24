@@ -265,6 +265,7 @@ typedef struct PosData {
   size_t pos;
   int distance_cache[4];
   float costdiff;
+  float cost;
 } PosData;
 
 /* Maintains the smallest 8 cost difference together with their positions */
@@ -303,16 +304,12 @@ static const PosData* StartPosQueueAt(const StartPosQueue* self, size_t k) {
 
 /* Returns the minimum possible copy length that can improve the cost of any */
 /* future position. */
-static size_t ComputeMinimumCopyLength(const StartPosQueue* queue,
+static size_t ComputeMinimumCopyLength(const float start_cost,
                                        const ZopfliNode* nodes,
-                                       const ZopfliCostModel* model,
                                        const size_t num_bytes,
                                        const size_t pos) {
   /* Compute the minimum possible cost of reaching any future position. */
-  const size_t start0 = StartPosQueueAt(queue, 0)->pos;
-  float min_cost = (nodes[start0].u.cost +
-                    ZopfliCostModelGetLiteralCosts(model, start0, pos) +
-                    ZopfliCostModelGetMinCostCmd(model));
+  float min_cost = start_cost;
   size_t len = 2;
   size_t next_len_bucket = 4;
   size_t next_len_offset = 10;
@@ -332,6 +329,31 @@ static size_t ComputeMinimumCopyLength(const StartPosQueue* queue,
   return len;
 }
 
+/* REQUIRES: nodes[pos].cost < kInfinity
+   REQUIRES: nodes[0..pos] satisfies that "ZopfliNode array invariant". */
+static uint32_t ComputeDistanceShortcut(const size_t block_start,
+                                        const size_t pos,
+                                        const size_t max_backward,
+                                        const ZopfliNode* nodes) {
+  const size_t clen = ZopfliNodeCopyLength(&nodes[pos]);
+  const size_t ilen = nodes[pos].insert_length;
+  const size_t dist = ZopfliNodeCopyDistance(&nodes[pos]);
+  /* Since |block_start + pos| is the end position of the command, the copy part
+     starts from |block_start + pos - clen|. Distances that are greater than
+     this or greater than |max_backward| are static dictionary references, and
+     do not update the last distances. Also distance code 0 (last distance)
+     does not update the last distances. */
+  if (pos == 0) {
+    return 0;
+  } else if (dist + clen <= block_start + pos &&
+             dist <= max_backward &&
+             ZopfliNodeDistanceCode(&nodes[pos]) > 0) {
+    return (uint32_t)pos;
+  } else {
+    return nodes[pos - clen - ilen].u.shortcut;
+  }
+}
+
 /* Fills in dist_cache[0..3] with the last four distances (as defined by
    Section 4. of the Spec) that would be used at (block_start + pos) if we
    used the shortest path of commands from block_start, computed from
@@ -339,30 +361,19 @@ static size_t ComputeMinimumCopyLength(const StartPosQueue* queue,
    starting_dist_cach[0..3].
    REQUIRES: nodes[pos].cost < kInfinity
    REQUIRES: nodes[0..pos] satisfies that "ZopfliNode array invariant". */
-static void ComputeDistanceCache(const size_t block_start,
-                                 const size_t pos,
-                                 const size_t max_backward,
+static void ComputeDistanceCache(const size_t pos,
                                  const int* starting_dist_cache,
                                  const ZopfliNode* nodes,
                                  int* dist_cache) {
   int idx = 0;
-  size_t p = pos;
-  /* Because of prerequisite, does at most (pos + 1) / 2 iterations. */
+  size_t p = nodes[pos].u.shortcut;
   while (idx < 4 && p > 0) {
-    const size_t clen = ZopfliNodeCopyLength(&nodes[p]);
     const size_t ilen = nodes[p].insert_length;
+    const size_t clen = ZopfliNodeCopyLength(&nodes[p]);
     const size_t dist = ZopfliNodeCopyDistance(&nodes[p]);
-    /* Since block_start + p is the end position of the command, the copy part
-       starts from block_start + p - clen. Distances that are greater than this
-       or greater than max_backward are static dictionary references, and do
-       not update the last distances. Also distance code 0 (last distance)
-       does not update the last distances. */
-    if (dist + clen <= block_start + p && dist <= max_backward &&
-        ZopfliNodeDistanceCode(&nodes[p]) > 0) {
-      dist_cache[idx++] = (int)dist;
-    }
+    dist_cache[idx++] = (int)dist;
     /* Because of prerequisite, p >= clen + ilen >= 2. */
-    p -= clen + ilen;
+    p = nodes[p - clen - ilen].u.shortcut;
   }
   for (; idx < 4; ++idx) {
     dist_cache[idx] = *starting_dist_cache++;
@@ -391,17 +402,29 @@ static void UpdateNodes(const size_t num_bytes,
   size_t min_len;
   size_t k;
 
-  if (nodes[pos].u.cost <= ZopfliCostModelGetLiteralCosts(model, 0, pos)) {
-    PosData posdata;
-    posdata.pos = pos;
-    posdata.costdiff = nodes[pos].u.cost -
+  {
+    /* Save cost, because ComputeDistanceCache invalidates it. */
+    float node_cost = nodes[pos].u.cost;
+    nodes[pos].u.shortcut = ComputeDistanceShortcut(
+        block_start, pos, max_backward_limit, nodes);
+    if (node_cost <= ZopfliCostModelGetLiteralCosts(model, 0, pos)) {
+      PosData posdata;
+      posdata.pos = pos;
+      posdata.cost = node_cost;
+      posdata.costdiff = node_cost -
         ZopfliCostModelGetLiteralCosts(model, 0, pos);
-    ComputeDistanceCache(block_start, pos, max_backward_limit,
-                         starting_dist_cache, nodes, posdata.distance_cache);
-    StartPosQueuePush(queue, &posdata);
+      ComputeDistanceCache(
+          pos, starting_dist_cache, nodes, posdata.distance_cache);
+      StartPosQueuePush(queue, &posdata);
+    }
   }
 
-  min_len = ComputeMinimumCopyLength(queue, nodes, model, num_bytes, pos);
+  {
+    const PosData* posdata = StartPosQueueAt(queue, 0);
+    float min_cost = (posdata->cost + ZopfliCostModelGetMinCostCmd(model) +
+        ZopfliCostModelGetLiteralCosts(model, posdata->pos, pos));
+    min_len = ComputeMinimumCopyLength(min_cost, nodes, num_bytes, pos);
+  }
 
   /* Go over the command starting positions in order of increasing cost
      difference. */
@@ -512,7 +535,7 @@ static size_t ComputeShortestPathFromNodes(size_t num_bytes,
     ZopfliNode* nodes) {
   size_t index = num_bytes;
   size_t num_commands = 0;
-  while (nodes[index].u.cost == kInfinity) --index;
+  while (nodes[index].insert_length == 0 && nodes[index].length == 1) --index;
   nodes[index].u.next = BROTLI_UINT32_MAX;
   while (index != 0) {
     size_t len = ZopfliNodeCommandLength(&nodes[index]);

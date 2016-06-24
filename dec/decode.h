@@ -90,9 +90,8 @@ BrotliState* BrotliCreateState(
 void BrotliDestroyState(BrotliState* state);
 
 /* Sets |*decoded_size| to the decompressed size of the given encoded stream.
-   This function only works if the encoded buffer has a single meta block,
-   or if it has two meta-blocks, where the first is uncompressed and the
-   second is empty.
+   This function only works if the only compressed block, is last block.
+   There is no limit on number of uncompressed and metadata blocks.
    Returns 1 on success, 0 on failure. */
 int BrotliDecompressedSize(size_t encoded_size,
                            const uint8_t* encoded_buffer,
