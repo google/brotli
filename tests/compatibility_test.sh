@@ -5,12 +5,14 @@
 
 set -o errexit
 
-BRO=../bin/bro
+BRO=bin/bro
+TMP_DIR=bin/tmp
 
-for file in testdata/*.compressed*; do
+for file in tests/testdata/*.compressed*; do
   echo "Testing decompression of file $file"
   expected=${file%.compressed*}
-  uncompressed=${expected}.uncompressed
+  uncompressed=${TMP_DIR}/${expected##*/}.uncompressed
+  echo $uncompressed
   $BRO -f -d -i $file -o $uncompressed
   diff -q $uncompressed $expected
   # Test the streaming version
@@ -18,4 +20,3 @@ for file in testdata/*.compressed*; do
   diff -q $uncompressed $expected
   rm -f $uncompressed
 done
-

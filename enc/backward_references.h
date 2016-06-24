@@ -51,15 +51,17 @@ typedef struct ZopfliNode {
   uint32_t insert_length;
 
   /* This union holds information used by dynamic-programming. During forward
-     pass |cost| it used to store the goal function. On path backtracing pass
-     |next| is assigned the offset to next node on the path. As |cost| is not
-     used after the forward pass, it shares the memory with |next|. */
+     pass |cost| it used to store the goal function. When node is processed its
+     |cost| is invalidated in favor of |shortcut|. On path backtracing pass
+     |next| is assigned the offset to next node on the path. */
   union {
     /* Smallest cost to get to this byte from the beginning, as found so far. */
     float cost;
     /* Offset to the next node on the path. Equals to command_length() of the
        next node on the path. For last node equals to BROTLI_UINT32_MAX */
     uint32_t next;
+    /* Node position that provides next distance for distance cache. */
+    uint32_t shortcut;
   } u;
 } ZopfliNode;
 
