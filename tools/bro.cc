@@ -19,10 +19,14 @@
 #include "../dec/decode.h"
 #include "../enc/compressor.h"
 
-#if !defined(_WIN32)
 #include <unistd.h>
-#else
+#if defined(_WIN32)
 #include <io.h>
+#include <share.h>
+#undef STDIN_FILENO
+#undef STDOUT_FILENO
+#undef S_IRUSR
+#undef S_IWUSR
 
 #define STDIN_FILENO _fileno(stdin)
 #define STDOUT_FILENO _fileno(stdout)
