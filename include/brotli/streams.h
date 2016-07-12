@@ -6,13 +6,12 @@
 
 /* Input and output classes for streaming brotli compression. */
 
-#ifndef BROTLI_ENC_STREAMS_H_
-#define BROTLI_ENC_STREAMS_H_
+#ifndef BROTLI_STREAMS_H_
+#define BROTLI_STREAMS_H_
 
+#include <stddef.h>  /* for size_t */
 #include <stdio.h>
 #include <string>
-
-#include "../common/types.h"
 
 namespace brotli {
 
@@ -118,4 +117,4 @@ class BrotliFileOut : public BrotliOut {
 
 }  /* namespace brotli */
 
-#endif  /* BROTLI_ENC_STREAMS_H_ */
+#endif  /* BROTLI_STREAMS_H_ */

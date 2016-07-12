@@ -6,10 +6,10 @@
 
 /* API for Brotli decompression */
 
-#ifndef BROTLI_DEC_DECODE_H_
-#define BROTLI_DEC_DECODE_H_
+#ifndef BROTLI_DECODE_H_
+#define BROTLI_DECODE_H_
 
-#include "../common/types.h"
+#include <brotli/types.h>
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
@@ -158,4 +158,4 @@ const char* BrotliErrorString(BrotliErrorCode c);
 } /* extern "C" */
 #endif
 
-#endif  /* BROTLI_DEC_DECODE_H_ */
+#endif  /* BROTLI_DECODE_H_ */

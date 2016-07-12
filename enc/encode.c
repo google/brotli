@@ -6,7 +6,7 @@
 
 /* Implementation of Brotli compressor. */
 
-#include "./encode.h"
+#include <brotli/encode.h>
 
 #include <stdlib.h>  /* free, malloc */
 #include <string.h>  /* memcpy, memset */

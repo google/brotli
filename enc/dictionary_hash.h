@@ -9,7 +9,7 @@
 #ifndef BROTLI_ENC_DICTIONARY_HASH_H_
 #define BROTLI_ENC_DICTIONARY_HASH_H_
 
-#include "../common/types.h"
+#include <brotli/types.h>
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {

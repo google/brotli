@@ -11,7 +11,7 @@
 #include <string.h>  /* memset */
 
 #include "../common/constants.h"
-#include "../common/types.h"
+#include <brotli/types.h>
 #include "./port.h"
 
 #if defined(__cplusplus) || defined(c_plusplus)

@@ -11,8 +11,8 @@
 #ifndef BROTLI_ENC_ENCODE_PARALLEL_H_
 #define BROTLI_ENC_ENCODE_PARALLEL_H_
 
-#include "../common/types.h"
-#include "./compressor.h"
+#include <brotli/types.h>
+#include <brotli/compressor.h>
 
 namespace brotli {
 

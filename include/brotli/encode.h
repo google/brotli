@@ -6,10 +6,10 @@
 
 /* API for Brotli compression. */
 
-#ifndef BROTLI_ENC_ENCODE_H_
-#define BROTLI_ENC_ENCODE_H_
+#ifndef BROTLI_ENCODE_H_
+#define BROTLI_ENCODE_H_
 
-#include "../common/types.h"
+#include <brotli/types.h>
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
@@ -216,4 +216,4 @@ int BrotliEncoderHasMoreOutput(BrotliEncoderState* s);
 }  /* extern "C" */
 #endif
 
-#endif  /* BROTLI_ENC_ENCODE_H_ */
+#endif  /* BROTLI_ENCODE_H_ */

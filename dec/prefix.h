@@ -12,7 +12,7 @@
 #define BROTLI_DEC_PREFIX_H_
 
 #include "../common/constants.h"
-#include "../common/types.h"
+#include <brotli/types.h>
 
 /* Represents the range of values belonging to a prefix code: */
 /* [offset, offset + 2^nbits) */

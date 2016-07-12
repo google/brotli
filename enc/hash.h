@@ -13,7 +13,7 @@
 #include <string.h>  /* memcmp, memset */
 
 #include "../common/dictionary.h"
-#include "../common/types.h"
+#include <brotli/types.h>
 #include "./dictionary_hash.h"
 #include "./fast_log.h"
 #include "./find_match_length.h"

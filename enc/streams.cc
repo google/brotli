@@ -7,7 +7,7 @@
 /* Convience routines to make Brotli I/O classes from some memory containers and
    files. */
 
-#include "./streams.h"
+#include <brotli/streams.h>
 
 #include <assert.h>
 #include <stdlib.h>

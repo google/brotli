@@ -12,7 +12,7 @@
 #include <string.h>  /* memset */
 
 #include "../common/constants.h"
-#include "../common/types.h"
+#include <brotli/types.h>
 #include "./block_splitter.h"
 #include "./command.h"
 #include "./context.h"

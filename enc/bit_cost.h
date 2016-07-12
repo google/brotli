@@ -9,7 +9,7 @@
 #ifndef BROTLI_ENC_BIT_COST_H_
 #define BROTLI_ENC_BIT_COST_H_
 
-#include "../common/types.h"
+#include <brotli/types.h>
 #include "./fast_log.h"
 #include "./histogram.h"
 #include "./port.h"

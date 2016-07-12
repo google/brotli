@@ -8,7 +8,7 @@
 
 #include "./cluster.h"
 
-#include "../common/types.h"
+#include <brotli/types.h>
 #include "./bit_cost.h"  /* BrotliPopulationCost */
 #include "./fast_log.h"
 #include "./histogram.h"
