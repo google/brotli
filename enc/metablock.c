@@ -10,7 +10,7 @@
 #include "./metablock.h"
 
 #include "../common/constants.h"
-#include "../common/types.h"
+#include <brotli/types.h>
 #include "./bit_cost.h"
 #include "./block_splitter.h"
 #include "./cluster.h"

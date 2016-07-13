@@ -7,7 +7,7 @@ OBJECTS = $(addprefix $(OBJDIR)/, $(SOURCES:.c=.o))
 EXECUTABLE = bro
 DIRS = $(OBJDIR)/common $(OBJDIR)/dec $(OBJDIR)/enc \
        $(OBJDIR)/tools $(BINDIR)/tmp
-CFLAGS += -O2
+CFLAGS += -O2 -Iinclude
 ifeq ($(os), Darwin)
   CPPFLAGS += -DOS_MACOSX
 endif

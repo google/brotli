@@ -2,8 +2,8 @@
 #include <Python.h>
 #include <bytesobject.h>
 #include <vector>
-#include "../enc/encode.h"
-#include "../dec/decode.h"
+#include <brotli/encode.h>
+#include <brotli/decode.h>
 #include "../tools/version.h"
 
 #if PY_MAJOR_VERSION >= 3

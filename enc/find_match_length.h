@@ -9,7 +9,7 @@
 #ifndef BROTLI_ENC_FIND_MATCH_LENGTH_H_
 #define BROTLI_ENC_FIND_MATCH_LENGTH_H_
 
-#include "../common/types.h"
+#include <brotli/types.h>
 #include "./port.h"
 
 #if defined(__cplusplus) || defined(c_plusplus)

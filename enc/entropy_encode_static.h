@@ -11,7 +11,7 @@
 
 #include "../common/constants.h"
 #include "../common/port.h"
-#include "../common/types.h"
+#include <brotli/types.h>
 #include "./write_bits.h"
 
 #if defined(__cplusplus) || defined(c_plusplus)

@@ -6,7 +6,7 @@
 
 /* Brotli compressor API C++ wrapper and utilities. */
 
-#include "./compressor.h"
+#include <brotli/compressor.h>
 
 #include <cstdlib>  /* exit */
 

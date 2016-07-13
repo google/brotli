@@ -6,8 +6,8 @@
 
 /* Common types */
 
-#ifndef BROTLI_COMMON_TYPES_H_
-#define BROTLI_COMMON_TYPES_H_
+#ifndef BROTLI_TYPES_H_
+#define BROTLI_TYPES_H_
 
 #include <stddef.h>  /* for size_t */
 
@@ -40,4 +40,4 @@ typedef void* (*brotli_alloc_func)(void* opaque, size_t size);
    address is 0. */
 typedef void (*brotli_free_func)(void* opaque, void* address);
 
-#endif  /* BROTLI_COMMON_TYPES_H_ */
+#endif  /* BROTLI_TYPES_H_ */

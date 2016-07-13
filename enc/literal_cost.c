@@ -9,7 +9,7 @@
 
 #include "./literal_cost.h"
 
-#include "../common/types.h"
+#include <brotli/types.h>
 #include "./fast_log.h"
 #include "./port.h"
 #include "./utf8_util.h"

@@ -9,6 +9,7 @@ licenses(["notice"])  # MIT
 
 STRICT_C_OPTIONS = [
     "--pedantic-errors",
+    "-Iinclude",
     "-Wall",
     "-Wconversion",
     "-Werror",
@@ -23,7 +24,7 @@ STRICT_C_OPTIONS = [
 
 filegroup(
     name = "common_headers",
-    srcs = glob(["common/*.h"]),
+    srcs = glob(["common/*.h"] + ["include/brotli/types.h"]),
 )
 
 filegroup(
@@ -33,7 +34,7 @@ filegroup(
 
 filegroup(
     name = "dec_headers",
-    srcs = glob(["dec/*.h"]),
+    srcs = glob(["dec/*.h"]) + ["include/brotli/decode.h"],
 )
 
 filegroup(
@@ -43,7 +44,7 @@ filegroup(
 
 filegroup(
     name = "enc_headers",
-    srcs = glob(["enc/*.h"]),
+    srcs = glob(["enc/*.h"] + ["include/brotli/encode.h"]),
 )
 
 filegroup(
@@ -56,6 +57,7 @@ cc_library(
     srcs = [":common_sources"],
     hdrs = [":common_headers"],
     copts = STRICT_C_OPTIONS,
+    includes = ["include"],
 )
 
 cc_library(
@@ -63,6 +65,7 @@ cc_library(
     srcs = [":dec_sources"],
     hdrs = [":dec_headers"],
     copts = STRICT_C_OPTIONS,
+    includes = ["include"],
     deps = [
         ":brotli_common",
     ],
@@ -73,18 +76,19 @@ cc_library(
     srcs = [":enc_sources"],
     hdrs = [":enc_headers"],
     copts = STRICT_C_OPTIONS,
+    includes = ["include"],
     deps = [
         ":brotli_common",
     ],
 )
 
-cc_binary(
-    name = "bro",
-    srcs = ["tools/bro.c"],
-    copts = STRICT_C_OPTIONS,
-    linkstatic = 1,
-    deps = [
-        ":brotli_dec",
-        ":brotli_enc",
-    ],
-)
+# cc_binary(
+#     name = "bro",
+#     srcs = ["tools/bro.c"],
+#     copts = STRICT_C_OPTIONS,
+#     linkstatic = 1,
+#     deps = [
+#         ":brotli_dec",
+#         ":brotli_enc",
+#     ],
+# )

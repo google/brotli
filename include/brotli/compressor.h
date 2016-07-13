@@ -6,11 +6,11 @@
 
 /* C++ API for Brotli compression. */
 
-#ifndef BROTLI_ENC_COMPRESSOR_H_
-#define BROTLI_ENC_COMPRESSOR_H_
+#ifndef BROTLI_COMPRESSOR_H_
+#define BROTLI_COMPRESSOR_H_
 
-#include "./encode.h"
-#include "./streams.h"
+#include <brotli/encode.h>
+#include <brotli/streams.h>
 
 namespace brotli {
 
@@ -158,4 +158,4 @@ int BrotliCompressWithCustomDictionary(size_t dictsize, const uint8_t* dict,
 
 }  /* namespace brotli */
 
-#endif  /* BROTLI_ENC_COMPRESSOR_H_ */
+#endif  /* BROTLI_COMPRESSOR_H_ */

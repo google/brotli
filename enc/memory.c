@@ -13,7 +13,7 @@
 #include <stdlib.h>  /* exit, free, malloc */
 #include <string.h>  /* memcpy */
 
-#include "../common/types.h"
+#include <brotli/types.h>
 #include "./port.h"
 
 #if defined(__cplusplus) || defined(c_plusplus)

@@ -12,7 +12,7 @@
 #include <string.h>  /* memcpy, memset */
 
 #include "../common/constants.h"
-#include "../common/types.h"
+#include <brotli/types.h>
 #include "./command.h"
 #include "./fast_log.h"
 #include "./find_match_length.h"
