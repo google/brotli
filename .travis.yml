@@ -79,53 +79,44 @@ matrix:
           - g++-4.4
 
     ###
-    ## clang 3.5-3.8 are currently disabled.  LLVM's repo was down for
-    ## a while, so Travis disabled the repository.  LLVM's apt repos
-    ## are back up, but Travis has yet to re-enable them.  For
-    ## details, see
-    ## https://github.com/travis-ci/apt-source-whitelist/issues/279
-    ###
-    # - os: linux
-    #   env: BUILD_SYSTEM=cmake C_COMPILER=clang-3.8 CXX_COMPILER=clang++-3.8
-    #   addons:
-    #     apt:
-    #       sources:
-    #       - llvm-toolchain-precise-3.8
-    #       packages:
-    #       - clang-3.8
-    #       - clang-3.8
-    # - os: linux
-    #   env: BUILD_SYSTEM=cmake C_COMPILER=clang-3.7 CXX_COMPILER=clang++-3.7
-    #   addons:
-    #     apt:
-    #       sources:
-    #       - llvm-toolchain-precise-3.7
-    #       packages:
-    #       - clang-3.7
-    #       - clang-3.7
-    # - os: linux
-    #   env: BUILD_SYSTEM=cmake C_COMPILER=clang-3.6 CXX_COMPILER=clang++-3.6
-    #   addons:
-    #     apt:
-    #       sources:
-    #       - llvm-toolchain-precise-3.6
-    #       packages:
-    #       - clang-3.6
-    #       - clang-3.6
-    # - os: linux
-    #   env: BUILD_SYSTEM=cmake C_COMPILER=clang-3.5 CXX_COMPILER=clang++-3.5
-    #   addons:
-    #     apt:
-    #       sources:
-    #       - llvm-toolchain-precise-3.5
-    #       packages:
-    #       - clang-3.5
-    #       - clang-3.5
-    ###
-    ## clang/clang++ on 12.04 is 3.4
+    ## clang on Linux
     ###
     - os: linux
-      env: BUILD_SYSTEM=cmake C_COMPILER=clang CXX_COMPILER=clang++
+      env: BUILD_SYSTEM=cmake C_COMPILER=clang-3.8 CXX_COMPILER=clang++-3.8
+      addons:
+        apt:
+          sources:
+          - llvm-toolchain-precise-3.8
+          - ubuntu-toolchain-r-test
+          packages:
+          - clang-3.8
+    - os: linux
+      env: BUILD_SYSTEM=cmake C_COMPILER=clang-3.7 CXX_COMPILER=clang++-3.7
+      addons:
+        apt:
+          sources:
+          - llvm-toolchain-precise-3.7
+          - ubuntu-toolchain-r-test
+          packages:
+          - clang-3.7
+    - os: linux
+      env: BUILD_SYSTEM=cmake C_COMPILER=clang-3.6 CXX_COMPILER=clang++-3.6
+      addons:
+        apt:
+          sources:
+          - llvm-toolchain-precise-3.6
+          - ubuntu-toolchain-r-test
+          packages:
+          - clang-3.6
+    - os: linux
+      env: BUILD_SYSTEM=cmake C_COMPILER=clang-3.5 CXX_COMPILER=clang++-3.5
+      addons:
+        apt:
+          sources:
+          - llvm-toolchain-precise-3.5
+          - ubuntu-toolchain-r-test
+          packages:
+          - clang-3.5
 
     ###
     ## Python build on Linux
