@@ -178,29 +178,28 @@ matrix:
     ##
     ## There is a bug in the current Ubuntu 12.04 packages (from the
     ## ubuntu-toolchain-r-test repository) which causes an error when
-    ## linking when using a sanitizer.  Once that issue is resolved,
-    ## these can be enabled.  Unfortunately, the ubuntu-toolchain-r
-    ## repository doesn't allow bug reports, so there is no way to
-    ## track the issue (or even know if they are aware of it).
+    ## linking when using a sanitizer with newer version of GCC (due
+    ## to an old version of ld being installed), so we're stuck with
+    ## GCC 4.9 here.
     ###
+    - os: linux
+      env: BUILD_SYSTEM=cmake C_COMPILER=gcc-4.9 CXX_COMPILER=g++-4.9 SANITIZER=address
+      addons:
+        apt:
+          sources:
+          - ubuntu-toolchain-r-test
+          packages:
+          - gcc-4.9
+          - g++-4.9
     # - os: linux
-    #   env: BUILD_SYSTEM=cmake C_COMPILER=gcc-6 CXX_COMPILER=g++-6 SANITIZER=address
+    #   env: BUILD_SYSTEM=cmake C_COMPILER=gcc-4.9 CXX_COMPILER=g++-4.9 SANITIZER=thread
     #   addons:
     #     apt:
     #       sources:
     #       - ubuntu-toolchain-r-test
     #       packages:
-    #       - gcc-6
-    #       - g++-6
-    # - os: linux
-    #   env: BUILD_SYSTEM=cmake C_COMPILER=gcc-6 CXX_COMPILER=g++-6 SANITIZER=thread
-    #   addons:
-    #     apt:
-    #       sources:
-    #       - ubuntu-toolchain-r-test
-    #       packages:
-    #       - gcc-6
-    #       - g++-6
+    #       - gcc-4.9
+    #       - g++-4.9
 
 before_install:
 ###
