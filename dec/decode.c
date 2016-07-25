@@ -916,7 +916,7 @@ static BrotliDecoderErrorCode HuffmanTreeGroupDecode(
 static BrotliDecoderErrorCode DecodeContextMap(uint32_t context_map_size,
                                                uint32_t* num_htrees,
                                                uint8_t** context_map_arg,
-                                               BrotliState* s) {
+                                               BrotliDecoderState* s) {
   BrotliBitReader* br = &s->br;
   BrotliDecoderErrorCode result = BROTLI_DECODER_SUCCESS;
 
