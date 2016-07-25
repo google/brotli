@@ -2303,6 +2303,45 @@ const char* BrotliDecoderErrorString(BrotliDecoderErrorCode c) {
   }
 }
 
+/* DEPRECATED >>> */
+BrotliState* BrotliCreateState(
+    brotli_alloc_func alloc, brotli_free_func free, void* opaque) {
+  return (BrotliState*)BrotliDecoderCreateInstance(alloc, free, opaque);
+}
+void BrotliDestroyState(BrotliState* state) {
+  BrotliDecoderDestroyInstance((BrotliDecoderState*)state);
+}
+BrotliResult BrotliDecompressBuffer(
+    size_t encoded_size, const uint8_t* encoded_buffer, size_t* decoded_size,
+    uint8_t* decoded_buffer) {
+  return (BrotliResult)BrotliDecoderDecompress(
+      encoded_size, encoded_buffer, decoded_size, decoded_buffer);
+}
+BrotliResult BrotliDecompressStream(
+    size_t* available_in, const uint8_t** next_in, size_t* available_out,
+    uint8_t** next_out, size_t* total_out, BrotliState* s) {
+  return (BrotliResult)BrotliDecoderDecompressStream((BrotliDecoderState*)s,
+      available_in, next_in, available_out, next_out, total_out);
+}
+void BrotliSetCustomDictionary(
+    size_t size, const uint8_t* dict, BrotliState* s) {
+  BrotliDecoderSetCustomDictionary((BrotliDecoderState*)s, size, dict);
+}
+BROTLI_BOOL BrotliStateIsStreamStart(const BrotliState* s) {
+  return !BrotliDecoderIsUsed((const BrotliDecoderState*)s);
+}
+BROTLI_BOOL BrotliStateIsStreamEnd(const BrotliState* s) {
+  return BrotliDecoderIsFinished((const BrotliDecoderState*)s);
+}
+BrotliErrorCode BrotliGetErrorCode(const BrotliState* s) {
+  return (BrotliErrorCode)BrotliDecoderGetErrorCode(
+      (const BrotliDecoderState*)s);
+}
+const char* BrotliErrorString(BrotliErrorCode c) {
+  return BrotliDecoderErrorString((BrotliDecoderErrorCode)c);
+}
+/* <<< DEPRECATED */
+
 #if defined(__cplusplus) || defined(c_plusplus)
 }  /* extern "C" */
 #endif

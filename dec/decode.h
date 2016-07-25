@@ -162,44 +162,23 @@ typedef enum {
 #undef _BROTLI_COMMA
 } BrotliErrorCode;
 typedef struct BrotliStateStruct BrotliState;
-static inline BrotliState* BrotliCreateState(
-    brotli_alloc_func alloc, brotli_free_func free, void* opaque) {
-  return (BrotliState*)BrotliDecoderCreateInstance(alloc, free, opaque);
-}
-static inline void BrotliDestroyState(BrotliState* state) {
-  BrotliDecoderDestroyInstance((BrotliDecoderState*)state);
-}
+BrotliState* BrotliCreateState(
+    brotli_alloc_func alloc, brotli_free_func free, void* opaque);
+void BrotliDestroyState(BrotliState* state);
 BROTLI_BOOL BrotliDecompressedSize(
     size_t encoded_size, const uint8_t* encoded_buffer, size_t* decoded_size);
-static inline BrotliResult BrotliDecompressBuffer(
+BrotliResult BrotliDecompressBuffer(
     size_t encoded_size, const uint8_t* encoded_buffer, size_t* decoded_size,
-    uint8_t* decoded_buffer) {
-  return (BrotliResult)BrotliDecoderDecompress(
-      encoded_size, encoded_buffer, decoded_size, decoded_buffer);
-}
-static inline BrotliResult BrotliDecompressStream(
+    uint8_t* decoded_buffer);
+BrotliResult BrotliDecompressStream(
     size_t* available_in, const uint8_t** next_in, size_t* available_out,
-    uint8_t** next_out, size_t* total_out, BrotliState* s) {
-  return (BrotliResult)BrotliDecoderDecompressStream((BrotliDecoderState*)s,
-      available_in, next_in, available_out, next_out, total_out);
-}
-static inline void BrotliSetCustomDictionary(
-    size_t size, const uint8_t* dict, BrotliState* s) {
-  BrotliDecoderSetCustomDictionary((BrotliDecoderState*)s, size, dict);
-}
-static inline BROTLI_BOOL BrotliStateIsStreamStart(const BrotliState* s) {
-  return !BrotliDecoderIsUsed((const BrotliDecoderState*)s);
-}
-static inline BROTLI_BOOL BrotliStateIsStreamEnd(const BrotliState* s) {
-  return BrotliDecoderIsFinished((const BrotliDecoderState*)s);
-}
-static inline BrotliErrorCode BrotliGetErrorCode(const BrotliState* s) {
-  return (BrotliErrorCode)BrotliDecoderGetErrorCode(
-      (const BrotliDecoderState*)s);
-}
-static inline const char* BrotliErrorString(BrotliErrorCode c) {
-  return BrotliDecoderErrorString((BrotliDecoderErrorCode)c);
-}
+    uint8_t** next_out, size_t* total_out, BrotliState* s);
+void BrotliSetCustomDictionary(
+    size_t size, const uint8_t* dict, BrotliState* s);
+BROTLI_BOOL BrotliStateIsStreamStart(const BrotliState* s);
+BROTLI_BOOL BrotliStateIsStreamEnd(const BrotliState* s);
+BrotliErrorCode BrotliGetErrorCode(const BrotliState* s);
+const char* BrotliErrorString(BrotliErrorCode c);
 /* <<< DEPRECATED */
 
 #if defined(__cplusplus) || defined(c_plusplus)
