@@ -423,7 +423,7 @@ int main(int argc, char** argv) {
   clock_start = clock();
   for (i = 0; i < repeat; ++i) {
     FILE* fin = OpenInputFile(input_path);
-    FILE* fout = OpenOutputFile(output_path, force);
+    FILE* fout = OpenOutputFile(output_path, force || repeat);
     int is_ok = 0;
     if (decompress) {
       is_ok = Decompress(fin, fout, dictionary_path);
