@@ -175,35 +175,38 @@ matrix:
 
     ###
     ## Sanitizers
-    ##
-    ## There is a bug in the current Ubuntu 12.04 packages (from the
-    ## ubuntu-toolchain-r-test repository) which causes an error when
-    ## linking when using a sanitizer with newer version of GCC (due
-    ## to an old version of ld being installed), so we're stuck with
-    ## GCC 4.9 here.
     ###
     - os: linux
-      env: BUILD_SYSTEM=cmake C_COMPILER=gcc-4.9 CXX_COMPILER=g++-4.9 SANITIZER=address
+      env: BUILD_SYSTEM=cmake C_COMPILER=clang-3.8 CXX_COMPILER=clang++-3.8 SANITIZER=address
       addons:
         apt:
           sources:
           - ubuntu-toolchain-r-test
+          - llvm-toolchain-precise-3.8
           packages:
-          - gcc-4.9
-          - g++-4.9
-    # - os: linux
-    #   env: BUILD_SYSTEM=cmake C_COMPILER=gcc-4.9 CXX_COMPILER=g++-4.9 SANITIZER=thread
-    #   addons:
-    #     apt:
-    #       sources:
-    #       - ubuntu-toolchain-r-test
-    #       packages:
-    #       - gcc-4.9
-    #       - g++-4.9
+          - clang-3.8
+    - os: linux
+      env: BUILD_SYSTEM=cmake C_COMPILER=clang-3.8 CXX_COMPILER=clang++-3.8 SANITIZER=thread
+      addons:
+        apt:
+          sources:
+          - ubuntu-toolchain-r-test
+          - llvm-toolchain-precise-3.8
+          packages:
+          - clang-3.8
+    - os: linux
+      env: BUILD_SYSTEM=cmake C_COMPILER=clang-3.8 CXX_COMPILER=clang++-3.8 SANITIZER=undefined CFLAGS="-fno-sanitize-recover=undefined,integer"
+      addons:
+        apt:
+          sources:
+          - ubuntu-toolchain-r-test
+          - llvm-toolchain-precise-3.8
+          packages:
+          - clang-3.8
 
 before_install:
 ###
-## If we use the matrix to set CC/CXX, Travis overwrites the values,
+## If we use the matrix to set CC/CXX Travis, overwrites the values,
 ## so instead we use C/CXX_COMPILER, then copy the values to CC/CXX
 ## here (after Travis has set CC/CXX).
 ###

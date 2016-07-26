@@ -36,6 +36,12 @@ if (ENABLE_SANITIZER)
   set(CMAKE_C_FLAGS " ${CMAKE_C_FLAGS} -fsanitize=${ENABLE_SANITIZER}")
   set(CMAKE_CXX_FLAGS " ${CMAKE_CXX_FLAGS} -fsanitize=${ENABLE_SANITIZER}")
   set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fsanitize=${ENABLE_SANITIZER}")
+
+  # By default, brotli depends on undefined behavior, but setting
+  # BROTLI_BUILD_PORTABLE should result in a build which does not.
+  if(ENABLE_SANITIZER STREQUAL "undefined")
+    add_definitions(-DBROTLI_BUILD_PORTABLE)
+  endif()
 endif ()
 
 set(BROTLI_INCLUDE_DIRS "${CMAKE_CURRENT_SOURCE_DIR}")

@@ -27,9 +27,9 @@ case "$1" in
 	case "${BUILD_SYSTEM}" in
 	    "cmake")
 		mkdir builddir && cd builddir
-		cmake -DCMAKE_C_COMPILER="$CC" -DCMAKE_CXX_COMPILER="$CXX" -DENABLE_SANITIZER="${SANITIZER}" ..
+		cmake -DCMAKE_C_COMPILER="$CC" -DCMAKE_CXX_COMPILER="$CXX" -DENABLE_SANITIZER="${SANITIZER}" -DCMAKE_C_FLAGS="${CFLAGS}" ..
 		make VERBOSE=1
-		make test
+		ctest -V
 		;;
 	    "python")
                 python setup.py build_ext test
