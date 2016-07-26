@@ -15,7 +15,7 @@ BROTLI_INTERNAL void FN(BrotliCompareAndPushToQueue)(
     const HistogramType* out, const uint32_t* cluster_size, uint32_t idx1,
     uint32_t idx2, size_t max_num_pairs, HistogramPair* pairs,
     size_t* num_pairs) CODE({
-  int is_good_pair = 0;
+  BROTLI_BOOL is_good_pair = BROTLI_FALSE;
   HistogramPair p;
   if (idx1 == idx2) {
     return;
@@ -33,10 +33,10 @@ BROTLI_INTERNAL void FN(BrotliCompareAndPushToQueue)(
 
   if (out[idx1].total_count_ == 0) {
     p.cost_combo = out[idx2].bit_cost_;
-    is_good_pair = 1;
+    is_good_pair = BROTLI_TRUE;
   } else if (out[idx2].total_count_ == 0) {
     p.cost_combo = out[idx1].bit_cost_;
-    is_good_pair = 1;
+    is_good_pair = BROTLI_TRUE;
   } else {
     double threshold = *num_pairs == 0 ? 1e99 :
         BROTLI_MAX(double, 0.0, pairs[0].cost_diff);
@@ -46,7 +46,7 @@ BROTLI_INTERNAL void FN(BrotliCompareAndPushToQueue)(
     cost_combo = FN(BrotliPopulationCost)(&combo);
     if (cost_combo < threshold - p.cost_diff) {
       p.cost_combo = cost_combo;
-      is_good_pair = 1;
+      is_good_pair = BROTLI_TRUE;
     }
   }
   if (is_good_pair) {

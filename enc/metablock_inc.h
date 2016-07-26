@@ -81,8 +81,8 @@ static void FN(InitBlockSplitter)(
      (1) emits the current block with a new block type;
      (2) emits the current block with the type of the second last block;
      (3) merges the current block with the last block. */
-static void FN(BlockSplitterFinishBlock)(FN(BlockSplitter)* self,
-    int is_final) {
+static void FN(BlockSplitterFinishBlock)(
+    FN(BlockSplitter)* self, BROTLI_BOOL is_final) {
   BlockSplit* split = self->split_;
   double* last_entropy = self->last_entropy_;
   HistogramType* histograms = self->histograms_;
@@ -176,7 +176,7 @@ static void FN(BlockSplitterAddSymbol)(FN(BlockSplitter)* self, size_t symbol) {
   FN(HistogramAdd)(&self->histograms_[self->curr_histogram_ix_], symbol);
   ++self->block_size_;
   if (self->block_size_ == self->target_block_size_) {
-    FN(BlockSplitterFinishBlock)(self, /* is_final = */ 0);
+    FN(BlockSplitterFinishBlock)(self, /* is_final = */ BROTLI_FALSE);
   }
 }
 

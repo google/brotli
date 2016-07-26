@@ -129,7 +129,7 @@ static void StoreVarLenUint8(size_t n, size_t* storage_ix, uint8_t* storage) {
 /* Stores the compressed meta-block header.
    REQUIRES: length > 0
    REQUIRES: length <= (1 << 24) */
-static void StoreCompressedMetaBlockHeader(int is_final_block,
+static void StoreCompressedMetaBlockHeader(BROTLI_BOOL is_final_block,
                                            size_t length,
                                            size_t* storage_ix,
                                            uint8_t* storage) {
@@ -403,9 +403,9 @@ static void BuildAndStoreHuffmanTree(const uint32_t *histogram,
   }
 }
 
-static BROTLI_INLINE int SortHuffmanTree(const HuffmanTree* v0,
-                                         const HuffmanTree* v1) {
-  return (v0->total_count_ < v1->total_count_) ? 1 : 0;
+static BROTLI_INLINE BROTLI_BOOL SortHuffmanTree(
+    const HuffmanTree* v0, const HuffmanTree* v1) {
+  return TO_BROTLI_BOOL(v0->total_count_ < v1->total_count_);
 }
 
 void BrotliBuildAndStoreHuffmanTreeFast(MemoryManager* m,
@@ -716,7 +716,7 @@ static void EncodeContextMap(MemoryManager* m,
     ++histogram[rle_symbols[i] & kSymbolMask];
   }
   {
-    int use_rle = (max_run_length_prefix > 0) ? 1 : 0;
+    BROTLI_BOOL use_rle = TO_BROTLI_BOOL(max_run_length_prefix > 0);
     BrotliWriteBits(1, (uint64_t)use_rle, storage_ix, storage);
     if (use_rle) {
       BrotliWriteBits(4, max_run_length_prefix - 1, storage_ix, storage);
@@ -740,7 +740,7 @@ static void EncodeContextMap(MemoryManager* m,
 static BROTLI_INLINE void StoreBlockSwitch(BlockSplitCode* code,
                                            const uint32_t block_len,
                                            const uint8_t block_type,
-                                           int is_first_block,
+                                           BROTLI_BOOL is_first_block,
                                            size_t* storage_ix,
                                            uint8_t* storage) {
   size_t typecode = NextBlockTypeCode(&code->type_code_calculator, block_type);
@@ -945,7 +945,7 @@ void BrotliStoreMetaBlock(MemoryManager* m,
                           size_t mask,
                           uint8_t prev_byte,
                           uint8_t prev_byte2,
-                          int is_last,
+                          BROTLI_BOOL is_last,
                           uint32_t num_direct_distance_codes,
                           uint32_t distance_postfix_bits,
                           ContextType literal_context_mode,
@@ -1143,7 +1143,7 @@ void BrotliStoreMetaBlockTrivial(MemoryManager* m,
                                  size_t start_pos,
                                  size_t length,
                                  size_t mask,
-                                 int is_last,
+                                 BROTLI_BOOL is_last,
                                  const Command *commands,
                                  size_t n_commands,
                                  size_t *storage_ix,
@@ -1197,7 +1197,7 @@ void BrotliStoreMetaBlockFast(MemoryManager* m,
                               size_t start_pos,
                               size_t length,
                               size_t mask,
-                              int is_last,
+                              BROTLI_BOOL is_last,
                               const Command *commands,
                               size_t n_commands,
                               size_t *storage_ix,
@@ -1284,7 +1284,7 @@ void BrotliStoreMetaBlockFast(MemoryManager* m,
 
 /* This is for storing uncompressed blocks (simple raw storage of
    bytes-as-bytes). */
-void BrotliStoreUncompressedMetaBlock(int is_final_block,
+void BrotliStoreUncompressedMetaBlock(BROTLI_BOOL is_final_block,
                                       const uint8_t * BROTLI_RESTRICT input,
                                       size_t position, size_t mask,
                                       size_t len,

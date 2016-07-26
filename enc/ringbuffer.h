@@ -14,6 +14,7 @@
 #include "../common/types.h"
 #include "./memory.h"
 #include "./port.h"
+#include "./quality.h"
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
@@ -53,7 +54,9 @@ static BROTLI_INLINE void RingBufferInit(RingBuffer* rb) {
 }
 
 static BROTLI_INLINE void RingBufferSetup(
-    int window_bits, int tail_bits, RingBuffer* rb) {
+    const BrotliEncoderParams* params, RingBuffer* rb) {
+  int window_bits = ComputeRbBits(params);
+  int tail_bits = params->lgblock;
   *(uint32_t*)&rb->size_ = 1u << window_bits;
   *(uint32_t*)&rb->mask_ = (1u << window_bits) - 1;
   *(uint32_t*)&rb->tail_size_ = 1u << tail_bits;

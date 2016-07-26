@@ -31,7 +31,7 @@ static BROTLI_INLINE void InitHuffmanTree(HuffmanTree* self, uint32_t count,
 }
 
 /* Returns 1 is assignment of depths succeded, otherwise 0. */
-BROTLI_INTERNAL int BrotliSetDepth(
+BROTLI_INTERNAL BROTLI_BOOL BrotliSetDepth(
     int p, HuffmanTree* pool, uint8_t* depth, int max_depth);
 
 /* This function will create a Huffman tree.
@@ -77,7 +77,8 @@ BROTLI_INTERNAL void BrotliConvertBitDepthsToSymbols(const uint8_t *depth,
                                                      uint16_t *bits);
 
 /* Input size optimized Shell sort. */
-typedef int (*HuffmanTreeComparator)(const HuffmanTree*, const HuffmanTree*);
+typedef BROTLI_BOOL (*HuffmanTreeComparator)(
+    const HuffmanTree*, const HuffmanTree*);
 static BROTLI_INLINE void SortHuffmanTreeItems(HuffmanTree* items,
     const size_t n, HuffmanTreeComparator comparator) {
   static const size_t gaps[] = {132, 57, 23, 10, 4, 1};

@@ -51,7 +51,7 @@ void BrotliInitMemoryManager(
     m->opaque = opaque;
   }
 #if !defined(BROTLI_ENCODER_EXIT_ON_OOM)
-  m->is_oom = 0;
+  m->is_oom = BROTLI_FALSE;
   m->perm_allocated = 0;
   m->new_allocated = 0;
   m->new_freed = 0;
@@ -149,7 +149,7 @@ static void CollectGarbagePointers(MemoryManager* m) {
 void* BrotliAllocate(MemoryManager* m, size_t n) {
   void* result = m->alloc_func(m->opaque, n);
   if (!result) {
-    m->is_oom = 1;
+    m->is_oom = BROTLI_TRUE;
     return NULL;
   }
   if (m->new_allocated == MAX_NEW_ALLOCATED) CollectGarbagePointers(m);

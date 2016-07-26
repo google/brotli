@@ -18,6 +18,7 @@
 #include "./histogram.h"
 #include "./memory.h"
 #include "./port.h"
+#include "./quality.h"
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
@@ -127,7 +128,7 @@ void BrotliSplitBlock(MemoryManager* m,
                       const uint8_t* data,
                       const size_t pos,
                       const size_t mask,
-                      const int quality,
+                      const BrotliEncoderParams* params,
                       BlockSplit* literal_split,
                       BlockSplit* insert_and_copy_split,
                       BlockSplit* dist_split) {
@@ -142,7 +143,7 @@ void BrotliSplitBlock(MemoryManager* m,
     SplitByteVectorLiteral(
         m, literals, literals_count,
         kSymbolsPerLiteralHistogram, kMaxLiteralHistograms,
-        kLiteralStrideLength, kLiteralBlockSwitchCost, quality,
+        kLiteralStrideLength, kLiteralBlockSwitchCost, params,
         literal_split);
     if (BROTLI_IS_OOM(m)) return;
     BROTLI_FREE(m, literals);
@@ -160,7 +161,7 @@ void BrotliSplitBlock(MemoryManager* m,
     SplitByteVectorCommand(
         m, insert_and_copy_codes, num_commands,
         kSymbolsPerCommandHistogram, kMaxCommandHistograms,
-        kCommandStrideLength, kCommandBlockSwitchCost, quality,
+        kCommandStrideLength, kCommandBlockSwitchCost, params,
         insert_and_copy_split);
     if (BROTLI_IS_OOM(m)) return;
     /* TODO: reuse for distances? */
@@ -183,7 +184,7 @@ void BrotliSplitBlock(MemoryManager* m,
     SplitByteVectorDistance(
         m, distance_prefixes, j,
         kSymbolsPerDistanceHistogram, kMaxCommandHistograms,
-        kCommandStrideLength, kDistanceBlockSwitchCost, quality,
+        kCommandStrideLength, kDistanceBlockSwitchCost, params,
         dist_split);
     if (BROTLI_IS_OOM(m)) return;
     BROTLI_FREE(m, distance_prefixes);

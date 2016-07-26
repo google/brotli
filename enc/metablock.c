@@ -19,6 +19,7 @@
 #include "./histogram.h"
 #include "./memory.h"
 #include "./port.h"
+#include "./quality.h"
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
@@ -28,7 +29,7 @@ void BrotliBuildMetaBlock(MemoryManager* m,
                           const uint8_t* ringbuffer,
                           const size_t pos,
                           const size_t mask,
-                          const int quality,
+                          const BrotliEncoderParams* params,
                           uint8_t prev_byte,
                           uint8_t prev_byte2,
                           const Command* cmds,
@@ -45,7 +46,7 @@ void BrotliBuildMetaBlock(MemoryManager* m,
   size_t i;
 
   BrotliSplitBlock(m, cmds, num_commands,
-                   ringbuffer, pos, mask, quality,
+                   ringbuffer, pos, mask, params,
                    &mb->literal_split,
                    &mb->command_split,
                    &mb->distance_split);
@@ -178,9 +179,9 @@ void BrotliBuildMetaBlockGreedy(MemoryManager* m,
     }
   }
 
-  BlockSplitterFinishBlockLiteral(&lit_blocks, /* is_final = */ 1);
-  BlockSplitterFinishBlockCommand(&cmd_blocks, /* is_final = */ 1);
-  BlockSplitterFinishBlockDistance(&dist_blocks, /* is_final = */ 1);
+  BlockSplitterFinishBlockLiteral(&lit_blocks, /* is_final = */ BROTLI_TRUE);
+  BlockSplitterFinishBlockCommand(&cmd_blocks, /* is_final = */ BROTLI_TRUE);
+  BlockSplitterFinishBlockDistance(&dist_blocks, /* is_final = */ BROTLI_TRUE);
 }
 
 /* Greedy block splitter for one block category (literal, command or distance).
@@ -271,7 +272,7 @@ static void CleanupContextBlockSplitter(
      (2) emits the current block with the type of the second last block;
      (3) merges the current block with the last block. */
 static void ContextBlockSplitterFinishBlock(
-    MemoryManager* m, ContextBlockSplitter* self, int is_final) {
+    MemoryManager* m, ContextBlockSplitter* self, BROTLI_BOOL is_final) {
   BlockSplit* split = self->split_;
   const size_t num_contexts = self->num_contexts_;
   double* last_entropy = self->last_entropy_;
@@ -400,7 +401,7 @@ static void ContextBlockSplitterAddSymbol(MemoryManager* m,
       symbol);
   ++self->block_size_;
   if (self->block_size_ == self->target_block_size_) {
-    ContextBlockSplitterFinishBlock(m, self, /* is_final = */ 0);
+    ContextBlockSplitterFinishBlock(m, self, /* is_final = */ BROTLI_FALSE);
     if (BROTLI_IS_OOM(m)) return;
   }
 }
@@ -463,11 +464,11 @@ void BrotliBuildMetaBlockGreedyWithContexts(MemoryManager* m,
     }
   }
 
-  ContextBlockSplitterFinishBlock(m, &lit_blocks, /* is_final = */ 1);
+  ContextBlockSplitterFinishBlock(m, &lit_blocks, /* is_final = */ BROTLI_TRUE);
   if (BROTLI_IS_OOM(m)) return;
   CleanupContextBlockSplitter(m, &lit_blocks);
-  BlockSplitterFinishBlockCommand(&cmd_blocks, /* is_final = */ 1);
-  BlockSplitterFinishBlockDistance(&dist_blocks, /* is_final = */ 1);
+  BlockSplitterFinishBlockCommand(&cmd_blocks, /* is_final = */ BROTLI_TRUE);
+  BlockSplitterFinishBlockDistance(&dist_blocks, /* is_final = */ BROTLI_TRUE);
 
   assert(mb->literal_context_map == 0);
   mb->literal_context_map_size =

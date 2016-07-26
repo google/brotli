@@ -48,7 +48,7 @@ BROTLI_INTERNAL void BrotliStoreMetaBlock(MemoryManager* m,
                                           size_t mask,
                                           uint8_t prev_byte,
                                           uint8_t prev_byte2,
-                                          int is_final_block,
+                                          BROTLI_BOOL is_final_block,
                                           uint32_t num_direct_distance_codes,
                                           uint32_t distance_postfix_bits,
                                           ContextType literal_context_mode,
@@ -67,7 +67,7 @@ BROTLI_INTERNAL void BrotliStoreMetaBlockTrivial(MemoryManager* m,
                                                  size_t start_pos,
                                                  size_t length,
                                                  size_t mask,
-                                                 int is_last,
+                                                 BROTLI_BOOL is_last,
                                                  const Command *commands,
                                                  size_t n_commands,
                                                  size_t* storage_ix,
@@ -82,7 +82,7 @@ BROTLI_INTERNAL void BrotliStoreMetaBlockFast(MemoryManager* m,
                                               size_t start_pos,
                                               size_t length,
                                               size_t mask,
-                                              int is_last,
+                                              BROTLI_BOOL is_last,
                                               const Command *commands,
                                               size_t n_commands,
                                               size_t* storage_ix,
@@ -93,8 +93,8 @@ BROTLI_INTERNAL void BrotliStoreMetaBlockFast(MemoryManager* m,
    REQUIRES: length > 0
    REQUIRES: length <= (1 << 24) */
 BROTLI_INTERNAL void BrotliStoreUncompressedMetaBlock(
-    int is_final_block, const uint8_t* input, size_t position, size_t mask,
-    size_t len, size_t* storage_ix, uint8_t* storage);
+    BROTLI_BOOL is_final_block, const uint8_t* input, size_t position,
+    size_t mask, size_t len, size_t* storage_ix, uint8_t* storage);
 
 /* Stores an empty metadata meta-block and syncs to a byte boundary. */
 BROTLI_INTERNAL void BrotliStoreSyncMetaBlock(size_t* storage_ix,

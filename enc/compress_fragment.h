@@ -42,7 +42,7 @@ extern "C" {
 BROTLI_INTERNAL void BrotliCompressFragmentFast(MemoryManager* m,
                                                 const uint8_t* input,
                                                 size_t input_size,
-                                                int is_last,
+                                                BROTLI_BOOL is_last,
                                                 int* table, size_t table_size,
                                                 uint8_t cmd_depth[128],
                                                 uint16_t cmd_bits[128],
