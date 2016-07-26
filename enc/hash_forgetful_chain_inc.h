@@ -162,7 +162,6 @@ static BROTLI_INLINE BROTLI_BOOL FN(FindLongestMatch)(
   score_t best_score = out->score;
   size_t best_len = out->len;
   size_t i;
-  const uint32_t bytes = BROTLI_UNALIGNED_LOAD32(&data[cur_ix_masked]);
   const size_t key = FN(HashBytes)(&data[cur_ix_masked]);
   const uint8_t tiny_hash = (uint8_t)(key);
   out->len = 0;
