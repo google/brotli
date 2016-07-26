@@ -94,7 +94,7 @@ typedef enum {
   BROTLI_STATE_READ_BLOCK_LENGTH_SUFFIX
 } BrotliRunningReadBlockLengthState;
 
-struct BrotliStateStruct {
+struct BrotliDecoderStateStruct {
   BrotliRunningState state;
 
   /* This counter is reused for several disjoint loops. */
@@ -222,19 +222,22 @@ struct BrotliStateStruct {
   uint32_t trivial_literal_contexts[8];  /* 256 bits */
 };
 
-typedef struct BrotliStateStruct BrotliStateInternal;
-#define BrotliState BrotliStateInternal
+typedef struct BrotliDecoderStateStruct BrotliDecoderStateInternal;
+#define BrotliDecoderState BrotliDecoderStateInternal
 
-BROTLI_INTERNAL void BrotliStateInit(BrotliState* s);
-BROTLI_INTERNAL void BrotliStateInitWithCustomAllocators(BrotliState* s,
-    brotli_alloc_func alloc_func, brotli_free_func free_func, void* opaque);
-BROTLI_INTERNAL void BrotliStateCleanup(BrotliState* s);
-BROTLI_INTERNAL void BrotliStateMetablockBegin(BrotliState* s);
-BROTLI_INTERNAL void BrotliStateCleanupAfterMetablock(BrotliState* s);
-BROTLI_INTERNAL void BrotliHuffmanTreeGroupInit(BrotliState* s,
-    HuffmanTreeGroup* group, uint32_t alphabet_size, uint32_t ntrees);
-BROTLI_INTERNAL void BrotliHuffmanTreeGroupRelease(BrotliState* s,
-    HuffmanTreeGroup* group);
+BROTLI_INTERNAL void BrotliDecoderStateInit(BrotliDecoderState* s);
+BROTLI_INTERNAL void BrotliDecoderStateInitWithCustomAllocators(
+    BrotliDecoderState* s, brotli_alloc_func alloc_func,
+    brotli_free_func free_func, void* opaque);
+BROTLI_INTERNAL void BrotliDecoderStateCleanup(BrotliDecoderState* s);
+BROTLI_INTERNAL void BrotliDecoderStateMetablockBegin(BrotliDecoderState* s);
+BROTLI_INTERNAL void BrotliDecoderStateCleanupAfterMetablock(
+    BrotliDecoderState* s);
+BROTLI_INTERNAL void BrotliDecoderHuffmanTreeGroupInit(
+    BrotliDecoderState* s, HuffmanTreeGroup* group, uint32_t alphabet_size,
+    uint32_t ntrees);
+BROTLI_INTERNAL void BrotliDecoderHuffmanTreeGroupRelease(
+    BrotliDecoderState* s, HuffmanTreeGroup* group);
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }  /* extern "C" */
