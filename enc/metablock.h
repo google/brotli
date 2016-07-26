@@ -17,6 +17,7 @@
 #include "./histogram.h"
 #include "./memory.h"
 #include "./port.h"
+#include "./quality.h"
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
@@ -71,7 +72,7 @@ BROTLI_INTERNAL void BrotliBuildMetaBlock(MemoryManager* m,
                                           const uint8_t* ringbuffer,
                                           const size_t pos,
                                           const size_t mask,
-                                          const int quality,
+                                          const BrotliEncoderParams* params,
                                           uint8_t prev_byte,
                                           uint8_t prev_byte2,
                                           const Command* cmds,

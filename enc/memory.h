@@ -26,7 +26,7 @@ typedef struct MemoryManager {
   brotli_free_func free_func;
   void* opaque;
 #if !defined(BROTLI_ENCODER_EXIT_ON_OOM)
-  int is_oom;
+  BROTLI_BOOL is_oom;
   size_t perm_allocated;
   size_t new_allocated;
   size_t new_freed;

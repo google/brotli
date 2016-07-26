@@ -52,10 +52,11 @@ static BROTLI_INLINE uint32_t HashBytesAtOffset(
   }
 }
 
-static BROTLI_INLINE int IsMatch(const uint8_t* p1, const uint8_t* p2) {
-  return (BROTLI_UNALIGNED_LOAD32(p1) == BROTLI_UNALIGNED_LOAD32(p2) &&
-          p1[4] == p2[4] &&
-          p1[5] == p2[5]);
+static BROTLI_INLINE BROTLI_BOOL IsMatch(const uint8_t* p1, const uint8_t* p2) {
+  return TO_BROTLI_BOOL(
+      BROTLI_UNALIGNED_LOAD32(p1) == BROTLI_UNALIGNED_LOAD32(p2) &&
+      p1[4] == p2[4] &&
+      p1[5] == p2[5]);
 }
 
 /* Builds a command and distance prefix code (each 64 symbols) into "depth" and
@@ -214,7 +215,8 @@ static BROTLI_INLINE void EmitDistance(uint32_t distance, uint32_t** commands) {
 
 /* REQUIRES: len <= 1 << 20. */
 static void BrotliStoreMetaBlockHeader(
-    size_t len, int is_uncompressed, size_t* storage_ix, uint8_t* storage) {
+    size_t len, BROTLI_BOOL is_uncompressed, size_t* storage_ix,
+    uint8_t* storage) {
   /* ISLAST */
   BrotliWriteBits(1, 0, storage_ix, storage);
   if (len <= (1U << 16)) {
@@ -486,11 +488,11 @@ static void StoreCommands(MemoryManager* m,
 #define MIN_RATIO 0.98
 #define SAMPLE_RATE 43
 
-static int ShouldCompress(const uint8_t* input, size_t input_size,
-                          size_t num_literals) {
+static BROTLI_BOOL ShouldCompress(
+    const uint8_t* input, size_t input_size, size_t num_literals) {
   double corpus_size = (double)input_size;
   if (num_literals < MIN_RATIO * corpus_size) {
-    return 1;
+    return BROTLI_TRUE;
   } else {
     uint32_t literal_histo[256] = { 0 };
     const double max_total_bit_cost = corpus_size * 8 * MIN_RATIO / SAMPLE_RATE;
@@ -498,13 +500,13 @@ static int ShouldCompress(const uint8_t* input, size_t input_size,
     for (i = 0; i < input_size; i += SAMPLE_RATE) {
       ++literal_histo[input[i]];
     }
-    return BitsEntropy(literal_histo, 256) < max_total_bit_cost;
+    return TO_BROTLI_BOOL(BitsEntropy(literal_histo, 256) < max_total_bit_cost);
   }
 }
 
 void BrotliCompressFragmentTwoPass(MemoryManager* m,
                                    const uint8_t* input, size_t input_size,
-                                   int is_last,
+                                   BROTLI_BOOL is_last,
                                    uint32_t* command_buf, uint8_t* literal_buf,
                                    int* table, size_t table_size,
                                    size_t* storage_ix, uint8_t* storage) {

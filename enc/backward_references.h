@@ -14,6 +14,7 @@
 #include "./hash.h"
 #include "./memory.h"
 #include "./port.h"
+#include "./quality.h"
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
@@ -23,21 +24,12 @@ extern "C" {
    initially the total amount of commands output by previous
    CreateBackwardReferences calls, and must be incremented by the amount written
    by this call. */
-BROTLI_INTERNAL void BrotliCreateBackwardReferences(MemoryManager* m,
-                                                    size_t num_bytes,
-                                                    size_t position,
-                                                    int is_last,
-                                                    const uint8_t* ringbuffer,
-                                                    size_t ringbuffer_mask,
-                                                    const int quality,
-                                                    const int lgwin,
-                                                    Hashers* hashers,
-                                                    int hash_type,
-                                                    int* dist_cache,
-                                                    size_t* last_insert_len,
-                                                    Command* commands,
-                                                    size_t* num_commands,
-                                                    size_t* num_literals);
+BROTLI_INTERNAL void BrotliCreateBackwardReferences(
+    MemoryManager* m, size_t num_bytes, size_t position, BROTLI_BOOL is_last,
+    const uint8_t* ringbuffer, size_t ringbuffer_mask,
+    const BrotliEncoderParams* params, Hashers* hashers, int* dist_cache,
+    size_t* last_insert_len, Command* commands, size_t* num_commands,
+    size_t* num_literals);
 
 typedef struct ZopfliNode {
   /* best length to get up to this byte (not including this byte itself)
@@ -82,9 +74,9 @@ BROTLI_INTERNAL void BrotliInitZopfliNodes(ZopfliNode* array, size_t length);
      (3) nodes[i - nodes[i].command_length()].cost < kInfinity */
 BROTLI_INTERNAL size_t BrotliZopfliComputeShortestPath(
     MemoryManager* m, size_t num_bytes, size_t position,
-    const uint8_t* ringbuffer, size_t ringbuffer_mask, const int quality,
-    const size_t max_backward_limit, const int* dist_cache, H10* hasher,
-    ZopfliNode* nodes);
+    const uint8_t* ringbuffer, size_t ringbuffer_mask,
+    const BrotliEncoderParams* params, const size_t max_backward_limit,
+    const int* dist_cache, H10* hasher, ZopfliNode* nodes);
 
 BROTLI_INTERNAL void BrotliZopfliCreateCommands(const size_t num_bytes,
                                                 const size_t block_start,

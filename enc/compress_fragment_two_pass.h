@@ -36,7 +36,7 @@ static const size_t kCompressFragmentTwoPassBlockSize = 1 << 17;
 BROTLI_INTERNAL void BrotliCompressFragmentTwoPass(MemoryManager* m,
                                                    const uint8_t* input,
                                                    size_t input_size,
-                                                   int is_last,
+                                                   BROTLI_BOOL is_last,
                                                    uint32_t* command_buf,
                                                    uint8_t* literal_buf,
                                                    int* table,

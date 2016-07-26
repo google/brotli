@@ -40,7 +40,7 @@ bool BrotliCompressor::WriteMetaBlock(const size_t input_size,
                                       const bool is_last, size_t* encoded_size,
                                       uint8_t* encoded_buffer) {
   return !!BrotliEncoderWriteMetaBlock(state_, input_size, input_buffer,
-                                       is_last ? 1 : 0, encoded_size,
+                                       TO_BROTLI_BOOL(is_last), encoded_size,
                                        encoded_buffer);
 }
 
@@ -49,7 +49,7 @@ bool BrotliCompressor::WriteMetadata(const size_t input_size,
                                      const bool is_last, size_t* encoded_size,
                                      uint8_t* encoded_buffer) {
   return !!BrotliEncoderWriteMetadata(state_, input_size, input_buffer,
-                                      is_last ? 1 : 0, encoded_size,
+                                      TO_BROTLI_BOOL(is_last), encoded_size,
                                       encoded_buffer);
 }
 
@@ -66,8 +66,8 @@ void BrotliCompressor::CopyInputToRingBuffer(const size_t input_size,
 bool BrotliCompressor::WriteBrotliData(const bool is_last,
                                        const bool force_flush, size_t* out_size,
                                        uint8_t** output) {
-  return !!BrotliEncoderWriteData(
-      state_, is_last ? 1 : 0, force_flush ? 1 : 0, out_size, output);
+  return !!BrotliEncoderWriteData(state_, TO_BROTLI_BOOL(is_last),
+      TO_BROTLI_BOOL(force_flush), out_size, output);
 }
 
 void BrotliCompressor::BrotliSetCustomDictionary(size_t size,

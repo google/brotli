@@ -53,9 +53,10 @@ static BROTLI_INLINE uint32_t HashBytesAtOffset(
   }
 }
 
-static BROTLI_INLINE int IsMatch(const uint8_t* p1, const uint8_t* p2) {
-  return (BROTLI_UNALIGNED_LOAD32(p1) == BROTLI_UNALIGNED_LOAD32(p2) &&
-          p1[4] == p2[4]);
+static BROTLI_INLINE BROTLI_BOOL IsMatch(const uint8_t* p1, const uint8_t* p2) {
+  return TO_BROTLI_BOOL(
+      BROTLI_UNALIGNED_LOAD32(p1) == BROTLI_UNALIGNED_LOAD32(p2) &&
+      p1[4] == p2[4]);
 }
 
 /* Builds a literal prefix code into "depths" and "bits" based on the statistics
@@ -323,7 +324,8 @@ static BROTLI_INLINE void EmitLiterals(const uint8_t* input, const size_t len,
 
 /* REQUIRES: len <= 1 << 20. */
 static void BrotliStoreMetaBlockHeader(
-    size_t len, int is_uncompressed, size_t* storage_ix, uint8_t* storage) {
+    size_t len, BROTLI_BOOL is_uncompressed, size_t* storage_ix,
+    uint8_t* storage) {
   /* ISLAST */
   BrotliWriteBits(1, 0, storage_ix, storage);
   if (len <= (1U << 16)) {
@@ -366,8 +368,8 @@ static void RewindBitPosition(const size_t new_storage_ix,
   *storage_ix = new_storage_ix;
 }
 
-static int ShouldMergeBlock(const uint8_t* data, size_t len,
-                            const uint8_t* depths) {
+static BROTLI_BOOL ShouldMergeBlock(
+    const uint8_t* data, size_t len, const uint8_t* depths) {
   size_t histo[256] = { 0 };
   static const size_t kSampleRate = 43;
   size_t i;
@@ -380,21 +382,21 @@ static int ShouldMergeBlock(const uint8_t* data, size_t len,
     for (i = 0; i < 256; ++i) {
       r -= (double)histo[i] * (depths[i] + FastLog2(histo[i]));
     }
-    return (r >= 0.0) ? 1 : 0;
+    return TO_BROTLI_BOOL(r >= 0.0);
   }
 }
 
 /* Acceptable loss for uncompressible speedup is 2% */
 #define MIN_RATIO 980
 
-static BROTLI_INLINE int ShouldUseUncompressedMode(
+static BROTLI_INLINE BROTLI_BOOL ShouldUseUncompressedMode(
     const uint8_t* metablock_start, const uint8_t* next_emit,
     const size_t insertlen, const size_t literal_ratio) {
   const size_t compressed = (size_t)(next_emit - metablock_start);
   if (compressed * 50 > insertlen) {
-    return 0;
+    return BROTLI_FALSE;
   } else {
-    return (literal_ratio > MIN_RATIO) ? 1 : 0;
+    return TO_BROTLI_BOOL(literal_ratio > MIN_RATIO);
   }
 }
 
@@ -421,7 +423,7 @@ static uint32_t kCmdHistoSeed[128] = {
 
 void BrotliCompressFragmentFast(MemoryManager* m,
                                 const uint8_t* input, size_t input_size,
-                                int is_last,
+                                BROTLI_BOOL is_last,
                                 int* table, size_t table_size,
                                 uint8_t cmd_depth[128], uint16_t cmd_bits[128],
                                 size_t* cmd_code_numbits, uint8_t* cmd_code,

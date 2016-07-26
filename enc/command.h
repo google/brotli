@@ -58,7 +58,7 @@ static BROTLI_INLINE uint16_t GetCopyLengthCode(size_t copylen) {
 }
 
 static BROTLI_INLINE uint16_t CombineLengthCodes(
-    uint16_t inscode, uint16_t copycode, int use_last_distance) {
+    uint16_t inscode, uint16_t copycode, BROTLI_BOOL use_last_distance) {
   uint16_t bits64 =
       (uint16_t)((copycode & 0x7u) | ((inscode & 0x7u) << 3));
   if (use_last_distance && inscode < 8 && copycode < 16) {
@@ -73,7 +73,7 @@ static BROTLI_INLINE uint16_t CombineLengthCodes(
 }
 
 static BROTLI_INLINE void GetLengthCode(size_t insertlen, size_t copylen,
-                                        int use_last_distance,
+                                        BROTLI_BOOL use_last_distance,
                                         uint16_t* code) {
   uint16_t inscode = GetInsertLengthCode(insertlen);
   uint16_t copycode = GetCopyLengthCode(copylen);
@@ -116,7 +116,8 @@ static BROTLI_INLINE void InitCommand(Command* self, size_t insertlen,
   PrefixEncodeCopyDistance(
       distance_code, 0, 0, &self->dist_prefix_, &self->dist_extra_);
   GetLengthCode(
-      insertlen, copylen_code, self->dist_prefix_ == 0, &self->cmd_prefix_);
+      insertlen, copylen_code, TO_BROTLI_BOOL(self->dist_prefix_ == 0),
+      &self->cmd_prefix_);
 }
 
 static BROTLI_INLINE void InitInsertCommand(Command* self, size_t insertlen) {
@@ -124,7 +125,7 @@ static BROTLI_INLINE void InitInsertCommand(Command* self, size_t insertlen) {
   self->copy_len_ = 4 << 24;
   self->dist_extra_ = 0;
   self->dist_prefix_ = 16;
-  GetLengthCode(insertlen, 4, 0, &self->cmd_prefix_);
+  GetLengthCode(insertlen, 4, BROTLI_FALSE, &self->cmd_prefix_);
 }
 
 static BROTLI_INLINE uint32_t CommandDistanceCode(const Command* self) {

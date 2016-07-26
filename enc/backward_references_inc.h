@@ -9,37 +9,30 @@
 
 #define Hasher HASHER()
 
-static void FN(CreateBackwardReferences)(MemoryManager* m,
-                                         size_t num_bytes,
-                                         size_t position,
-                                         int is_last,
-                                         const uint8_t* ringbuffer,
-                                         size_t ringbuffer_mask,
-                                         const int quality,
-                                         const int lgwin,
-                                         Hasher* hasher,
-                                         int* dist_cache,
-                                         size_t* last_insert_len,
-                                         Command* commands,
-                                         size_t* num_commands,
-                                         size_t* num_literals) {
+static BROTLI_NOINLINE void FN(CreateBackwardReferences)(
+    MemoryManager* m, size_t num_bytes, size_t position, BROTLI_BOOL is_last,
+    const uint8_t* ringbuffer, size_t ringbuffer_mask,
+    const BrotliEncoderParams* params, Hasher* hasher, int* dist_cache,
+    size_t* last_insert_len, Command* commands, size_t* num_commands,
+    size_t* num_literals) {
   /* Set maximum distance, see section 9.1. of the spec. */
-  const size_t max_backward_limit = MaxBackwardLimit(lgwin);
+  const size_t max_backward_limit = MaxBackwardLimit(params->lgwin);
 
-  const Command * const orig_commands = commands;
+  const Command* const orig_commands = commands;
   size_t insert_length = *last_insert_len;
   const size_t pos_end = position + num_bytes;
   const size_t store_end = num_bytes >= FN(StoreLookahead)() ?
       position + num_bytes - FN(StoreLookahead)() + 1 : position;
 
   /* For speed up heuristics for random data. */
-  const size_t random_heuristics_window_size = quality < 9 ? 64 : 512;
+  const size_t random_heuristics_window_size =
+      LiteralSpreeLengthForSparseSearch(params);
   size_t apply_random_heuristics = position + random_heuristics_window_size;
 
   /* Minimum score to accept a backward reference. */
-  const double kMinScore = 4.0;
+  const score_t kMinScore = BROTLI_SCORE_BASE + 400;
 
-  FN(Init)(m, hasher, ringbuffer, lgwin, position, num_bytes, is_last);
+  FN(Init)(m, hasher, ringbuffer, params, position, num_bytes, is_last);
   if (BROTLI_IS_OOM(m)) return;
   FN(StitchToPreviousBlock)(hasher, num_bytes, position,
                             ringbuffer, ringbuffer_mask);
@@ -47,37 +40,35 @@ static void FN(CreateBackwardReferences)(MemoryManager* m,
   while (position + FN(HashTypeLength)() < pos_end) {
     size_t max_length = pos_end - position;
     size_t max_distance = BROTLI_MIN(size_t, position, max_backward_limit);
-    size_t best_len = 0;
-    size_t best_len_code = 0;
-    size_t best_dist = 0;
-    double best_score = kMinScore;
-    int is_match_found = FN(FindLongestMatch)(hasher, ringbuffer,
-        ringbuffer_mask, dist_cache, position, max_length, max_distance,
-        &best_len, &best_len_code, &best_dist, &best_score);
-    if (is_match_found) {
+    HasherSearchResult sr;
+    sr.len = 0;
+    sr.len_x_code = 0;
+    sr.distance = 0;
+    sr.score = kMinScore;
+    if (FN(FindLongestMatch)(hasher, ringbuffer, ringbuffer_mask, dist_cache,
+                             position, max_length, max_distance, &sr)) {
       /* Found a match. Let's look for something even better ahead. */
       int delayed_backward_references_in_row = 0;
       --max_length;
       for (;; --max_length) {
-        size_t best_len_2 =
-            quality < 5 ? BROTLI_MIN(size_t, best_len - 1, max_length) : 0;
-        size_t best_len_code_2 = 0;
-        size_t best_dist_2 = 0;
-        double best_score_2 = kMinScore;
-        const double cost_diff_lazy = 7.0;
+        const score_t cost_diff_lazy = 700;
+        BROTLI_BOOL is_match_found;
+        HasherSearchResult sr2;
+        sr2.len = params->quality < MIN_QUALITY_FOR_EXTENSIVE_REFERENCE_SEARCH ?
+            BROTLI_MIN(size_t, sr.len - 1, max_length) : 0;
+        sr2.len_x_code = 0;
+        sr2.distance = 0;
+        sr2.score = kMinScore;
         max_distance = BROTLI_MIN(size_t, position + 1, max_backward_limit);
         is_match_found = FN(FindLongestMatch)(hasher, ringbuffer,
             ringbuffer_mask, dist_cache, position + 1, max_length, max_distance,
-            &best_len_2, &best_len_code_2, &best_dist_2, &best_score_2);
-        if (is_match_found && best_score_2 >= best_score + cost_diff_lazy) {
+            &sr2);
+        if (is_match_found && sr2.score >= sr.score + cost_diff_lazy) {
           /* Ok, let's just write one byte for now and start a match from the
              next byte. */
           ++position;
           ++insert_length;
-          best_len = best_len_2;
-          best_len_code = best_len_code_2;
-          best_dist = best_dist_2;
-          best_score = best_score_2;
+          sr = sr2;
           if (++delayed_backward_references_in_row < 4 &&
               position + FN(HashTypeLength)() < pos_end) {
             continue;
@@ -86,21 +77,21 @@ static void FN(CreateBackwardReferences)(MemoryManager* m,
         break;
       }
       apply_random_heuristics =
-          position + 2 * best_len + random_heuristics_window_size;
+          position + 2 * sr.len + random_heuristics_window_size;
       max_distance = BROTLI_MIN(size_t, position, max_backward_limit);
       {
         /* The first 16 codes are special shortcodes,
            and the minimum offset is 1. */
         size_t distance_code =
-            ComputeDistanceCode(best_dist, max_distance, quality, dist_cache);
-        if (best_dist <= max_distance && distance_code > 0) {
+            ComputeDistanceCode(sr.distance, max_distance, dist_cache);
+        if (sr.distance <= max_distance && distance_code > 0) {
           dist_cache[3] = dist_cache[2];
           dist_cache[2] = dist_cache[1];
           dist_cache[1] = dist_cache[0];
-          dist_cache[0] = (int)best_dist;
+          dist_cache[0] = (int)sr.distance;
         }
-        InitCommand(
-            commands++, insert_length, best_len, best_len_code, distance_code);
+        InitCommand(commands++, insert_length, sr.len, sr.len ^ sr.len_x_code,
+            distance_code);
       }
       *num_literals += insert_length;
       insert_length = 0;
@@ -108,8 +99,8 @@ static void FN(CreateBackwardReferences)(MemoryManager* m,
          Depending on the hasher implementation, it can push all positions
          in the given range or only a subset of them. */
       FN(StoreRange)(hasher, ringbuffer, ringbuffer_mask, position + 2,
-                     BROTLI_MIN(size_t, position + best_len, store_end));
-      position += best_len;
+                     BROTLI_MIN(size_t, position + sr.len, store_end));
+      position += sr.len;
     } else {
       ++insert_length;
       ++position;

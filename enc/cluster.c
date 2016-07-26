@@ -19,12 +19,12 @@
 extern "C" {
 #endif
 
-static BROTLI_INLINE int HistogramPairIsLess(
+static BROTLI_INLINE BROTLI_BOOL HistogramPairIsLess(
     const HistogramPair* p1, const HistogramPair* p2) {
   if (p1->cost_diff != p2->cost_diff) {
-    return (p1->cost_diff > p2->cost_diff) ? 1 : 0;
+    return TO_BROTLI_BOOL(p1->cost_diff > p2->cost_diff);
   }
-  return ((p1->idx2 - p1->idx1) > (p2->idx2 - p2->idx1)) ? 1 : 0;
+  return TO_BROTLI_BOOL((p1->idx2 - p1->idx1) > (p2->idx2 - p2->idx1));
 }
 
 /* Returns entropy reduction of the context map when we combine two clusters. */
