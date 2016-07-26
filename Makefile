@@ -1,9 +1,11 @@
 OS := $(shell uname)
-SOURCES = $(wildcard common/*.c) $(wildcard dec/*.c) $(wildcard enc/*.c) \
-          tools/bro.c
+LIBSOURCES = $(wildcard common/*.c) $(wildcard dec/*.c) $(wildcard enc/*.c)
+SOURCES = $(LIBSOURCES) tools/bro.c
 BINDIR = bin
 OBJDIR = $(BINDIR)/obj
+LIBOBJECTS = $(addprefix $(OBJDIR)/, $(LIBSOURCES:.c=.o))
 OBJECTS = $(addprefix $(OBJDIR)/, $(SOURCES:.c=.o))
+LIB_A = libbrotli.a
 EXECUTABLE = bro
 DIRS = $(OBJDIR)/common $(OBJDIR)/dec $(OBJDIR)/enc \
        $(OBJDIR)/tools $(BINDIR)/tmp
@@ -27,9 +29,13 @@ $(OBJECTS): $(DIRS)
 $(EXECUTABLE): $(OBJECTS)
 	$(CC) $(OBJECTS) -lm -o $(BINDIR)/$(EXECUTABLE)
 
+lib: $(LIBOBJECTS)
+	rm -f $(LIB_A)
+	ar -crs $(LIB_A) $(LIBOBJECTS)
+
 test: $(EXECUTABLE)
 	tests/compatibility_test.sh
 	tests/roundtrip_test.sh
 
 clean:
-	rm -rf $(BINDIR)
+	rm -rf $(BINDIR) $(LIB_A)
