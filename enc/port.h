@@ -157,7 +157,7 @@ _TEMPLATE(size_t) _TEMPLATE(uint32_t) _TEMPLATE(uint8_t)
     T* new_array;                                \
     while (_new_size < (R)) _new_size *= 2;      \
     new_array = BROTLI_ALLOC((M), T, _new_size); \
-    if (!BROTLI_IS_OOM(m))                       \
+    if (!BROTLI_IS_OOM(m) && C != 0)             \
       memcpy(new_array, A, C * sizeof(T));       \
     BROTLI_FREE((M), A);                         \
     A = new_array;                               \
