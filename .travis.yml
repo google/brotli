@@ -59,15 +59,15 @@ matrix:
           packages:
           - gcc-4.6
           - g++-4.6
-    - os: linux
-      env: BUILD_SYSTEM=cmake C_COMPILER=gcc-4.5 CXX_COMPILER=g++-4.5
-      addons:
-        apt:
-          sources:
-          - ubuntu-toolchain-r-test
-          packages:
-          - gcc-4.5
-          - g++-4.5
+    # - os: linux
+    #   env: BUILD_SYSTEM=cmake C_COMPILER=gcc-4.5 CXX_COMPILER=g++-4.5
+    #   addons:
+    #     apt:
+    #       sources:
+    #       - ubuntu-toolchain-r-test
+    #       packages:
+    #       - gcc-4.5
+    #       - g++-4.5
     - os: linux
       env: BUILD_SYSTEM=cmake C_COMPILER=gcc-4.4 CXX_COMPILER=g++-4.4
       addons:
