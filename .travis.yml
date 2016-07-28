@@ -204,6 +204,26 @@ matrix:
           packages:
           - clang-3.8
 
+    ###
+    ## mingw
+    ###
+    - os: linux
+      env: BUILD_SYSTEM=cmake C_COMPILER=x86_64-w64-mingw32-gcc CXX_COMPILER=x86_64-w64-mingw32-g++ RC_COMPILER=x86_64-w64-mingw32-windres CROSS_COMPILE=yes
+      addons:
+        apt:
+          sources:
+          - ubuntu-toolchain-r-test
+          - george-edison55-precise-backports
+          packages:
+          - binutils-mingw-w64-x86-64
+          - g++-mingw-w64-x86-64
+          - gcc-mingw-w64-x86-64
+          - binutils-mingw-w64-x86-64
+          - wine
+          # Because 2.8.6 passes -rdynamic to the linker, which breaks the build.
+          - cmake
+          - cmake-data
+
 before_install:
 ###
 ## If we use the matrix to set CC/CXX Travis, overwrites the values,

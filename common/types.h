@@ -25,7 +25,7 @@ typedef __int64 int64_t;
 #endif  /* defined(_MSC_VER) && (_MSC_VER < 1600) */
 
 #if (!defined(_MSC_VER) || (_MSC_VER >= 1800)) && \
-    (defined(__cplusplus) || __STDC_VERSION__ >= 199901L)
+  (defined(__cplusplus) || (defined(__STDC_VERSION__) && __STDC_VERSION__ >= 199901L))
 #include <stdbool.h>
 #define BROTLI_BOOL bool
 #define BROTLI_TRUE true
