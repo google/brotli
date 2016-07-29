@@ -7,59 +7,93 @@ environment:
     WITH_COMPILER: "cmd /E:ON /V:ON /C .\\appveyor\\run_with_compiler.cmd"
 
   matrix:
-    - PYTHON: "C:\\Python27"
+    - BUILD_SYSTEM: CMake
+      GENERATOR: Visual Studio 14 2015 Win64
+
+    - BUILD_SYSTEM: CMake
+      GENERATOR: Visual Studio 14 2015
+
+    - BUILD_SYSTEM: CMake
+      GENERATOR: Visual Studio 12 2013 Win64
+
+    - BUILD_SYSTEM: CMake
+      GENERATOR: Visual Studio 12 2013
+
+    - BUILD_SYSTEM: Python
+      PYTHON: "C:\\Python27"
       PYTHON_VERSION: "2.7.x"
       PYTHON_ARCH: "32"
 
-    - PYTHON: "C:\\Python34"
+    - BUILD_SYSTEM: Python
+      PYTHON: "C:\\Python34"
       PYTHON_VERSION: "3.4.x"
       PYTHON_ARCH: "32"
 
-    - PYTHON: "C:\\Python35"
+    - BUILD_SYSTEM: Python
+      PYTHON: "C:\\Python35"
       PYTHON_VERSION: "3.5.0"
       PYTHON_ARCH: "32"
 
-    - PYTHON: "C:\\Python27-x64"
+    - BUILD_SYSTEM: Python
+      PYTHON: "C:\\Python27-x64"
       PYTHON_VERSION: "2.7.x"
       PYTHON_ARCH: "64"
 
-    - PYTHON: "C:\\Python34-x64"
+    - BUILD_SYSTEM: Python
+      PYTHON: "C:\\Python34-x64"
       PYTHON_VERSION: "3.4.x"
       PYTHON_ARCH: "64"
 
-    - PYTHON: "C:\\Python35-x64"
+    - BUILD_SYSTEM: Python
+      PYTHON: "C:\\Python35-x64"
       PYTHON_VERSION: "3.5.0"
       PYTHON_ARCH: "64"
 
-init:
-  - "ECHO %PYTHON% %PYTHON_VERSION% %PYTHON_ARCH%"
+# init:
+#   - "ECHO %PYTHON% %PYTHON_VERSION% %PYTHON_ARCH%"
 
 install:
-  # install Python and pip when not already installed
-  - ps: if (-not(Test-Path($env:PYTHON))) { & appveyor\install.ps1 }
+  - ps: |
+      if ($env:BUILD_SYSTEM -eq "Python") {
+        # install Python and pip when not already installed
+        if (-not(Test-Path($env:PYTHON))) { & appveyor\install.ps1 }
 
-  # prepend newly installed Python to the PATH
-  - "SET PATH=%PYTHON%;%PYTHON%\\Scripts;%PATH%"
+        # prepend newly installed Python to the PATH
+        $env:Path = $env:PYTHON + ';' + $env:PYTHON + '\\Scripts;' + $env:PATH
 
-  # check that we have the expected version and architecture for Python
-  - "python --version"
-  - "python -c \"import struct; print(struct.calcsize('P') * 8)\""
+        # upgrade pip to avoid out-of-date warnings
+        pip install --disable-pip-version-check --user --upgrade pip
 
-  # upgrade pip to avoid out-of-date warnings
-  - "pip install --disable-pip-version-check --user --upgrade pip"
+        # install/upgrade setuptools and wheel to build packages
+        pip install --upgrade setuptools wheel
+      }
 
-  # install/upgrade setuptools and wheel to build packages
-  - "pip install --upgrade setuptools wheel"
+before_build:
+  - ps: |
+      if ($env:BUILD_SYSTEM -eq "CMake") {
+        mkdir builddir
+        cd builddir
 
-build: false
+        cmake -G "$env:GENERATOR" ..
+      }
+
+build_script:
+  - ps: |
+      if ($env:BUILD_SYSTEM -eq "CMake") {
+        cmake --build . --config Debug
+      }
 
 test_script:
-  - "%WITH_COMPILER% python setup.py build_ext test"
+  - ps: |
+      if ($env:BUILD_SYSTEM -eq "CMake") {
+        ctest --output-on-failure --interactive-debug-mode 0 -C Debug
+      } else {
+        python setup.py build_ext test
+      }
 
 after_test:
-  # if tests are successful, create binary and source packages for the project
-  - "%WITH_COMPILER% pip wheel -w dist ."
-  - "%WITH_COMPILER% python setup.py sdist --formats=gztar,zip"
+  - if "%BUILD_SYSTEM%" == "Python" ( pip wheel -w dist .)
+  - if "%BUILD_SYSTEM%" == "Python" ( python setup.py sdist --formats=gztar,zip )
 
 artifacts:
   # archive the generated packages in the ci.appveyor.com build report

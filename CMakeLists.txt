@@ -44,8 +44,27 @@ if (ENABLE_SANITIZER)
   endif()
 endif ()
 
+include(CheckFunctionExists)
+set(LIBM_LIBRARY)
+CHECK_FUNCTION_EXISTS(log2 LOG2_RES)
+if(NOT LOG2_RES)
+  unset(LOG2_RES)
+  set(orig_req_libs "${CMAKE_REQUIRED_LIBRARIES}")
+  set(CMAKE_REQUIRED_LIBRARIES "${CMAKE_REQUIRED_LIBRARIES};m")
+  CHECK_FUNCTION_EXISTS(log2 LOG2_RES)
+  if(LOG2_RES)
+    set(LIBM_LIBRARY "m")
+  else()
+    message(FATAL_ERROR "log2() not found")
+  endif()
+
+  set(CMAKE_REQUIRED_LIBRARIES "${orig_req_libs}")
+  unset(orig_req_libs)
+endif()
+unset(LOG2_RES)
+
 set(BROTLI_INCLUDE_DIRS "${CMAKE_CURRENT_SOURCE_DIR}")
-set(BROTLI_LIBRARIES brotli_enc brotli_dec brotli_common m)
+set(BROTLI_LIBRARIES brotli_enc brotli_dec brotli_common ${LIBM_LIBRARY})
 mark_as_advanced(BROTLI_INCLUDE_DIRS BROTLI_LIBRARIES)
 
 if(${CMAKE_SYSTEM_NAME} MATCHES "Linux")
@@ -81,7 +100,7 @@ add_library(brotli_enc STATIC
   enc/utf8_util.c)
 
 foreach(lib brotli_common brotli_dec brotli_enc)
-  target_link_libraries(${lib} m)
+  target_link_libraries(${lib} ${LIBM_LIBRARY})
   set_property(TARGET ${lib} APPEND PROPERTY INCLUDE_DIRECTORIES ${BROTLI_INCLUDE_DIRS})
   set_target_properties(${lib} PROPERTIES
     VERSION ${BROTLI_VERSION_MAJOR}.${BROTLI_VERSION_MINOR}.${BROTLI_VERSION_REVISION}
@@ -119,11 +138,11 @@ endif()
 if(NOT BROTLI_DISABLE_TESTS)
   if(WIN32 AND NOT CMAKE_HOST_WIN32)
     find_program(BROTLI_WINE NAMES wine)
-  endif()
 
-  if(NOT BROTLI_WINE AND NOT BROTLI_WINEPATH)
-    message("wine not found, disabling tests")
-    set(BROTLI_DISABLE_TESTS TRUE)
+    if(NOT BROTLI_WINE)
+      message(STATUS "wine not found, disabling tests")
+      set(BROTLI_DISABLE_TESTS TRUE)
+    endif()
   endif()
 endif()
 
