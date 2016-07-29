@@ -113,6 +113,20 @@ if(NOT BROTLI_BUNDLE_MODE)
 endif()
 
 # Tests
+
+# If we're targeting Windows but not running on Windows, we need Wine
+# to run the tests...
+if(NOT BROTLI_DISABLE_TESTS)
+  if(WIN32 AND NOT CMAKE_HOST_WIN32)
+    find_program(BROTLI_WINE NAMES wine)
+  endif()
+
+  if(NOT BROTLI_WINE AND NOT BROTLI_WINEPATH)
+    message("wine not found, disabling tests")
+    set(BROTLI_DISABLE_TESTS TRUE)
+  endif()
+endif()
+
 if(NOT BROTLI_DISABLE_TESTS)
   include(CTest)
   enable_testing()
@@ -127,12 +141,19 @@ if(NOT BROTLI_DISABLE_TESTS)
     dec/decode.c)
 
   foreach(INPUT ${ROUNDTRIP_INPUTS})
+    get_filename_component(OUTPUT_NAME "${INPUT}" NAME)
+
+    set(OUTPUT_FILE "${CMAKE_CURRENT_BINARY_DIR}/${OUTPUT_NAME}")
+    set(INPUT_FILE "${CMAKE_CURRENT_SOURCE_DIR}/${INPUT}")
+
     foreach(quality 1 6 9 11)
       add_test(NAME "${BROTLI_TEST_PREFIX}roundtrip/${INPUT}/${quality}"
         COMMAND "${CMAKE_COMMAND}"
+          -DBROTLI_WRAPPER=${BROTLI_WINE}
           -DBROTLI_CLI=$<TARGET_FILE:bro>
           -DQUALITY=${quality}
-          -DINPUT=${CMAKE_CURRENT_SOURCE_DIR}/${INPUT}
+          -DINPUT=${INPUT_FILE}
+  	  -DOUTPUT=${OUTPUT_FILE}.${quality}
           -P ${CMAKE_CURRENT_SOURCE_DIR}/tests/run-roundtrip-test.cmake)
     endforeach()
   endforeach()
@@ -145,6 +166,7 @@ if(NOT BROTLI_DISABLE_TESTS)
   foreach(INPUT ${COMPATIBILITY_INPUTS})
     add_test(NAME "${BROTLI_TEST_PREFIX}compatibility/${INPUT}"
       COMMAND "${CMAKE_COMMAND}"
+        -DBROTLI_WRAPPER=${BROTLI_WINE}
         -DBROTLI_CLI=$<TARGET_FILE:bro>
         -DINPUT=${CMAKE_CURRENT_SOURCE_DIR}/${INPUT}
         -P ${CMAKE_CURRENT_SOURCE_DIR}/tests/run-compatibility-test.cmake)

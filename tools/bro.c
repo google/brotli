@@ -24,10 +24,13 @@
 #include <share.h>
 
 #define MAKE_BINARY(FILENO) (_setmode((FILENO), _O_BINARY), (FILENO))
+
+#if !defined(__MINGW32__)
 #define STDIN_FILENO MAKE_BINARY(_fileno(stdin))
 #define STDOUT_FILENO MAKE_BINARY(_fileno(stdout))
 #define S_IRUSR S_IREAD
 #define S_IWUSR S_IWRITE
+#endif
 #define fdopen _fdopen
 #define unlink _unlink
 
