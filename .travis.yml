@@ -1,5 +1,5 @@
 language: c
-dist: trusty
+sudo: false
 matrix:
   include:
     ###
