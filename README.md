@@ -8,7 +8,7 @@ with deflate but offers more dense compression.
 
 The specification of the Brotli Compressed Data Format is defined in the
 following internet draft:
-http://www.ietf.org/id/draft-alakuijala-brotli
+https://tools.ietf.org/html/draft-alakuijala-brotli-01
 
 Brotli is open-sourced under the MIT License, see the LICENSE file.
 
