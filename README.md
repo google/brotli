@@ -7,8 +7,8 @@ currently available general-purpose compression methods. It is similar in speed
 with deflate but offers more dense compression.
 
 The specification of the Brotli Compressed Data Format is defined in the
-following internet draft:
-http://www.ietf.org/id/draft-alakuijala-brotli
+following RFC document:
+https://tools.ietf.org/html/rfc7932
 
 Brotli is open-sourced under the MIT License, see the LICENSE file.
 
