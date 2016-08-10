@@ -43,7 +43,14 @@ case "$1" in
     "after_success")
 	case "${BUILD_SYSTEM}" in
 	    "python")
-		pip wheel -w dist .
+		case "${PYTHON_VERSION}" in
+		    "3."*)
+			pip wheel -w dist .
+			;;
+		    *)
+			pip3 wheel -w dist .
+			;;
+		esac
 		;;
 	esac
 	;;
