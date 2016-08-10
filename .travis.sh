@@ -36,13 +36,15 @@ case "$1" in
 		ctest -V
 		;;
 	    "python")
-                python setup.py build_ext test
+		source venv/bin/activate
+		python setup.py build_ext test
 		;;
 	esac
 	;;
     "after_success")
 	case "${BUILD_SYSTEM}" in
 	    "python")
+		source venv/bin/activate
 		pip wheel -w dist .
 		;;
 	esac
