@@ -232,7 +232,7 @@ after_success:
 - ./.travis.sh after_success
 
 before_deploy:
-- if [ "${BUILD_SYSTEM}" = "python" ]; then export WHEELS=$(ls ./dist/*.whl); fi
+- if [ "${BUILD_SYSTEM}" = "python" ] && [ "${TRAVIS_OS_NAME}" = "osx" ]; then export WHEELS=$(ls ./dist/*.whl); fi
 
 deploy:
   provider: releases
@@ -243,4 +243,4 @@ deploy:
   on:
     repo: "google/brotli"
     tags: true
-    condition: "${BUILD_SYSTEM} = python"
+    condition: "${BUILD_SYSTEM} = python || ${TRAVIS_OS_NAME} = osx"
