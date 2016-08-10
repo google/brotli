@@ -44,8 +44,12 @@ case "$1" in
     "after_success")
 	case "${BUILD_SYSTEM}" in
 	    "python")
-		source venv/bin/activate
-		pip wheel -w dist .
+		case "${TRAVIS_OS_NAME}" in
+		    "osx")
+			source venv/bin/activate
+			pip wheel -w dist .
+			;;
+		esac
 		;;
 	esac
 	;;
