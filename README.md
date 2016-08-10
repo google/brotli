@@ -15,6 +15,11 @@ https://groups.google.com/forum/#!forum/brotli
 
 [![Build Status](https://travis-ci.org/google/brotli.svg?branch=master)](https://travis-ci.org/google/brotli)
 
+### Benchmarks
+* [Squash Compression Benchmark](https://quixdb.github.io/squash-benchmark/) / [Unstable Squash Compression Benchmark](https://quixdb.github.io/squash-benchmark/unstable/)
+* [Large Text Compression Benchmark](http://mattmahoney.net/dc/text.html)
+* [Lzturbo Benchmark](https://sites.google.com/site/powturbo/home/benchmark)
+
 ### Related projects
 Independent [decoder](https://github.com/madler/brotli) implementation by Mark Adler, based entirely on format specification.
 
