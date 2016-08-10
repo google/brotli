@@ -36,7 +36,9 @@ case "$1" in
 		ctest -V
 		;;
 	    "python")
-		source venv/bin/activate
+		if [ "${TRAVIS_OS_NAME}" = "osx" ]; then
+			source venv/bin/activate
+		fi
 		python setup.py build_ext test
 		;;
 	esac
