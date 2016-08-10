@@ -243,4 +243,4 @@ deploy:
   on:
     repo: "google/brotli"
     tags: true
-    condition: "${BUILD_SYSTEM} = python || ${TRAVIS_OS_NAME} = osx"
+    condition: "${BUILD_SYSTEM} = python && ${TRAVIS_OS_NAME} = osx"
