@@ -9,6 +9,6 @@
 #ifndef BROTLI_TOOLS_VERSION_H_
 #define BROTLI_TOOLS_VERSION_H_
 
-#define BROTLI_VERSION "0.5.0"
+#define BROTLI_VERSION "0.5.2"
 
 #endif  /* BROTLI_TOOLS_VERSION_H_ */
