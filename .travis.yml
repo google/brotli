@@ -159,19 +159,11 @@ matrix:
     ## Python OS X builds
     ###
     - os: osx
-      env: BUILD_SYSTEM=python INSTALL_TYPE=system PYTHON_VERSION=2.7
+      env: BUILD_SYSTEM=python INSTALL_TYPE=macpython PYTHON_VERSION=2.7.12
     - os: osx
-      env: BUILD_SYSTEM=python INSTALL_TYPE=macpython PYTHON_VERSION=2.7.10
+      env: BUILD_SYSTEM=python INSTALL_TYPE=macpython PYTHON_VERSION=3.4.4
     - os: osx
-      env: BUILD_SYSTEM=python INSTALL_TYPE=homebrew PYTHON_VERSION=2.7.10
-    - os: osx
-      env: BUILD_SYSTEM=python INSTALL_TYPE=macpython PYTHON_VERSION=3.4.3
-    - os: osx
-      env: BUILD_SYSTEM=python INSTALL_TYPE=homebrew PYTHON_VERSION=3.4.3
-    - os: osx
-      env: BUILD_SYSTEM=python INSTALL_TYPE=macpython PYTHON_VERSION=3.5.0
-    - os: osx
-      env: BUILD_SYSTEM=python INSTALL_TYPE=homebrew PYTHON_VERSION=3.5.0
+      env: BUILD_SYSTEM=python INSTALL_TYPE=macpython PYTHON_VERSION=3.5.2
 
     ###
     ## Sanitizers
@@ -240,7 +232,7 @@ after_success:
 - ./.travis.sh after_success
 
 before_deploy:
-- if [ "${BUILD_SYSTEM}" = "python" ]; then export WHEELS=$(ls ./dist/*.whl); fi
+- if [ "${BUILD_SYSTEM}" = "python" ] && [ "${TRAVIS_OS_NAME}" = "osx" ]; then export WHEELS=$(ls ./dist/*.whl); fi
 
 deploy:
   provider: releases
@@ -251,4 +243,4 @@ deploy:
   on:
     repo: "google/brotli"
     tags: true
-    condition: "${BUILD_SYSTEM} = python"
+    condition: "${BUILD_SYSTEM} = python && ${TRAVIS_OS_NAME} = osx"

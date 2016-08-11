@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 case "$1" in
     "install")
@@ -36,14 +36,22 @@ case "$1" in
 		ctest -V
 		;;
 	    "python")
-                python setup.py build_ext test
+		if [ "${TRAVIS_OS_NAME}" = "osx" ]; then
+			source venv/bin/activate
+		fi
+		python setup.py build_ext test
 		;;
 	esac
 	;;
     "after_success")
 	case "${BUILD_SYSTEM}" in
 	    "python")
-		pip wheel -w dist .
+		case "${TRAVIS_OS_NAME}" in
+		    "osx")
+			source venv/bin/activate
+			pip wheel -w dist .
+			;;
+		esac
 		;;
 	esac
 	;;
