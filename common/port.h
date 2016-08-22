@@ -87,7 +87,7 @@ OR:
 
 #ifndef _MSC_VER
 #if defined(__cplusplus) || !defined(__STRICT_ANSI__) || \
-    __STDC_VERSION__ >= 199901L
+    (defined(__STDC_VERSION__) && __STDC_VERSION__ >= 199901L)
 #define BROTLI_INLINE inline ATTRIBUTE_ALWAYS_INLINE
 #else
 #define BROTLI_INLINE

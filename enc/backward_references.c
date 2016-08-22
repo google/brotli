@@ -12,7 +12,7 @@
 #include <string.h>  /* memcpy, memset */
 
 #include "../common/constants.h"
-#include "../common/types.h"
+#include "../public/types.h"
 #include "./command.h"
 #include "./fast_log.h"
 #include "./find_match_length.h"
@@ -873,14 +873,14 @@ void BrotliCreateBackwardReferences(MemoryManager* m,
   }
 
   switch (ChooseHasher(params)) {
-#define _CASE(N)                                                            \
+#define CASE_(N)                                                            \
     case N:                                                                 \
       CreateBackwardReferencesH ## N(m, num_bytes, position, is_last,       \
           ringbuffer, ringbuffer_mask, params, hashers->h ## N, dist_cache, \
           last_insert_len, commands, num_commands, num_literals);           \
       break;
-    FOR_GENERIC_HASHERS(_CASE)
-#undef _CASE
+    FOR_GENERIC_HASHERS(CASE_)
+#undef CASE_
     default:
       break;
   }

@@ -4,7 +4,7 @@
    See file LICENSE for detail or copy at https://opensource.org/licenses/MIT
 */
 
-#include "./decode.h"
+#include "../public/decode.h"
 
 #ifdef __ARM_NEON__
 #include <arm_neon.h>
@@ -15,6 +15,7 @@
 
 #include "../common/constants.h"
 #include "../common/dictionary.h"
+#include "../common/version.h"
 #include "./bit_reader.h"
 #include "./context.h"
 #include "./huffman.h"
@@ -181,7 +182,7 @@ static BrotliDecoderErrorCode BROTLI_NOINLINE DecodeMetaBlockLength(
         if (!BrotliSafeReadBits(br, 1, &bits)) {
           return BROTLI_DECODER_NEEDS_MORE_INPUT;
         }
-        s->is_last_metablock = (uint8_t)bits;
+        s->is_last_metablock = bits ? 1 : 0;
         s->meta_block_remaining_len = 0;
         s->is_uncompressed = 0;
         s->is_metadata = 0;
@@ -238,7 +239,7 @@ static BrotliDecoderErrorCode BROTLI_NOINLINE DecodeMetaBlockLength(
           if (!BrotliSafeReadBits(br, 1, &bits)) {
             return BROTLI_DECODER_NEEDS_MORE_INPUT;
           }
-          s->is_uncompressed = (uint8_t)bits;
+          s->is_uncompressed = bits ? 1 : 0;
         }
         ++s->meta_block_remaining_len;
         s->substate_metablock_header = BROTLI_STATE_METABLOCK_HEADER_NONE;
@@ -1185,8 +1186,14 @@ static BrotliDecoderErrorCode BROTLI_NOINLINE WriteRingBuffer(
   if (s->meta_block_remaining_len < 0) {
     return BROTLI_FAILURE(BROTLI_DECODER_ERROR_FORMAT_BLOCK_LENGTH_1);
   }
-  memcpy(*next_out, start, num_written);
-  *next_out += num_written;
+  if (next_out && !*next_out) {
+    *next_out = start;
+  } else {
+    if (next_out) {
+      memcpy(*next_out, start, num_written);
+      *next_out += num_written;
+    }
+  }
   *available_out -= num_written;
   BROTLI_LOG_UINT(to_write);
   BROTLI_LOG_UINT(num_written);
@@ -1195,12 +1202,19 @@ static BrotliDecoderErrorCode BROTLI_NOINLINE WriteRingBuffer(
   if (num_written < to_write) {
     return BROTLI_DECODER_NEEDS_MORE_OUTPUT;
   }
-
   if (s->pos >= s->ringbuffer_size) {
     s->pos -= s->ringbuffer_size;
     s->rb_roundtrips++;
+    s->should_wrap_ringbuffer = (size_t)s->pos != 0 ? 1 : 0;
   }
   return BROTLI_DECODER_SUCCESS;
+}
+
+static void BROTLI_NOINLINE WrapRingBuffer(BrotliDecoderState* s) {
+  if (s->should_wrap_ringbuffer) {
+    memcpy(s->ringbuffer, s->ringbuffer_end, (size_t)s->pos);
+    s->should_wrap_ringbuffer = 0;
+  }
 }
 
 /* Allocates ringbuffer.
@@ -1871,6 +1885,11 @@ BrotliDecoderResult BrotliDecoderDecompressStream(
     size_t* available_out, uint8_t** next_out, size_t* total_out) {
   BrotliDecoderErrorCode result = BROTLI_DECODER_SUCCESS;
   BrotliBitReader* br = &s->br;
+  if (*available_out && (!next_out || !*next_out)) {
+    return SaveErrorCode(
+        s, BROTLI_FAILURE(BROTLI_DECODER_ERROR_INVALID_ARGUMENTS));
+  }
+  if (!*available_out) next_out = 0;
   if (s->buffer_length == 0) { /* Just connect bit reader to input stream. */
     br->avail_in = *available_in;
     br->next_in = *next_in;
@@ -2206,9 +2225,9 @@ BrotliDecoderResult BrotliDecoderDecompressStream(
         if (result != BROTLI_DECODER_SUCCESS) {
           break;
         }
+        WrapRingBuffer(s);
         s->max_distance = s->max_backward_distance;
         if (s->state == BROTLI_STATE_COMMAND_POST_WRITE_1) {
-          memcpy(s->ringbuffer, s->ringbuffer_end, (size_t)s->pos);
           if (s->meta_block_remaining_len == 0) {
             /* Next metablock, if any */
             s->state = BROTLI_STATE_METABLOCK_DONE;
@@ -2278,13 +2297,36 @@ BROTLI_BOOL BrotliDecoderHasMoreOutput(const BrotliDecoderState* s) {
       s->ringbuffer != 0 && UnwrittenBytes(s, BROTLI_FALSE) != 0);
 }
 
+const uint8_t* BrotliDecoderTakeOutput(BrotliDecoderState* s, size_t* size) {
+  uint8_t* result = 0;
+  size_t available_out = *size ? *size : 1u << 24;
+  size_t requested_out = available_out;
+  BrotliDecoderErrorCode status;
+  if (s->ringbuffer == 0) {
+    *size = 0;
+    return 0;
+  }
+  WrapRingBuffer(s);
+  status = WriteRingBuffer(s, &available_out, &result, 0);
+  if (status == BROTLI_DECODER_SUCCESS ||
+      status == BROTLI_DECODER_NEEDS_MORE_OUTPUT) {
+    *size = requested_out - available_out;
+  } else {
+    /* This might happen if previous decoder error code was ignored. */
+    *size = 0;
+    result = 0;
+  }
+  return result;
+}
+
 BROTLI_BOOL BrotliDecoderIsUsed(const BrotliDecoderState* s) {
   return TO_BROTLI_BOOL(s->state != BROTLI_STATE_UNINITED ||
       BrotliGetAvailableBits(&s->br) != 0);
 }
 
 BROTLI_BOOL BrotliDecoderIsFinished(const BrotliDecoderState* s) {
-  return TO_BROTLI_BOOL(s->state == BROTLI_STATE_DONE);
+  return TO_BROTLI_BOOL(s->state == BROTLI_STATE_DONE) &&
+      !BrotliDecoderHasMoreOutput(s);
 }
 
 BrotliDecoderErrorCode BrotliDecoderGetErrorCode(const BrotliDecoderState* s) {
@@ -2293,14 +2335,18 @@ BrotliDecoderErrorCode BrotliDecoderGetErrorCode(const BrotliDecoderState* s) {
 
 const char* BrotliDecoderErrorString(BrotliDecoderErrorCode c) {
   switch (c) {
-#define _BROTLI_ERROR_CODE_CASE(PREFIX, NAME, CODE) \
+#define BROTLI_ERROR_CODE_CASE_(PREFIX, NAME, CODE) \
     case BROTLI_DECODER ## PREFIX ## NAME: return #NAME;
-#define _BROTLI_NOTHING
-    BROTLI_DECODER_ERROR_CODES_LIST(_BROTLI_ERROR_CODE_CASE, _BROTLI_NOTHING)
-#undef _BROTLI_ERROR_CODE_CASE
-#undef _BROTLI_NOTHING
+#define BROTLI_NOTHING_
+    BROTLI_DECODER_ERROR_CODES_LIST(BROTLI_ERROR_CODE_CASE_, BROTLI_NOTHING_)
+#undef BROTLI_ERROR_CODE_CASE_
+#undef BROTLI_NOTHING_
     default: return "INVALID";
   }
+}
+
+uint32_t BrotliDecoderVersion() {
+  return BROTLI_VERSION;
 }
 
 /* DEPRECATED >>> */

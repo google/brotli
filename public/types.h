@@ -25,7 +25,8 @@ typedef __int64 int64_t;
 #endif  /* defined(_MSC_VER) && (_MSC_VER < 1600) */
 
 #if (!defined(_MSC_VER) || (_MSC_VER >= 1800)) && \
-  (defined(__cplusplus) || (defined(__STDC_VERSION__) && __STDC_VERSION__ >= 199901L))
+    (defined(__cplusplus) || \
+        (defined(__STDC_VERSION__) && __STDC_VERSION__ >= 199901L))
 #include <stdbool.h>
 #define BROTLI_BOOL bool
 #define BROTLI_TRUE true
@@ -54,5 +55,12 @@ typedef void* (*brotli_alloc_func)(void* opaque, size_t size);
 /* Deallocating function pointer. Function SHOULD be no-op in the case the
    address is 0. */
 typedef void (*brotli_free_func)(void* opaque, void* address);
+
+#if defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L) && \
+    !defined(__cplusplus)
+#define BROTLI_ARRAY_PARAM(L) L
+#else
+#define BROTLI_ARRAY_PARAM(L)
+#endif
 
 #endif  /* BROTLI_COMMON_TYPES_H_ */

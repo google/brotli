@@ -14,7 +14,7 @@
 
 #include "../common/constants.h"
 #include "../common/dictionary.h"
-#include "../common/types.h"
+#include "../public/types.h"
 #include "./dictionary_hash.h"
 #include "./fast_log.h"
 #include "./find_match_length.h"
@@ -639,29 +639,29 @@ static BROTLI_INLINE void FN(StitchToPreviousBlock)(HashToBinaryTree* self,
 #define FOR_ALL_HASHERS(H) FOR_GENERIC_HASHERS(H) H(10)
 
 typedef struct Hashers {
-#define _MEMBER(N) H ## N* h ## N;
-  FOR_ALL_HASHERS(_MEMBER)
-#undef _MEMBER
+#define MEMBER_(N) H ## N* h ## N;
+  FOR_ALL_HASHERS(MEMBER_)
+#undef MEMBER_
 } Hashers;
 
 static BROTLI_INLINE void InitHashers(Hashers* self) {
-#define _INIT(N) self->h ## N = 0;
-  FOR_ALL_HASHERS(_INIT)
-#undef _INIT
+#define INIT_(N) self->h ## N = 0;
+  FOR_ALL_HASHERS(INIT_)
+#undef INIT_
 }
 
 static BROTLI_INLINE void DestroyHashers(MemoryManager* m, Hashers* self) {
   if (self->h10) CleanupH10(m, self->h10);
-#define _CLEANUP(N) BROTLI_FREE(m, self->h ## N)
-  FOR_ALL_HASHERS(_CLEANUP)
-#undef _CLEANUP
+#define CLEANUP_(N) BROTLI_FREE(m, self->h ## N)
+  FOR_ALL_HASHERS(CLEANUP_)
+#undef CLEANUP_
 }
 
 static BROTLI_INLINE void HashersReset(Hashers* self, int type) {
   switch (type) {
-#define _RESET(N) case N: ResetH ## N(self->h ## N); break;
-    FOR_ALL_HASHERS(_RESET)
-#undef _RESET
+#define RESET_(N) case N: ResetH ## N(self->h ## N); break;
+    FOR_ALL_HASHERS(RESET_)
+#undef RESET_
     default: break;
   }
 }
@@ -669,9 +669,9 @@ static BROTLI_INLINE void HashersReset(Hashers* self, int type) {
 static BROTLI_INLINE void HashersSetup(
     MemoryManager* m, Hashers* self, int type) {
   switch (type) {
-#define _SETUP(N) case N: self->h ## N = BROTLI_ALLOC(m, H ## N, 1); break;
-    FOR_ALL_HASHERS(_SETUP)
-#undef _SETUP
+#define SETUP_(N) case N: self->h ## N = BROTLI_ALLOC(m, H ## N, 1); break;
+    FOR_ALL_HASHERS(SETUP_)
+#undef SETUP_
     default: break;
   }
   if (BROTLI_IS_OOM(m)) return;
@@ -679,7 +679,7 @@ static BROTLI_INLINE void HashersSetup(
   HashersReset(self, type);
 }
 
-#define _WARMUP_HASH(N)                                                        \
+#define WARMUP_HASH_(N)                                                        \
 static BROTLI_INLINE void WarmupHashH ## N(MemoryManager* m,                   \
     const BrotliEncoderParams* params, const size_t size, const uint8_t* dict, \
     H ## N* hasher) {                                                          \
@@ -691,8 +691,8 @@ static BROTLI_INLINE void WarmupHashH ## N(MemoryManager* m,                   \
     StoreH ## N(hasher, dict, ~(size_t)0, i);                                  \
   }                                                                            \
 }
-FOR_ALL_HASHERS(_WARMUP_HASH)
-#undef _WARMUP_HASH
+FOR_ALL_HASHERS(WARMUP_HASH_)
+#undef WARMUP_HASH_
 
 /* Custom LZ77 window. */
 static BROTLI_INLINE void HashersPrependCustomDictionary(
@@ -700,10 +700,10 @@ static BROTLI_INLINE void HashersPrependCustomDictionary(
     const size_t size, const uint8_t* dict) {
   int hasher_type = ChooseHasher(params);
   switch (hasher_type) {
-#define _PREPEND(N) \
+#define PREPEND_(N) \
     case N: WarmupHashH ## N(m, params, size, dict, self->h ## N); break;
-    FOR_ALL_HASHERS(_PREPEND)
-#undef _PREPEND
+    FOR_ALL_HASHERS(PREPEND_)
+#undef PREPEND_
     default: break;
   }
   if (BROTLI_IS_OOM(m)) return;

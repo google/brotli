@@ -9,7 +9,7 @@
 #ifndef BROTLI_ENC_ENCODE_H_
 #define BROTLI_ENC_ENCODE_H_
 
-#include "../common/types.h"
+#include "./types.h"
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
@@ -75,18 +75,9 @@ BrotliEncoderState* BrotliEncoderCreateInstance(brotli_alloc_func alloc_func,
 
 /* Deinitializes and frees BrotliEncoderState instance. */
 void BrotliEncoderDestroyInstance(BrotliEncoderState* state);
+
 /* The maximum input size that can be processed at once. */
 size_t BrotliEncoderInputBlockSize(BrotliEncoderState* state);
-
-/* Encodes the data in |input_buffer| as a meta-block and writes it to
-   |encoded_buffer| (|*encoded_size should| be set to the size of
-   |encoded_buffer|) and sets |*encoded_size| to the number of bytes that
-   was written. The |input_size| must not be greater than input_block_size().
-   Returns false if there was an error and true otherwise. */
-BROTLI_BOOL BrotliEncoderWriteMetaBlock(
-    BrotliEncoderState* state, const size_t input_size,
-    const uint8_t* input_buffer, const BROTLI_BOOL is_last,
-    size_t* encoded_size, uint8_t* encoded_buffer);
 
 /* Writes a metadata meta-block containing the given input to encoded_buffer.
    |*encoded_size| should be set to the size of the encoded_buffer.
@@ -100,14 +91,6 @@ BROTLI_BOOL BrotliEncoderWriteMetadata(
     BrotliEncoderState* state, const size_t input_size,
     const uint8_t* input_buffer, const BROTLI_BOOL is_last,
     size_t* encoded_size, uint8_t* encoded_buffer);
-
-/* Writes a zero-length meta-block with end-of-input bit set to the
-   internal output buffer and copies the output buffer to |encoded_buffer|
-   (|*encoded_size| should be set to the size of |encoded_buffer|) and sets
-   |*encoded_size| to the number of bytes written.
-   Returns false if there was an error and true otherwise. */
-BROTLI_BOOL BrotliEncoderFinishStream(
-    BrotliEncoderState* state, size_t* encoded_size, uint8_t* encoded_buffer);
 
 /* Copies the given input data to the internal ring buffer of the compressor.
    No processing of the data occurs at this time and this function can be
@@ -138,8 +121,9 @@ BROTLI_BOOL BrotliEncoderWriteData(
    Not to be confused with the built-in transformable dictionary of Brotli.
    To decode, use BrotliSetCustomDictionary() of the decoder with the same
    dictionary. */
-void BrotliEncoderSetCustomDictionary(BrotliEncoderState* state, size_t size,
-                                      const uint8_t* dict);
+void BrotliEncoderSetCustomDictionary(
+    BrotliEncoderState* state, size_t size,
+    const uint8_t dict[BROTLI_ARRAY_PARAM(size)]);
 
 /* Returns buffer size that is large enough to contain BrotliEncoderCompress
    output for any input.
@@ -157,7 +141,9 @@ size_t BrotliEncoderMaxCompressedSize(size_t input_size);
    Returns false if there was an error and true otherwise. */
 BROTLI_BOOL BrotliEncoderCompress(
     int quality, int lgwin, BrotliEncoderMode mode, size_t input_size,
-    const uint8_t* input_buffer, size_t* encoded_size, uint8_t* encoded_buffer);
+    const uint8_t input_buffer[BROTLI_ARRAY_PARAM(input_size)],
+    size_t* encoded_size,
+    uint8_t encoded_buffer[BROTLI_ARRAY_PARAM(*encoded_size)]);
 
 /* Progressively compress input stream and push produced bytes to output stream.
    Internally workflow consists of 3 tasks:
@@ -213,6 +199,24 @@ BROTLI_BOOL BrotliEncoderIsFinished(BrotliEncoderState* s);
    Returns 1 if has more output (in internal buffer) and 0 otherwise. */
 BROTLI_BOOL BrotliEncoderHasMoreOutput(BrotliEncoderState* s);
 
+/* Returns pointer to internal output buffer.
+   Set |size| to zero, to request all the continous output produced by encoder
+   so far. Otherwise no more than |size| bytes output will be provided.
+   After return |size| contains the size of output buffer region available for
+   reading. |size| bytes of output are considered consumed for all consecutive
+   calls to the instance methods; returned pointer becomes invalidated as well.
+
+   This method is created to make language bindings easier and more efficient:
+     1. push input data to CompressStream, until HasMoreOutput becomes true
+     2. use TakeOutput to peek bytes and copy to language-specific entity
+   Also this could be useful if there is an output stream that is able to
+   consume all the provided data (e.g. when data is saved to file system).
+ */
+const uint8_t* BrotliEncoderTakeOutput(BrotliEncoderState* s, size_t* size);
+
+
+/* Encoder version. Look at BROTLI_VERSION for more information. */
+uint32_t BrotliEncoderVersion(void);
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }  /* extern "C" */

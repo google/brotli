@@ -13,7 +13,7 @@
 #include <string.h>  /* memcpy */
 
 #include "../common/port.h"
-#include "../common/types.h"
+#include "../public/types.h"
 
 #if defined OS_LINUX || defined OS_CYGWIN
 #include <endian.h>
@@ -128,7 +128,8 @@ static BROTLI_INLINE void BROTLI_UNALIGNED_STORE64(void *p, uint64_t v) {
 
 #endif
 
-#if !defined(__cplusplus) && !defined(c_plusplus) && __STDC_VERSION__ >= 199901L
+#if !defined(__cplusplus) && !defined(c_plusplus) && \
+    (defined(__STDC_VERSION__) && __STDC_VERSION__ >= 199901L)
 #define BROTLI_RESTRICT restrict
 #elif BROTLI_GCC_VERSION > 295 || defined(__llvm__)
 #define BROTLI_RESTRICT __restrict
@@ -136,12 +137,12 @@ static BROTLI_INLINE void BROTLI_UNALIGNED_STORE64(void *p, uint64_t v) {
 #define BROTLI_RESTRICT
 #endif
 
-#define _TEMPLATE(T)                                                           \
+#define TEMPLATE_(T)                                                           \
   static BROTLI_INLINE T brotli_min_ ## T (T a, T b) { return a < b ? a : b; } \
   static BROTLI_INLINE T brotli_max_ ## T (T a, T b) { return a > b ? a : b; }
-_TEMPLATE(double) _TEMPLATE(float) _TEMPLATE(int)
-_TEMPLATE(size_t) _TEMPLATE(uint32_t) _TEMPLATE(uint8_t)
-#undef _TEMPLATE
+TEMPLATE_(double) TEMPLATE_(float) TEMPLATE_(int)
+TEMPLATE_(size_t) TEMPLATE_(uint32_t) TEMPLATE_(uint8_t)
+#undef TEMPLATE_
 #define BROTLI_MIN(T, A, B) (brotli_min_ ## T((A), (B)))
 #define BROTLI_MAX(T, A, B) (brotli_max_ ## T((A), (B)))
 

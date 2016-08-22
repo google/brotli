@@ -10,7 +10,7 @@
 #define BROTLI_DEC_STATE_H_
 
 #include "../common/constants.h"
-#include "../common/types.h"
+#include "../public/types.h"
 #include "./bit_reader.h"
 #include "./huffman.h"
 #include "./port.h"
@@ -209,10 +209,11 @@ struct BrotliDecoderStateStruct {
   BrotliRunningDecodeUint8State substate_decode_uint8;
   BrotliRunningReadBlockLengthState substate_read_block_length;
 
-  uint8_t is_last_metablock;
-  uint8_t is_uncompressed;
-  uint8_t is_metadata;
-  uint8_t size_nibbles;
+  unsigned int is_last_metablock : 1;
+  unsigned int is_uncompressed : 1;
+  unsigned int is_metadata : 1;
+  unsigned int should_wrap_ringbuffer : 1;
+  unsigned int size_nibbles : 8;
   uint32_t window_bits;
 
   uint32_t num_literal_htrees;
