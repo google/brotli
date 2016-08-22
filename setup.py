@@ -20,7 +20,7 @@ def get_version():
     version = 0
     with open(brotlimodule, 'r') as f:
         for line in f:
-            m = re.match(r'#define\sBROTLI_VERSION\s+0x([0-9a-fA-F])', line)
+            m = re.match(r'#define\sBROTLI_VERSION\s+0x([0-9a-fA-F]+)', line)
             if m:
                 version = int(m.group(1), 16)
     if version == 0:
