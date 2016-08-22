@@ -15,14 +15,17 @@ CURR_DIR = os.path.abspath(os.path.dirname(os.path.realpath(__file__)))
 
 
 def get_version():
-    """ Return BROTLI_VERSION string as defined in 'tools/version.h' file. """
-    brotlimodule = os.path.join(CURR_DIR, 'tools', 'version.h')
+    """ Return BROTLI_VERSION string as defined in 'common/version.h' file. """
+    brotlimodule = os.path.join(CURR_DIR, 'common', 'version.h')
+    version = 0
     with open(brotlimodule, 'r') as f:
         for line in f:
-            m = re.match(r'#define\sBROTLI_VERSION\s"(.*)"', line)
+            m = re.match(r'#define\sBROTLI_VERSION\s+0x([0-9a-fA-F]+)', line)
             if m:
-                return m.group(1)
-    return ""
+                version = int(m.group(1), 16)
+    if version == 0:
+        return ""
+    return "{0}.{1}.{2}".format(version >> 24, (version >> 12) & 0xFFF, version & 0xFFF)
 
 
 class TestCommand(Command):
@@ -146,6 +149,7 @@ brotli = Extension("brotli",
                         "common/constants.h",
                         "common/dictionary.h",
                         "common/port.h",
+                        "common/version.h",
                         "dec/bit_reader.h",
                         "dec/context.h",
                         "dec/huffman.h",
