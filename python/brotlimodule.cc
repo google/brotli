@@ -1,10 +1,11 @@
 #define PY_SSIZE_T_CLEAN 1
 #include <Python.h>
 #include <bytesobject.h>
+#include <cstdio>
 #include <vector>
+#include "../common/version.h"
 #include "../public/encode.h"
 #include "../public/decode.h"
-#include "../tools/version.h"
 
 #if PY_MAJOR_VERSION >= 3
 #define PyInt_Check PyLong_Check
@@ -297,7 +298,10 @@ PyMODINIT_FUNC INIT_BROTLI(void) {
   PyModule_AddIntConstant(m, "MODE_TEXT", (int) BROTLI_MODE_TEXT);
   PyModule_AddIntConstant(m, "MODE_FONT", (int) BROTLI_MODE_FONT);
 
-  PyModule_AddStringConstant(m, "__version__", BROTLI_VERSION);
+  char version[16];
+  snprintf(version, sizeof(version), "%d.%d.%d",
+      BROTLI_VERSION >> 24, (BROTLI_VERSION >> 12) & 0xFFF, BROTLI_VERSION & 0xFFF);
+  PyModule_AddStringConstant(m, "__version__", version);
 
   RETURN_BROTLI;
 }
