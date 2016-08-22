@@ -14,7 +14,7 @@
 
 #include <string.h>  /* memcmp, memcpy, memset */
 
-#include "../common/types.h"
+#include "../public/types.h"
 #include "./bit_cost.h"
 #include "./brotli_bit_stream.h"
 #include "./entropy_encode.h"

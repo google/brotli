@@ -9,7 +9,7 @@
 #ifndef BROTLI_ENC_MEMORY_H_
 #define BROTLI_ENC_MEMORY_H_
 
-#include "../common/types.h"
+#include "../public/types.h"
 #include "./port.h"
 
 #if defined(__cplusplus) || defined(c_plusplus)

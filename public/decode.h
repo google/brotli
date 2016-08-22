@@ -9,7 +9,7 @@
 #ifndef BROTLI_DEC_DECODE_H_
 #define BROTLI_DEC_DECODE_H_
 
-#include "../common/types.h"
+#include "./types.h"
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
@@ -52,7 +52,9 @@ typedef enum {
   BROTLI_ERROR_CODE(_ERROR_FORMAT_, PADDING_1, -14) SEPARATOR              \
   BROTLI_ERROR_CODE(_ERROR_FORMAT_, PADDING_2, -15) SEPARATOR              \
                                                                            \
-  /* -16..-20 codes are reserved */                                        \
+  /* -16..-19 codes are reserved */                                        \
+                                                                           \
+  BROTLI_ERROR_CODE(_ERROR_, INVALID_ARGUMENTS, -20) SEPARATOR             \
                                                                            \
   /* Memory allocation problems */                                         \
   BROTLI_ERROR_CODE(_ERROR_ALLOC_, CONTEXT_MODES, -21) SEPARATOR           \
@@ -69,12 +71,12 @@ typedef enum {
   BROTLI_ERROR_CODE(_ERROR_, UNREACHABLE, -31)
 
 typedef enum {
-#define _BROTLI_COMMA ,
-#define _BROTLI_ERROR_CODE_ENUM_ITEM(PREFIX, NAME, CODE) \
+#define BROTLI_COMMA_ ,
+#define BROTLI_ERROR_CODE_ENUM_ITEM_(PREFIX, NAME, CODE) \
     BROTLI_DECODER ## PREFIX ## NAME = CODE
-  BROTLI_DECODER_ERROR_CODES_LIST(_BROTLI_ERROR_CODE_ENUM_ITEM, _BROTLI_COMMA)
-#undef _BROTLI_ERROR_CODE_ENUM_ITEM
-#undef _BROTLI_COMMA
+  BROTLI_DECODER_ERROR_CODES_LIST(BROTLI_ERROR_CODE_ENUM_ITEM_, BROTLI_COMMA_)
+#undef BROTLI_ERROR_CODE_ENUM_ITEM_
+#undef BROTLI_COMMA_
 } BrotliDecoderErrorCode;
 
 #define BROTLI_LAST_ERROR_CODE BROTLI_DECODER_ERROR_UNREACHABLE
@@ -92,14 +94,17 @@ void BrotliDecoderDestroyInstance(BrotliDecoderState* state);
 /* Decompresses the data in |encoded_buffer| into |decoded_buffer|, and sets
    |*decoded_size| to the decompressed length. */
 BrotliDecoderResult BrotliDecoderDecompress(
-    size_t encoded_size, const uint8_t* encoded_buffer, size_t* decoded_size,
-    uint8_t* decoded_buffer);
+    size_t encoded_size,
+    const uint8_t encoded_buffer[BROTLI_ARRAY_PARAM(encoded_size)],
+    size_t* decoded_size,
+    uint8_t decoded_buffer[BROTLI_ARRAY_PARAM(*decoded_size)]);
 
 /* Decompresses the data. Supports partial input and output.
 
    Must be called with an allocated input buffer in |*next_in| and an allocated
    output buffer in |*next_out|. The values |*available_in| and |*available_out|
-   must specify the allocated size in |*next_in| and |*next_out| respectively.
+   must specify the allocated size in |*next_in| and |*next_out| respectively;
+   when |*available_out| is 0, |next_out| is allowed to be NULL.
 
    After each call, |*available_in| will be decremented by the amount of input
    bytes consumed, and the |*next_in| pointer will be incremented by that
@@ -126,11 +131,27 @@ BrotliDecoderResult BrotliDecoderDecompressStream(
     4) Clean up and free state with BrotliDestroyState
 */
 void BrotliDecoderSetCustomDictionary(
-    BrotliDecoderState* s, size_t size, const uint8_t* dict);
+    BrotliDecoderState* s, size_t size,
+    const uint8_t dict[BROTLI_ARRAY_PARAM(size)]);
 
 /* Returns true, if decoder has some unconsumed output.
    Otherwise returns false. */
 BROTLI_BOOL BrotliDecoderHasMoreOutput(const BrotliDecoderState* s);
+
+/* Returns pointer to internal output buffer.
+   Set |size| to zero, to request all the continous output produced by decoder
+   so far. Otherwise no more than |size| bytes output will be provided.
+   After return |size| contains the size of output buffer region available for
+   reading. |size| bytes of output are considered consumed for all consecutive
+   calls to the instance methods; returned pointer becomes invalidated as well.
+
+   This method is created to make language bindings easier and more efficient:
+     1. push data to DecompressStream, until "needs more output" is reported
+     2. use TakeOutput to peek bytes and copy to language-specific entity
+   Also this could be useful if there is an output stream that is able to
+   consume all the provided data (e.g. when data is saved to file system).
+ */
+const uint8_t* BrotliDecoderTakeOutput(BrotliDecoderState* s, size_t* size);
 
 /* Returns true, if decoder has already received some input bytes.
    Otherwise returns false. */
@@ -146,6 +167,9 @@ BrotliDecoderErrorCode BrotliDecoderGetErrorCode(const BrotliDecoderState* s);
 
 const char* BrotliDecoderErrorString(BrotliDecoderErrorCode c);
 
+/* Decoder version. Look at BROTLI_VERSION for more information. */
+uint32_t BrotliDecoderVersion(void);
+
 /* DEPRECATED >>> */
 typedef enum {
   BROTLI_RESULT_ERROR = 0,
@@ -154,12 +178,12 @@ typedef enum {
   BROTLI_RESULT_NEEDS_MORE_OUTPUT = 3
 } BrotliResult;
 typedef enum {
-#define _BROTLI_COMMA ,
-#define _BROTLI_ERROR_CODE_ENUM_ITEM(PREFIX, NAME, CODE) \
+#define BROTLI_COMMA_ ,
+#define BROTLI_ERROR_CODE_ENUM_ITEM_(PREFIX, NAME, CODE) \
     BROTLI ## PREFIX ## NAME = CODE
-  BROTLI_DECODER_ERROR_CODES_LIST(_BROTLI_ERROR_CODE_ENUM_ITEM, _BROTLI_COMMA)
-#undef _BROTLI_ERROR_CODE_ENUM_ITEM
-#undef _BROTLI_COMMA
+  BROTLI_DECODER_ERROR_CODES_LIST(BROTLI_ERROR_CODE_ENUM_ITEM_, BROTLI_COMMA_)
+#undef BROTLI_ERROR_CODE_ENUM_ITEM_
+#undef BROTLI_COMMA_
 } BrotliErrorCode;
 typedef struct BrotliStateStruct BrotliState;
 BrotliState* BrotliCreateState(

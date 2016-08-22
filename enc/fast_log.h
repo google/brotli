@@ -11,7 +11,7 @@
 
 #include <math.h>
 
-#include "../common/types.h"
+#include "../public/types.h"
 #include "../common/port.h"
 
 #if defined(__cplusplus) || defined(c_plusplus)

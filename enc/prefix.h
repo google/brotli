@@ -12,7 +12,7 @@
 
 #include "../common/constants.h"
 #include "../common/port.h"
-#include "../common/types.h"
+#include "../public/types.h"
 #include "./fast_log.h"
 
 #if defined(__cplusplus) || defined(c_plusplus)

@@ -11,7 +11,7 @@
 
 #include <string.h>  /* memcpy */
 
-#include "../common/types.h"
+#include "../public/types.h"
 #include "./memory.h"
 #include "./port.h"
 #include "./quality.h"

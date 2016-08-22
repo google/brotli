@@ -11,7 +11,7 @@
 #include <string.h>  /* memcpy, memset */
 
 #include "../common/constants.h"
-#include "../common/types.h"
+#include "../public/types.h"
 #include "./port.h"
 
 #if defined(__cplusplus) || defined(c_plusplus)

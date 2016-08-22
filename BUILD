@@ -22,6 +22,11 @@ STRICT_C_OPTIONS = [
 ]
 
 filegroup(
+    name = "public_headers",
+    srcs = glob(["public/*.h"]),
+)
+
+filegroup(
     name = "common_headers",
     srcs = glob(["common/*.h"]),
 )
@@ -54,14 +59,20 @@ filegroup(
 cc_library(
     name = "brotli_common",
     srcs = [":common_sources"],
-    hdrs = [":common_headers"],
+    hdrs = [
+        ":common_headers",
+        ":public_headers",
+    ],
     copts = STRICT_C_OPTIONS,
 )
 
 cc_library(
     name = "brotli_dec",
     srcs = [":dec_sources"],
-    hdrs = [":dec_headers"],
+    hdrs = [
+        ":dec_headers",
+        ":public_headers",
+    ],
     copts = STRICT_C_OPTIONS,
     deps = [
         ":brotli_common",
@@ -71,7 +82,10 @@ cc_library(
 cc_library(
     name = "brotli_enc",
     srcs = [":enc_sources"],
-    hdrs = [":enc_headers"],
+    hdrs = [
+        ":enc_headers",
+        ":public_headers",
+    ],
     copts = STRICT_C_OPTIONS,
     deps = [
         ":brotli_common",

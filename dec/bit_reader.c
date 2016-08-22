@@ -8,7 +8,7 @@
 
 #include "./bit_reader.h"
 
-#include "../common/types.h"
+#include "../public/types.h"
 #include "./port.h"
 
 #if defined(__cplusplus) || defined(c_plusplus)

@@ -12,7 +12,7 @@
 #ifndef BROTLI_ENC_COMPRESS_FRAGMENT_H_
 #define BROTLI_ENC_COMPRESS_FRAGMENT_H_
 
-#include "../common/types.h"
+#include "../public/types.h"
 #include "./memory.h"
 #include "./port.h"
 

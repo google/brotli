@@ -172,6 +172,7 @@ static BROTLI_INLINE BROTLI_BOOL FN(FindLongestMatch)(
     const size_t backward =
         (size_t)(distance_cache[idx] + kDistanceCacheOffset[i]);
     size_t prev_ix = (cur_ix - backward);
+    /* For distance code 0 we want to consider 2-byte matches. */
     if (i > 0 && self->tiny_hash[(uint16_t)prev_ix] != tiny_hash) continue;
     if (prev_ix >= cur_ix || backward > max_backward) {
       continue;

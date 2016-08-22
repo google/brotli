@@ -14,8 +14,8 @@
 #include <sys/types.h>
 #include <time.h>
 
-#include "../dec/decode.h"
-#include "../enc/encode.h"
+#include "../public/decode.h"
+#include "../public/encode.h"
 
 #if !defined(_WIN32)
 #include <unistd.h>

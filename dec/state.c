@@ -8,7 +8,7 @@
 
 #include <stdlib.h>  /* free, malloc */
 
-#include "../common/types.h"
+#include "../public/types.h"
 #include "./huffman.h"
 
 #if defined(__cplusplus) || defined(c_plusplus)
@@ -80,6 +80,7 @@ void BrotliDecoderStateInitWithCustomAllocators(BrotliDecoderState* s,
   s->custom_dict_size = 0;
 
   s->is_last_metablock = 0;
+  s->should_wrap_ringbuffer = 0;
   s->window_bits = 0;
   s->max_distance = 0;
   s->dist_rb[0] = 16;

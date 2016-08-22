@@ -6,11 +6,12 @@
 
 /* Implementation of Brotli compressor. */
 
-#include "./encode.h"
+#include "../public/encode.h"
 
 #include <stdlib.h>  /* free, malloc */
 #include <string.h>  /* memcpy, memset */
 
+#include "../common/version.h"
 #include "./backward_references.h"
 #include "./bit_cost.h"
 #include "./brotli_bit_stream.h"
@@ -801,7 +802,7 @@ BROTLI_BOOL BrotliEncoderWriteData(
       *out_size = 0;
       return BROTLI_TRUE;
     }
-    storage = GetBrotliStorage(s, 2 * bytes + 500);
+    storage = GetBrotliStorage(s, 2 * bytes + 502);
     if (BROTLI_IS_OOM(m)) return BROTLI_FALSE;
     storage[0] = s->last_byte_;
     table = GetHashTable(s, s->params.quality, bytes, &table_size);
@@ -908,7 +909,7 @@ BROTLI_BOOL BrotliEncoderWriteData(
   {
     const uint32_t metablock_size =
         (uint32_t)(s->input_pos_ - s->last_flush_pos_);
-    uint8_t* storage = GetBrotliStorage(s, 2 * metablock_size + 500);
+    uint8_t* storage = GetBrotliStorage(s, 2 * metablock_size + 502);
     size_t storage_ix = s->last_byte_bits_;
     if (BROTLI_IS_OOM(m)) return BROTLI_FALSE;
     storage[0] = s->last_byte_;
@@ -939,26 +940,6 @@ BROTLI_BOOL BrotliEncoderWriteData(
     *out_size = storage_ix >> 3;
     return BROTLI_TRUE;
   }
-}
-
-BROTLI_BOOL BrotliEncoderWriteMetaBlock(
-    BrotliEncoderState* s, const size_t input_size, const uint8_t* input_buffer,
-    const BROTLI_BOOL is_last, size_t* encoded_size, uint8_t* encoded_buffer) {
-  size_t out_size = 0;
-  uint8_t* output;
-  int result;
-  if (!EnsureInitialized(s)) return BROTLI_FALSE;
-  BrotliEncoderCopyInputToRingBuffer(s, input_size, input_buffer);
-  result = BrotliEncoderWriteData(
-      s, is_last, /* force_flush */ BROTLI_TRUE, &out_size, &output);
-  if (!result || out_size > *encoded_size) {
-    return BROTLI_FALSE;
-  }
-  if (out_size > 0) {
-    memcpy(encoded_buffer, output, out_size);
-  }
-  *encoded_size = out_size;
-  return BROTLI_TRUE;
 }
 
 BROTLI_BOOL BrotliEncoderWriteMetadata(
@@ -998,13 +979,6 @@ BROTLI_BOOL BrotliEncoderWriteMetadata(
   s->last_byte_ = 0;
   s->last_byte_bits_ = 0;
   return BROTLI_TRUE;
-}
-
-BROTLI_BOOL BrotliEncoderFinishStream(
-    BrotliEncoderState* s, size_t* encoded_size, uint8_t* encoded_buffer) {
-  if (!EnsureInitialized(s)) return BROTLI_FALSE;
-  return BrotliEncoderWriteMetaBlock(
-      s, 0, NULL, 1, encoded_size, encoded_buffer);
 }
 
 static BROTLI_BOOL BrotliCompressBufferQuality10(
@@ -1165,7 +1139,7 @@ static BROTLI_BOOL BrotliCompressBufferQuality10(
       BrotliOptimizeHistograms(num_direct_distance_codes,
                                distance_postfix_bits,
                                &mb);
-      storage = BROTLI_ALLOC(m, uint8_t, 2 * metablock_size + 500);
+      storage = BROTLI_ALLOC(m, uint8_t, 2 * metablock_size + 502);
       if (BROTLI_IS_OOM(m)) goto oom;
       storage[0] = last_byte;
       BrotliStoreMetaBlock(m, input_buffer, metablock_start, metablock_size,
@@ -1336,15 +1310,23 @@ fallback:
 static void InjectBytePaddingBlock(BrotliEncoderState* s) {
   uint32_t seal = s->last_byte_;
   size_t seal_bits = s->last_byte_bits_;
+  uint8_t* destination;
   s->last_byte_ = 0;
   s->last_byte_bits_ = 0;
   /* is_last = 0, data_nibbles = 11, reseved = 0, meta_nibbles = 00 */
   seal |= 0x6u << seal_bits;
   seal_bits += 6;
-  s->flush_buf_[0] = (uint8_t)seal;
-  if (seal_bits > 8) s->flush_buf_[1] = (uint8_t)(seal >> 8);
-  s->next_out_ = s->flush_buf_;
-  s->available_out_ = (seal_bits + 7) >> 3;
+  /* If we have already created storage, then append to it.
+     Storage is valid until next block is being compressed. */
+  if (s->next_out_) {
+    destination = s->next_out_ + s->available_out_;
+  } else {
+    destination = s->flush_buf_;
+    s->next_out_ = destination;
+  }
+  destination[0] = (uint8_t)seal;
+  if (seal_bits > 8) destination[1] = (uint8_t)(seal >> 8);
+  s->available_out_ += (seal_bits + 7) >> 3;
 }
 
 static BROTLI_BOOL BrotliEncoderCompressStreamFast(
@@ -1384,10 +1366,8 @@ static BROTLI_BOOL BrotliEncoderCompressStreamFast(
   }
 
   while (BROTLI_TRUE) {
-    if (s->available_out_ == 0 &&
-        s->stream_state_ == BROTLI_STREAM_FLUSH_REQUESTED) {
-      s->stream_state_ = BROTLI_STREAM_PROCESSING;
-      if (s->last_byte_bits_ == 0) break;
+    if (s->stream_state_ == BROTLI_STREAM_FLUSH_REQUESTED &&
+        s->last_byte_bits_ != 0) {
       InjectBytePaddingBlock(s);
       continue;
     }
@@ -1416,7 +1396,7 @@ static BROTLI_BOOL BrotliEncoderCompressStreamFast(
           (*available_in == block_size) && (op == BROTLI_OPERATION_FINISH);
       BROTLI_BOOL force_flush =
           (*available_in == block_size) && (op == BROTLI_OPERATION_FLUSH);
-      size_t max_out_size = 2 * block_size + 500;
+      size_t max_out_size = 2 * block_size + 502;
       BROTLI_BOOL inplace = BROTLI_TRUE;
       uint8_t* storage = NULL;
       size_t storage_ix = s->last_byte_bits_;
@@ -1430,7 +1410,7 @@ static BROTLI_BOOL BrotliEncoderCompressStreamFast(
       if (max_out_size <= *available_out) {
         storage = *next_out;
       } else {
-        inplace = 0;
+        inplace = BROTLI_FALSE;
         storage = GetBrotliStorage(s, max_out_size);
         if (BROTLI_IS_OOM(m)) return BROTLI_FALSE;
       }
@@ -1475,6 +1455,11 @@ static BROTLI_BOOL BrotliEncoderCompressStreamFast(
   }
   BROTLI_FREE(m, tmp_command_buf);
   BROTLI_FREE(m, tmp_literal_buf);
+  if (s->stream_state_ == BROTLI_STREAM_FLUSH_REQUESTED &&
+      s->available_out_ == 0) {
+    s->stream_state_ = BROTLI_STREAM_PROCESSING;
+    s->next_out_ = 0;
+  }
   return BROTLI_TRUE;
 }
 
@@ -1504,10 +1489,8 @@ BROTLI_BOOL BrotliEncoderCompressStream(
       continue;
     }
 
-    if (s->available_out_ == 0 &&
-        s->stream_state_ == BROTLI_STREAM_FLUSH_REQUESTED) {
-      s->stream_state_ = BROTLI_STREAM_PROCESSING;
-      if (s->last_byte_bits_ == 0) break;
+    if (s->stream_state_ == BROTLI_STREAM_FLUSH_REQUESTED &&
+        s->last_byte_bits_ != 0) {
       InjectBytePaddingBlock(s);
       continue;
     }
@@ -1544,6 +1527,11 @@ BROTLI_BOOL BrotliEncoderCompressStream(
     }
     break;
   }
+  if (s->stream_state_ == BROTLI_STREAM_FLUSH_REQUESTED &&
+      s->available_out_ == 0) {
+    s->stream_state_ = BROTLI_STREAM_PROCESSING;
+    s->next_out_ = 0;
+  }
   return BROTLI_TRUE;
 }
 
@@ -1554,6 +1542,28 @@ BROTLI_BOOL BrotliEncoderIsFinished(BrotliEncoderState* s) {
 
 BROTLI_BOOL BrotliEncoderHasMoreOutput(BrotliEncoderState* s) {
   return TO_BROTLI_BOOL(s->available_out_ != 0);
+}
+
+const uint8_t* BrotliEncoderTakeOutput(BrotliEncoderState* s, size_t* size) {
+  size_t consumed_size = s->available_out_;
+  uint8_t* result = s->next_out_;
+  if (*size) {
+    consumed_size = BROTLI_MIN(size_t, *size, s->available_out_);
+  }
+  if (consumed_size) {
+    s->next_out_ += consumed_size;
+    s->available_out_ -= consumed_size;
+    s->total_out_ += consumed_size;
+    *size = consumed_size;
+  } else {
+    *size = 0;
+    result = 0;
+  }
+  return result;
+}
+
+uint32_t BrotliEncoderVersion(void) {
+  return BROTLI_VERSION;
 }
 
 

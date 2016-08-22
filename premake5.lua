@@ -28,38 +28,38 @@ configuration { "macosx" }
 project "brotli_common"
   kind "SharedLib"
   language "C"
-  files { "common/**.h", "common/**.c" }
+  files { "common/**.h", "common/**.c", "public/**.h" }
 
 project "brotli_common_static"
   kind "StaticLib"
   targetname "brotli_common"
   language "C"
-  files { "common/**.h", "common/**.c" }
+  files { "common/**.h", "common/**.c", "public/**.h" }
 
 project "brotli_dec"
   kind "SharedLib"
   language "C"
-  files { "dec/**.h", "dec/**.c" }
+  files { "dec/**.h", "dec/**.c", "public/**.h" }
   links "brotli_common"
 
 project "brotli_dec_static"
   kind "StaticLib"
   targetname "brotli_dec"
   language "C"
-  files { "dec/**.h", "dec/**.c" }
+  files { "dec/**.h", "dec/**.c", "public/**.h" }
   links "brotli_common_static"
 
 project "brotli_enc"
   kind "SharedLib"
   language "C"
-  files { "enc/**.h", "enc/**.c" }
+  files { "enc/**.h", "enc/**.c", "public/**.h" }
   links "brotli_common"
 
 project "brotli_enc_static"
   kind "StaticLib"
   targetname "brotli_enc"
   language "C"
-  files { "enc/**.h", "enc/**.c" }
+  files { "enc/**.h", "enc/**.c", "public/**.h" }
   links "brotli_common_static"
 
 project "bro"
