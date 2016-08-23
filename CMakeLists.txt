@@ -93,7 +93,7 @@ if(NOT LOG2_RES)
 endif()
 unset(LOG2_RES)
 
-set(BROTLI_INCLUDE_DIRS "${CMAKE_CURRENT_SOURCE_DIR}")
+set(BROTLI_INCLUDE_DIRS "${CMAKE_CURRENT_SOURCE_DIR}/include")
 set(BROTLI_LIBRARIES brotli_enc brotli_dec brotli_common ${LIBM_LIBRARY})
 mark_as_advanced(BROTLI_INCLUDE_DIRS BROTLI_LIBRARIES)
 
