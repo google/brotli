@@ -192,9 +192,9 @@ brotli = Extension("brotli",
                         "enc/static_dict_lut.h",
                         "enc/utf8_util.h",
                         "enc/write_bits.h",
-                        "include/brotli/decode.h",
-                        "include/brotli/encode.h",
-                        "include/brotli/types.h",
+                    ],
+                    include_dirs = [
+                        "include",
                     ],
                     language="c++",
                     )
