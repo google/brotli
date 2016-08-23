@@ -14,7 +14,7 @@
 
 #include "../common/constants.h"
 #include "../common/dictionary.h"
-#include "../public/types.h"
+#include <brotli/types.h>
 #include "./dictionary_hash.h"
 #include "./fast_log.h"
 #include "./find_match_length.h"

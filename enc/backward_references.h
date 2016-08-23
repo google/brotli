@@ -9,7 +9,7 @@
 #ifndef BROTLI_ENC_BACKWARD_REFERENCES_H_
 #define BROTLI_ENC_BACKWARD_REFERENCES_H_
 
-#include "../public/types.h"
+#include <brotli/types.h>
 #include "./command.h"
 #include "./hash.h"
 #include "./memory.h"

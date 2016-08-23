@@ -14,8 +14,8 @@
 #include <sys/types.h>
 #include <time.h>
 
-#include "../public/decode.h"
-#include "../public/encode.h"
+#include <brotli/decode.h>
+#include <brotli/encode.h>
 
 #if !defined(_WIN32)
 #include <unistd.h>

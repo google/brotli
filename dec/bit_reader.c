@@ -8,7 +8,7 @@
 
 #include "./bit_reader.h"
 
-#include "../public/types.h"
+#include <brotli/types.h>
 #include "./port.h"
 
 #if defined(__cplusplus) || defined(c_plusplus)
