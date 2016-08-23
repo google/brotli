@@ -56,18 +56,19 @@ filegroup(
     srcs = glob(["enc/*.c"]),
 )
 
-cc_inc_library(
+cc_library(
     name = "brotli",
     hdrs = [":public_headers"],
-    prefix = "include",
+    copts = STRICT_C_OPTIONS,
+    includes = ["include"],
 )
 
 cc_library(
     name = "brotli_common",
     srcs = [":common_sources"],
     hdrs = [":common_headers"],
-    deps = [":brotli"],
     copts = STRICT_C_OPTIONS,
+    deps = [":brotli"],
 )
 
 cc_library(
