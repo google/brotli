@@ -129,6 +129,9 @@ add_library(brotli_enc STATIC
   enc/static_dict.c
   enc/utf8_util.c)
 
+# Older CMake versions does not understand INCLUDE_DIRECTORIES property.
+include_directories(${BROTLI_INCLUDE_DIRS})
+
 foreach(lib brotli_common brotli_dec brotli_enc)
   target_link_libraries(${lib} ${LIBM_LIBRARY})
   set_property(TARGET ${lib} APPEND PROPERTY INCLUDE_DIRECTORIES ${BROTLI_INCLUDE_DIRS})
