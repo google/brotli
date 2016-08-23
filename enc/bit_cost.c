@@ -9,7 +9,7 @@
 #include "./bit_cost.h"
 
 #include "../common/constants.h"
-#include "../public/types.h"
+#include <brotli/types.h>
 #include "./fast_log.h"
 #include "./histogram.h"
 #include "./port.h"

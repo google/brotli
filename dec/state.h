@@ -10,7 +10,7 @@
 #define BROTLI_DEC_STATE_H_
 
 #include "../common/constants.h"
-#include "../public/types.h"
+#include <brotli/types.h>
 #include "./bit_reader.h"
 #include "./huffman.h"
 #include "./port.h"

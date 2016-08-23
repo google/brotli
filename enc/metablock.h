@@ -10,7 +10,7 @@
 #ifndef BROTLI_ENC_METABLOCK_H_
 #define BROTLI_ENC_METABLOCK_H_
 
-#include "../public/types.h"
+#include <brotli/types.h>
 #include "./block_splitter.h"
 #include "./command.h"
 #include "./context.h"

@@ -9,7 +9,7 @@
 #ifndef BROTLI_DEC_DECODE_H_
 #define BROTLI_DEC_DECODE_H_
 
-#include "./types.h"
+#include <brotli/types.h>
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {

@@ -4,6 +4,7 @@ configurations { "Release", "Debug" }
 targetdir "bin"
 location "buildfiles"
 flags "RelativeLinks"
+includedirs { "include" }
 
 filter "configurations:Release"
   optimize "Speed"
@@ -28,38 +29,38 @@ configuration { "macosx" }
 project "brotli_common"
   kind "SharedLib"
   language "C"
-  files { "common/**.h", "common/**.c", "public/**.h" }
+  files { "common/**.h", "common/**.c" }
 
 project "brotli_common_static"
   kind "StaticLib"
   targetname "brotli_common"
   language "C"
-  files { "common/**.h", "common/**.c", "public/**.h" }
+  files { "common/**.h", "common/**.c" }
 
 project "brotli_dec"
   kind "SharedLib"
   language "C"
-  files { "dec/**.h", "dec/**.c", "public/**.h" }
+  files { "dec/**.h", "dec/**.c" }
   links "brotli_common"
 
 project "brotli_dec_static"
   kind "StaticLib"
   targetname "brotli_dec"
   language "C"
-  files { "dec/**.h", "dec/**.c", "public/**.h" }
+  files { "dec/**.h", "dec/**.c" }
   links "brotli_common_static"
 
 project "brotli_enc"
   kind "SharedLib"
   language "C"
-  files { "enc/**.h", "enc/**.c", "public/**.h" }
+  files { "enc/**.h", "enc/**.c" }
   links "brotli_common"
 
 project "brotli_enc_static"
   kind "StaticLib"
   targetname "brotli_enc"
   language "C"
-  files { "enc/**.h", "enc/**.c", "public/**.h" }
+  files { "enc/**.h", "enc/**.c" }
   links "brotli_common_static"
 
 project "bro"

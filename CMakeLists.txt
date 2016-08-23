@@ -93,7 +93,7 @@ if(NOT LOG2_RES)
 endif()
 unset(LOG2_RES)
 
-set(BROTLI_INCLUDE_DIRS "${CMAKE_CURRENT_SOURCE_DIR}")
+set(BROTLI_INCLUDE_DIRS "${CMAKE_CURRENT_SOURCE_DIR}/include")
 set(BROTLI_LIBRARIES brotli_enc brotli_dec brotli_common ${LIBM_LIBRARY})
 mark_as_advanced(BROTLI_INCLUDE_DIRS BROTLI_LIBRARIES)
 
@@ -128,6 +128,9 @@ add_library(brotli_enc STATIC
   enc/metablock.c
   enc/static_dict.c
   enc/utf8_util.c)
+
+# Older CMake versions does not understand INCLUDE_DIRECTORIES property.
+include_directories(${BROTLI_INCLUDE_DIRS})
 
 foreach(lib brotli_common brotli_dec brotli_enc)
   target_link_libraries(${lib} ${LIBM_LIBRARY})

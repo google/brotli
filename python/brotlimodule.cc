@@ -4,8 +4,8 @@
 #include <cstdio>
 #include <vector>
 #include "../common/version.h"
-#include "../public/encode.h"
-#include "../public/decode.h"
+#include <brotli/decode.h>
+#include <brotli/encode.h>
 
 #if PY_MAJOR_VERSION >= 3
 #define PyInt_Check PyLong_Check

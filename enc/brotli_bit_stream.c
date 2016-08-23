@@ -13,7 +13,7 @@
 #include <string.h>  /* memcpy, memset */
 
 #include "../common/constants.h"
-#include "../public/types.h"
+#include <brotli/types.h>
 #include "./context.h"
 #include "./entropy_encode.h"
 #include "./entropy_encode_static.h"

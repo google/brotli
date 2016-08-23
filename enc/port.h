@@ -13,7 +13,7 @@
 #include <string.h>  /* memcpy */
 
 #include "../common/port.h"
-#include "../public/types.h"
+#include <brotli/types.h>
 
 #if defined OS_LINUX || defined OS_CYGWIN
 #include <endian.h>

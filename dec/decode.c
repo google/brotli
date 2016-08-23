@@ -4,7 +4,7 @@
    See file LICENSE for detail or copy at https://opensource.org/licenses/MIT
 */
 
-#include "../public/decode.h"
+#include <brotli/decode.h>
 
 #ifdef __ARM_NEON__
 #include <arm_neon.h>

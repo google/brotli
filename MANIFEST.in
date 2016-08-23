@@ -5,7 +5,7 @@ include dec/*.c
 include dec/*.h
 include enc/*.c
 include enc/*.h
-include public/*.h
+include include/brotli/*.h
 include LICENSE
 include MANIFEST.in
 include python/bro.py

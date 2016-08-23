@@ -23,7 +23,7 @@ $(DIRS):
 	mkdir -p $@
 
 $(OBJECTS): $(DIRS)
-	$(CC) $(CFLAGS) $(CPPFLAGS) \
+	$(CC) $(CFLAGS) $(CPPFLAGS) -Iinclude \
         -c $(patsubst %.o,%.c,$(patsubst $(OBJDIR)/%,%,$@)) -o $@
 
 $(EXECUTABLE): $(OBJECTS)
