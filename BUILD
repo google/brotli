@@ -7,6 +7,8 @@ package(
 
 licenses(["notice"])  # MIT
 
+exports_files(["LICENSE"])
+
 STRICT_C_OPTIONS = [
     "--pedantic-errors",
     "-Wall",
