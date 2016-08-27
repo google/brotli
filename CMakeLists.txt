@@ -22,6 +22,18 @@ if(BROTLI_BUNDLED_MODE STREQUAL "")
 endif()
 mark_as_advanced(BROTLI_BUNDLED_MODE)
 
+# When building shared libraries it is important to set the correct rpath.
+# See https://cmake.org/Wiki/CMake_RPATH_handling#Always_full_RPATH
+if (BUILD_SHARED_LIBS)
+  set(CMAKE_SKIP_BUILD_RPATH FALSE)
+  set(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)
+  set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
+  list(FIND CMAKE_PLATFORM_IMPLICIT_LINK_DIRECTORIES "${CMAKE_INSTALL_PREFIX}/lib" isSystemDir)
+  if ("${isSystemDir}" STREQUAL "-1")
+    set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib")
+  endif()
+endif()
+
 # Parse version information from common/version.h.  Normally we would
 # define these values here and write them out to configuration file(s)
 # (i.e., config.h), but in this case we parse them from
@@ -94,7 +106,8 @@ endif()
 unset(LOG2_RES)
 
 set(BROTLI_INCLUDE_DIRS "${CMAKE_CURRENT_SOURCE_DIR}/include")
-set(BROTLI_LIBRARIES brotli_enc brotli_dec brotli_common ${LIBM_LIBRARY})
+set(BROTLI_LIBRARIES_CORE brotli_enc brotli_dec brotli_common)
+set(BROTLI_LIBRARIES ${BROTLI_LIBRARIES_CORE} ${LIBM_LIBRARY})
 mark_as_advanced(BROTLI_INCLUDE_DIRS BROTLI_LIBRARIES)
 
 if(${CMAKE_SYSTEM_NAME} MATCHES "Linux")
@@ -105,14 +118,14 @@ elseif(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
   add_definitions(-DOS_MACOSX)
 endif()
 
-add_library(brotli_common STATIC
+add_library(brotli_common
   common/dictionary.c)
-add_library(brotli_dec STATIC
+add_library(brotli_dec
   dec/bit_reader.c
   dec/decode.c
   dec/huffman.c
   dec/state.c)
-add_library(brotli_enc STATIC
+add_library(brotli_enc
   enc/backward_references.c
   enc/bit_cost.c
   enc/block_splitter.c
@@ -141,6 +154,10 @@ foreach(lib brotli_common brotli_dec brotli_enc)
 
   set_property(TARGET ${lib} APPEND PROPERTY INTERFACE_INCLUDE_DIRECTORIES "${BROTLI_INCLUDE_DIRS}")
 endforeach()
+if (BUILD_SHARED_LIBS)
+  target_link_libraries(brotli_dec brotli_common)
+  target_link_libraries(brotli_enc brotli_common)
+endif()
 
 # For projects stuck on older versions of CMake, this will set the
 # BROTLI_INCLUDE_DIRS and BROTLI_LIBRARIES variables so they still
@@ -162,6 +179,15 @@ if(NOT BROTLI_BUNDLE_MODE)
   include(GNUInstallDirs)
 
   install (TARGETS bro RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}")
+
+  if(BUILD_SHARED_LIBS)
+    if(WIN32)
+      install(TARGETS ${BROTLI_LIBRARIES_CORE} RUNTIME DESTINATION bin)
+    else()
+      install(TARGETS ${BROTLI_LIBRARIES_CORE} LIBRARY DESTINATION lib)
+    endif()
+  endif()
+
 endif()
 
 # Tests
