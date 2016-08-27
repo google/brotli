@@ -158,7 +158,7 @@ add_executable(bro tools/bro.c)
 target_link_libraries(bro ${BROTLI_LIBRARIES})
 
 # Installation
-if(NOT BROTLI_BUNDLE_MODE)
+if(NOT BROTLI_BUNDLED_MODE)
   include(GNUInstallDirs)
 
   install (TARGETS bro RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}")
