@@ -86,6 +86,7 @@ cc_library(
     srcs = [":enc_sources"],
     hdrs = [":enc_headers"],
     copts = STRICT_C_OPTIONS,
+    linkopts = ["-lm"],
     deps = [":brotli_common"],
 )
 
