@@ -488,6 +488,7 @@ void BrotliBuildMetaBlockGreedyWithContexts(MemoryManager* m,
 
 void BrotliOptimizeHistograms(size_t num_direct_distance_codes,
                               size_t distance_postfix_bits,
+                              int lgwin,
                               MetaBlockSplit* mb) {
   uint8_t good_for_rle[BROTLI_NUM_COMMAND_SYMBOLS];
   size_t num_distance_codes;
@@ -501,8 +502,14 @@ void BrotliOptimizeHistograms(size_t num_direct_distance_codes,
                                       mb->command_histograms[i].data_,
                                       good_for_rle);
   }
-  num_distance_codes = BROTLI_NUM_DISTANCE_SHORT_CODES +
-      num_direct_distance_codes + (48u << distance_postfix_bits);
+  if (lgwin == 30) {
+    num_distance_codes = BROTLI_NUM_DISTANCE_SHORT_CODES +
+        num_direct_distance_codes +
+        ((2 * BROTLI_MAX_DISTANCE_BITS) << distance_postfix_bits);
+  } else {
+    num_distance_codes = BROTLI_NUM_DISTANCE_SHORT_CODES +
+        num_direct_distance_codes + (48U << distance_postfix_bits);
+  }
   for (i = 0; i < mb->distance_histograms_size; ++i) {
     BrotliOptimizeHuffmanCountsForRle(num_distance_codes,
                                       mb->distance_histograms[i].data_,

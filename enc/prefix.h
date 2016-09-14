@@ -23,10 +23,12 @@ static BROTLI_INLINE void PrefixEncodeCopyDistance(size_t distance_code,
                                                    size_t num_direct_codes,
                                                    size_t postfix_bits,
                                                    uint16_t* code,
+                                                   uint32_t* extra_bits_size,
                                                    uint32_t* extra_bits) {
   if (distance_code < BROTLI_NUM_DISTANCE_SHORT_CODES + num_direct_codes) {
     *code = (uint16_t)distance_code;
     *extra_bits = 0;
+    *extra_bits_size = 0;
     return;
   } else {
     size_t dist = ((size_t)1 << (postfix_bits + 2u)) +
@@ -40,8 +42,8 @@ static BROTLI_INLINE void PrefixEncodeCopyDistance(size_t distance_code,
     *code = (uint16_t)(
         (BROTLI_NUM_DISTANCE_SHORT_CODES + num_direct_codes +
          ((2 * (nbits - 1) + prefix) << postfix_bits) + postfix));
-    *extra_bits = (uint32_t)(
-        (nbits << 24) | ((dist - offset) >> postfix_bits));
+    *extra_bits = (uint32_t)((dist - offset) >> postfix_bits);
+    *extra_bits_size = (uint32_t)nbits;
   }
 }
 

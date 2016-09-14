@@ -10,6 +10,7 @@
 #define BROTLI_ENC_RINGBUFFER_H_
 
 #include <string.h>  /* memcpy */
+#include <stdio.h>
 
 #include <brotli/types.h>
 #include "./memory.h"
@@ -44,6 +45,7 @@ typedef struct RingBuffer {
   uint8_t *data_;
   /* The start of the ringbuffer. */
   uint8_t *buffer_;
+  unsigned int should_wrap_ : 1;
 } RingBuffer;
 
 static BROTLI_INLINE void RingBufferInit(RingBuffer* rb) {
@@ -51,6 +53,7 @@ static BROTLI_INLINE void RingBufferInit(RingBuffer* rb) {
   rb->pos_ = 0;
   rb->data_ = 0;
   rb->buffer_ = 0;
+  rb->should_wrap_ = 0;
 }
 
 static BROTLI_INLINE void RingBufferSetup(
@@ -147,9 +150,10 @@ static BROTLI_INLINE void RingBufferWrite(
   rb->buffer_[-2] = rb->buffer_[rb->size_ - 2];
   rb->buffer_[-1] = rb->buffer_[rb->size_ - 1];
   rb->pos_ += (uint32_t)n;
-  if (rb->pos_ > (1u << 30)) {
+  if (rb->should_wrap_ || rb->pos_ > (1u << 31)) {
+    rb->should_wrap_ = 1;
     /* Wrap, but preserve not-a-first-lap feature. */
-    rb->pos_ = (rb->pos_ & ((1u << 30) - 1)) | (1u << 30);
+    rb->pos_ = (rb->pos_ & ((1u << 31) - 1)) | (1u << 31);
   }
 }
 

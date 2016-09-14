@@ -10,13 +10,14 @@
 #define BROTLI_ENC_ENCODE_H_
 
 #include <brotli/types.h>
+#include "../common/constants.h"
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
 #endif
 
-static const int kBrotliMaxWindowBits = 24;
 static const int kBrotliMinWindowBits = 10;
+static const int kBrotliMaxWindowBits = BROTLI_MAX_DISTANCE_BITS;
 static const int kBrotliMinInputBlockBits = 16;
 static const int kBrotliMaxInputBlockBits = 24;
 

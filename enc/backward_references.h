@@ -39,6 +39,7 @@ typedef struct ZopfliNode {
      highest 7 bit contains distance short code + 1 (or zero if no short code)
   */
   uint32_t distance;
+  uint32_t short_code;
   /* number of literal inserts before this copy */
   uint32_t insert_length;
 

@@ -157,10 +157,11 @@ static void RecomputeDistancePrefixes(Command* cmds,
   for (i = 0; i < num_commands; ++i) {
     Command* cmd = &cmds[i];
     if (CommandCopyLen(cmd) && cmd->cmd_prefix_ >= 128) {
-      PrefixEncodeCopyDistance(CommandDistanceCode(cmd),
+      PrefixEncodeCopyDistance(CommandRestoreDistanceCode(cmd),
                                num_direct_distance_codes,
                                distance_postfix_bits,
                                &cmd->dist_prefix_,
+                               &cmd->dist_extra_size_,
                                &cmd->dist_extra_);
     }
   }
@@ -233,6 +234,10 @@ static void EncodeWindowBits(int lgwin, uint8_t* last_byte,
     *last_byte_bits = 1;
   } else if (lgwin == 17) {
     *last_byte = 1;
+    *last_byte_bits = 7;
+  } else if (lgwin > 24) {
+    /* Encode 30 window bits using reserved code 0010001. */
+    *last_byte = 17;
     *last_byte_bits = 7;
   } else if (lgwin > 17) {
     *last_byte = (uint8_t)(((lgwin - 17) << 1) | 1);
@@ -521,6 +526,7 @@ static void WriteMetaBlockInternal(MemoryManager* m,
     if (params->quality >= MIN_QUALITY_FOR_OPTIMIZE_HISTOGRAMS) {
       BrotliOptimizeHistograms(num_direct_distance_codes,
                                distance_postfix_bits,
+                               params->lgwin,
                                &mb);
     }
     BrotliStoreMetaBlock(m, data, wrapped_last_flush_pos, bytes, mask,
@@ -531,6 +537,7 @@ static void WriteMetaBlockInternal(MemoryManager* m,
                          literal_context_mode,
                          commands, num_commands,
                          &mb,
+                         params->lgwin,
                          storage_ix, storage);
     if (BROTLI_IS_OOM(m)) return;
     DestroyMetaBlockSplit(m, &mb);
@@ -1138,6 +1145,7 @@ static BROTLI_BOOL BrotliCompressBufferQuality10(
       if (BROTLI_IS_OOM(m)) goto oom;
       BrotliOptimizeHistograms(num_direct_distance_codes,
                                distance_postfix_bits,
+                               lgwin,
                                &mb);
       storage = BROTLI_ALLOC(m, uint8_t, 2 * metablock_size + 502);
       if (BROTLI_IS_OOM(m)) goto oom;
@@ -1150,6 +1158,7 @@ static BROTLI_BOOL BrotliCompressBufferQuality10(
                            literal_context_mode,
                            commands, num_commands,
                            &mb,
+                           lgwin,
                            &storage_ix, storage);
       if (BROTLI_IS_OOM(m)) goto oom;
       if (metablock_size + 4 < (storage_ix >> 3)) {
@@ -1264,9 +1273,11 @@ BROTLI_BOOL BrotliEncoderCompress(
   }
   if (quality == 10) {
     /* TODO: Implement this direct path for all quality levels. */
-    const int lg_win = BROTLI_MIN(int, 24, BROTLI_MAX(int, 16, lgwin));
+    int lg_win = BROTLI_MIN(int, kBrotliMaxWindowBits,
+                                 BROTLI_MAX(int, 16, lgwin));
     int ok = BrotliCompressBufferQuality10(lg_win, input_size, input_buffer,
                                            encoded_size, encoded_buffer);
+    if (lg_win > 24 && lg_win < kBrotliMaxWindowBits) lg_win = 24;
     if (!ok || (max_out_size && *encoded_size > max_out_size)) {
       goto fallback;
     }

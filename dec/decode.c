@@ -112,6 +112,10 @@ static uint32_t DecodeWindowBits(BrotliBitReader* br) {
   }
   BrotliTakeBits(br, 3, &n);
   if (n != 0) {
+    if (n == 1) {
+      /* Use reserved value 0010001 to encode 30. */
+      return 30;
+    }
     return 8 + n;
   }
   return 17;
@@ -1412,7 +1416,7 @@ static BROTLI_INLINE void TakeDistanceFromRingBuffer(BrotliDecoderState* s) {
       if (s->distance_code <= 0) {
         /* A huge distance will cause a BROTLI_FAILURE() soon. */
         /* This is a little faster than failing here. */
-        s->distance_code = 0x0fffffff;
+        s->distance_code = 0x60000000;
       }
     }
   }
@@ -2148,8 +2152,14 @@ BrotliDecoderResult BrotliDecoderDecompressStream(
         /* No break, continue to next state */
       case BROTLI_STATE_CONTEXT_MAP_2:
         {
-          uint32_t num_distance_codes =
-              s->num_direct_distance_codes + (48U << s->distance_postfix_bits);
+          uint32_t num_distance_codes;
+          if (s->window_bits == 30) {
+            num_distance_codes = s->num_direct_distance_codes +
+                ((2 * BROTLI_MAX_DISTANCE_BITS) << s->distance_postfix_bits);
+          } else {
+            num_distance_codes = s->num_direct_distance_codes +
+                (48U << s->distance_postfix_bits);
+          }
           result = DecodeContextMap(
               s->num_block_types[2] << BROTLI_DISTANCE_CONTEXT_BITS,
               &s->num_dist_htrees, &s->dist_context_map, s);
@@ -2283,7 +2293,7 @@ BrotliDecoderResult BrotliDecoderDecompressStream(
 
 void BrotliDecoderSetCustomDictionary(
     BrotliDecoderState* s, size_t size, const uint8_t* dict) {
-  if (size > (1u << 24)) {
+  if (size > (1u << 30)) {
     return;
   }
   s->custom_dict = dict;

@@ -55,6 +55,7 @@ BROTLI_INTERNAL void BrotliStoreMetaBlock(MemoryManager* m,
                                           const Command* commands,
                                           size_t n_commands,
                                           const MetaBlockSplit* mb,
+                                          int lgwin,
                                           size_t* storage_ix,
                                           uint8_t* storage);
 

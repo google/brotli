@@ -101,6 +101,7 @@ BROTLI_INTERNAL void BrotliBuildMetaBlockGreedyWithContexts(
 
 BROTLI_INTERNAL void BrotliOptimizeHistograms(size_t num_direct_distance_codes,
                                               size_t distance_postfix_bits,
+                                              int lgwin,
                                               MetaBlockSplit* mb);
 
 #if defined(__cplusplus) || defined(c_plusplus)

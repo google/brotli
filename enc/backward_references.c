@@ -37,6 +37,7 @@ void BrotliInitZopfliNodes(ZopfliNode* array, size_t length) {
   size_t i;
   stub.length = 1;
   stub.distance = 0;
+  stub.short_code = 0;
   stub.insert_length = 0;
   stub.u.cost = kInfinity;
   for (i = 0; i < length; ++i) array[i] = stub;
@@ -52,11 +53,11 @@ static BROTLI_INLINE uint32_t ZopfliNodeLengthCode(const ZopfliNode* self) {
 }
 
 static BROTLI_INLINE uint32_t ZopfliNodeCopyDistance(const ZopfliNode* self) {
-  return self->distance & 0x1ffffff;
+  return self->distance;
 }
 
 static BROTLI_INLINE uint32_t ZopfliNodeDistanceCode(const ZopfliNode* self) {
-  const uint32_t short_code = self->distance >> 25;
+  const uint32_t short_code = self->short_code;
   return short_code == 0 ? ZopfliNodeCopyDistance(self) + 15 : short_code - 1;
 }
 
@@ -242,7 +243,8 @@ static BROTLI_INLINE void UpdateZopfliNode(ZopfliNode* nodes, size_t pos,
     size_t short_code, float cost) {
   ZopfliNode* next = &nodes[pos + len];
   next->length = (uint32_t)(len | ((len + 9u - len_code) << 24));
-  next->distance = (uint32_t)(dist | (short_code << 25));
+  next->distance = (uint32_t) dist;
+  next->short_code = (uint32_t) short_code;
   next->insert_length = (uint32_t)(pos - start_pos);
   next->u.cost = cost;
 }
@@ -488,8 +490,8 @@ static void UpdateNodes(const size_t num_bytes,
         uint32_t distnumextra;
         float dist_cost;
         size_t max_match_len;
-        PrefixEncodeCopyDistance(dist_code, 0, 0, &dist_symbol, &distextra);
-        distnumextra = distextra >> 24;
+        PrefixEncodeCopyDistance(dist_code, 0, 0, &dist_symbol, &distnumextra,
+            &distextra);
         dist_cost = base_cost + (float)distnumextra +
             ZopfliCostModelGetDistanceCost(model, dist_symbol);
 

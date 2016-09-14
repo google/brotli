@@ -155,7 +155,7 @@ static void ParseArgv(int argc, char **argv,
         if (!ParseQuality(argv[k + 1], lgwin)) {
           goto error;
         }
-        if (*lgwin < 10 || *lgwin >= 25) {
+        if (*lgwin < 10 || (*lgwin >= 25 && *lgwin != 30)) {
           goto error;
         }
         ++k;

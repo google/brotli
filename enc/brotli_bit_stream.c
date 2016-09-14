@@ -27,6 +27,12 @@ extern "C" {
 #endif
 
 #define MAX_HUFFMAN_TREE_SIZE (2 * BROTLI_NUM_COMMAND_SYMBOLS + 1)
+/* The size of Huffman dictionary for distances assuming that NPOSTFIX = 0 and
+   NDIRECT = 0. */
+#define SIMPLE_DISTANCE_ALPHABET_SIZE (BROTLI_NUM_DISTANCE_SHORT_CODES + \
+                                       (2 * BROTLI_MAX_DISTANCE_BITS))
+/* SIMPLE_DISTANCE_ALPHABET_SIZE == 76 */
+#define SIMPLE_DISTANCE_ALPHABET_BITS 7
 
 /* Represents the range of values belonging to a prefix code:
    [offset, offset + 2^nbits) */
@@ -952,13 +958,20 @@ void BrotliStoreMetaBlock(MemoryManager* m,
                           const Command *commands,
                           size_t n_commands,
                           const MetaBlockSplit* mb,
+                          int lgwin,
                           size_t *storage_ix,
                           uint8_t *storage) {
   size_t pos = start_pos;
   size_t i;
-  size_t num_distance_codes =
-      BROTLI_NUM_DISTANCE_SHORT_CODES + num_direct_distance_codes +
-      (48u << distance_postfix_bits);
+  size_t num_distance_codes;
+  if (lgwin == 30) {
+    num_distance_codes = BROTLI_NUM_DISTANCE_SHORT_CODES +
+        num_direct_distance_codes +
+        ((2 * BROTLI_MAX_DISTANCE_BITS) << distance_postfix_bits);
+  } else {
+    num_distance_codes = BROTLI_NUM_DISTANCE_SHORT_CODES +
+        num_direct_distance_codes + (48U << distance_postfix_bits);
+  }
   HuffmanTree* tree;
   BlockEncoder literal_enc;
   BlockEncoder command_enc;
@@ -1051,8 +1064,8 @@ void BrotliStoreMetaBlock(MemoryManager* m,
       prev_byte = input[(pos - 1) & mask];
       if (cmd.cmd_prefix_ >= 128) {
         size_t dist_code = cmd.dist_prefix_;
-        uint32_t distnumextra = cmd.dist_extra_ >> 24;
-        uint64_t distextra = cmd.dist_extra_ & 0xffffff;
+        uint32_t distnumextra = cmd.dist_extra_size_;
+        uint64_t distextra = cmd.dist_extra_;
         if (mb->distance_context_map_size == 0) {
           StoreSymbol(&distance_enc, dist_code, storage_ix, storage);
         } else {
@@ -1129,8 +1142,8 @@ static void StoreDataWithHuffmanCodes(const uint8_t* input,
     pos += CommandCopyLen(&cmd);
     if (CommandCopyLen(&cmd) && cmd.cmd_prefix_ >= 128) {
       const size_t dist_code = cmd.dist_prefix_;
-      const uint32_t distnumextra = cmd.dist_extra_ >> 24;
-      const uint32_t distextra = cmd.dist_extra_ & 0xffffff;
+      const uint32_t distnumextra = cmd.dist_extra_size_;
+      const uint32_t distextra = cmd.dist_extra_;
       BrotliWriteBits(dist_depth[dist_code], dist_bits[dist_code],
                       storage_ix, storage);
       BrotliWriteBits(distnumextra, distextra, storage_ix, storage);
@@ -1151,12 +1164,12 @@ void BrotliStoreMetaBlockTrivial(MemoryManager* m,
   HistogramLiteral lit_histo;
   HistogramCommand cmd_histo;
   HistogramDistance dist_histo;
-  uint8_t lit_depth[256];
-  uint16_t lit_bits[256];
+  uint8_t lit_depth[BROTLI_NUM_LITERAL_SYMBOLS];
+  uint16_t lit_bits[BROTLI_NUM_LITERAL_SYMBOLS];
   uint8_t cmd_depth[BROTLI_NUM_COMMAND_SYMBOLS];
   uint16_t cmd_bits[BROTLI_NUM_COMMAND_SYMBOLS];
-  uint8_t dist_depth[64];
-  uint16_t dist_bits[64];
+  uint8_t dist_depth[SIMPLE_DISTANCE_ALPHABET_SIZE];
+  uint16_t dist_bits[SIMPLE_DISTANCE_ALPHABET_SIZE];
   HuffmanTree* tree;
 
   StoreCompressedMetaBlockHeader(is_last, length, storage_ix, storage);
@@ -1172,13 +1185,14 @@ void BrotliStoreMetaBlockTrivial(MemoryManager* m,
 
   tree = BROTLI_ALLOC(m, HuffmanTree, MAX_HUFFMAN_TREE_SIZE);
   if (BROTLI_IS_OOM(m)) return;
-  BuildAndStoreHuffmanTree(lit_histo.data_, 256, tree,
+  BuildAndStoreHuffmanTree(lit_histo.data_, BROTLI_NUM_LITERAL_SYMBOLS, tree,
                            lit_depth, lit_bits,
                            storage_ix, storage);
   BuildAndStoreHuffmanTree(cmd_histo.data_, BROTLI_NUM_COMMAND_SYMBOLS, tree,
                            cmd_depth, cmd_bits,
                            storage_ix, storage);
-  BuildAndStoreHuffmanTree(dist_histo.data_, 64, tree,
+  BuildAndStoreHuffmanTree(dist_histo.data_, SIMPLE_DISTANCE_ALPHABET_SIZE,
+                           tree,
                            dist_depth, dist_bits,
                            storage_ix, storage);
   BROTLI_FREE(m, tree);
@@ -1245,8 +1259,8 @@ void BrotliStoreMetaBlockFast(MemoryManager* m,
     uint16_t lit_bits[BROTLI_NUM_LITERAL_SYMBOLS];
     uint8_t cmd_depth[BROTLI_NUM_COMMAND_SYMBOLS];
     uint16_t cmd_bits[BROTLI_NUM_COMMAND_SYMBOLS];
-    uint8_t dist_depth[64];
-    uint16_t dist_bits[64];
+    uint8_t dist_depth[SIMPLE_DISTANCE_ALPHABET_SIZE];
+    uint16_t dist_bits[SIMPLE_DISTANCE_ALPHABET_SIZE];
     HistogramClearLiteral(&lit_histo);
     HistogramClearCommand(&cmd_histo);
     HistogramClearDistance(&dist_histo);
@@ -1266,7 +1280,8 @@ void BrotliStoreMetaBlockFast(MemoryManager* m,
     if (BROTLI_IS_OOM(m)) return;
     BrotliBuildAndStoreHuffmanTreeFast(m, dist_histo.data_,
                                        dist_histo.total_count_,
-                                       /* max_bits = */ 6,
+                                       /* max_bits = */
+                                       SIMPLE_DISTANCE_ALPHABET_SIZE,
                                        dist_depth, dist_bits,
                                        storage_ix, storage);
     if (BROTLI_IS_OOM(m)) return;

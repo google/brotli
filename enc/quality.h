@@ -65,8 +65,10 @@ static BROTLI_INLINE void SanitizeParams(BrotliEncoderParams* params) {
       BROTLI_MAX(int, BROTLI_MIN_QUALITY, params->quality));
   if (params->lgwin < kBrotliMinWindowBits) {
     params->lgwin = kBrotliMinWindowBits;
-  } else if (params->lgwin > kBrotliMaxWindowBits) {
+  } else if (params->lgwin >= kBrotliMaxWindowBits) {
     params->lgwin = kBrotliMaxWindowBits;
+  } else if (params->lgwin > 24) {
+    params->lgwin = 24;
   }
 }
 
