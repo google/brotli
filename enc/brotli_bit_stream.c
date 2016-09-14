@@ -964,6 +964,11 @@ void BrotliStoreMetaBlock(MemoryManager* m,
   size_t pos = start_pos;
   size_t i;
   size_t num_distance_codes;
+  HuffmanTree* tree;
+  BlockEncoder literal_enc;
+  BlockEncoder command_enc;
+  BlockEncoder distance_enc;
+  
   if (lgwin == 30) {
     num_distance_codes = BROTLI_NUM_DISTANCE_SHORT_CODES +
         num_direct_distance_codes +
@@ -972,10 +977,6 @@ void BrotliStoreMetaBlock(MemoryManager* m,
     num_distance_codes = BROTLI_NUM_DISTANCE_SHORT_CODES +
         num_direct_distance_codes + (48U << distance_postfix_bits);
   }
-  HuffmanTree* tree;
-  BlockEncoder literal_enc;
-  BlockEncoder command_enc;
-  BlockEncoder distance_enc;
 
   StoreCompressedMetaBlockHeader(is_last, length, storage_ix, storage);
 
