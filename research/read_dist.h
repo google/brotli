@@ -5,13 +5,7 @@
    See file LICENSE for detail or copy at https://opensource.org/licenses/MIT
 */
 
-/* API for reading distances from *.dist file.
-   The format of *.dist file is as follows: for each backward reference there is
-   a position-distance pair, also a copy length may be specified. Copy length is
-   prefixed with flag byte 0, position-distance pair is prefixed with flag
-   byte 1. Each number is a 32-bit integer. Copy length always comes before
-   position-distance pair. Standalone copy length is allowed, in this case it is
-   ignored. */
+/* API for reading distances from *.dist file. */
 
 #include <cassert>
 #include <cstdio>
