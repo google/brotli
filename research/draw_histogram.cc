@@ -61,7 +61,7 @@ void AdjustPosition(int* pos) {
   *pos += offset;
 }
 
-void CalculateStuff(FILE* fin, int** stuff) {
+void BuildHistogram(FILE* fin, int** histo) {
   int height = FLAGS_height;
   int width = FLAGS_width;
   int skip = FLAGS_skip;
@@ -71,7 +71,7 @@ void CalculateStuff(FILE* fin, int** stuff) {
 
   for (int i = 0; i < height; i++) {
     for (int j = 0; j < width; j++) {
-      stuff[i][j] = 0;
+      histo[i][j] = 0;
     }
   }
 
@@ -107,46 +107,46 @@ void CalculateStuff(FILE* fin, int** stuff) {
           assert(right >= 0);
         }
         if (y == right) {
-          stuff[x][y] += copy;
+          histo[x][y] += copy;
         } else {
           int pos2 = static_cast<int>(ceil(1.0 * (y + 1) * max_pos / width));
-          stuff[x][y] += pos2 - pos;
+          histo[x][y] += pos2 - pos;
           for (int i = y + 1; i < right && i < width; ++i) {
-            stuff[x][i] += max_pos / width;  // Sometimes 1 more, but who cares.
+            histo[x][i] += max_pos / width;  // Sometimes 1 more, but who cares.
           }
           // Make sure the match doesn't go beyond the image.
           if (right < width) {
             pos2 = static_cast<int>(ceil(1.0 * right * max_pos / width));
-            stuff[x][right] += pos + copy - 1 - pos2 + 1;
+            histo[x][right] += pos + copy - 1 - pos2 + 1;
           }
         }
       } else {
-        stuff[x][y]++;
+        histo[x][y]++;
       }
     }
   }
 }
 
-void ConvertToPixels(int** stuff, uint8_t** pixel) {
+void ConvertToPixels(int** histo, uint8_t** pixel) {
   int height = FLAGS_height;
   int width = FLAGS_width;
 
   int maxs = 0;
   for (int i = 0; i < height; i++) {
     for (int j = 0; j < width; j++) {
-      if (maxs < stuff[i][j]) maxs = stuff[i][j];
+      if (maxs < histo[i][j]) maxs = histo[i][j];
     }
   }
 
   bool simple = FLAGS_simple;
-  double max_stuff = static_cast<double>(maxs);
+  double max_histo = static_cast<double>(maxs);
   for (int i = 0; i < height; i++) {
     for (int j = 0; j < width; j++) {
       if (simple) {
-        pixel[i][j] = stuff[i][j] > 0 ? 0 : 255;
+        pixel[i][j] = histo[i][j] > 0 ? 0 : 255;
       } else {
         pixel[i][j] = static_cast<uint8_t>(
-            255 - DensityTransform(stuff[i][j] / max_stuff * 255));
+            255 - DensityTransform(histo[i][j] / max_histo * 255));
       }
     }
   }
@@ -178,21 +178,17 @@ int main(int argc, char* argv[]) {
 
   if (FLAGS_max_distance == 0) FLAGS_max_distance = FLAGS_size;
 
-  /* The bio of stuff:
-     1. Copy length of backward reference.
-     2. Number of backward references per pixel/bucket.
-   */
   uint8_t** pixel = new uint8_t*[height];
-  int** stuff = new int*[height];
+  int** histo = new int*[height];
   for (int i = 0; i < height; i++) {
     pixel[i] = new uint8_t[width];
-    stuff[i] = new int[width];
+    histo[i] = new int[width];
   }
 
-  CalculateStuff(fin, stuff);
+  BuildHistogram(fin, histo);
   fclose(fin);
 
-  ConvertToPixels(stuff, pixel);
+  ConvertToPixels(histo, pixel);
 
   DrawPixels(pixel, fout);
   fclose(fout);
