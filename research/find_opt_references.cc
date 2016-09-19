@@ -13,7 +13,7 @@
 #include <cstdio>
 #include <cstring>
 
-#include "./sais.hxx"
+#include "./esaxx/sais.hxx"
 
 const int FLAGS_min_length = 1;  // Minimal length of found backward references.
 const int FLAGS_skip = 1;  // Number of bytes to skip.
