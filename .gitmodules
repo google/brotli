@@ -1,3 +1,6 @@
 [submodule "terryfy"]
 	path = terryfy
 	url = https://github.com/MacPython/terryfy.git
+[submodule "research/esaxx"]
+	path = research/esaxx
+	url = https://github.com/hillbig/esaxx
