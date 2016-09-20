@@ -138,10 +138,10 @@ matrix:
     ## all since we already test all these versions of GCC on Linux.
     ## We'll just test 4.4 and the most recent version.
     ###
-    #- os: osx
-    #  env: BUILD_SYSTEM=cmake C_COMPILER=gcc-6 CXX_COMPILER=g++-6
-     - os: osx
-       env: BUILD_SYSTEM=cmake C_COMPILER=gcc-5 CXX_COMPILER=g++-5
+    # - os: osx
+    #   env: BUILD_SYSTEM=cmake C_COMPILER=gcc-6 CXX_COMPILER=g++-6
+    - os: osx
+      env: BUILD_SYSTEM=cmake C_COMPILER=gcc-5 CXX_COMPILER=g++-5
     # - os: osx
     #   env: BUILD_SYSTEM=cmake C_COMPILER=gcc-4.9 CXX_COMPILER=g++-4.9
     # - os: osx
