@@ -258,8 +258,8 @@ static void CopyStat(const char* input_path, const char* output_path) {
   times.modtime = statbuf.st_mtime;
   utime(output_path, &times);
   chmod(output_path, statbuf.st_mode & (S_IRWXU | S_IRWXG | S_IRWXO));
-  chown(output_path, (__uid_t)-1, statbuf.st_gid);
-  chown(output_path, statbuf.st_uid, (__gid_t)-1);
+  chown(output_path, (uid_t)-1, statbuf.st_gid);
+  chown(output_path, statbuf.st_uid, (gid_t)-1);
 }
 
 /* Result ownersip is passed to caller.
