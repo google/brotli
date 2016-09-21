@@ -12,7 +12,7 @@
 #include <assert.h>
 #include <string.h>  /* memcpy */
 
-#include "../common/port.h"
+#include <brotli/port.h>
 #include <brotli/types.h>
 
 #if defined OS_LINUX || defined OS_CYGWIN
@@ -126,15 +126,6 @@ static BROTLI_INLINE void BROTLI_UNALIGNED_STORE64(void *p, uint64_t v) {
   memcpy(p, &v, sizeof v);
 }
 
-#endif
-
-#if !defined(__cplusplus) && !defined(c_plusplus) && \
-    (defined(__STDC_VERSION__) && __STDC_VERSION__ >= 199901L)
-#define BROTLI_RESTRICT restrict
-#elif BROTLI_GCC_VERSION > 295 || defined(__llvm__)
-#define BROTLI_RESTRICT __restrict
-#else
-#define BROTLI_RESTRICT
 #endif
 
 #define TEMPLATE_(T)                                                           \

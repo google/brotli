@@ -12,7 +12,7 @@
 #include <math.h>
 
 #include <brotli/types.h>
-#include "../common/port.h"
+#include <brotli/port.h>
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {

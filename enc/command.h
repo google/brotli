@@ -9,8 +9,9 @@
 #ifndef BROTLI_ENC_COMMAND_H_
 #define BROTLI_ENC_COMMAND_H_
 
+#include "../common/constants.h"
+#include <brotli/port.h>
 #include <brotli/types.h>
-#include "../common/port.h"
 #include "./fast_log.h"
 #include "./prefix.h"
 
@@ -124,18 +125,25 @@ static BROTLI_INLINE void InitInsertCommand(Command* self, size_t insertlen) {
   self->insert_len_ = (uint32_t)insertlen;
   self->copy_len_ = 4 << 24;
   self->dist_extra_ = 0;
-  self->dist_prefix_ = 16;
+  self->dist_prefix_ = BROTLI_NUM_DISTANCE_SHORT_CODES;
   GetLengthCode(insertlen, 4, BROTLI_FALSE, &self->cmd_prefix_);
 }
 
-static BROTLI_INLINE uint32_t CommandDistanceCode(const Command* self) {
-  if (self->dist_prefix_ < 16) {
+static BROTLI_INLINE uint32_t CommandRestoreDistanceCode(const Command* self) {
+  if (self->dist_prefix_ < BROTLI_NUM_DISTANCE_SHORT_CODES) {
     return self->dist_prefix_;
   } else {
     uint32_t nbits = self->dist_extra_ >> 24;
     uint32_t extra = self->dist_extra_ & 0xffffff;
-    uint32_t prefix = self->dist_prefix_ - 12u - 2u * nbits;
-    return (prefix << nbits) + extra + 12;
+    /* It is assumed that the distance was first encoded with NPOSTFIX = 0 and
+       NDIRECT = 0, so the code itself is of this form:
+         BROTLI_NUM_DISTANCE_SHORT_CODES + 2 * (nbits - 1) + prefix_bit
+       Therefore, the following expression results in (2 + prefix_bit). */
+    uint32_t prefix =
+        self->dist_prefix_ + 4u - BROTLI_NUM_DISTANCE_SHORT_CODES - 2u * nbits;
+    /* Subtract 4 for offset (Chapter 4.) and
+       increase by BROTLI_NUM_DISTANCE_SHORT_CODES - 1  */
+    return (prefix << nbits) + extra + BROTLI_NUM_DISTANCE_SHORT_CODES - 4u;
   }
 }
 

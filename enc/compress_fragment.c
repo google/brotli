@@ -30,6 +30,9 @@
 extern "C" {
 #endif
 
+/* Same as MaxBackwardLimit(18) */
+#define MAX_DISTANCE ((1 << 18) - 16)
+
 /* kHashMul32 multiplier has these properties:
    * The multiplier must be odd. Otherwise we may lose the highest bit.
    * No long streaks of 1s or 0s.
@@ -421,13 +424,11 @@ static uint32_t kCmdHistoSeed[128] = {
   1, 1, 1, 1, 0, 0, 0, 0,
 };
 
-void BrotliCompressFragmentFast(MemoryManager* m,
-                                const uint8_t* input, size_t input_size,
-                                BROTLI_BOOL is_last,
-                                int* table, size_t table_size,
-                                uint8_t cmd_depth[128], uint16_t cmd_bits[128],
-                                size_t* cmd_code_numbits, uint8_t* cmd_code,
-                                size_t* storage_ix, uint8_t* storage) {
+static BROTLI_INLINE void BrotliCompressFragmentFastImpl(
+    MemoryManager* m, const uint8_t* input, size_t input_size,
+    BROTLI_BOOL is_last, int* table, size_t table_bits, uint8_t cmd_depth[128],
+    uint16_t cmd_bits[128], size_t* cmd_code_numbits, uint8_t* cmd_code,
+    size_t* storage_ix, uint8_t* storage) {
   uint32_t cmd_histo[128];
   const uint8_t* ip_end;
 
@@ -460,13 +461,7 @@ void BrotliCompressFragmentFast(MemoryManager* m,
   const uint8_t* ip;
   int last_distance;
 
-  const size_t shift = 64u - Log2FloorNonZero(table_size);
-  assert(table_size);
-  assert(table_size <= (1u << 31));
-  /* table must be power of two */
-  assert((table_size & (table_size - 1)) == 0);
-  assert(table_size - 1 ==
-      (size_t)(MAKE_UINT64_T(0xFFFFFFFF, 0xFFFFFF) >> shift));
+  const size_t shift = 64u - table_bits;
 
   if (input_size == 0) {
     assert(is_last);
@@ -537,7 +532,7 @@ void BrotliCompressFragmentFast(MemoryManager* m,
       const uint8_t* next_ip = ip;
       const uint8_t* candidate;
       assert(next_emit < ip);
-
+trawl:
       do {
         uint32_t hash = next_hash;
         uint32_t bytes_between_hash_lookups = skip++ >> 5;
@@ -561,6 +556,10 @@ void BrotliCompressFragmentFast(MemoryManager* m,
 
         table[hash] = (int)(ip - base_ip);
       } while (PREDICT_TRUE(!IsMatch(ip, candidate)));
+
+      /* Check copy distance. If candidate is not feasible, continue search.
+         Checking is done outside of hot loop to reduce overhead. */
+      if (ip - candidate > MAX_DISTANCE) goto trawl;
 
       /* Step 2: Emit the found match together with the literal bytes from
          "next_emit" to the bit stream, and then see if we can find a next macth
@@ -633,6 +632,7 @@ void BrotliCompressFragmentFast(MemoryManager* m,
         const uint8_t* base = ip;
         size_t matched = 5 + FindMatchLengthWithLimit(
             candidate + 5, ip + 5, (size_t)(ip_end - ip) - 5);
+        if (ip - candidate > MAX_DISTANCE) break;
         ip += matched;
         last_distance = (int)(base - candidate);  /* > 0 */
         assert(0 == memcmp(base, candidate, matched));
@@ -741,6 +741,41 @@ next_block:
                                    cmd_code_numbits, cmd_code);
   }
 }
+
+#define FOR_TABLE_BITS_(X) X(9) X(11) X(13) X(15)
+
+#define BAKE_METHOD_PARAM_(B) \
+static BROTLI_NOINLINE void BrotliCompressFragmentFastImpl ## B(             \
+    MemoryManager* m, const uint8_t* input, size_t input_size,               \
+    BROTLI_BOOL is_last, int* table, uint8_t cmd_depth[128],                 \
+    uint16_t cmd_bits[128], size_t* cmd_code_numbits, uint8_t* cmd_code,     \
+    size_t* storage_ix, uint8_t* storage) {                                  \
+  BrotliCompressFragmentFastImpl(m, input, input_size, is_last, table, B,    \
+      cmd_depth, cmd_bits, cmd_code_numbits, cmd_code, storage_ix, storage); \
+}
+FOR_TABLE_BITS_(BAKE_METHOD_PARAM_)
+#undef BAKE_METHOD_PARAM_
+
+void BrotliCompressFragmentFast(
+    MemoryManager* m, const uint8_t* input, size_t input_size,
+    BROTLI_BOOL is_last, int* table, size_t table_size, uint8_t cmd_depth[128],
+    uint16_t cmd_bits[128], size_t* cmd_code_numbits, uint8_t* cmd_code,
+    size_t* storage_ix, uint8_t* storage) {
+  const size_t table_bits = Log2FloorNonZero(table_size);
+  switch (table_bits) {
+#define CASE_(B)                                                     \
+    case B:                                                          \
+      BrotliCompressFragmentFastImpl ## B(                           \
+          m, input, input_size, is_last, table, cmd_depth, cmd_bits, \
+          cmd_code_numbits, cmd_code, storage_ix, storage);          \
+      break;
+    FOR_TABLE_BITS_(CASE_)
+#undef CASE_
+    default: assert(0); break;
+  }
+}
+
+#undef FOR_TABLE_BITS_
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }  /* extern "C" */

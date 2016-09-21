@@ -9,8 +9,8 @@
 #ifndef BROTLI_ENC_CONTEXT_H_
 #define BROTLI_ENC_CONTEXT_H_
 
+#include <brotli/port.h>
 #include <brotli/types.h>
-#include "../common/port.h"
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {

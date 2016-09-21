@@ -502,7 +502,8 @@ void BrotliOptimizeHistograms(size_t num_direct_distance_codes,
                                       good_for_rle);
   }
   num_distance_codes = BROTLI_NUM_DISTANCE_SHORT_CODES +
-      num_direct_distance_codes + (48u << distance_postfix_bits);
+      num_direct_distance_codes +
+      ((2 * BROTLI_MAX_DISTANCE_BITS) << distance_postfix_bits);
   for (i = 0; i < mb->distance_histograms_size; ++i) {
     BrotliOptimizeHuffmanCountsForRle(num_distance_codes,
                                       mb->distance_histograms[i].data_,
