@@ -232,9 +232,8 @@ static PyObject* brotli_decompress(PyObject *self, PyObject *args, PyObject *key
   while (result == BROTLI_DECODER_RESULT_NEEDS_MORE_OUTPUT) {
     size_t available_out = kBufferSize;
     uint8_t* next_out = buffer;
-    result = BrotliDecoderDecompressStream(&length, &input,
-                                           &available_out, &next_out,
-                                           0, state);
+    result = BrotliDecoderDecompressStream(state, &length, &input,
+                                           &available_out, &next_out, 0);
     size_t used_out = kBufferSize - available_out;
     if (used_out != 0)
       output.insert(output.end(), buffer, buffer + used_out);
