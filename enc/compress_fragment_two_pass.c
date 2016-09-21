@@ -29,6 +29,9 @@
 extern "C" {
 #endif
 
+/* Same as MaxBackwardLimit(18) */
+#define MAX_DISTANCE ((1 << 18) - 16)
+
 /* kHashMul32 multiplier has these properties:
    * The multiplier must be odd. Otherwise we may lose the highest bit.
    * No long streaks of 1s or 0s.
@@ -232,12 +235,12 @@ static void BrotliStoreMetaBlockHeader(
   BrotliWriteBits(1, (uint64_t)is_uncompressed, storage_ix, storage);
 }
 
-static void CreateCommands(const uint8_t* input, size_t block_size,
-    size_t input_size, const uint8_t* base_ip, int* table, size_t table_size,
-    uint8_t** literals, uint32_t** commands) {
+static BROTLI_INLINE void CreateCommands(const uint8_t* input,
+    size_t block_size, size_t input_size, const uint8_t* base_ip, int* table,
+    size_t table_bits, uint8_t** literals, uint32_t** commands) {
   /* "ip" is the input pointer. */
   const uint8_t* ip = input;
-  const size_t shift = 64u - Log2FloorNonZero(table_size);
+  const size_t shift = 64u - table_bits;
   const uint8_t* ip_end = input + block_size;
   /* "next_emit" is a pointer to the first byte that is not covered by a
      previous copy. Bytes between "next_emit" and the start of the next copy or
@@ -247,13 +250,6 @@ static void CreateCommands(const uint8_t* input, size_t block_size,
   int last_distance = -1;
   const size_t kInputMarginBytes = 16;
   const size_t kMinMatchLen = 6;
-
-  assert(table_size);
-  assert(table_size <= (1u << 31));
-  /* table must be power of two */
-  assert((table_size & (table_size - 1)) == 0);
-  assert(table_size - 1 ==
-      (size_t)(MAKE_UINT64_T(0xFFFFFFFF, 0xFFFFFF) >> shift));
 
   if (PREDICT_TRUE(block_size >= kInputMarginBytes)) {
     /* For the last block, we need to keep a 16 bytes margin so that we can be
@@ -287,7 +283,7 @@ static void CreateCommands(const uint8_t* input, size_t block_size,
       const uint8_t* candidate;
 
       assert(next_emit < ip);
-
+trawl:
       do {
         uint32_t hash = next_hash;
         uint32_t bytes_between_hash_lookups = skip++ >> 5;
@@ -311,6 +307,10 @@ static void CreateCommands(const uint8_t* input, size_t block_size,
 
         table[hash] = (int)(ip - base_ip);
       } while (PREDICT_TRUE(!IsMatch(ip, candidate)));
+
+      /* Check copy distance. If candidate is not feasible, continue search.
+         Checking is done outside of hot loop to reduce overhead. */
+      if (ip - candidate > MAX_DISTANCE) goto trawl;
 
       /* Step 2: Emit the found match together with the literal bytes from
          "next_emit", and then see if we can find a next macth immediately
@@ -367,7 +367,7 @@ static void CreateCommands(const uint8_t* input, size_t block_size,
         }
       }
 
-      while (IsMatch(ip, candidate)) {
+      while (ip - candidate <= MAX_DISTANCE && IsMatch(ip, candidate)) {
         /* We have a 6-byte match at ip, and no need to emit any
            literal bytes prior to ip. */
         const uint8_t* base = ip;
@@ -504,12 +504,10 @@ static BROTLI_BOOL ShouldCompress(
   }
 }
 
-void BrotliCompressFragmentTwoPass(MemoryManager* m,
-                                   const uint8_t* input, size_t input_size,
-                                   BROTLI_BOOL is_last,
-                                   uint32_t* command_buf, uint8_t* literal_buf,
-                                   int* table, size_t table_size,
-                                   size_t* storage_ix, uint8_t* storage) {
+static BROTLI_INLINE void BrotliCompressFragmentTwoPassImpl(
+    MemoryManager* m, const uint8_t* input, size_t input_size,
+    BROTLI_BOOL is_last, uint32_t* command_buf, uint8_t* literal_buf,
+    int* table, size_t table_bits, size_t* storage_ix, uint8_t* storage) {
   /* Save the start of the first block for position and distance computations.
   */
   const uint8_t* base_ip = input;
@@ -520,7 +518,7 @@ void BrotliCompressFragmentTwoPass(MemoryManager* m,
     uint32_t* commands = command_buf;
     uint8_t* literals = literal_buf;
     size_t num_literals;
-    CreateCommands(input, block_size, input_size, base_ip, table, table_size,
+    CreateCommands(input, block_size, input_size, base_ip, table, table_bits,
                    &literals, &commands);
     num_literals = (size_t)(literals - literal_buf);
     if (ShouldCompress(input, block_size, num_literals)) {
@@ -551,6 +549,40 @@ void BrotliCompressFragmentTwoPass(MemoryManager* m,
     *storage_ix = (*storage_ix + 7u) & ~7u;
   }
 }
+
+#define FOR_TABLE_BITS_(X) \
+  X(8) X(9) X(10) X(11) X(12) X(13) X(14) X(15) X(16) X(17)
+
+#define BAKE_METHOD_PARAM_(B)                                                  \
+static BROTLI_NOINLINE void BrotliCompressFragmentTwoPassImpl ## B(            \
+    MemoryManager* m, const uint8_t* input, size_t input_size,                 \
+    BROTLI_BOOL is_last, uint32_t* command_buf, uint8_t* literal_buf,          \
+    int* table, size_t* storage_ix, uint8_t* storage) {                        \
+  BrotliCompressFragmentTwoPassImpl(m, input, input_size, is_last, command_buf,\
+      literal_buf, table, B, storage_ix, storage);                             \
+}
+FOR_TABLE_BITS_(BAKE_METHOD_PARAM_)
+#undef BAKE_METHOD_PARAM_
+
+void BrotliCompressFragmentTwoPass(
+    MemoryManager* m, const uint8_t* input, size_t input_size,
+    BROTLI_BOOL is_last, uint32_t* command_buf, uint8_t* literal_buf,
+    int* table, size_t table_size, size_t* storage_ix, uint8_t* storage) {
+  const size_t table_bits = Log2FloorNonZero(table_size);
+  switch (table_bits) {
+#define CASE_(B)                                      \
+    case B:                                           \
+      BrotliCompressFragmentTwoPassImpl ## B(         \
+          m, input, input_size, is_last, command_buf, \
+          literal_buf, table, storage_ix, storage);   \
+      break;
+    FOR_TABLE_BITS_(CASE_)
+#undef CASE_
+    default: assert(0); break;
+  }
+}
+
+#undef FOR_TABLE_BITS_
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }  /* extern "C" */

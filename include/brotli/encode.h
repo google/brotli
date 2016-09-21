@@ -9,14 +9,15 @@
 #ifndef BROTLI_ENC_ENCODE_H_
 #define BROTLI_ENC_ENCODE_H_
 
+#include <brotli/port.h>
 #include <brotli/types.h>
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
 #endif
 
-static const int kBrotliMaxWindowBits = 24;
 static const int kBrotliMinWindowBits = 10;
+static const int kBrotliMaxWindowBits = 24;  /* == BROTLI_MAX_DISTANCE_BITS */
 static const int kBrotliMinInputBlockBits = 16;
 static const int kBrotliMaxInputBlockBits = 24;
 
@@ -44,7 +45,13 @@ typedef enum BrotliEncoderOperation {
   BROTLI_OPERATION_FLUSH = 1,
   /* Request output stream to finish. Performed when input stream is depleted
      and there is enough space in output stream. */
-  BROTLI_OPERATION_FINISH = 2
+  BROTLI_OPERATION_FINISH = 2,
+  /* Emits metadata block to stream. Stream is soft-flushed before metadata
+     block is emitted. CAUTION: when operation is started, length of the input
+     buffer is interpreted as length of a metadata block; changing operation,
+     expanding or truncating input before metadata block is completely emitted
+     will cause an error; metadata block must not be greater than 16MiB. */
+  BROTLI_OPERATION_EMIT_METADATA = 3
 } BrotliEncoderOperation;
 
 typedef enum BrotliEncoderParameter {
@@ -77,20 +84,7 @@ BrotliEncoderState* BrotliEncoderCreateInstance(brotli_alloc_func alloc_func,
 void BrotliEncoderDestroyInstance(BrotliEncoderState* state);
 
 /* The maximum input size that can be processed at once. */
-size_t BrotliEncoderInputBlockSize(BrotliEncoderState* state);
-
-/* Writes a metadata meta-block containing the given input to encoded_buffer.
-   |*encoded_size| should be set to the size of the encoded_buffer.
-   Sets |*encoded_size| to the number of bytes that was written.
-   Note that the given input data will not be part of the sliding window and
-   thus no backward references can be made to this data from subsequent
-   metablocks. |input_size| must not be greater than 2^24 and provided
-   |*encoded_size| must not be less than |input_size| + 6.
-   Returns false if there was an error and true otherwise. */
-BROTLI_BOOL BrotliEncoderWriteMetadata(
-    BrotliEncoderState* state, const size_t input_size,
-    const uint8_t* input_buffer, const BROTLI_BOOL is_last,
-    size_t* encoded_size, uint8_t* encoded_buffer);
+BROTLI_DEPRECATED size_t BrotliEncoderInputBlockSize(BrotliEncoderState* state);
 
 /* Copies the given input data to the internal ring buffer of the compressor.
    No processing of the data occurs at this time and this function can be
@@ -98,9 +92,9 @@ BROTLI_BOOL BrotliEncoderWriteMetadata(
    accumulated input. At most input_block_size() bytes of input data can be
    copied to the ring buffer, otherwise the next WriteBrotliData() will fail.
  */
-void BrotliEncoderCopyInputToRingBuffer(BrotliEncoderState* state,
-                                        const size_t input_size,
-                                        const uint8_t* input_buffer);
+BROTLI_DEPRECATED void BrotliEncoderCopyInputToRingBuffer(
+    BrotliEncoderState* state, const size_t input_size,
+    const uint8_t* input_buffer);
 
 /* Processes the accumulated input data and sets |*out_size| to the length of
    the new output meta-block, or to zero if no new output meta-block has been
@@ -112,15 +106,15 @@ void BrotliEncoderCopyInputToRingBuffer(BrotliEncoderState* state,
    use WriteMetadata() to append an empty meta-data block.
    Returns false if the size of the input data is larger than
    input_block_size(). */
-BROTLI_BOOL BrotliEncoderWriteData(
+BROTLI_DEPRECATED BROTLI_BOOL BrotliEncoderWriteData(
     BrotliEncoderState* state, const BROTLI_BOOL is_last,
     const BROTLI_BOOL force_flush, size_t* out_size, uint8_t** output);
 
 /* Fills the new state with a dictionary for LZ77, warming up the ringbuffer,
    e.g. for custom static dictionaries for data formats.
    Not to be confused with the built-in transformable dictionary of Brotli.
-   To decode, use BrotliSetCustomDictionary() of the decoder with the same
-   dictionary. */
+   To decode, use BrotliDecoderSetCustomDictionary() of the decoder with the
+   same dictionary. */
 void BrotliEncoderSetCustomDictionary(
     BrotliEncoderState* state, size_t size,
     const uint8_t dict[BROTLI_ARRAY_PARAM(size)]);

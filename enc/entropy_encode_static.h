@@ -10,7 +10,7 @@
 #define BROTLI_ENC_ENTROPY_ENCODE_STATIC_H_
 
 #include "../common/constants.h"
-#include "../common/port.h"
+#include <brotli/port.h>
 #include <brotli/types.h>
 #include "./write_bits.h"
 

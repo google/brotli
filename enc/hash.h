@@ -178,7 +178,7 @@ static BROTLI_INLINE BROTLI_BOOL SearchInStaticDictionary(
     return BROTLI_FALSE;
   }
   key = Hash14(data) << 1;
-  for (i = 0; i < (shallow ? 1 : 2); ++i, ++key) {
+  for (i = 0; i < (shallow ? 1u : 2u); ++i, ++key) {
     size_t item = kStaticDictionaryHash[key];
     self->num_lookups++;
     if (item != 0 &&
