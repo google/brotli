@@ -96,10 +96,26 @@ OR:
 #define BROTLI_INLINE __forceinline
 #endif  /* _MSC_VER */
 
+#if !defined(__cplusplus) && !defined(c_plusplus) && \
+    (defined(__STDC_VERSION__) && __STDC_VERSION__ >= 199901L)
+#define BROTLI_RESTRICT restrict
+#elif BROTLI_GCC_VERSION > 295 || defined(__llvm__)
+#define BROTLI_RESTRICT __restrict
+#else
+#define BROTLI_RESTRICT
+#endif
+
 #if BROTLI_MODERN_COMPILER || __has_attribute(noinline)
 #define BROTLI_NOINLINE __attribute__((noinline))
 #else
 #define BROTLI_NOINLINE
+#endif
+
+
+#if BROTLI_MODERN_COMPILER || __has_attribute(deprecated)
+#define BROTLI_DEPRECATED __attribute__((deprecated))
+#else
+#define BROTLI_DEPRECATED
 #endif
 
 #define BROTLI_UNUSED(X) (void)(X)

@@ -60,6 +60,9 @@ void BrotliDecoderStateInitWithCustomAllocators(BrotliDecoderState* s,
   s->block_type_trees = NULL;
   s->block_len_trees = NULL;
   s->ringbuffer = NULL;
+  s->ringbuffer_size = 0;
+  s->new_ringbuffer_size = 0;
+  s->ringbuffer_mask = 0;
 
   s->context_map = NULL;
   s->context_modes = NULL;

@@ -115,7 +115,6 @@ struct BrotliDecoderStateStruct {
 
   int pos;
   int max_backward_distance;
-  int max_backward_distance_minus_custom_dict_size;
   int max_distance;
   int ringbuffer_size;
   int ringbuffer_mask;
@@ -162,7 +161,7 @@ struct BrotliDecoderStateStruct {
 
   /* For partial write operations */
   size_t rb_roundtrips;  /* How many times we went around the ringbuffer */
-  size_t partial_pos_out;  /* How much output to the user in total (<= rb) */
+  size_t partial_pos_out;  /* How much output to the user in total */
 
   /* For ReadHuffmanCode */
   uint32_t symbol;
@@ -215,6 +214,8 @@ struct BrotliDecoderStateStruct {
   unsigned int should_wrap_ringbuffer : 1;
   unsigned int size_nibbles : 8;
   uint32_t window_bits;
+
+  int new_ringbuffer_size;
 
   uint32_t num_literal_htrees;
   uint8_t* context_map;
