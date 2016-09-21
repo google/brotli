@@ -126,8 +126,8 @@ BrotliDecoderResult BrotliDecoderDecompressStream(
    be ignored. The dictionary must exist in memory until decoding is done and
    is owned by the caller. To use:
     1) Allocate and initialize state with BrotliCreateInstance
-    2) Use BrotliSetCustomDictionary
-    3) Use BrotliDecompressStream
+    2) Use BrotliDecoderSetCustomDictionary
+    3) Use BrotliDecoderDecompressStream
     4) Clean up and free state with BrotliDestroyState
 */
 void BrotliDecoderSetCustomDictionary(
@@ -161,7 +161,7 @@ BROTLI_BOOL BrotliDecoderIsUsed(const BrotliDecoderState* s);
    and produced all of the output; returns false otherwise. */
 BROTLI_BOOL BrotliDecoderIsFinished(const BrotliDecoderState* s);
 
-/* Returns detailed error code after BrotliDecompressStream returns
+/* Returns detailed error code after BrotliDecoderDecompressStream returns
    BROTLI_DECODER_RESULT_ERROR. */
 BrotliDecoderErrorCode BrotliDecoderGetErrorCode(const BrotliDecoderState* s);
 
@@ -169,41 +169,6 @@ const char* BrotliDecoderErrorString(BrotliDecoderErrorCode c);
 
 /* Decoder version. Look at BROTLI_VERSION for more information. */
 uint32_t BrotliDecoderVersion(void);
-
-/* DEPRECATED >>> */
-typedef enum {
-  BROTLI_RESULT_ERROR = 0,
-  BROTLI_RESULT_SUCCESS = 1,
-  BROTLI_RESULT_NEEDS_MORE_INPUT = 2,
-  BROTLI_RESULT_NEEDS_MORE_OUTPUT = 3
-} BrotliResult;
-typedef enum {
-#define BROTLI_COMMA_ ,
-#define BROTLI_ERROR_CODE_ENUM_ITEM_(PREFIX, NAME, CODE) \
-    BROTLI ## PREFIX ## NAME = CODE
-  BROTLI_DECODER_ERROR_CODES_LIST(BROTLI_ERROR_CODE_ENUM_ITEM_, BROTLI_COMMA_)
-#undef BROTLI_ERROR_CODE_ENUM_ITEM_
-#undef BROTLI_COMMA_
-} BrotliErrorCode;
-typedef struct BrotliStateStruct BrotliState;
-BrotliState* BrotliCreateState(
-    brotli_alloc_func alloc, brotli_free_func free, void* opaque);
-void BrotliDestroyState(BrotliState* state);
-BROTLI_BOOL BrotliDecompressedSize(
-    size_t encoded_size, const uint8_t* encoded_buffer, size_t* decoded_size);
-BrotliResult BrotliDecompressBuffer(
-    size_t encoded_size, const uint8_t* encoded_buffer, size_t* decoded_size,
-    uint8_t* decoded_buffer);
-BrotliResult BrotliDecompressStream(
-    size_t* available_in, const uint8_t** next_in, size_t* available_out,
-    uint8_t** next_out, size_t* total_out, BrotliState* s);
-void BrotliSetCustomDictionary(
-    size_t size, const uint8_t* dict, BrotliState* s);
-BROTLI_BOOL BrotliStateIsStreamStart(const BrotliState* s);
-BROTLI_BOOL BrotliStateIsStreamEnd(const BrotliState* s);
-BrotliErrorCode BrotliGetErrorCode(const BrotliState* s);
-const char* BrotliErrorString(BrotliErrorCode c);
-/* <<< DEPRECATED */
 
 #if defined(__cplusplus) || defined(c_plusplus)
 } /* extern "C" */

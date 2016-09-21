@@ -18,13 +18,7 @@
 extern "C" {
 #endif
 
-#if (BROTLI_64_BITS)
-#define BROTLI_SHORT_FILL_BIT_WINDOW_READ 4
-typedef uint64_t reg_t;
-#else
-#define BROTLI_SHORT_FILL_BIT_WINDOW_READ 2
-typedef uint32_t reg_t;
-#endif
+#define BROTLI_SHORT_FILL_BIT_WINDOW_READ (sizeof(reg_t) >> 1)
 
 static const uint32_t kBitMask[33] = { 0x0000,
     0x00000001, 0x00000003, 0x00000007, 0x0000000F,
@@ -341,23 +335,6 @@ static BROTLI_INLINE BROTLI_BOOL BrotliJumpToByteBoundary(BrotliBitReader* br) {
     BrotliTakeBits(br, pad_bits_count, &pad_bits);
   }
   return TO_BROTLI_BOOL(pad_bits == 0);
-}
-
-/* Peeks a byte at specified offset.
-   Precondition: bit reader is parked to a byte boundary.
-   Returns -1 if operation is not feasible. */
-static BROTLI_INLINE int BrotliPeekByte(BrotliBitReader* br, size_t offset) {
-  uint32_t available_bits = BrotliGetAvailableBits(br);
-  size_t bytes_left = available_bits >> 3;
-  BROTLI_DCHECK((available_bits & 7) == 0);
-  if (offset < bytes_left) {
-    return (BrotliGetBitsUnmasked(br) >> (unsigned)(offset << 3)) & 0xFF;
-  }
-  offset -= bytes_left;
-  if (offset < br->avail_in) {
-    return br->next_in[offset];
-  }
-  return -1;
 }
 
 /* Copies remaining input bytes stored in the bit reader to the output. Value
