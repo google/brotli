@@ -19,9 +19,11 @@
 
 #if !defined(_WIN32)
 #include <unistd.h>
+#include <utime.h>
 #else
 #include <io.h>
 #include <share.h>
+#include <sys/utime.h>
 
 #define MAKE_BINARY(FILENO) (_setmode((FILENO), _O_BINARY), (FILENO))
 
@@ -31,11 +33,17 @@
 #define S_IRUSR S_IREAD
 #define S_IWUSR S_IWRITE
 #endif
+
 #define fdopen _fdopen
 #define unlink _unlink
+#define utimbuf _utimbuf
+#define utime _utime
 
 #define fopen ms_fopen
 #define open ms_open
+
+#define chmod(F, P)
+#define chown(F, O, G)
 
 #if defined(_MSC_VER) && (_MSC_VER >= 1400)
 #define fseek _fseeki64
@@ -76,7 +84,8 @@ static void ParseArgv(int argc, char **argv,
                       int *decompress,
                       int *repeat,
                       int *verbose,
-                      int *lgwin) {
+                      int *lgwin,
+                      int *copy_stat) {
   int k;
   *force = 0;
   *input_path = 0;
@@ -84,6 +93,7 @@ static void ParseArgv(int argc, char **argv,
   *repeat = 1;
   *verbose = 0;
   *lgwin = 22;
+  *copy_stat = 1;
   {
     size_t argv0_len = strlen(argv[0]);
     *decompress =
@@ -108,6 +118,12 @@ static void ParseArgv(int argc, char **argv,
         goto error;
       }
       *verbose = 1;
+      continue;
+    } else if (!strcmp("--no-copy-stat", argv[k])) {
+      if (*copy_stat == 0) {
+        goto error;
+      }
+      *copy_stat = 0;
       continue;
     }
     if (k < argc - 1) {
@@ -150,7 +166,7 @@ static void ParseArgv(int argc, char **argv,
         }
         ++k;
         continue;
-      }  else if (!strcmp("--window", argv[k]) ||
+      } else if (!strcmp("--window", argv[k]) ||
                   !strcmp("-w", argv[k])) {
         if (!ParseQuality(argv[k + 1], lgwin)) {
           goto error;
@@ -169,7 +185,8 @@ error:
   fprintf(stderr,
           "Usage: %s [--force] [--quality n] [--decompress]"
           " [--input filename] [--output filename] [--repeat iters]"
-          " [--verbose] [--window n] [--custom-dictionary filename]\n",
+          " [--verbose] [--window n] [--custom-dictionary filename]"
+          " [--no-copy-stat]\n",
           argv[0]);
   exit(1);
 }
@@ -225,6 +242,26 @@ static int64_t FileSize(const char *path) {
   return retval;
 }
 
+/* Copy file times and permissions.
+   TODO: this is a "best effort" implementation; honest cross-platform
+   fully featured implementation is way too hacky; add more hacks by request. */
+static void CopyStat(const char* input_path, const char* output_path) {
+  struct stat statbuf;
+  struct utimbuf times;
+  if (input_path == 0 || output_path == 0) {
+    return;
+  }
+  if (stat(input_path, &statbuf) != 0) {
+    return;
+  }
+  times.actime = statbuf.st_atime;
+  times.modtime = statbuf.st_mtime;
+  utime(output_path, &times);
+  chmod(output_path, statbuf.st_mode & (S_IRWXU | S_IRWXG | S_IRWXO));
+  chown(output_path, (__uid_t)-1, statbuf.st_gid);
+  chown(output_path, statbuf.st_uid, (__gid_t)-1);
+}
+
 /* Result ownersip is passed to caller.
    |*dictionary_size| is set to resulting buffer size. */
 static uint8_t* ReadDictionary(const char* path, size_t* dictionary_size) {
@@ -273,13 +310,12 @@ static int Decompress(FILE* fin, FILE* fout, const char* dictionary_path) {
   uint8_t* dictionary = NULL;
   uint8_t* input;
   uint8_t* output;
-  size_t total_out;
   size_t available_in;
   const uint8_t* next_in;
   size_t available_out = kFileBufferSize;
   uint8_t* next_out;
-  BrotliResult result = BROTLI_RESULT_ERROR;
-  BrotliState* s = BrotliCreateState(NULL, NULL, NULL);
+  BrotliDecoderResult result = BROTLI_DECODER_RESULT_ERROR;
+  BrotliDecoderState* s = BrotliDecoderCreateInstance(NULL, NULL, NULL);
   if (!s) {
     fprintf(stderr, "out of memory\n");
     return 0;
@@ -287,7 +323,7 @@ static int Decompress(FILE* fin, FILE* fout, const char* dictionary_path) {
   if (dictionary_path != NULL) {
     size_t dictionary_size = 0;
     dictionary = ReadDictionary(dictionary_path, &dictionary_size);
-    BrotliSetCustomDictionary(dictionary_size, dictionary, s);
+    BrotliDecoderSetCustomDictionary(s, dictionary_size, dictionary);
   }
   input = (uint8_t*)malloc(kFileBufferSize);
   output = (uint8_t*)malloc(kFileBufferSize);
@@ -296,9 +332,9 @@ static int Decompress(FILE* fin, FILE* fout, const char* dictionary_path) {
     goto end;
   }
   next_out = output;
-  result = BROTLI_RESULT_NEEDS_MORE_INPUT;
+  result = BROTLI_DECODER_RESULT_NEEDS_MORE_INPUT;
   while (1) {
-    if (result == BROTLI_RESULT_NEEDS_MORE_INPUT) {
+    if (result == BROTLI_DECODER_RESULT_NEEDS_MORE_INPUT) {
       if (feof(fin)) {
         break;
       }
@@ -307,7 +343,7 @@ static int Decompress(FILE* fin, FILE* fout, const char* dictionary_path) {
       if (ferror(fin)) {
         break;
       }
-    } else if (result == BROTLI_RESULT_NEEDS_MORE_OUTPUT) {
+    } else if (result == BROTLI_DECODER_RESULT_NEEDS_MORE_OUTPUT) {
       fwrite(output, 1, kFileBufferSize, fout);
       if (ferror(fout)) {
         break;
@@ -317,16 +353,17 @@ static int Decompress(FILE* fin, FILE* fout, const char* dictionary_path) {
     } else {
       break; /* Error or success. */
     }
-    result = BrotliDecompressStream(&available_in, &next_in,
-        &available_out, &next_out, &total_out, s);
+    result = BrotliDecoderDecompressStream(
+        s, &available_in, &next_in, &available_out, &next_out, 0);
   }
   if (next_out != output) {
     fwrite(output, 1, (size_t)(next_out - output), fout);
   }
 
-  if ((result == BROTLI_RESULT_NEEDS_MORE_OUTPUT) || ferror(fout)) {
+  if ((result == BROTLI_DECODER_RESULT_NEEDS_MORE_OUTPUT) || ferror(fout)) {
     fprintf(stderr, "failed to write output\n");
-  } else if (result != BROTLI_RESULT_SUCCESS) { /* Error or needs more input. */
+  } else if (result != BROTLI_DECODER_RESULT_SUCCESS) {
+    /* Error or needs more input. */
     fprintf(stderr, "corrupt input\n");
   }
 
@@ -334,8 +371,8 @@ end:
   free(dictionary);
   free(input);
   free(output);
-  BrotliDestroyState(s);
-  return (result == BROTLI_RESULT_SUCCESS) ? 1 : 0;
+  BrotliDecoderDestroyInstance(s);
+  return (result == BROTLI_DECODER_RESULT_SUCCESS) ? 1 : 0;
 }
 
 static int Compress(int quality, int lgwin, FILE* fin, FILE* fout,
@@ -419,14 +456,15 @@ int main(int argc, char** argv) {
   int repeat = 1;
   int verbose = 0;
   int lgwin = 0;
+  int copy_stat = 1;
   clock_t clock_start;
   int i;
   ParseArgv(argc, argv, &input_path, &output_path, &dictionary_path, &force,
-            &quality, &decompress, &repeat, &verbose, &lgwin);
+            &quality, &decompress, &repeat, &verbose, &lgwin, &copy_stat);
   clock_start = clock();
   for (i = 0; i < repeat; ++i) {
     FILE* fin = OpenInputFile(input_path);
-    FILE* fout = OpenOutputFile(output_path, force || repeat);
+    FILE* fout = OpenOutputFile(output_path, force || (repeat > 1));
     int is_ok = 0;
     if (decompress) {
       is_ok = Decompress(fin, fout, dictionary_path);
@@ -437,11 +475,15 @@ int main(int argc, char** argv) {
       unlink(output_path);
       exit(1);
     }
-    if (fclose(fin) != 0) {
+    if (fclose(fout) != 0) {
       perror("fclose");
       exit(1);
     }
-    if (fclose(fout) != 0) {
+    /* TOCTOU violation, but otherwise it is impossible to set file times. */
+    if (copy_stat && (i + 1 == repeat)) {
+      CopyStat(input_path, output_path);
+    }
+    if (fclose(fin) != 0) {
       perror("fclose");
       exit(1);
     }
