@@ -11,7 +11,7 @@ $(BINDIR):
 	mkdir -p $@
 
 $(EXECUTABLES): $(BINDIR)
-	$(CC) $(CFLAGS) $(CPPFLAGS) $(addsuffix .cc, $@) -o $(BINDIR)/$@
+	$(CC) $(CFLAGS) $(CPPFLAGS) $(addsuffix .cc, $@) -o $(BINDIR)/$@ -lgflags_nothreads
 
 clean:
 	rm -rf $(BINDIR)

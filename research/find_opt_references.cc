@@ -1,5 +1,5 @@
 /* Copyright 2016 Google Inc. All Rights Reserved.
-   Author: vanickulin@google.com (Ivan Nikulin)
+   Author: zip753@gmail.com (Ivan Nikulin)
 
    Distributed under MIT license.
    See file LICENSE for detail or copy at https://opensource.org/licenses/MIT
@@ -13,10 +13,13 @@
 #include <cstdio>
 #include <cstring>
 
+#include <gflags/gflags.h>
+using gflags::ParseCommandLineFlags;
+
 #include "./esaxx/sais.hxx"
 
-const int FLAGS_min_length = 1;  // Minimal length of found backward references.
-const int FLAGS_skip = 1;  // Number of bytes to skip.
+DEFINE_int32(min_length, 1, "Minimal length of found backward references.");
+DEFINE_int32(skip, 1, "Number of bytes to skip.");
 
 const size_t kFileBufferSize = (1 << 16);  // 64KB
 
@@ -112,6 +115,7 @@ void ProcessReferences(input_type* storage, sarray_type* sarray, lcp_type* lcp,
 }
 
 int main(int argc, char* argv[]) {
+  ParseCommandLineFlags(&argc, &argv, true);
   if (argc != 3) {
     printf("usage: %s input_file output_file\n", argv[0]);
     return 1;
