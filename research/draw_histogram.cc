@@ -1,5 +1,5 @@
 /* Copyright 2016 Google Inc. All Rights Reserved.
-   Author: vanickulin@google.com (Ivan Nikulin)
+   Author: zip753@gmail.com (Ivan Nikulin)
 
    Distributed under MIT license.
    See file LICENSE for detail or copy at https://opensource.org/licenses/MIT
@@ -15,18 +15,21 @@
 #include <cstdio> /* fscanf, fprintf */
 #include <cstdint>
 
+#include <gflags/gflags.h>
+using gflags::ParseCommandLineFlags;
+
 #include "./read_dist.h"
 
-const int FLAGS_height = 1000;  // Height of the resulting histogam.
-const int FLAGS_width = 1000;  // Width of the resulting histogam.
-int FLAGS_size;  // Size of the compressed file.
-const int FLAGS_brotli_window = 0;  // Size of brotli window in bits.
-const uint64_t FLAGS_min_distance = 0;  // Minimum distance.
-uint64_t FLAGS_max_distance = 0;  // Maximum distance.
-const bool FLAGS_with_copies = false;  // True if input contains copy length.
-const bool FLAGS_simple = false;  // True if using only black and white pixels.
-const bool FLAGS_linear = true;  // True if using linear distance mapping.
-const uint64_t FLAGS_skip = 0;  // Number of bytes to skip.
+DEFINE_int32(height, 1000, "Height of the resulting histogam.");
+DEFINE_int32(width, 8000, "Width of the resulting histogam.");
+DEFINE_int32(size, 1e8, "Size of the compressed file.");
+DEFINE_int32(brotli_window, -1, "Size of brotli window in bits.");
+DEFINE_uint64(min_distance, 0, "Minimum distance.");
+DEFINE_uint64(max_distance, 1 << 30, "Maximum distance.");
+DEFINE_bool(with_copies, false, "True if input contains copy length.");
+DEFINE_bool(simple, false, "True if using only black and white pixels.");
+DEFINE_bool(linear, false, "True if using linear distance mapping.");
+DEFINE_uint64(skip, 0, "Number of bytes to skip.");
 
 inline double DistanceTransform(double x) {
   static bool linear = FLAGS_linear;
@@ -83,7 +86,7 @@ void BuildHistogram(FILE* fin, int** histo) {
   while (ReadBackwardReference(fin, &copy, &pos, &distance)) {
     if (pos == -1) continue;  // In case when only insert is present.
     if (distance < min_distance || distance >= GetMaxDistance()) continue;
-    if (FLAGS_brotli_window != 0) {
+    if (FLAGS_brotli_window != -1) {
       AdjustPosition(&pos);
     }
     if (pos >= skip && distance <= pos) {
@@ -163,8 +166,9 @@ void DrawPixels(uint8_t** pixel, FILE* fout) {
 }
 
 int main(int argc, char* argv[]) {
-  if (argc != 4) {
-    printf("usage: draw_histogram.cc dist_file input_size output_file\n");
+  ParseCommandLineFlags(&argc, &argv, true);
+  if (argc != 3) {
+    printf("usage: draw_histogram.cc data output_file\n");
     return 1;
   }
 
@@ -172,11 +176,7 @@ int main(int argc, char* argv[]) {
   int width = FLAGS_width;
 
   FILE* fin = fopen(argv[1], "r");
-  FILE* fout = fopen(argv[3], "wb");
-
-  FLAGS_size = atoi(argv[2]);
-
-  if (FLAGS_max_distance == 0) FLAGS_max_distance = FLAGS_size;
+  FILE* fout = fopen(argv[2], "wb");
 
   uint8_t** pixel = new uint8_t*[height];
   int** histo = new int*[height];

@@ -1,5 +1,5 @@
 /* Copyright 2016 Google Inc. All Rights Reserved.
-   Author: vanickulin@google.com (Ivan Nikulin)
+   Author: zip753@gmail.com (Ivan Nikulin)
 
    Distributed under MIT license.
    See file LICENSE for detail or copy at https://opensource.org/licenses/MIT
@@ -13,16 +13,21 @@
 #include <cmath>
 #include <cstdint>
 #include <cstdio>
+#include <cstdlib>  /* exit, EXIT_FAILURE */
 #include <vector>
+
+#ifndef CHECK
+#define CHECK(X) if (!(X)) exit(EXIT_FAILURE);
+#endif
 
 void ReadPGM(FILE* f, uint8_t*** image, size_t* height, size_t* width) {
   int colors;
-  assert(fscanf(f, "P5\n%lu %lu\n%d\n", width, height, &colors) == 3);
+  CHECK(fscanf(f, "P5\n%lu %lu\n%d\n", width, height, &colors) == 3);
   assert(colors == 255);
   *image = new uint8_t*[*height];
   for (int i = *height - 1; i >= 0; --i) {
     (*image)[i] = new uint8_t[*width];
-    assert(fread((*image)[i], 1, *width, f) == *width);
+    CHECK(fread((*image)[i], 1, *width, f) == *width);
   }
 }
 

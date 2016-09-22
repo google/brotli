@@ -22,10 +22,6 @@ all: test
 $(DIRS):
 	mkdir -p $@
 
-$(OBJECTS): $(DIRS)
-	$(CC) $(CFLAGS) $(CPPFLAGS) -Iinclude \
-        -c $(patsubst %.o,%.c,$(patsubst $(OBJDIR)/%,%,$@)) -o $@
-
 $(EXECUTABLE): $(OBJECTS)
 	$(CC) $(OBJECTS) -lm -o $(BINDIR)/$(EXECUTABLE)
 
@@ -39,3 +35,8 @@ test: $(EXECUTABLE)
 
 clean:
 	rm -rf $(BINDIR) $(LIB_A)
+
+.SECONDEXPANSION:
+$(OBJECTS): $$(patsubst %.o,%.c,$$(patsubst $$(OBJDIR)/%,%,$$@)) | $(DIRS)
+	$(CC) $(CFLAGS) $(CPPFLAGS) -Iinclude \
+        -c $(patsubst %.o,%.c,$(patsubst $(OBJDIR)/%,%,$@)) -o $@
