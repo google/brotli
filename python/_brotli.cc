@@ -244,7 +244,7 @@ static PyObject* brotli_decompress(PyObject *self, PyObject *args, PyObject *key
   } else {
     PyErr_SetString(BrotliError, "BrotliDecompress failed");
   }
-  
+
   BrotliDecoderDestroyInstance(state);
   delete[] buffer;
 
@@ -257,18 +257,16 @@ static PyMethodDef brotli_methods[] = {
   {NULL, NULL, 0, NULL}
 };
 
-PyDoc_STRVAR(brotli__doc__,
-"The functions in this module allow compression and decompression using the\n"
-"Brotli library.\n\n");
+PyDoc_STRVAR(brotli__doc__, "Implementation module for the Brotli library.");
 
 #if PY_MAJOR_VERSION >= 3
-#define INIT_BROTLI   PyInit_brotli
+#define INIT_BROTLI   PyInit__brotli
 #define CREATE_BROTLI PyModule_Create(&brotli_module)
 #define RETURN_BROTLI return m
 
 static struct PyModuleDef brotli_module = {
   PyModuleDef_HEAD_INIT,
-  "brotli",
+  "_brotli",
   brotli__doc__,
   0,
   brotli_methods,
@@ -277,8 +275,8 @@ static struct PyModuleDef brotli_module = {
   NULL
 };
 #else
-#define INIT_BROTLI   initbrotli
-#define CREATE_BROTLI Py_InitModule3("brotli", brotli_methods, brotli__doc__)
+#define INIT_BROTLI   init_brotli
+#define CREATE_BROTLI Py_InitModule3("_brotli", brotli_methods, brotli__doc__)
 #define RETURN_BROTLI return
 #endif
 
