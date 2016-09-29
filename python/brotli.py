@@ -17,7 +17,34 @@ MODE_TEXT = _brotli.MODE_TEXT
 MODE_FONT = _brotli.MODE_FONT
 
 # Compress a byte string.
-compress = _brotli.compress
+def compress(string, mode=MODE_GENERIC, quality=11, lgwin=22, lgblock=0,
+             dictionary=''):
+    """Compress a byte string.
+
+    Args:
+      string (bytes): The input data.
+      mode (int, optional): The compression mode can be MODE_GENERIC (default),
+        MODE_TEXT (for UTF-8 format text input) or MODE_FONT (for WOFF 2.0).
+      quality (int, optional): Controls the compression-speed vs compression-
+        density tradeoff. The higher the quality, the slower the compression.
+        Range is 0 to 11. Defaults to 11.
+      lgwin (int, optional): Base 2 logarithm of the sliding window size. Range
+        is 10 to 24. Defaults to 22.
+      lgblock (int, optional): Base 2 logarithm of the maximum input block size.
+        Range is 16 to 24. If set to 0, the value will be set based on the
+        quality. Defaults to 0.
+      dictionary (bytes, optional): Custom dictionary. Only last sliding window
+         size bytes will be used.
+
+    Returns:
+      The compressed byte string.
+
+    Raises:
+      brotli.error: If arguments are invalid, or compressor fails.
+    """
+    compressor = _brotli.Compressor(mode=mode, quality=quality, lgwin=lgwin,
+                                    lgblock=lgblock, dictionary=dictionary)
+    return compressor.compress(string)
 
 # Decompress a compressed byte string.
 decompress = _brotli.decompress
