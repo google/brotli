@@ -2,7 +2,6 @@
 #include <Python.h>
 #include <bytesobject.h>
 #include <structmember.h>
-#include <cstdio>
 #include <vector>
 #include "../common/version.h"
 #include <brotli/decode.h>
@@ -86,6 +85,38 @@ static int lgblock_convertor(PyObject *o, int *lgblock) {
   }
 
   return 1;
+}
+
+static BROTLI_BOOL compress_stream(BrotliEncoderState* enc, BrotliEncoderOperation op,
+                                   std::vector<uint8_t>* output, uint8_t* input, size_t input_length) {
+  BROTLI_BOOL ok = BROTLI_TRUE;
+
+  size_t available_in = input_length;
+  const uint8_t* next_in = input;
+  size_t available_out = 0;
+  uint8_t* next_out = NULL;
+
+  while (ok) {
+    ok = BrotliEncoderCompressStream(enc, op,
+                                     &available_in, &next_in,
+                                     &available_out, &next_out, NULL);
+    if (!ok)
+      break;
+
+    size_t buffer_length = 0; // Request all available output.
+    const uint8_t* buffer = BrotliEncoderTakeOutput(enc, &buffer_length);
+    if (buffer_length) {
+      (*output).insert((*output).end(), buffer, buffer + buffer_length);
+    }
+
+    if (available_in || BrotliEncoderHasMoreOutput(enc)) {
+      continue;
+    }
+
+    break;
+  }
+
+  return ok;
 }
 
 PyDoc_STRVAR(brotli_Compressor_doc,
@@ -177,63 +208,132 @@ static int brotli_Compressor_init(brotli_Compressor *self, PyObject *args, PyObj
   return 0;
 }
 
-PyDoc_STRVAR(brotli_Compressor_compress_doc,
-"Compress a byte string.\n"
+PyDoc_STRVAR(brotli_Compressor_process_doc,
+"Process \"string\" for compression, returning a string that contains \n"
+"compressed output data.  This data should be concatenated to the output \n"
+"produced by any preceding calls to the \"process()\" or flush()\" methods. \n"
+"Some or all of the input may be kept in internal buffers for later \n"
+"processing, and the compressed output data may be empty until enough input \n"
+"has been accumulated.\n"
 "\n"
 "Signature:\n"
 "  compress(string)\n"
 "\n"
 "Args:\n"
-"  string (bytes): The input data.\n"
+"  string (bytes): The input data\n"
 "\n"
 "Returns:\n"
-"  The compressed byte string.\n"
+"  The compressed output data (bytes)\n"
 "\n"
 "Raises:\n"
-"  brotli.error: If compression fails.\n");
+"  brotli.error: If compression fails\n");
 
-static PyObject* brotli_Compressor_compress(brotli_Compressor *self, PyObject *args) {
+static PyObject* brotli_Compressor_process(brotli_Compressor *self, PyObject *args) {
   PyObject* ret = NULL;
+  std::vector<uint8_t> output;
   uint8_t* input;
-  uint8_t* output = NULL;
-  uint8_t* next_out;
-  const uint8_t *next_in;
   size_t input_length;
-  size_t output_length;
-  size_t available_in;
-  size_t available_out;
-  int ok;
+  BROTLI_BOOL ok = BROTLI_TRUE;
 
-  ok = PyArg_ParseTuple(args, "s#:compress", &input, &input_length);
+  ok = (BROTLI_BOOL)PyArg_ParseTuple(args, "s#:process", &input, &input_length);
   if (!ok)
     return NULL;
 
-  output_length = input_length + (input_length >> 2) + 10240;
-
   if (!self->enc) {
-    ok = false;
+    ok = BROTLI_FALSE;
     goto end;
   }
 
-  output = new uint8_t[output_length];
-  available_out = output_length;
-  next_out = output;
-  available_in = input_length;
-  next_in = input;
-
-  BrotliEncoderCompressStream(self->enc, BROTLI_OPERATION_FINISH,
-                              &available_in, &next_in,
-                              &available_out, &next_out, 0);
-  ok = BrotliEncoderIsFinished(self->enc);
+  ok = compress_stream(self->enc, BROTLI_OPERATION_PROCESS,
+                       &output, input, input_length);
 
 end:
   if (ok) {
-    ret = PyBytes_FromStringAndSize((char*)output, output_length - available_out);
+    ret = PyBytes_FromStringAndSize((char*)(output.size() ? &output[0] : NULL), output.size());
   } else {
-    PyErr_SetString(BrotliError, "BrotliCompressBuffer failed");
+    PyErr_SetString(BrotliError, "BrotliEncoderCompressStream failed while processing the stream");
   }
 
-  delete[] output;
+  return ret;
+}
+
+PyDoc_STRVAR(brotli_Compressor_flush_doc,
+"Process all pending input, returning a string containing the remaining\n"
+"compressed data. This data should be concatenated to the output produced by\n"
+"any preceding calls to the \"process()\" or \"flush()\" methods.\n"
+"\n"
+"Signature:\n"
+"  flush()\n"
+"\n"
+"Returns:\n"
+"  The compressed output data (bytes)\n"
+"\n"
+"Raises:\n"
+"  brotli.error: If compression fails\n");
+
+static PyObject* brotli_Compressor_flush(brotli_Compressor *self) {
+  PyObject *ret = NULL;
+  std::vector<uint8_t> output;
+  BROTLI_BOOL ok = BROTLI_TRUE;
+
+  if (!self->enc) {
+    ok = BROTLI_FALSE;
+    goto end;
+  }
+
+  ok = compress_stream(self->enc, BROTLI_OPERATION_FLUSH,
+                       &output, NULL, 0);
+
+end:
+  if (ok) {
+    ret = PyBytes_FromStringAndSize((char*)(output.size() ? &output[0] : NULL), output.size());
+  } else {
+    PyErr_SetString(BrotliError, "BrotliEncoderCompressStream failed while flushing the stream");
+  }
+
+  return ret;
+}
+
+PyDoc_STRVAR(brotli_Compressor_finish_doc,
+"Process all pending input and complete all compression, returning a string\n"
+"containing the remaining compressed data. This data should be concatenated\n"
+"to the output produced by any preceding calls to the \"process()\" or\n"
+"\"flush()\" methods.\n"
+"After calling \"finish()\", the \"process()\" and \"flush()\" methods\n"
+"cannot be called again, and a new \"Compressor\" object should be created.\n"
+"\n"
+"Signature:\n"
+"  finish(string)\n"
+"\n"
+"Returns:\n"
+"  The compressed output data (bytes)\n"
+"\n"
+"Raises:\n"
+"  brotli.error: If compression fails\n");
+
+static PyObject* brotli_Compressor_finish(brotli_Compressor *self) {
+  PyObject *ret = NULL;
+  std::vector<uint8_t> output;
+  BROTLI_BOOL ok = BROTLI_TRUE;
+
+  if (!self->enc) {
+    ok = BROTLI_FALSE;
+    goto end;
+  }
+
+  ok = compress_stream(self->enc, BROTLI_OPERATION_FINISH,
+                       &output, NULL, 0);
+
+  if (ok) {
+    ok = BrotliEncoderIsFinished(self->enc);
+  }
+
+end:
+  if (ok) {
+    ret = PyBytes_FromStringAndSize((char*)(output.size() ? &output[0] : NULL), output.size());
+  } else {
+    PyErr_SetString(BrotliError, "BrotliEncoderCompressStream failed while finishing the stream");
+  }
 
   return ret;
 }
@@ -243,7 +343,9 @@ static PyMemberDef brotli_Compressor_members[] = {
 };
 
 static PyMethodDef brotli_Compressor_methods[] = {
-  {"compress", (PyCFunction)brotli_Compressor_compress, METH_VARARGS, brotli_Compressor_compress_doc},
+  {"process", (PyCFunction)brotli_Compressor_process, METH_VARARGS, brotli_Compressor_process_doc},
+  {"flush", (PyCFunction)brotli_Compressor_flush, METH_NOARGS, brotli_Compressor_flush_doc},
+  {"finish", (PyCFunction)brotli_Compressor_finish, METH_NOARGS, brotli_Compressor_finish_doc},
   {NULL}  /* Sentinel */
 };
 
