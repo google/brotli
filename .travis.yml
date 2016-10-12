@@ -159,11 +159,11 @@ matrix:
     ## Python OS X builds
     ###
     - os: osx
-      env: BUILD_SYSTEM=python INSTALL_TYPE=macpython PYTHON_VERSION=2.7.12
+      env: BUILD_SYSTEM=python INSTALL_TYPE=macpython PYTHON_VERSION=2.7.12 C_COMPILER=gcc CXX_COMPILER=g++
     - os: osx
-      env: BUILD_SYSTEM=python INSTALL_TYPE=macpython PYTHON_VERSION=3.4.4
+      env: BUILD_SYSTEM=python INSTALL_TYPE=macpython PYTHON_VERSION=3.4.4 C_COMPILER=gcc CXX_COMPILER=g++
     - os: osx
-      env: BUILD_SYSTEM=python INSTALL_TYPE=macpython PYTHON_VERSION=3.5.2
+      env: BUILD_SYSTEM=python INSTALL_TYPE=macpython PYTHON_VERSION=3.5.2 C_COMPILER=gcc CXX_COMPILER=g++
 
     ###
     ## Sanitizers
