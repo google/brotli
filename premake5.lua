@@ -26,46 +26,46 @@ configuration "linux"
 configuration { "macosx" }
   defines { "OS_MACOSX" }
 
-project "brotli_common"
+project "brotlicommon"
   kind "SharedLib"
   language "C"
   files { "common/**.h", "common/**.c" }
 
-project "brotli_common_static"
+project "brotlicommon_static"
   kind "StaticLib"
-  targetname "brotli_common"
+  targetname "brotlicommon"
   language "C"
   files { "common/**.h", "common/**.c" }
 
-project "brotli_dec"
+project "brotlidec"
   kind "SharedLib"
   language "C"
   files { "dec/**.h", "dec/**.c" }
-  links "brotli_common"
+  links "brotlicommon"
 
-project "brotli_dec_static"
+project "brotlidec_static"
   kind "StaticLib"
-  targetname "brotli_dec"
+  targetname "brotlidec"
   language "C"
   files { "dec/**.h", "dec/**.c" }
-  links "brotli_common_static"
+  links "brotlicommon_static"
 
-project "brotli_enc"
+project "brotlienc"
   kind "SharedLib"
   language "C"
   files { "enc/**.h", "enc/**.c" }
-  links "brotli_common"
+  links "brotlicommon"
 
-project "brotli_enc_static"
+project "brotlienc_static"
   kind "StaticLib"
-  targetname "brotli_enc"
+  targetname "brotlienc"
   language "C"
   files { "enc/**.h", "enc/**.c" }
-  links "brotli_common_static"
+  links "brotlicommon_static"
 
 project "bro"
   kind "ConsoleApp"
   language "C"
   linkoptions "-static"
   files { "tools/bro.c" }
-  links { "brotli_common_static", "brotli_dec_static", "brotli_enc_static" }
+  links { "brotlicommon_static", "brotlidec_static", "brotlienc_static" }

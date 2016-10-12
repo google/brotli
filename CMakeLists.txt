@@ -106,7 +106,7 @@ endif()
 unset(LOG2_RES)
 
 set(BROTLI_INCLUDE_DIRS "${CMAKE_CURRENT_SOURCE_DIR}/include")
-set(BROTLI_LIBRARIES_CORE brotli_enc brotli_dec brotli_common)
+set(BROTLI_LIBRARIES_CORE brotlienc brotlidec brotlicommon)
 set(BROTLI_LIBRARIES ${BROTLI_LIBRARIES_CORE} ${LIBM_LIBRARY})
 mark_as_advanced(BROTLI_INCLUDE_DIRS BROTLI_LIBRARIES)
 
@@ -118,14 +118,14 @@ elseif(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
   add_definitions(-DOS_MACOSX)
 endif()
 
-add_library(brotli_common
+add_library(brotlicommon
   common/dictionary.c)
-add_library(brotli_dec
+add_library(brotlidec
   dec/bit_reader.c
   dec/decode.c
   dec/huffman.c
   dec/state.c)
-add_library(brotli_enc
+add_library(brotlienc
   enc/backward_references.c
   enc/bit_cost.c
   enc/block_splitter.c
@@ -145,7 +145,7 @@ add_library(brotli_enc
 # Older CMake versions does not understand INCLUDE_DIRECTORIES property.
 include_directories(${BROTLI_INCLUDE_DIRS})
 
-foreach(lib brotli_common brotli_dec brotli_enc)
+foreach(lib brotlicommon brotlidec brotlienc)
   target_link_libraries(${lib} ${LIBM_LIBRARY})
   set_property(TARGET ${lib} APPEND PROPERTY INCLUDE_DIRECTORIES ${BROTLI_INCLUDE_DIRS})
   set_target_properties(${lib} PROPERTIES
@@ -155,8 +155,8 @@ foreach(lib brotli_common brotli_dec brotli_enc)
   set_property(TARGET ${lib} APPEND PROPERTY INTERFACE_INCLUDE_DIRECTORIES "${BROTLI_INCLUDE_DIRS}")
 endforeach()
 if (BUILD_SHARED_LIBS)
-  target_link_libraries(brotli_dec brotli_common)
-  target_link_libraries(brotli_enc brotli_common)
+  target_link_libraries(brotlidec brotlicommon)
+  target_link_libraries(brotlienc brotlicommon)
 endif()
 
 # For projects stuck on older versions of CMake, this will set the
