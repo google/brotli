@@ -90,13 +90,13 @@ cc_library(
     deps = [":brotli_common"],
 )
 
-cc_binary(
-    name = "bro",
-    srcs = ["tools/bro.c"],
-    copts = STRICT_C_OPTIONS,
-    linkstatic = 1,
-    deps = [
-        ":brotli_dec",
-        ":brotli_enc",
-    ],
-)
+# cc_binary(
+#     name = "bro",
+#     srcs = ["tools/bro.c"],
+#     copts = STRICT_C_OPTIONS,
+#     linkstatic = 1,
+#     deps = [
+#         ":brotli_dec",
+#         ":brotli_enc",
+#     ],
+# )
