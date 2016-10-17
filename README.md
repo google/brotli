@@ -15,6 +15,46 @@ https://groups.google.com/forum/#!forum/brotli
 
 [![Build Status](https://travis-ci.org/google/brotli.svg?branch=master)](https://travis-ci.org/google/brotli)
 
+### Build instructions
+
+#### Make
+
+To build and run tests, simply do:
+
+    $ ./configure && make
+
+If you want to install brotli, use one of the more advanced build systems below.
+
+#### Bazel
+
+See [Bazel](http://www.bazel.io/)
+
+#### CMake
+
+The basic commands to build, test and install brotli are:
+
+    $ mkdir out && cd out && cmake .. && make test
+    $ make install
+
+You can use other [CMake](https://cmake.org/) configuration. For example, to
+build shared libraries and use a custom installation directory:
+
+    $ mkdir out-shared && \
+      cd out-shared && \
+      cmake .. -DBUILD_SHARED_LIBS=1 -DCMAKE_INSTALL_PREFIX='/my/install/dir/'
+    $ make install
+
+#### Premake5
+
+See [Premake5](https://premake.github.io/)
+
+#### Python
+
+The basic commands to build, test and install the Python binding are:
+
+    $ python setup.py build_ext test
+    $ python setup.py install
+
 ### Benchmarks
 * [Squash Compression Benchmark](https://quixdb.github.io/squash-benchmark/) / [Unstable Squash Compression Benchmark](https://quixdb.github.io/squash-benchmark/unstable/)
 * [Large Text Compression Benchmark](http://mattmahoney.net/dc/text.html)
