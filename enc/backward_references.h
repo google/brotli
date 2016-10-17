@@ -9,6 +9,7 @@
 #ifndef BROTLI_ENC_BACKWARD_REFERENCES_H_
 #define BROTLI_ENC_BACKWARD_REFERENCES_H_
 
+#include "../common/constants.h"
 #include <brotli/types.h>
 #include "./command.h"
 #include "./hash.h"
@@ -89,7 +90,7 @@ BROTLI_INTERNAL void BrotliZopfliCreateCommands(const size_t num_bytes,
 
 /* Maximum distance, see section 9.1. of the spec. */
 static BROTLI_INLINE size_t MaxBackwardLimit(int lgwin) {
-  return (1u << lgwin) - 16;
+  return (1u << lgwin) - BROTLI_WINDOW_GAP;
 }
 
 #if defined(__cplusplus) || defined(c_plusplus)

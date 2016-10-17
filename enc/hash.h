@@ -482,7 +482,7 @@ static BROTLI_INLINE size_t FN(FindAllMatches)(HashToBinaryTree* self,
 static BROTLI_INLINE void FN(Store)(HashToBinaryTree* self, const uint8_t *data,
     const size_t mask, const size_t ix) {
   /* Maximum distance is window size - 16, see section 9.1. of the spec. */
-  const size_t max_backward = self->window_mask_ - 15;
+  const size_t max_backward = self->window_mask_ - BROTLI_WINDOW_GAP + 1;
   FN(StoreAndFindMatches)(self, data, ix, mask, MAX_TREE_COMP_LENGTH,
       max_backward, NULL, NULL);
 }
@@ -513,7 +513,9 @@ static BROTLI_INLINE void FN(StitchToPreviousBlock)(HashToBinaryTree* self,
          from the start of the next block than the window size, otherwise we
          could access already overwritten areas of the ringbuffer. */
       const size_t max_backward =
-          self->window_mask_ - BROTLI_MAX(size_t, 15, position - i);
+          self->window_mask_ - BROTLI_MAX(size_t,
+                                          BROTLI_WINDOW_GAP - 1,
+                                          position - i);
       /* We know that i + MAX_TREE_COMP_LENGTH <= position + num_bytes, i.e. the
          end of the current block and that we have at least
          MAX_TREE_COMP_LENGTH tail in the ringbuffer. */

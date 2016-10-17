@@ -46,4 +46,9 @@
 /* 7.2. Context ID for distances */
 #define BROTLI_DISTANCE_CONTEXT_BITS 2
 
+/* 9.1. Format of the Stream Header */
+/* Number of slack bytes for window size. Don't confuse
+   with BROTLI_NUM_DISTANCE_SHORT_CODES. */
+#define BROTLI_WINDOW_GAP 16
+
 #endif  /* BROTLI_COMMON_CONSTANTS_H_ */

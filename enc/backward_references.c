@@ -57,7 +57,9 @@ static BROTLI_INLINE uint32_t ZopfliNodeCopyDistance(const ZopfliNode* self) {
 
 static BROTLI_INLINE uint32_t ZopfliNodeDistanceCode(const ZopfliNode* self) {
   const uint32_t short_code = self->distance >> 25;
-  return short_code == 0 ? ZopfliNodeCopyDistance(self) + 15 : short_code - 1;
+  return short_code == 0 ?
+      ZopfliNodeCopyDistance(self) + BROTLI_NUM_DISTANCE_SHORT_CODES - 1 :
+      short_code - 1;
 }
 
 static BROTLI_INLINE uint32_t ZopfliNodeCommandLength(const ZopfliNode* self) {
@@ -231,7 +233,7 @@ static BROTLI_INLINE size_t ComputeDistanceCode(size_t distance,
       return 3;
     }
   }
-  return distance + 15;
+  return distance + BROTLI_NUM_DISTANCE_SHORT_CODES - 1;
 }
 
 /* REQUIRES: len >= 2, start_pos <= pos */
@@ -482,7 +484,7 @@ static void UpdateNodes(const size_t num_bytes,
         BROTLI_BOOL is_dictionary_match = TO_BROTLI_BOOL(dist > max_distance);
         /* We already tried all possible last distance matches, so we can use
            normal distance code here. */
-        size_t dist_code = dist + 15;
+        size_t dist_code = dist + BROTLI_NUM_DISTANCE_SHORT_CODES - 1;
         uint16_t dist_symbol;
         uint32_t distextra;
         uint32_t distnumextra;
