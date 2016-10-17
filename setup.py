@@ -174,11 +174,15 @@ CLASSIFIERS = [
     'Topic :: Utilities',
 ]
 
+PACKAGE_DIR = {'': 'python'}
+
+PY_MODULES = ['brotli']
+
 EXT_MODULES = [
     Extension(
-        'brotli',
+        '_brotli',
         sources=[
-            'python/brotlimodule.cc',
+            'python/_brotli.cc',
             'common/dictionary.c',
             'dec/bit_reader.c',
             'dec/decode.c',
@@ -268,5 +272,7 @@ setup(
     license=LICENSE,
     platforms=PLATFORMS,
     classifiers=CLASSIFIERS,
+    package_dir=PACKAGE_DIR,
+    py_modules=PY_MODULES,
     ext_modules=EXT_MODULES,
     cmdclass=CMD_CLASS)
