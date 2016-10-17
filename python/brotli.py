@@ -16,6 +16,9 @@ MODE_GENERIC = _brotli.MODE_GENERIC
 MODE_TEXT = _brotli.MODE_TEXT
 MODE_FONT = _brotli.MODE_FONT
 
+# The Compressor object.
+Compressor = _brotli.Compressor
+
 # Compress a byte string.
 def compress(string, mode=MODE_GENERIC, quality=11, lgwin=22, lgblock=0,
              dictionary=''):
@@ -42,8 +45,8 @@ def compress(string, mode=MODE_GENERIC, quality=11, lgwin=22, lgblock=0,
     Raises:
       brotli.error: If arguments are invalid, or compressor fails.
     """
-    compressor = _brotli.Compressor(mode=mode, quality=quality, lgwin=lgwin,
-                                    lgblock=lgblock, dictionary=dictionary)
+    compressor = Compressor(mode=mode, quality=quality, lgwin=lgwin,
+                            lgblock=lgblock, dictionary=dictionary)
     return compressor.process(string) + compressor.finish()
 
 # Decompress a compressed byte string.
