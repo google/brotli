@@ -37,11 +37,11 @@ The basic commands to build, test and install brotli are:
     $ make install
 
 You can use other [CMake](https://cmake.org/) configuration. For example, to
-build shared libraries and use a custom installation directory:
+build static libraries and use a custom installation directory:
 
     $ mkdir out-shared && \
       cd out-shared && \
-      cmake .. -DBUILD_SHARED_LIBS=1 -DCMAKE_INSTALL_PREFIX='/my/install/dir/'
+      cmake .. -DBUILD_SHARED_LIBS=0 -DCMAKE_INSTALL_PREFIX='/my/install/dir/'
     $ make install
 
 #### Premake5

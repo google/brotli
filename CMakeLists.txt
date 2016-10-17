@@ -6,6 +6,8 @@ cmake_minimum_required(VERSION 2.8.6)
 
 project(brotli)
 
+option(BUILD_SHARED_LIBS "Build shared libraries" ON)
+
 # If Brotli is being bundled in another project, we don't want to
 # install anything.  However, we want to let people override this, so
 # we'll use the BROTLI_BUNDLED_MODE variable to let them do that; just
