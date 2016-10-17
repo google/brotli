@@ -33,13 +33,13 @@
 #include <brotli/port.h>
 
 #if defined(__arm__) || defined(__thumb__) || \
-    defined(_M_ARM) || defined(_M_ARMT)
+    defined(_M_ARM) || defined(_M_ARMT) || defined(__ARM64_ARCH_8__)
 #define BROTLI_TARGET_ARM
-#if (defined(__ARM_ARCH) && (__ARM_ARCH >= 7)) || \
-    (defined(M_ARM) && (M_ARM >= 7))
+#if (defined(__ARM_ARCH) && (__ARM_ARCH == 7)) || \
+    (defined(M_ARM) && (M_ARM == 7))
 #define BROTLI_TARGET_ARMV7
 #endif  /* ARMv7 */
-#if defined(__aarch64__)
+#if defined(__aarch64__) || defined(__ARM64_ARCH_8__)
 #define BROTLI_TARGET_ARMV8
 #endif  /* ARMv8 */
 #endif  /* ARM */
