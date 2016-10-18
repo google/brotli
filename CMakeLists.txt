@@ -27,6 +27,7 @@ mark_as_advanced(BROTLI_BUNDLED_MODE)
 # When building shared libraries it is important to set the correct rpath.
 # See https://cmake.org/Wiki/CMake_RPATH_handling#Always_full_RPATH
 if (BUILD_SHARED_LIBS)
+  add_definitions(-DBROTLI_SHARED_COMPILATION)
   set(CMAKE_SKIP_BUILD_RPATH FALSE)
   set(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)
   set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
@@ -36,7 +37,7 @@ if (BUILD_SHARED_LIBS)
   endif()
 endif()
 
-# Parse version information from common/version.h.  Normally we would
+# Parse version information from common/version.h. Normally we would
 # define these values here and write them out to configuration file(s)
 # (i.e., config.h), but in this case we parse them from
 # common/version.h to be less intrusive.

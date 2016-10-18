@@ -87,7 +87,7 @@ OR:
 #define BROTLI_INTERNAL BROTLI_ATTRIBUTE_VISIBILITY_HIDDEN
 #endif
 
-#if defined (_WIN32)
+#if defined(BROTLI_SHARED_COMPILATION) && defined(_WIN32)
   #if defined(BROTLICOMMON_SHARED_COMPILATION)
     #define BROTLI_COMMON_API __declspec(dllexport)
   #else
