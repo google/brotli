@@ -9,15 +9,16 @@
 #ifndef BROTLI_COMMON_DICTIONARY_H_
 #define BROTLI_COMMON_DICTIONARY_H_
 
+#include <brotli/port.h>
 #include <brotli/types.h>
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
 #endif
 
-extern const uint8_t kBrotliDictionary[122784];
-extern const uint32_t kBrotliDictionaryOffsetsByLength[25];
-extern const uint8_t kBrotliDictionarySizeBitsByLength[25];
+BROTLI_COMMON_API extern const uint8_t kBrotliDictionary[122784];
+BROTLI_COMMON_API extern const uint32_t kBrotliDictionaryOffsetsByLength[25];
+BROTLI_COMMON_API extern const uint8_t kBrotliDictionarySizeBitsByLength[25];
 
 #define kBrotliMinDictionaryWordLength 4
 #define kBrotliMaxDictionaryWordLength 24

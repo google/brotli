@@ -502,7 +502,7 @@ static BROTLI_INLINE void BrotliCompressFragmentFastImpl(
   last_distance = -1;
   ip_end = input + block_size;
 
-  if (PREDICT_TRUE(block_size >= kInputMarginBytes)) {
+  if (BROTLI_PREDICT_TRUE(block_size >= kInputMarginBytes)) {
     /* For the last block, we need to keep a 16 bytes margin so that we can be
        sure that all distances are at most window size - 16.
        For all other blocks, we only need to keep a margin of 5 bytes so that
@@ -540,13 +540,13 @@ trawl:
         assert(hash == Hash(next_ip, shift));
         ip = next_ip;
         next_ip = ip + bytes_between_hash_lookups;
-        if (PREDICT_FALSE(next_ip > ip_limit)) {
+        if (BROTLI_PREDICT_FALSE(next_ip > ip_limit)) {
           goto emit_remainder;
         }
         next_hash = Hash(next_ip, shift);
         candidate = ip - last_distance;
         if (IsMatch(ip, candidate)) {
-          if (PREDICT_TRUE(candidate < ip)) {
+          if (BROTLI_PREDICT_TRUE(candidate < ip)) {
             table[hash] = (int)(ip - base_ip);
             break;
           }
@@ -556,7 +556,7 @@ trawl:
         assert(candidate < ip);
 
         table[hash] = (int)(ip - base_ip);
-      } while (PREDICT_TRUE(!IsMatch(ip, candidate)));
+      } while (BROTLI_PREDICT_TRUE(!IsMatch(ip, candidate)));
 
       /* Check copy distance. If candidate is not feasible, continue search.
          Checking is done outside of hot loop to reduce overhead. */
@@ -577,7 +577,7 @@ trawl:
         size_t insert = (size_t)(base - next_emit);
         ip += matched;
         assert(0 == memcmp(base, candidate, matched));
-        if (PREDICT_TRUE(insert < 6210)) {
+        if (BROTLI_PREDICT_TRUE(insert < 6210)) {
           EmitInsertLen(insert, cmd_depth, cmd_bits, cmd_histo,
                         storage_ix, storage);
         } else if (ShouldUseUncompressedMode(metablock_start, next_emit, insert,
@@ -606,7 +606,7 @@ trawl:
                                 storage_ix, storage);
 
         next_emit = ip;
-        if (PREDICT_FALSE(ip >= ip_limit)) {
+        if (BROTLI_PREDICT_FALSE(ip >= ip_limit)) {
           goto emit_remainder;
         }
         /* We could immediately start working at ip now, but to improve
@@ -643,7 +643,7 @@ trawl:
                      cmd_histo, storage_ix, storage);
 
         next_emit = ip;
-        if (PREDICT_FALSE(ip >= ip_limit)) {
+        if (BROTLI_PREDICT_FALSE(ip >= ip_limit)) {
           goto emit_remainder;
         }
         /* We could immediately start working at ip now, but to improve
@@ -691,7 +691,7 @@ trawl:
   /* Emit the remaining bytes as literals. */
   if (next_emit < ip_end) {
     const size_t insert = (size_t)(ip_end - next_emit);
-    if (PREDICT_TRUE(insert < 6210)) {
+    if (BROTLI_PREDICT_TRUE(insert < 6210)) {
       EmitInsertLen(insert, cmd_depth, cmd_bits, cmd_histo,
                     storage_ix, storage);
       EmitLiterals(next_emit, insert, lit_depth, lit_bits, storage_ix, storage);

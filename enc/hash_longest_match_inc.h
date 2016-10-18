@@ -156,7 +156,7 @@ static BROTLI_INLINE BROTLI_BOOL FN(FindLongestMatch)(HashLongestMatch* self,
     if (prev_ix >= cur_ix) {
       continue;
     }
-    if (PREDICT_FALSE(backward > max_backward)) {
+    if (BROTLI_PREDICT_FALSE(backward > max_backward)) {
       continue;
     }
     prev_ix &= ring_buffer_mask;
@@ -194,7 +194,7 @@ static BROTLI_INLINE BROTLI_BOOL FN(FindLongestMatch)(HashLongestMatch* self,
     for (i = self->num_[key]; i > down;) {
       size_t prev_ix = bucket[--i & BLOCK_MASK];
       const size_t backward = cur_ix - prev_ix;
-      if (PREDICT_FALSE(backward > max_backward)) {
+      if (BROTLI_PREDICT_FALSE(backward > max_backward)) {
         break;
       }
       prev_ix &= ring_buffer_mask;

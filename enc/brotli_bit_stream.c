@@ -456,7 +456,7 @@ void BrotliBuildAndStoreHuffmanTreeFast(MemoryManager* m,
       for (l = length; l != 0;) {
         --l;
         if (histogram[l]) {
-          if (PREDICT_TRUE(histogram[l] >= count_limit)) {
+          if (BROTLI_PREDICT_TRUE(histogram[l] >= count_limit)) {
             InitHuffmanTree(node, histogram[l], -1, (int16_t)l);
           } else {
             InitHuffmanTree(node, count_limit, -1, (int16_t)l);

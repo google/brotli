@@ -432,7 +432,7 @@ static BROTLI_INLINE size_t FN(FindAllMatches)(HashToBinaryTree* self,
   for (i = cur_ix - 1; i > stop && best_len <= 2; --i) {
     size_t prev_ix = i;
     const size_t backward = cur_ix - prev_ix;
-    if (PREDICT_FALSE(backward > max_backward)) {
+    if (BROTLI_PREDICT_FALSE(backward > max_backward)) {
       break;
     }
     prev_ix &= ring_buffer_mask;
