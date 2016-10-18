@@ -50,10 +50,12 @@ See [Premake5](https://premake.github.io/)
 
 #### Python
 
-The basic commands to build, test and install the Python binding are:
+The basic commands to build, test, and install the Python module are:
 
     $ python setup.py build_ext test
     $ python setup.py install
+
+See the [Python readme](python/README.md) for more details.
 
 ### Benchmarks
 * [Squash Compression Benchmark](https://quixdb.github.io/squash-benchmark/) / [Unstable Squash Compression Benchmark](https://quixdb.github.io/squash-benchmark/unstable/)
