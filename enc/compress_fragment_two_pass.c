@@ -252,7 +252,7 @@ static BROTLI_INLINE void CreateCommands(const uint8_t* input,
   const size_t kInputMarginBytes = BROTLI_WINDOW_GAP;
   const size_t kMinMatchLen = 6;
 
-  if (PREDICT_TRUE(block_size >= kInputMarginBytes)) {
+  if (BROTLI_PREDICT_TRUE(block_size >= kInputMarginBytes)) {
     /* For the last block, we need to keep a 16 bytes margin so that we can be
        sure that all distances are at most window size - 16.
        For all other blocks, we only need to keep a margin of 5 bytes so that
@@ -291,13 +291,13 @@ trawl:
         ip = next_ip;
         assert(hash == Hash(ip, shift));
         next_ip = ip + bytes_between_hash_lookups;
-        if (PREDICT_FALSE(next_ip > ip_limit)) {
+        if (BROTLI_PREDICT_FALSE(next_ip > ip_limit)) {
           goto emit_remainder;
         }
         next_hash = Hash(next_ip, shift);
         candidate = ip - last_distance;
         if (IsMatch(ip, candidate)) {
-          if (PREDICT_TRUE(candidate < ip)) {
+          if (BROTLI_PREDICT_TRUE(candidate < ip)) {
             table[hash] = (int)(ip - base_ip);
             break;
           }
@@ -307,7 +307,7 @@ trawl:
         assert(candidate < ip);
 
         table[hash] = (int)(ip - base_ip);
-      } while (PREDICT_TRUE(!IsMatch(ip, candidate)));
+      } while (BROTLI_PREDICT_TRUE(!IsMatch(ip, candidate)));
 
       /* Check copy distance. If candidate is not feasible, continue search.
          Checking is done outside of hot loop to reduce overhead. */
@@ -341,7 +341,7 @@ trawl:
         EmitCopyLenLastDistance(matched, commands);
 
         next_emit = ip;
-        if (PREDICT_FALSE(ip >= ip_limit)) {
+        if (BROTLI_PREDICT_FALSE(ip >= ip_limit)) {
           goto emit_remainder;
         }
         {
@@ -381,7 +381,7 @@ trawl:
         EmitDistance((uint32_t)last_distance, commands);
 
         next_emit = ip;
-        if (PREDICT_FALSE(ip >= ip_limit)) {
+        if (BROTLI_PREDICT_FALSE(ip >= ip_limit)) {
           goto emit_remainder;
         }
         {
