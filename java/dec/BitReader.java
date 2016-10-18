@@ -151,6 +151,7 @@ class BitReader {
     br.available = 0;
     br.endOfStreamReached = false;
     readMoreInput(br);
+    /* This situation is impossible in current implementation. */
     if (br.available == 0) {
       throw new BrotliRuntimeException("Can't initialize reader");
     }

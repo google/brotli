@@ -5,7 +5,7 @@
   <groupId>org.brotli</groupId>
   <artifactId>integration</artifactId>
   <version>0.1.0-SNAPSHOT</version>
-  <packaging>pom</packaging>
+  <packaging>jar</packaging>
 
   <name>integration</name>
   <url>http://brotli.org</url>
@@ -23,7 +23,7 @@
   </properties>
 
   <build>
-    <sourceDirectory>..</sourceDirectory>
+    <sourceDirectory>.</sourceDirectory>
     <plugins>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>

@@ -47,6 +47,7 @@ public class BrotliInputStream extends InputStream {
    * <p> Will block the thread until first kilobyte of data of source is available.
    *
    * @param source underlying data source
+   * @throws IOException in case of corrupred data or source stream problems
    */
   public BrotliInputStream(InputStream source) throws IOException {
     this(source, DEFAULT_INTERNAL_BUFFER_SIZE, null);
@@ -63,6 +64,7 @@ public class BrotliInputStream extends InputStream {
    * @param source compressed data source
    * @param byteReadBufferSize size of internal buffer used in case of
    *        byte-by-byte reading
+   * @throws IOException in case of corrupred data or source stream problems
    */
   public BrotliInputStream(InputStream source, int byteReadBufferSize) throws IOException {
     this(source, byteReadBufferSize, null);
@@ -80,6 +82,7 @@ public class BrotliInputStream extends InputStream {
    * @param byteReadBufferSize size of internal buffer used in case of
    *        byte-by-byte reading
    * @param customDictionary custom dictionary data; {@code null} if not used
+   * @throws IOException in case of corrupred data or source stream problems
    */
   public BrotliInputStream(InputStream source, int byteReadBufferSize,
       byte[] customDictionary) throws IOException {
