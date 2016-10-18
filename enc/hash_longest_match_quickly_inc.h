@@ -173,7 +173,7 @@ static BROTLI_INLINE BROTLI_BOOL FN(FindLongestMatch)(
     if (compare_char != data[prev_ix + best_len_in]) {
       return BROTLI_FALSE;
     }
-    if (PREDICT_FALSE(backward == 0 || backward > max_backward)) {
+    if (BROTLI_PREDICT_FALSE(backward == 0 || backward > max_backward)) {
       return BROTLI_FALSE;
     }
     len = FindMatchLengthWithLimit(&data[prev_ix],
@@ -196,7 +196,7 @@ static BROTLI_INLINE BROTLI_BOOL FN(FindLongestMatch)(
       if (compare_char != data[prev_ix + best_len]) {
         continue;
       }
-      if (PREDICT_FALSE(backward == 0 || backward > max_backward)) {
+      if (BROTLI_PREDICT_FALSE(backward == 0 || backward > max_backward)) {
         continue;
       }
       len = FindMatchLengthWithLimit(&data[prev_ix],

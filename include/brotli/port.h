@@ -42,11 +42,12 @@
 #define BROTLI_MODERN_COMPILER 0
 #endif
 
-/* Define "PREDICT_TRUE" and "PREDICT_FALSE" macros for capable compilers.
+/* Define "BROTLI_PREDICT_TRUE" and "BROTLI_PREDICT_FALSE" macros for capable
+   compilers.
 
 To apply compiler hint, enclose the branching condition into macros, like this:
 
-  if (PREDICT_TRUE(zero == 0)) {
+  if (BROTLI_PREDICT_TRUE(zero == 0)) {
     // main execution path
   } else {
     // compiler should place this code outside of main execution path
@@ -54,41 +55,64 @@ To apply compiler hint, enclose the branching condition into macros, like this:
 
 OR:
 
-  if (PREDICT_FALSE(something_rare_or_unexpected_happens)) {
+  if (BROTLI_PREDICT_FALSE(something_rare_or_unexpected_happens)) {
     // compiler should place this code outside of main execution path
   }
 
 */
 #if BROTLI_MODERN_COMPILER || __has_builtin(__builtin_expect)
-#define PREDICT_TRUE(x) (__builtin_expect(!!(x), 1))
-#define PREDICT_FALSE(x) (__builtin_expect(x, 0))
+#define BROTLI_PREDICT_TRUE(x) (__builtin_expect(!!(x), 1))
+#define BROTLI_PREDICT_FALSE(x) (__builtin_expect(x, 0))
 #else
-#define PREDICT_FALSE(x) (x)
-#define PREDICT_TRUE(x) (x)
+#define BROTLI_PREDICT_FALSE(x) (x)
+#define BROTLI_PREDICT_TRUE(x) (x)
 #endif
 
 #if BROTLI_MODERN_COMPILER || __has_attribute(always_inline)
-#define ATTRIBUTE_ALWAYS_INLINE __attribute__ ((always_inline))
+#define BROTLI_ATTRIBUTE_ALWAYS_INLINE __attribute__ ((always_inline))
 #else
-#define ATTRIBUTE_ALWAYS_INLINE
+#define BROTLI_ATTRIBUTE_ALWAYS_INLINE
 #endif
 
 #if defined(_WIN32) || defined(__CYGWIN__)
-#define ATTRIBUTE_VISIBILITY_HIDDEN
+#define BROTLI_ATTRIBUTE_VISIBILITY_HIDDEN
 #elif BROTLI_MODERN_COMPILER || __has_attribute(visibility)
-#define ATTRIBUTE_VISIBILITY_HIDDEN __attribute__ ((visibility ("hidden")))
+#define BROTLI_ATTRIBUTE_VISIBILITY_HIDDEN \
+    __attribute__ ((visibility ("hidden")))
 #else
-#define ATTRIBUTE_VISIBILITY_HIDDEN
+#define BROTLI_ATTRIBUTE_VISIBILITY_HIDDEN
 #endif
 
 #ifndef BROTLI_INTERNAL
-#define BROTLI_INTERNAL ATTRIBUTE_VISIBILITY_HIDDEN
+#define BROTLI_INTERNAL BROTLI_ATTRIBUTE_VISIBILITY_HIDDEN
+#endif
+
+#if defined (_WIN32)
+  #if defined(BROTLICOMMON_SHARED_COMPILATION)
+    #define BROTLI_COMMON_API __declspec(dllexport)
+  #else
+    #define BROTLI_COMMON_API __declspec(dllimport)
+  #endif
+  #if defined(BROTLIDEC_SHARED_COMPILATION)
+    #define BROTLI_DEC_API __declspec(dllexport)
+  #else
+    #define BROTLI_DEC_API __declspec(dllimport)
+  #endif
+  #if defined(BROTLIENC_SHARED_COMPILATION)
+    #define BROTLI_ENC_API __declspec(dllexport)
+  #else
+    #define BROTLI_ENC_API __declspec(dllimport)
+  #endif
+#else /* defined (_WIN32) */
+ #define BROTLI_COMMON_API
+ #define BROTLI_DEC_API
+ #define BROTLI_ENC_API
 #endif
 
 #ifndef _MSC_VER
 #if defined(__cplusplus) || !defined(__STRICT_ANSI__) || \
     (defined(__STDC_VERSION__) && __STDC_VERSION__ >= 199901L)
-#define BROTLI_INLINE inline ATTRIBUTE_ALWAYS_INLINE
+#define BROTLI_INLINE inline BROTLI_ATTRIBUTE_ALWAYS_INLINE
 #else
 #define BROTLI_INLINE
 #endif

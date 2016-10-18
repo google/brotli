@@ -69,22 +69,22 @@ typedef enum BrotliEncoderParameter {
 /* A state can not be reused for multiple brotli streams. */
 typedef struct BrotliEncoderStateStruct BrotliEncoderState;
 
-BROTLI_BOOL BrotliEncoderSetParameter(
+BROTLI_ENC_API BROTLI_BOOL BrotliEncoderSetParameter(
     BrotliEncoderState* state, BrotliEncoderParameter p, uint32_t value);
 
 /* Creates the instance of BrotliEncoderState and initializes it.
    |alloc_func| and |free_func| MUST be both zero or both non-zero. In the case
    they are both zero, default memory allocators are used. |opaque| is passed to
    |alloc_func| and |free_func| when they are called. */
-BrotliEncoderState* BrotliEncoderCreateInstance(brotli_alloc_func alloc_func,
-                                                brotli_free_func free_func,
-                                                void* opaque);
+BROTLI_ENC_API BrotliEncoderState* BrotliEncoderCreateInstance(
+    brotli_alloc_func alloc_func, brotli_free_func free_func, void* opaque);
 
 /* Deinitializes and frees BrotliEncoderState instance. */
-void BrotliEncoderDestroyInstance(BrotliEncoderState* state);
+BROTLI_ENC_API void BrotliEncoderDestroyInstance(BrotliEncoderState* state);
 
 /* The maximum input size that can be processed at once. */
-BROTLI_DEPRECATED size_t BrotliEncoderInputBlockSize(BrotliEncoderState* state);
+BROTLI_DEPRECATED BROTLI_ENC_API size_t BrotliEncoderInputBlockSize(
+    BrotliEncoderState* state);
 
 /* Copies the given input data to the internal ring buffer of the compressor.
    No processing of the data occurs at this time and this function can be
@@ -92,7 +92,7 @@ BROTLI_DEPRECATED size_t BrotliEncoderInputBlockSize(BrotliEncoderState* state);
    accumulated input. At most input_block_size() bytes of input data can be
    copied to the ring buffer, otherwise the next WriteBrotliData() will fail.
  */
-BROTLI_DEPRECATED void BrotliEncoderCopyInputToRingBuffer(
+BROTLI_DEPRECATED BROTLI_ENC_API void BrotliEncoderCopyInputToRingBuffer(
     BrotliEncoderState* state, const size_t input_size,
     const uint8_t* input_buffer);
 
@@ -106,7 +106,7 @@ BROTLI_DEPRECATED void BrotliEncoderCopyInputToRingBuffer(
    use WriteMetadata() to append an empty meta-data block.
    Returns false if the size of the input data is larger than
    input_block_size(). */
-BROTLI_DEPRECATED BROTLI_BOOL BrotliEncoderWriteData(
+BROTLI_DEPRECATED BROTLI_ENC_API BROTLI_BOOL BrotliEncoderWriteData(
     BrotliEncoderState* state, const BROTLI_BOOL is_last,
     const BROTLI_BOOL force_flush, size_t* out_size, uint8_t** output);
 
@@ -115,14 +115,14 @@ BROTLI_DEPRECATED BROTLI_BOOL BrotliEncoderWriteData(
    Not to be confused with the built-in transformable dictionary of Brotli.
    To decode, use BrotliDecoderSetCustomDictionary() of the decoder with the
    same dictionary. */
-void BrotliEncoderSetCustomDictionary(
+BROTLI_ENC_API void BrotliEncoderSetCustomDictionary(
     BrotliEncoderState* state, size_t size,
     const uint8_t dict[BROTLI_ARRAY_PARAM(size)]);
 
 /* Returns buffer size that is large enough to contain BrotliEncoderCompress
    output for any input.
    Returns 0 if result does not fit size_t. */
-size_t BrotliEncoderMaxCompressedSize(size_t input_size);
+BROTLI_ENC_API size_t BrotliEncoderMaxCompressedSize(size_t input_size);
 
 /* Compresses the data in |input_buffer| into |encoded_buffer|, and sets
    |*encoded_size| to the compressed length.
@@ -133,7 +133,7 @@ size_t BrotliEncoderMaxCompressedSize(size_t input_size);
    If BrotliEncoderMaxCompressedSize(|input_size|) is not zero, then
    |*encoded_size| is never set to the bigger value.
    Returns false if there was an error and true otherwise. */
-BROTLI_BOOL BrotliEncoderCompress(
+BROTLI_ENC_API BROTLI_BOOL BrotliEncoderCompress(
     int quality, int lgwin, BrotliEncoderMode mode, size_t input_size,
     const uint8_t input_buffer[BROTLI_ARRAY_PARAM(input_size)],
     size_t* encoded_size,
@@ -177,7 +177,7 @@ BROTLI_BOOL BrotliEncoderCompress(
 
    Returns false if there was an error and true otherwise.
 */
-BROTLI_BOOL BrotliEncoderCompressStream(
+BROTLI_ENC_API BROTLI_BOOL BrotliEncoderCompressStream(
     BrotliEncoderState* s, BrotliEncoderOperation op, size_t* available_in,
     const uint8_t** next_in, size_t* available_out, uint8_t** next_out,
     size_t* total_out);
@@ -186,12 +186,12 @@ BROTLI_BOOL BrotliEncoderCompressStream(
    no more output will be produced.
    Works only with BrotliEncoderCompressStream workflow.
    Returns 1 if stream is finished and 0 otherwise. */
-BROTLI_BOOL BrotliEncoderIsFinished(BrotliEncoderState* s);
+BROTLI_ENC_API BROTLI_BOOL BrotliEncoderIsFinished(BrotliEncoderState* s);
 
 /* Check if encoder has more output bytes in internal buffer.
    Works only with BrotliEncoderCompressStream workflow.
    Returns 1 if has more output (in internal buffer) and 0 otherwise. */
-BROTLI_BOOL BrotliEncoderHasMoreOutput(BrotliEncoderState* s);
+BROTLI_ENC_API BROTLI_BOOL BrotliEncoderHasMoreOutput(BrotliEncoderState* s);
 
 /* Returns pointer to internal output buffer.
    Set |size| to zero, to request all the continous output produced by encoder
@@ -206,11 +206,12 @@ BROTLI_BOOL BrotliEncoderHasMoreOutput(BrotliEncoderState* s);
    Also this could be useful if there is an output stream that is able to
    consume all the provided data (e.g. when data is saved to file system).
  */
-const uint8_t* BrotliEncoderTakeOutput(BrotliEncoderState* s, size_t* size);
+BROTLI_ENC_API const uint8_t* BrotliEncoderTakeOutput(
+    BrotliEncoderState* s, size_t* size);
 
 
 /* Encoder version. Look at BROTLI_VERSION for more information. */
-uint32_t BrotliEncoderVersion(void);
+BROTLI_ENC_API uint32_t BrotliEncoderVersion(void);
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }  /* extern "C" */

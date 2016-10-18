@@ -9,6 +9,7 @@
 #ifndef BROTLI_DEC_DECODE_H_
 #define BROTLI_DEC_DECODE_H_
 
+#include <brotli/port.h>
 #include <brotli/types.h>
 
 #if defined(__cplusplus) || defined(c_plusplus)
@@ -85,15 +86,15 @@ typedef enum {
    and |free_func| MUST be both zero or both non-zero. In the case they are both
    zero, default memory allocators are used. |opaque| is passed to |alloc_func|
    and |free_func| when they are called. */
-BrotliDecoderState* BrotliDecoderCreateInstance(
+BROTLI_DEC_API BrotliDecoderState* BrotliDecoderCreateInstance(
     brotli_alloc_func alloc_func, brotli_free_func free_func, void* opaque);
 
 /* Deinitializes and frees BrotliDecoderState instance. */
-void BrotliDecoderDestroyInstance(BrotliDecoderState* state);
+BROTLI_DEC_API void BrotliDecoderDestroyInstance(BrotliDecoderState* state);
 
 /* Decompresses the data in |encoded_buffer| into |decoded_buffer|, and sets
    |*decoded_size| to the decompressed length. */
-BrotliDecoderResult BrotliDecoderDecompress(
+BROTLI_DEC_API BrotliDecoderResult BrotliDecoderDecompress(
     size_t encoded_size,
     const uint8_t encoded_buffer[BROTLI_ARRAY_PARAM(encoded_size)],
     size_t* decoded_size,
@@ -115,7 +116,7 @@ BrotliDecoderResult BrotliDecoderDecompress(
 
    Input is never overconsumed, so |next_in| and |available_in| could be passed
    to the next consumer after decoding is complete. */
-BrotliDecoderResult BrotliDecoderDecompressStream(
+BROTLI_DEC_API BrotliDecoderResult BrotliDecoderDecompressStream(
   BrotliDecoderState* s, size_t* available_in, const uint8_t** next_in,
   size_t* available_out, uint8_t** next_out, size_t* total_out);
 
@@ -130,13 +131,14 @@ BrotliDecoderResult BrotliDecoderDecompressStream(
     3) Use BrotliDecoderDecompressStream
     4) Clean up and free state with BrotliDestroyState
 */
-void BrotliDecoderSetCustomDictionary(
+BROTLI_DEC_API void BrotliDecoderSetCustomDictionary(
     BrotliDecoderState* s, size_t size,
     const uint8_t dict[BROTLI_ARRAY_PARAM(size)]);
 
 /* Returns true, if decoder has some unconsumed output.
    Otherwise returns false. */
-BROTLI_BOOL BrotliDecoderHasMoreOutput(const BrotliDecoderState* s);
+BROTLI_DEC_API BROTLI_BOOL BrotliDecoderHasMoreOutput(
+    const BrotliDecoderState* s);
 
 /* Returns pointer to internal output buffer.
    Set |size| to zero, to request all the continous output produced by decoder
@@ -151,11 +153,12 @@ BROTLI_BOOL BrotliDecoderHasMoreOutput(const BrotliDecoderState* s);
    Also this could be useful if there is an output stream that is able to
    consume all the provided data (e.g. when data is saved to file system).
  */
-const uint8_t* BrotliDecoderTakeOutput(BrotliDecoderState* s, size_t* size);
+BROTLI_DEC_API const uint8_t* BrotliDecoderTakeOutput(
+    BrotliDecoderState* s, size_t* size);
 
 /* Returns true, if decoder has already received some input bytes.
    Otherwise returns false. */
-BROTLI_BOOL BrotliDecoderIsUsed(const BrotliDecoderState* s);
+BROTLI_DEC_API BROTLI_BOOL BrotliDecoderIsUsed(const BrotliDecoderState* s);
 
 /* Returns true, if decoder is in a state where we reached the end of the input
    and produced all of the output; returns false otherwise. */
@@ -165,10 +168,10 @@ BROTLI_BOOL BrotliDecoderIsFinished(const BrotliDecoderState* s);
    BROTLI_DECODER_RESULT_ERROR. */
 BrotliDecoderErrorCode BrotliDecoderGetErrorCode(const BrotliDecoderState* s);
 
-const char* BrotliDecoderErrorString(BrotliDecoderErrorCode c);
+BROTLI_DEC_API const char* BrotliDecoderErrorString(BrotliDecoderErrorCode c);
 
 /* Decoder version. Look at BROTLI_VERSION for more information. */
-uint32_t BrotliDecoderVersion(void);
+BROTLI_DEC_API uint32_t BrotliDecoderVersion(void);
 
 #if defined(__cplusplus) || defined(c_plusplus)
 } /* extern "C" */

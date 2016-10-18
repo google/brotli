@@ -93,7 +93,7 @@ static BROTLI_INLINE void RingBufferInitBuffer(
 static BROTLI_INLINE void RingBufferWriteTail(
     const uint8_t *bytes, size_t n, RingBuffer* rb) {
   const size_t masked_pos = rb->pos_ & rb->mask_;
-  if (PREDICT_FALSE(masked_pos < rb->tail_size_)) {
+  if (BROTLI_PREDICT_FALSE(masked_pos < rb->tail_size_)) {
     /* Just fill the tail buffer with the beginning data. */
     const size_t p = rb->size_ + masked_pos;
     memcpy(&rb->buffer_[p], bytes,
@@ -131,7 +131,7 @@ static BROTLI_INLINE void RingBufferWrite(
     /* The length of the writes is limited so that we do not need to worry
        about a write */
     RingBufferWriteTail(bytes, n, rb);
-    if (PREDICT_TRUE(masked_pos + n <= rb->size_)) {
+    if (BROTLI_PREDICT_TRUE(masked_pos + n <= rb->size_)) {
       /* A single write fits. */
       memcpy(&rb->buffer_[masked_pos], bytes, n);
     } else {

@@ -436,7 +436,7 @@ static void UpdateNodes(const size_t num_bytes,
       if (prev_ix >= cur_ix) {
         continue;
       }
-      if (PREDICT_FALSE(backward > max_distance)) {
+      if (BROTLI_PREDICT_FALSE(backward > max_distance)) {
         continue;
       }
       prev_ix &= ringbuffer_mask;

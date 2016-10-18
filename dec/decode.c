@@ -133,7 +133,7 @@ static BROTLI_NOINLINE BrotliDecoderErrorCode DecodeVarLenUint8(
   uint32_t bits;
   switch (s->substate_decode_uint8) {
     case BROTLI_STATE_DECODE_UINT8_NONE:
-      if (PREDICT_FALSE(!BrotliSafeReadBits(br, 1, &bits))) {
+      if (BROTLI_PREDICT_FALSE(!BrotliSafeReadBits(br, 1, &bits))) {
         return BROTLI_DECODER_NEEDS_MORE_INPUT;
       }
       if (bits == 0) {
@@ -143,7 +143,7 @@ static BROTLI_NOINLINE BrotliDecoderErrorCode DecodeVarLenUint8(
       /* No break, transit to the next state. */
 
     case BROTLI_STATE_DECODE_UINT8_SHORT:
-      if (PREDICT_FALSE(!BrotliSafeReadBits(br, 3, &bits))) {
+      if (BROTLI_PREDICT_FALSE(!BrotliSafeReadBits(br, 3, &bits))) {
         s->substate_decode_uint8 = BROTLI_STATE_DECODE_UINT8_SHORT;
         return BROTLI_DECODER_NEEDS_MORE_INPUT;
       }
@@ -157,7 +157,7 @@ static BROTLI_NOINLINE BrotliDecoderErrorCode DecodeVarLenUint8(
       /* No break, transit to the next state. */
 
     case BROTLI_STATE_DECODE_UINT8_LONG:
-      if (PREDICT_FALSE(!BrotliSafeReadBits(br, *value, &bits))) {
+      if (BROTLI_PREDICT_FALSE(!BrotliSafeReadBits(br, *value, &bits))) {
         s->substate_decode_uint8 = BROTLI_STATE_DECODE_UINT8_LONG;
         return BROTLI_DECODER_NEEDS_MORE_INPUT;
       }
@@ -360,7 +360,7 @@ static BROTLI_NOINLINE BROTLI_BOOL SafeDecodeSymbol(
 static BROTLI_INLINE BROTLI_BOOL SafeReadSymbol(
     const HuffmanCode* table, BrotliBitReader* br, uint32_t* result) {
   uint32_t val;
-  if (PREDICT_TRUE(BrotliSafeGetBits(br, 15, &val))) {
+  if (BROTLI_PREDICT_TRUE(BrotliSafeGetBits(br, 15, &val))) {
     *result = DecodeSymbol(val, table, br);
     return BROTLI_TRUE;
   }
@@ -388,7 +388,7 @@ static BROTLI_INLINE uint32_t ReadPreloadedSymbol(const HuffmanCode* table,
                                                   uint32_t* bits,
                                                   uint32_t* value) {
   uint32_t result = *value;
-  if (PREDICT_FALSE(*bits > HUFFMAN_TABLE_BITS)) {
+  if (BROTLI_PREDICT_FALSE(*bits > HUFFMAN_TABLE_BITS)) {
     uint32_t val = BrotliGet16BitsUnmasked(br);
     const HuffmanCode* ext = table + (val & HUFFMAN_TABLE_MASK) + *value;
     uint32_t mask = BitMask((*bits - HUFFMAN_TABLE_BITS));
@@ -425,7 +425,7 @@ static BrotliDecoderErrorCode ReadSimpleHuffmanSymbols(
   uint32_t num_symbols = s->symbol;
   while (i <= num_symbols) {
     uint32_t v;
-    if (PREDICT_FALSE(!BrotliSafeReadBits(br, max_bits, &v))) {
+    if (BROTLI_PREDICT_FALSE(!BrotliSafeReadBits(br, max_bits, &v))) {
       s->sub_loop_counter = i;
       s->substate_huffman = BROTLI_STATE_HUFFMAN_SIMPLE_READ;
       return BROTLI_DECODER_NEEDS_MORE_INPUT;
@@ -631,7 +631,7 @@ static BrotliDecoderErrorCode ReadCodeLengthCodeLengths(BrotliDecoderState* s) {
     const uint8_t code_len_idx = kCodeLengthCodeOrder[i];
     uint32_t ix;
     uint32_t v;
-    if (PREDICT_FALSE(!BrotliSafeGetBits(br, 4, &ix))) {
+    if (BROTLI_PREDICT_FALSE(!BrotliSafeGetBits(br, 4, &ix))) {
       uint32_t available_bits = BrotliGetAvailableBits(br);
       if (available_bits != 0) {
         ix = BrotliGetBitsUnmasked(br) & 0xF;
@@ -1514,7 +1514,7 @@ static BROTLI_INLINE BROTLI_BOOL ReadCommandInternal(
   s->dist_htree_index = s->dist_context_map_slice[s->distance_context];
   *insert_length = v.insert_len_offset;
   if (!safe) {
-    if (PREDICT_FALSE(v.insert_len_extra_bits != 0)) {
+    if (BROTLI_PREDICT_FALSE(v.insert_len_extra_bits != 0)) {
       insert_len_extra = BrotliReadBits(br, v.insert_len_extra_bits);
     }
     copy_length = BrotliReadBits(br, v.copy_len_extra_bits);
@@ -1598,7 +1598,7 @@ CommandBegin:
     result = BROTLI_DECODER_NEEDS_MORE_INPUT;
     goto saveStateAndReturn;
   }
-  if (PREDICT_FALSE(s->block_length[1] == 0)) {
+  if (BROTLI_PREDICT_FALSE(s->block_length[1] == 0)) {
     BROTLI_SAFE(DecodeCommandBlockSwitch(s));
     goto CommandBegin;
   }
@@ -1626,7 +1626,7 @@ CommandInner:
         result = BROTLI_DECODER_NEEDS_MORE_INPUT;
         goto saveStateAndReturn;
       }
-      if (PREDICT_FALSE(s->block_length[0] == 0)) {
+      if (BROTLI_PREDICT_FALSE(s->block_length[0] == 0)) {
         BROTLI_SAFE(DecodeLiteralBlockSwitch(s));
         PreloadSymbol(safe, s->literal_htree, br, &bits, &value);
         if (!s->trivial_literal_context) goto CommandInner;
@@ -1645,7 +1645,7 @@ CommandInner:
       --s->block_length[0];
       BROTLI_LOG_ARRAY_INDEX(s->ringbuffer, pos);
       ++pos;
-      if (PREDICT_FALSE(pos == s->ringbuffer_size)) {
+      if (BROTLI_PREDICT_FALSE(pos == s->ringbuffer_size)) {
         s->state = BROTLI_STATE_COMMAND_INNER_WRITE;
         --i;
         goto saveStateAndReturn;
@@ -1662,7 +1662,7 @@ CommandInner:
         result = BROTLI_DECODER_NEEDS_MORE_INPUT;
         goto saveStateAndReturn;
       }
-      if (PREDICT_FALSE(s->block_length[0] == 0)) {
+      if (BROTLI_PREDICT_FALSE(s->block_length[0] == 0)) {
         BROTLI_SAFE(DecodeLiteralBlockSwitch(s));
         if (s->trivial_literal_context) goto CommandInner;
       }
@@ -1685,7 +1685,7 @@ CommandInner:
       BROTLI_LOG_UINT(s->context_map_slice[context]);
       BROTLI_LOG_ARRAY_INDEX(s->ringbuffer, pos & s->ringbuffer_mask);
       ++pos;
-      if (PREDICT_FALSE(pos == s->ringbuffer_size)) {
+      if (BROTLI_PREDICT_FALSE(pos == s->ringbuffer_size)) {
         s->state = BROTLI_STATE_COMMAND_INNER_WRITE;
         --i;
         goto saveStateAndReturn;
@@ -1693,7 +1693,7 @@ CommandInner:
     } while (--i != 0);
   }
   BROTLI_LOG_UINT(s->meta_block_remaining_len);
-  if (PREDICT_FALSE(s->meta_block_remaining_len <= 0)) {
+  if (BROTLI_PREDICT_FALSE(s->meta_block_remaining_len <= 0)) {
     s->state = BROTLI_STATE_METABLOCK_DONE;
     goto saveStateAndReturn;
   }
@@ -1708,7 +1708,7 @@ CommandPostDecodeLiterals:
     goto postReadDistance;  /* We already have the implicit distance */
   }
   /* Read distance code in the command, unless it was implicitly zero. */
-  if (PREDICT_FALSE(s->block_length[2] == 0)) {
+  if (BROTLI_PREDICT_FALSE(s->block_length[2] == 0)) {
     BROTLI_SAFE(DecodeDistanceBlockSwitch(s));
   }
   BROTLI_SAFE(ReadDistance(s, br));
@@ -1809,7 +1809,7 @@ CommandPostWrapCopy:
       s->ringbuffer[pos] =
           s->ringbuffer[(pos - s->distance_code) & s->ringbuffer_mask];
       ++pos;
-      if (PREDICT_FALSE(--wrap_guard == 0)) {
+      if (BROTLI_PREDICT_FALSE(--wrap_guard == 0)) {
         s->state = BROTLI_STATE_COMMAND_POST_WRITE_2;
         goto saveStateAndReturn;
       }

@@ -24,8 +24,8 @@ static BROTLI_INLINE size_t FindMatchLengthWithLimit(const uint8_t* s1,
                                                      size_t limit) {
   size_t matched = 0;
   size_t limit2 = (limit >> 3) + 1;  /* + 1 is for pre-decrement in while */
-  while (PREDICT_TRUE(--limit2)) {
-    if (PREDICT_FALSE(BROTLI_UNALIGNED_LOAD64(s2) ==
+  while (BROTLI_PREDICT_TRUE(--limit2)) {
+    if (BROTLI_PREDICT_FALSE(BROTLI_UNALIGNED_LOAD64(s2) ==
                       BROTLI_UNALIGNED_LOAD64(s1 + matched))) {
       s2 += 8;
       matched += 8;
@@ -39,7 +39,7 @@ static BROTLI_INLINE size_t FindMatchLengthWithLimit(const uint8_t* s1,
   }
   limit = (limit & 7) + 1;  /* + 1 is for pre-decrement in while */
   while (--limit) {
-    if (PREDICT_TRUE(s1[matched] == *s2)) {
+    if (BROTLI_PREDICT_TRUE(s1[matched] == *s2)) {
       ++s2;
       ++matched;
     } else {

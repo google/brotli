@@ -6,6 +6,8 @@ cmake_minimum_required(VERSION 2.8.6)
 
 project(brotli)
 
+option(BUILD_SHARED_LIBS "Build shared libraries" ON)
+
 # If Brotli is being bundled in another project, we don't want to
 # install anything.  However, we want to let people override this, so
 # we'll use the BROTLI_BUNDLED_MODE variable to let them do that; just
@@ -151,9 +153,12 @@ foreach(lib brotlicommon brotlidec brotlienc)
   set_target_properties(${lib} PROPERTIES
     VERSION ${BROTLI_VERSION_MAJOR}.${BROTLI_VERSION_MINOR}.${BROTLI_VERSION_REVISION}
     POSITION_INDEPENDENT_CODE TRUE)
+  string(TOUPPER "${lib}" LIB)
+  set_target_properties (${lib} PROPERTIES DEFINE_SYMBOL "${LIB}_SHARED_COMPILATION" )
 
   set_property(TARGET ${lib} APPEND PROPERTY INTERFACE_INCLUDE_DIRECTORIES "${BROTLI_INCLUDE_DIRS}")
 endforeach()
+
 if (BUILD_SHARED_LIBS)
   target_link_libraries(brotlidec brotlicommon)
   target_link_libraries(brotlienc brotlicommon)
