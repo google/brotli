@@ -1972,7 +1972,7 @@ BrotliDecoderResult BrotliDecoderDecompressStream(
           break;
         }
         /* Maximum distance, see section 9.1. of the spec. */
-        s->max_backward_distance = (1 << s->window_bits) - 16;
+        s->max_backward_distance = (1 << s->window_bits) - BROTLI_WINDOW_GAP;
         /* Limit custom dictionary size. */
         if (s->custom_dict_size >= s->max_backward_distance) {
           s->custom_dict += s->custom_dict_size - s->max_backward_distance;

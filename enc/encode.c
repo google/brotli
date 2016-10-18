@@ -1011,7 +1011,7 @@ static BROTLI_BOOL BrotliCompressBufferQuality10(
   H10* hasher;
 
   const size_t hasher_eff_size =
-      BROTLI_MIN(size_t, input_size, max_backward_limit + 16);
+      BROTLI_MIN(size_t, input_size, max_backward_limit + BROTLI_WINDOW_GAP);
 
   BrotliEncoderParams params;
 

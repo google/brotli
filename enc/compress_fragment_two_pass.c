@@ -14,6 +14,7 @@
 
 #include <string.h>  /* memcmp, memcpy, memset */
 
+#include "../common/constants.h"
 #include <brotli/types.h>
 #include "./bit_cost.h"
 #include "./brotli_bit_stream.h"
@@ -30,7 +31,7 @@ extern "C" {
 #endif
 
 /* Same as MaxBackwardLimit(18) */
-#define MAX_DISTANCE ((1 << 18) - 16)
+#define MAX_DISTANCE ((1 << 18) - BROTLI_WINDOW_GAP)
 
 /* kHashMul32 multiplier has these properties:
    * The multiplier must be odd. Otherwise we may lose the highest bit.
@@ -248,7 +249,7 @@ static BROTLI_INLINE void CreateCommands(const uint8_t* input,
   const uint8_t* next_emit = input;
 
   int last_distance = -1;
-  const size_t kInputMarginBytes = 16;
+  const size_t kInputMarginBytes = BROTLI_WINDOW_GAP;
   const size_t kMinMatchLen = 6;
 
   if (PREDICT_TRUE(block_size >= kInputMarginBytes)) {
