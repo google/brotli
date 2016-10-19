@@ -851,37 +851,38 @@ static BROTLI_INLINE BROTLI_BOOL SafeReadBlockLength(
 static BROTLI_NOINLINE void InverseMoveToFrontTransform(
     uint8_t* v, uint32_t v_len, BrotliDecoderState* state) {
   /* Reinitialize elements that could have been changed. */
-  uint32_t i = 4;
+  uint32_t i = 1;
   uint32_t upper_bound = state->mtf_upper_bound;
-  uint8_t* mtf = &state->mtf[4];  /* Make mtf[-1] addressable. */
+  uint32_t* mtf = &state->mtf[1];  /* Make mtf[-1] addressable. */
+  uint8_t* mtf_u8 = (uint8_t*)mtf;
   /* Load endian-aware constant. */
   const uint8_t b0123[4] = {0, 1, 2, 3};
   uint32_t pattern;
   memcpy(&pattern, &b0123, 4);
 
   /* Initialize list using 4 consequent values pattern. */
-  *(uint32_t*)mtf = pattern;
+  mtf[0] = pattern;
   do {
     pattern += 0x04040404; /* Advance all 4 values by 4. */
-    *(uint32_t*)(mtf + i) = pattern;
-    i += 4;
+    mtf[i] = pattern;
+    i++;
   } while (i <= upper_bound);
 
   /* Transform the input. */
   upper_bound = 0;
   for (i = 0; i < v_len; ++i) {
     int index = v[i];
-    uint8_t value = mtf[index];
+    uint8_t value = mtf_u8[index];
     upper_bound |= v[i];
     v[i] = value;
-    mtf[-1] = value;
+    mtf_u8[-1] = value;
     do {
       index--;
-      mtf[index + 1] = mtf[index];
+      mtf_u8[index + 1] = mtf_u8[index];
     } while (index >= 0);
   }
   /* Remember amount of elements to be reinitialized. */
-  state->mtf_upper_bound = upper_bound;
+  state->mtf_upper_bound = upper_bound >> 2;
 }
 
 /* Decodes a series of Huffman table using ReadHuffmanCode function. */
@@ -2142,24 +2143,23 @@ BrotliDecoderResult BrotliDecoderDecompressStream(
         {
           uint32_t num_distance_codes = s->num_direct_distance_codes +
               ((2 * BROTLI_MAX_DISTANCE_BITS) << s->distance_postfix_bits);
+          BROTLI_BOOL allocation_success = BROTLI_TRUE;
           result = DecodeContextMap(
               s->num_block_types[2] << BROTLI_DISTANCE_CONTEXT_BITS,
               &s->num_dist_htrees, &s->dist_context_map, s);
           if (result != BROTLI_DECODER_SUCCESS) {
             break;
           }
-          BrotliDecoderHuffmanTreeGroupInit(
+          allocation_success &= BrotliDecoderHuffmanTreeGroupInit(
               s, &s->literal_hgroup, BROTLI_NUM_LITERAL_SYMBOLS,
               s->num_literal_htrees);
-          BrotliDecoderHuffmanTreeGroupInit(
+          allocation_success &= BrotliDecoderHuffmanTreeGroupInit(
               s, &s->insert_copy_hgroup, BROTLI_NUM_COMMAND_SYMBOLS,
               s->num_block_types[1]);
-          BrotliDecoderHuffmanTreeGroupInit(
+          allocation_success &= BrotliDecoderHuffmanTreeGroupInit(
               s, &s->distance_hgroup, num_distance_codes,
               s->num_dist_htrees);
-          if (s->literal_hgroup.codes == 0 ||
-              s->insert_copy_hgroup.codes == 0 ||
-              s->distance_hgroup.codes == 0) {
+          if (!allocation_success) {
             return SaveErrorCode(s,
                 BROTLI_FAILURE(BROTLI_DECODER_ERROR_ALLOC_TREE_GROUPS));
           }

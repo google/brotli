@@ -192,7 +192,7 @@ struct BrotliDecoderStateStruct {
 
   /* For InverseMoveToFrontTransform */
   uint32_t mtf_upper_bound;
-  uint8_t mtf[256 + 4];
+  uint32_t mtf[64 + 1];
 
   /* For custom dictionaries */
   const uint8_t* custom_dict;
@@ -235,7 +235,7 @@ BROTLI_INTERNAL void BrotliDecoderStateCleanup(BrotliDecoderState* s);
 BROTLI_INTERNAL void BrotliDecoderStateMetablockBegin(BrotliDecoderState* s);
 BROTLI_INTERNAL void BrotliDecoderStateCleanupAfterMetablock(
     BrotliDecoderState* s);
-BROTLI_INTERNAL void BrotliDecoderHuffmanTreeGroupInit(
+BROTLI_INTERNAL BROTLI_BOOL BrotliDecoderHuffmanTreeGroupInit(
     BrotliDecoderState* s, HuffmanTreeGroup* group, uint32_t alphabet_size,
     uint32_t ntrees);
 BROTLI_INTERNAL void BrotliDecoderHuffmanTreeGroupRelease(

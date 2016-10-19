@@ -97,7 +97,7 @@ void BrotliDecoderStateInitWithCustomAllocators(BrotliDecoderState* s,
   /* Make small negative indexes addressable. */
   s->symbol_lists = &s->symbols_lists_array[BROTLI_HUFFMAN_MAX_CODE_LENGTH + 1];
 
-  s->mtf_upper_bound = 255;
+  s->mtf_upper_bound = 63;
 }
 
 void BrotliDecoderStateMetablockBegin(BrotliDecoderState* s) {
@@ -148,22 +148,24 @@ void BrotliDecoderStateCleanup(BrotliDecoderState* s) {
   BROTLI_FREE(s, s->block_type_trees);
 }
 
-void BrotliDecoderHuffmanTreeGroupInit(BrotliDecoderState* s,
+BROTLI_BOOL BrotliDecoderHuffmanTreeGroupInit(BrotliDecoderState* s,
     HuffmanTreeGroup* group, uint32_t alphabet_size, uint32_t ntrees) {
   /* Pack two allocations into one */
   const size_t max_table_size = kMaxHuffmanTableSize[(alphabet_size + 31) >> 5];
   const size_t code_size = sizeof(HuffmanCode) * ntrees * max_table_size;
   const size_t htree_size = sizeof(HuffmanCode*) * ntrees;
-  char* p = (char*)BROTLI_ALLOC(s, code_size + htree_size);
+  /* Pointer alignment is, hopefully, wider than sizeof(HuffmanCode). */
+  HuffmanCode** p = (HuffmanCode**)BROTLI_ALLOC(s, code_size + htree_size);
   group->alphabet_size = (uint16_t)alphabet_size;
   group->num_htrees = (uint16_t)ntrees;
-  group->codes = (HuffmanCode*)p;
-  group->htrees = (HuffmanCode**)(p + code_size);
+  group->htrees = (HuffmanCode**)p;
+  group->codes = (HuffmanCode*)(&p[ntrees]);
+  return !!p;
 }
 
 void BrotliDecoderHuffmanTreeGroupRelease(
     BrotliDecoderState* s, HuffmanTreeGroup* group) {
-  BROTLI_FREE(s, group->codes);
+  BROTLI_FREE(s, group->htrees);
   group->htrees = NULL;
 }
 
