@@ -1368,6 +1368,14 @@ static BROTLI_BOOL InjectFlushOrPushOutput(BrotliEncoderState* s,
   return BROTLI_FALSE;
 }
 
+static void CheckFlushComplete(BrotliEncoderState* s) {
+  if (s->stream_state_ == BROTLI_STREAM_FLUSH_REQUESTED &&
+      s->available_out_ == 0) {
+    s->stream_state_ = BROTLI_STREAM_PROCESSING;
+    s->next_out_ = 0;
+  }
+}
+
 static BROTLI_BOOL BrotliEncoderCompressStreamFast(
     BrotliEncoderState* s, BrotliEncoderOperation op, size_t* available_in,
     const uint8_t** next_in, size_t* available_out, uint8_t** next_out,
@@ -1479,11 +1487,7 @@ static BROTLI_BOOL BrotliEncoderCompressStreamFast(
   }
   BROTLI_FREE(m, tmp_command_buf);
   BROTLI_FREE(m, tmp_literal_buf);
-  if (s->stream_state_ == BROTLI_STREAM_FLUSH_REQUESTED &&
-      s->available_out_ == 0) {
-    s->stream_state_ = BROTLI_STREAM_PROCESSING;
-    s->next_out_ = 0;
-  }
+  CheckFlushComplete(s);
   return BROTLI_TRUE;
 }
 
@@ -1620,11 +1624,7 @@ BROTLI_BOOL BrotliEncoderCompressStream(
     }
     break;
   }
-  if (s->stream_state_ == BROTLI_STREAM_FLUSH_REQUESTED &&
-      s->available_out_ == 0) {
-    s->stream_state_ = BROTLI_STREAM_PROCESSING;
-    s->next_out_ = 0;
-  }
+  CheckFlushComplete(s);
   return BROTLI_TRUE;
 }
 
@@ -1647,6 +1647,7 @@ const uint8_t* BrotliEncoderTakeOutput(BrotliEncoderState* s, size_t* size) {
     s->next_out_ += consumed_size;
     s->available_out_ -= consumed_size;
     s->total_out_ += consumed_size;
+    CheckFlushComplete(s);
     *size = consumed_size;
   } else {
     *size = 0;
