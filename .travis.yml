@@ -150,11 +150,11 @@ matrix:
     #   env: BUILD_SYSTEM=cmake C_COMPILER=gcc-4.7 CXX_COMPILER=g++-4.7
     # - os: osx
     #   env: BUILD_SYSTEM=cmake C_COMPILER=gcc-4.6 CXX_COMPILER=g++-4.6
+    # - os: osx
+    #   env: BUILD_SYSTEM=cmake C_COMPILER=gcc-4.5 CXX_COMPILER=g++-4.5
     - os: osx
-      env: BUILD_SYSTEM=cmake C_COMPILER=gcc-4.5 CXX_COMPILER=g++-4.5
-    # gcc-4.4 homebrew formulae does not work for OS versions after Maveriks
-    #- os: osx
-    #  env: BUILD_SYSTEM=cmake C_COMPILER=gcc-4.4 CXX_COMPILER=g++-4.4
+      osx_image: beta-xcode6.2
+      env: BUILD_SYSTEM=cmake C_COMPILER=gcc-4.4 CXX_COMPILER=g++-4.4
 
     ###
     ## Python OS X builds
