@@ -263,3 +263,128 @@ if(NOT BROTLI_DISABLE_TESTS)
         -P ${CMAKE_CURRENT_SOURCE_DIR}/tests/run-compatibility-test.cmake)
   endforeach()
 endif()
+
+# Generate a pkg-config file
+
+include(CMakeParseArguments)
+
+function(generate_pkg_config_path outvar path)
+  string(LENGTH "${path}" path_length)
+
+  set(path_args ${ARGV})
+  list(REMOVE_AT path_args 0 1)
+  list(LENGTH path_args path_args_remaining)
+
+  set("${outvar}" "${path}")
+
+  while(path_args_remaining GREATER 1)
+    list(GET path_args 0 name)
+    list(GET path_args 1 value)
+
+    get_filename_component(value_full "${value}" ABSOLUTE)
+    string(LENGTH "${value}" value_length)
+
+    if(path_length EQUAL value_length AND path STREQUAL value)
+      set("${outvar}" "\${${name}}")
+      break()
+    elseif(path_length GREATER value_length)
+      # We might be in a subdirectory of the value, but we have to be
+      # careful about a prefix matching but not being a subdirectory
+      # (for example, /usr/lib64 is not a subdirectory of /usr/lib).
+      # We'll do this by making sure the next character is a directory
+      # separator.
+      string(SUBSTRING "${path}" ${value_length} 1 sep)
+      if(sep STREQUAL "/")
+        string(SUBSTRING "${path}" 0 ${value_length} s)
+        if(s STREQUAL value)
+          string(SUBSTRING "${path}" "${value_length}" -1 suffix)
+          set("${outvar}" "\${${name}}${suffix}")
+          break()
+        endif()
+      endif()
+    endif()
+
+    list(REMOVE_AT path_args 0 1)
+    list(LENGTH path_args path_args_remaining)
+  endwhile()
+
+  set("${outvar}" "${${outvar}}" PARENT_SCOPE)
+endfunction(generate_pkg_config_path)
+
+function(generate_pkg_config output_file)
+  set (options)
+  set (oneValueArgs NAME DESCRIPTION PREFIX LIBDIR INCLUDEDIR VERSION)
+  set (multiValueArgs DEPENDS CFLAGS LIBRARIES)
+  cmake_parse_arguments(GEN_PKG "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
+  unset (options)
+  unset (oneValueArgs)
+  unset (multiValueArgs)
+
+  if(NOT GEN_PKG_PREFIX)
+    set(GEN_PKG_PREFIX "${CMAKE_INSTALL_PREFIX}")
+  endif()
+
+  if(NOT GEN_PKG_LIBDIR)
+    set(GEN_PKG_LIBDIR "${CMAKE_INSTALL_FULL_LIBDIR}")
+  endif()
+  generate_pkg_config_path(GEN_PKG_LIBDIR "${GEN_PKG_LIBDIR}"
+    prefix "${GEN_PKG_PREFIX}")
+
+  if(NOT GEN_PKG_INCLUDEDIR)
+    set(GEN_PKG_INCLUDEDIR "${CMAKE_INSTALL_FULL_INCLUDEDIR}")
+  endif()
+  generate_pkg_config_path(GEN_PKG_INCLUDEDIR "${GEN_PKG_INCLUDEDIR}"
+    prefix "${GEN_PKG_PREFIX}")
+
+  file(WRITE  "${output_file}" "prefix=${GEN_PKG_PREFIX}\n")
+  file(APPEND "${output_file}" "libdir=${GEN_PKG_LIBDIR}\n")
+  file(APPEND "${output_file}" "includedir=${GEN_PKG_INCLUDEDIR}\n")
+  file(APPEND "${output_file}" "\n")
+
+  if(GEN_PKG_NAME)
+    file(APPEND "${output_file}" "Name: ${GEN_PKG_NAME}\n")
+  else()
+    file(APPEND "${output_file}" "Name: ${CMAKE_PROJECT_NAME}\n")
+  endif()
+
+  if(GEN_PKG_DESCRIPTION)
+    file(APPEND "${output_file}" "Description: ${GEN_PKG_DESCRIPTION}\n")
+  endif()
+
+  if(GEN_PKG_VERSION)
+    file(APPEND "${output_file}" "Version: ${GEN_PKG_VERSION}\n")
+  endif()
+
+  if(GEN_PKG_LIBRARIES)
+    set(libs)
+
+    file(APPEND "${output_file}" "Libs: -L\${libdir}")
+    foreach(lib ${GEN_PKG_LIBRARIES})
+      file(APPEND "${output_file}" " -l${lib}")
+    endforeach()
+    file(APPEND "${output_file}" "\n")
+  endif()
+
+  file(APPEND "${output_file}" "Cflags: -I\${includedir}")
+  if(GEN_PKG_CFLAGS)
+    foreach(cflag ${GEN_PKG_CFLAGS})
+      file(APPEND "${output_file}" " ${cflag}")
+    endforeach()
+  endif()
+  file(APPEND "${output_file}" "\n")
+endfunction(generate_pkg_config)
+
+generate_pkg_config ("${CMAKE_CURRENT_BINARY_DIR}/brotli.pc"
+  NAME Brotli
+  DESCRIPTION "Brotli compression library"
+  VERSION "${BROTLI_VERSION_MAJOR}.${BROTLI_VERSION_MINOR}.${BROTLI_VERSION_REVISION}"
+  LIBRARIES brotlicommon brotlidec brotlienc)
+
+if(NOT BROTLI_BUNDLED_MODE)
+  install(FILES "${CMAKE_CURRENT_BINARY_DIR}/brotli.pc"
+    DESTINATION "${CMAKE_INSTALL_LIBDIR}/pkgconfig")
+endif()
+
+if (ENABLE_COVERAGE STREQUAL "yes")
+  SETUP_TARGET_FOR_COVERAGE(coverage test coverage)
+endif ()
