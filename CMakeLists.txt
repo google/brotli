@@ -6,8 +6,6 @@ cmake_minimum_required(VERSION 2.8.6)
 
 project(brotli)
 
-option(BUILD_SHARED_LIBS "Build shared libraries" ON)
-
 # If Brotli is being bundled in another project, we don't want to
 # install anything.  However, we want to let people override this, so
 # we'll use the BROTLI_BUNDLED_MODE variable to let them do that; just
@@ -24,6 +22,11 @@ if(BROTLI_BUNDLED_MODE STREQUAL "")
 endif()
 mark_as_advanced(BROTLI_BUNDLED_MODE)
 
+include(CMakeDependentOption)
+CMAKE_DEPENDENT_OPTION(BUILD_SHARED_LIBS "Build shared libraries" ON "NOT BROTLI_BUNDLED_MODE" OFF)
+
+include(GNUInstallDirs)
+
 # When building shared libraries it is important to set the correct rpath.
 # See https://cmake.org/Wiki/CMake_RPATH_handling#Always_full_RPATH
 if (BUILD_SHARED_LIBS)
@@ -31,9 +34,9 @@ if (BUILD_SHARED_LIBS)
   set(CMAKE_SKIP_BUILD_RPATH FALSE)
   set(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)
   set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
-  list(FIND CMAKE_PLATFORM_IMPLICIT_LINK_DIRECTORIES "${CMAKE_INSTALL_PREFIX}/lib" isSystemDir)
+  list(FIND CMAKE_PLATFORM_IMPLICIT_LINK_DIRECTORIES "${CMAKE_INSTALL_LIBDIR}" isSystemDir)
   if ("${isSystemDir}" STREQUAL "-1")
-    set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib")
+    set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_LIBDIR}")
   endif()
 endif()
 
@@ -160,10 +163,8 @@ foreach(lib brotlicommon brotlidec brotlienc)
   set_property(TARGET ${lib} APPEND PROPERTY INTERFACE_INCLUDE_DIRECTORIES "${BROTLI_INCLUDE_DIRS}")
 endforeach()
 
-if (BUILD_SHARED_LIBS)
-  target_link_libraries(brotlidec brotlicommon)
-  target_link_libraries(brotlienc brotlicommon)
-endif()
+target_link_libraries(brotlidec brotlicommon)
+target_link_libraries(brotlienc brotlicommon)
 
 # For projects stuck on older versions of CMake, this will set the
 # BROTLI_INCLUDE_DIRS and BROTLI_LIBRARIES variables so they still
@@ -182,8 +183,6 @@ target_link_libraries(bro ${BROTLI_LIBRARIES})
 
 # Installation
 if(NOT BROTLI_BUNDLED_MODE)
-  include(GNUInstallDirs)
-
   install (TARGETS bro RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}")
 
   if(WIN32)
