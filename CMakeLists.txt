@@ -72,6 +72,7 @@ function(hex_to_dec HEXADECIMAL DECIMAL)
   set(${DECIMAL} ${_decimal} PARENT_SCOPE)
 endfunction(hex_to_dec)
 
+# Version information
 file(STRINGS "common/version.h" _brotli_version_line REGEX "^#define BROTLI_VERSION (0x[0-9a-fA-F]+)$")
 string(REGEX REPLACE "^#define BROTLI_VERSION 0x([0-9a-fA-F]+)$" "\\1" _brotli_version_hex "${_brotli_version_line}")
 hex_to_dec("${_brotli_version_hex}" _brotli_version)
@@ -155,7 +156,8 @@ foreach(lib brotlicommon brotlidec brotlienc)
   target_link_libraries(${lib} ${LIBM_LIBRARY})
   set_property(TARGET ${lib} APPEND PROPERTY INCLUDE_DIRECTORIES ${BROTLI_INCLUDE_DIRS})
   set_target_properties(${lib} PROPERTIES
-    VERSION ${BROTLI_VERSION_MAJOR}.${BROTLI_VERSION_MINOR}.${BROTLI_VERSION_REVISION}
+    SOVERSION "${BROTLI_VERSION_MAJOR}.${BROTLI_VERSION_MINOR}.${BROTLI_VERSION_REVISION}"
+    VERSION "${BROTLI_VERSION_MAJOR}.${BROTLI_VERSION_MINOR}.${BROTLI_VERSION_REVISION}"
     POSITION_INDEPENDENT_CODE TRUE)
   string(TOUPPER "${lib}" LIB)
   set_target_properties (${lib} PROPERTIES DEFINE_SYMBOL "${LIB}_SHARED_COMPILATION" )
