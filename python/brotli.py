@@ -34,7 +34,7 @@ def compress(string, mode=MODE_GENERIC, quality=11, lgwin=22, lgblock=0,
         Range is 16 to 24. If set to 0, the value will be set based on the
         quality. Defaults to 0.
       dictionary (bytes, optional): Custom dictionary. Only last sliding window
-         size bytes will be used.
+        size bytes will be used.
 
     Returns:
       The compressed byte string.
@@ -44,7 +44,7 @@ def compress(string, mode=MODE_GENERIC, quality=11, lgwin=22, lgblock=0,
     """
     compressor = _brotli.Compressor(mode=mode, quality=quality, lgwin=lgwin,
                                     lgblock=lgblock, dictionary=dictionary)
-    return compressor.compress(string)
+    return compressor.process(string) + compressor.finish()
 
 # Decompress a compressed byte string.
 decompress = _brotli.decompress
