@@ -83,7 +83,7 @@ static const uint32_t kCodeLengthBits[18] = {
 static BROTLI_INLINE void StoreStaticCodeLengthCode(
     size_t* storage_ix, uint8_t* storage) {
   BrotliWriteBits(
-      40, MAKE_UINT64_T(0x0000ffU, 0x55555554U), storage_ix, storage);
+      40, BROTLI_MAKE_UINT64_T(0x0000ffU, 0x55555554U), storage_ix, storage);
 }
 
 static const uint64_t kZeroRepsBits[BROTLI_NUM_COMMAND_SYMBOLS] = {
@@ -516,7 +516,7 @@ static const uint16_t kStaticCommandCodeBits[BROTLI_NUM_COMMAND_SYMBOLS] = {
 static BROTLI_INLINE void StoreStaticCommandHuffmanTree(
     size_t* storage_ix, uint8_t* storage) {
   BrotliWriteBits(
-      56, MAKE_UINT64_T(0x926244U, 0x16307003U), storage_ix, storage);
+      56, BROTLI_MAKE_UINT64_T(0x926244U, 0x16307003U), storage_ix, storage);
   BrotliWriteBits(3, 0x00000000U, storage_ix, storage);
 }
 

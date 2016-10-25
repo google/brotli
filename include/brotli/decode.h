@@ -135,8 +135,8 @@ BROTLI_DEC_API void BrotliDecoderSetCustomDictionary(
     BrotliDecoderState* s, size_t size,
     const uint8_t dict[BROTLI_ARRAY_PARAM(size)]);
 
-/* Returns true, if decoder has some unconsumed output.
-   Otherwise returns false. */
+/* Returns BROTLI_TRUE, if decoder has some unconsumed output.
+   Otherwise returns BROTLI_FALSE. */
 BROTLI_DEC_API BROTLI_BOOL BrotliDecoderHasMoreOutput(
     const BrotliDecoderState* s);
 
@@ -156,12 +156,12 @@ BROTLI_DEC_API BROTLI_BOOL BrotliDecoderHasMoreOutput(
 BROTLI_DEC_API const uint8_t* BrotliDecoderTakeOutput(
     BrotliDecoderState* s, size_t* size);
 
-/* Returns true, if decoder has already received some input bytes.
-   Otherwise returns false. */
+/* Returns BROTLI_TRUE, if decoder has already received some input bytes.
+   Otherwise returns BROTLI_FALSE. */
 BROTLI_DEC_API BROTLI_BOOL BrotliDecoderIsUsed(const BrotliDecoderState* s);
 
-/* Returns true, if decoder is in a state where we reached the end of the input
-   and produced all of the output; returns false otherwise. */
+/* Returns BROTLI_TRUE, if decoder is in a state where we reached the end of the
+   input and produced all of the output; returns BROTLI_FALSE otherwise. */
 BROTLI_BOOL BrotliDecoderIsFinished(const BrotliDecoderState* s);
 
 /* Returns detailed error code after BrotliDecoderDecompressStream returns

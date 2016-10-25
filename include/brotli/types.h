@@ -24,23 +24,18 @@ typedef __int64 int64_t;
 #include <stdint.h>
 #endif  /* defined(_MSC_VER) && (_MSC_VER < 1600) */
 
-#if (!defined(_MSC_VER) || (_MSC_VER >= 1800)) && \
-    (defined(__cplusplus) || \
-        (defined(__STDC_VERSION__) && __STDC_VERSION__ >= 199901L))
-#include <stdbool.h>
-#define BROTLI_BOOL bool
-#define BROTLI_TRUE true
-#define BROTLI_FALSE false
-#define TO_BROTLI_BOOL(X) (!!(X))
-#else
-typedef enum {
-  BROTLI_FALSE = 0,
-  BROTLI_TRUE = !BROTLI_FALSE
-} BROTLI_BOOL;
+/* BROTLI_BOOL is a portable "bool" replacement. For input parameters it is
+   preferrable either use BROTLI_TRUE and BROTLI_FALSE macros, or convert
+   boolean expression with TO_BROTLI_BOOL macros.
+   Return values should not be tested for equality with "true", "false",
+   "BROTLI_TRUE", "BROTLI_FALSE", but rather be evaluated, for example:
+   `if (foo(enc) && !bar(dec) { bool x = !!baz(enc); }` */
+#define BROTLI_BOOL int
+#define BROTLI_TRUE 1
+#define BROTLI_FALSE 0
 #define TO_BROTLI_BOOL(X) (!!(X) ? BROTLI_TRUE : BROTLI_FALSE)
-#endif
 
-#define MAKE_UINT64_T(high, low) ((((uint64_t)(high)) << 32) | low)
+#define BROTLI_MAKE_UINT64_T(high, low) ((((uint64_t)(high)) << 32) | low)
 
 #define BROTLI_UINT32_MAX (~((uint32_t)0))
 #define BROTLI_SIZE_MAX (~((size_t)0))
