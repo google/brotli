@@ -88,25 +88,25 @@ OR:
 #endif
 
 #if defined(BROTLI_SHARED_COMPILATION) && defined(_WIN32)
-  #if defined(BROTLICOMMON_SHARED_COMPILATION)
-    #define BROTLI_COMMON_API __declspec(dllexport)
-  #else
-    #define BROTLI_COMMON_API __declspec(dllimport)
-  #endif
-  #if defined(BROTLIDEC_SHARED_COMPILATION)
-    #define BROTLI_DEC_API __declspec(dllexport)
-  #else
-    #define BROTLI_DEC_API __declspec(dllimport)
-  #endif
-  #if defined(BROTLIENC_SHARED_COMPILATION)
-    #define BROTLI_ENC_API __declspec(dllexport)
-  #else
-    #define BROTLI_ENC_API __declspec(dllimport)
-  #endif
-#else /* defined (_WIN32) */
- #define BROTLI_COMMON_API
- #define BROTLI_DEC_API
- #define BROTLI_ENC_API
+#if defined(BROTLICOMMON_SHARED_COMPILATION)
+#define BROTLI_COMMON_API __declspec(dllexport)
+#else
+#define BROTLI_COMMON_API __declspec(dllimport)
+#endif  /* BROTLICOMMON_SHARED_COMPILATION */
+#if defined(BROTLIDEC_SHARED_COMPILATION)
+#define BROTLI_DEC_API __declspec(dllexport)
+#else
+#define BROTLI_DEC_API __declspec(dllimport)
+#endif  /* BROTLIDEC_SHARED_COMPILATION */
+#if defined(BROTLIENC_SHARED_COMPILATION)
+#define BROTLI_ENC_API __declspec(dllexport)
+#else
+#define BROTLI_ENC_API __declspec(dllimport)
+#endif  /* BROTLIENC_SHARED_COMPILATION */
+#else  /* BROTLI_SHARED_COMPILATION && _WIN32 */
+#define BROTLI_COMMON_API
+#define BROTLI_DEC_API
+#define BROTLI_ENC_API
 #endif
 
 #ifndef _MSC_VER

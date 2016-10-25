@@ -69,6 +69,13 @@ typedef enum BrotliEncoderParameter {
 /* A state can not be reused for multiple brotli streams. */
 typedef struct BrotliEncoderStateStruct BrotliEncoderState;
 
+/* Sets the specified parameter to the given encoder instance.
+   Returns BROTLI_FALSE if parameter is unrecognized, or value is invalid.
+   Returns BROTLI_FALSE if value of parameter can not be changed at current
+   encoder state (e.g. when encoding is started, window size might be already
+   encoded and therefore it is impossible to change it).
+   Returns BROTLI_TRUE if value is accepted. CAUTION: invalid values might be
+   accepted in case they would not break encoding process. */
 BROTLI_ENC_API BROTLI_BOOL BrotliEncoderSetParameter(
     BrotliEncoderState* state, BrotliEncoderParameter p, uint32_t value);
 
@@ -100,11 +107,11 @@ BROTLI_DEPRECATED BROTLI_ENC_API void BrotliEncoderCopyInputToRingBuffer(
    the new output meta-block, or to zero if no new output meta-block has been
    created (in this case the processed input data is buffered internally).
    If |*out_size| is positive, |*output| points to the start of the output
-   data. If |is_last| or |force_flush| is 1, an output meta-block is always
-   created. However, until |is_last| is 1 encoder may retain up to 7 bits
-   of the last byte of output. To force encoder to dump the remaining bits
-   use WriteMetadata() to append an empty meta-data block.
-   Returns false if the size of the input data is larger than
+   data. If |is_last| or |force_flush| is BROTLI_TRUE, an output meta-block is
+   always created. However, until |is_last| is BROTLI_TRUE encoder may retain up
+   to 7 bits of the last byte of output. To force encoder to dump the remaining
+   bits use WriteMetadata() to append an empty meta-data block.
+   Returns BROTLI_FALSE if the size of the input data is larger than
    input_block_size(). */
 BROTLI_DEPRECATED BROTLI_ENC_API BROTLI_BOOL BrotliEncoderWriteData(
     BrotliEncoderState* state, const BROTLI_BOOL is_last,
@@ -121,6 +128,9 @@ BROTLI_ENC_API void BrotliEncoderSetCustomDictionary(
 
 /* Returns buffer size that is large enough to contain BrotliEncoderCompress
    output for any input.
+   CAUTION: result is not applicable to BrotliEncoderCompressStream output,
+   because every "flush" adds extra overhead bytes, and some encoder settings
+   (e.g. quality 0 and 1) might imply a "soft flush" after every chunk of input.
    Returns 0 if result does not fit size_t. */
 BROTLI_ENC_API size_t BrotliEncoderMaxCompressedSize(size_t input_size);
 
@@ -132,7 +142,7 @@ BROTLI_ENC_API size_t BrotliEncoderMaxCompressedSize(size_t input_size);
    If compression fails, |*encoded_size| is set to 0.
    If BrotliEncoderMaxCompressedSize(|input_size|) is not zero, then
    |*encoded_size| is never set to the bigger value.
-   Returns false if there was an error and true otherwise. */
+   Returns BROTLI_FALSE if there was an error and BROTLI_TRUE otherwise. */
 BROTLI_ENC_API BROTLI_BOOL BrotliEncoderCompress(
     int quality, int lgwin, BrotliEncoderMode mode, size_t input_size,
     const uint8_t input_buffer[BROTLI_ARRAY_PARAM(input_size)],
@@ -175,7 +185,7 @@ BROTLI_ENC_API BROTLI_BOOL BrotliEncoderCompress(
    WARNING: when flushing and finishing, |op| should not change until operation
    is complete; input stream should not be refilled as well.
 
-   Returns false if there was an error and true otherwise.
+   Returns BROTLI_FALSE if there was an error and BROTLI_TRUE otherwise.
 */
 BROTLI_ENC_API BROTLI_BOOL BrotliEncoderCompressStream(
     BrotliEncoderState* s, BrotliEncoderOperation op, size_t* available_in,
@@ -185,12 +195,13 @@ BROTLI_ENC_API BROTLI_BOOL BrotliEncoderCompressStream(
 /* Check if encoder is in "finished" state, i.e. no more input is acceptable and
    no more output will be produced.
    Works only with BrotliEncoderCompressStream workflow.
-   Returns 1 if stream is finished and 0 otherwise. */
+   Returns BROTLI_TRUE if stream is finished and BROTLI_FALSE otherwise. */
 BROTLI_ENC_API BROTLI_BOOL BrotliEncoderIsFinished(BrotliEncoderState* s);
 
 /* Check if encoder has more output bytes in internal buffer.
    Works only with BrotliEncoderCompressStream workflow.
-   Returns 1 if has more output (in internal buffer) and 0 otherwise. */
+   Returns BROTLI_TRUE if has more output (in internal buffer) and BROTLI_FALSE
+   otherwise. */
 BROTLI_ENC_API BROTLI_BOOL BrotliEncoderHasMoreOutput(BrotliEncoderState* s);
 
 /* Returns pointer to internal output buffer.
