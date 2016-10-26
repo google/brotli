@@ -39,7 +39,7 @@ case "$1" in
 		if [ "${TRAVIS_OS_NAME}" = "osx" ]; then
 			source venv/bin/activate
 		fi
-		python setup.py build_ext test
+		python setup.py build test
 		;;
 	esac
 	;;
