@@ -141,7 +141,7 @@ static BROTLI_INLINE void BrotliDump(const char* f, int l, const char* fn) {
 
 #if (BROTLI_MODERN_COMPILER || defined(__llvm__)) && \
     !defined(BROTLI_BUILD_NO_RBIT)
-#if defined(BROTLI_TARGET_ARMV7)
+#if defined(BROTLI_TARGET_ARMV7) || defined(BROTLI_TARGET_ARMV8)
 /* TODO: detect ARMv6T2 and enable this code for it. */
 static BROTLI_INLINE reg_t BrotliRBit(reg_t input) {
   reg_t output;
