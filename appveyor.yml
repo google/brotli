@@ -84,15 +84,11 @@ build_script:
       }
 
 test_script:
-  - ps: |
-      if ($env:BUILD_SYSTEM -eq "CMake") {
-        ctest --output-on-failure --interactive-debug-mode 0 -C Debug
-      } else {
-        python setup.py build_ext test
-      }
+  - if "%BUILD_SYSTEM%" == "CMake" ( ctest --output-on-failure --interactive-debug-mode 0 -C Debug )
+  - if "%BUILD_SYSTEM%" == "Python" ( python setup.py build test )
 
 after_test:
-  - if "%BUILD_SYSTEM%" == "Python" ( pip wheel -w dist .)
+  - if "%BUILD_SYSTEM%" == "Python" ( pip wheel -w dist . )
   - if "%BUILD_SYSTEM%" == "Python" ( python setup.py sdist --formats=gztar,zip )
 
 artifacts:
