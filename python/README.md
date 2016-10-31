@@ -7,7 +7,7 @@ This directory contains the code for the Python `brotli` module,
 To build the module, execute the following from the root project
 directory:
 
-    $ python setup.py build_ext
+    $ python setup.py build
 
 To test the module, execute the following from the root project
 directory:

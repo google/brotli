@@ -53,7 +53,7 @@ See [Premake5](https://premake.github.io/)
 
 The basic commands to build, test, and install the Python module are:
 
-    $ python setup.py build_ext test
+    $ python setup.py build test
     $ python setup.py install
 
 See the [Python readme](python/README.md) for more details.
