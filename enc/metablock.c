@@ -257,7 +257,7 @@ static void InitContextBlockSplitter(
   *histograms = BROTLI_ALLOC(m, HistogramLiteral, *histograms_size);
   self->histograms_ = *histograms;
   if (BROTLI_IS_OOM(m)) return;
-  /* Clear only current historgram. */
+  /* Clear only current histogram. */
   ClearHistogramsLiteral(&self->histograms_[0], num_contexts);
   self->last_histogram_ix_[0] = self->last_histogram_ix_[1] = 0;
 }

@@ -14,9 +14,21 @@ java_binary(
 )
 
 java_test(
-    name = "bundle_checker_test",
+    name = "bundle_checker_data_test",
     args = ["java/integration/test_data.zip"],
     data = ["test_data.zip"],
+    main_class = "org.brotli.integration.BundleChecker",
+    use_testrunner = 0,
+    runtime_deps = [":bundle_checker_lib"],
+)
+
+java_test(
+    name = "bundle_checker_fuzz_test",
+    args = [
+        "-s",
+        "java/integration/fuzz_data.zip"
+    ],
+    data = ["fuzz_data.zip"],
     main_class = "org.brotli.integration.BundleChecker",
     use_testrunner = 0,
     runtime_deps = [":bundle_checker_lib"],

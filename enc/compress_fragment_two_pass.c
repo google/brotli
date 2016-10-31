@@ -35,7 +35,7 @@ extern "C" {
 
 /* kHashMul32 multiplier has these properties:
    * The multiplier must be odd. Otherwise we may lose the highest bit.
-   * No long streaks of 1s or 0s.
+   * No long streaks of ones or zeros.
    * There is no effort to ensure that it is a prime, the oddity is enough
      for this use.
    * The number has been tuned heuristically against compression benchmarks. */
@@ -75,7 +75,7 @@ static void BuildAndStoreCommandPrefixCode(
   uint16_t cmd_bits[64];
   BrotliCreateHuffmanTree(histogram, 64, 15, tree, depth);
   BrotliCreateHuffmanTree(&histogram[64], 64, 14, tree, &depth[64]);
-  /* We have to jump through a few hoopes here in order to compute
+  /* We have to jump through a few hoops here in order to compute
      the command bits because the symbols are in a different order than in
      the full alphabet. This looks complicated, but having the symbols
      in this order in the command bits saves a few branches in the Emit*
@@ -314,7 +314,7 @@ trawl:
       if (ip - candidate > MAX_DISTANCE) goto trawl;
 
       /* Step 2: Emit the found match together with the literal bytes from
-         "next_emit", and then see if we can find a next macth immediately
+         "next_emit", and then see if we can find a next match immediately
          afterwards. Repeat until we find no match for the input
          without emitting some literal bytes. */
 

@@ -24,7 +24,7 @@ BROTLI_BOOL BrotliWarmupBitReader(BrotliBitReader* const br) {
   size_t aligned_read_mask = (sizeof(br->val_) >> 1) - 1;
   /* Fixing alignment after unaligned BrotliFillWindow would result accumulator
      overflow. If unalignment is caused by BrotliSafeReadBits, then there is
-     enough space in accumulator to fix aligment. */
+     enough space in accumulator to fix alignment. */
   if (!BROTLI_ALIGNED_READ) {
     aligned_read_mask = 0;
   }

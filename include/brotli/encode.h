@@ -4,7 +4,10 @@
    See file LICENSE for detail or copy at https://opensource.org/licenses/MIT
 */
 
-/* API for Brotli compression. */
+/**
+ * @file
+ * API for Brotli compression.
+ */
 
 #ifndef BROTLI_ENC_ENCODE_H_
 #define BROTLI_ENC_ENCODE_H_
@@ -16,212 +19,405 @@
 extern "C" {
 #endif
 
-static const int kBrotliMinWindowBits = 10;
-static const int kBrotliMaxWindowBits = 24;  /* == BROTLI_MAX_DISTANCE_BITS */
-static const int kBrotliMinInputBlockBits = 16;
-static const int kBrotliMaxInputBlockBits = 24;
-
+/** Minimal value for ::BROTLI_PARAM_LGWIN parameter. */
+#define BROTLI_MIN_WINDOW_BITS 10
+/**
+ * Maximal value for ::BROTLI_PARAM_LGWIN parameter.
+ *
+ * @note equal to @c BROTLI_MAX_DISTANCE_BITS constant.
+ */
+#define BROTLI_MAX_WINDOW_BITS 24
+/** Minimal value for ::BROTLI_PARAM_LGBLOCK parameter. */
+#define BROTLI_MIN_INPUT_BLOCK_BITS 16
+/** Maximal value for ::BROTLI_PARAM_LGBLOCK parameter. */
+#define BROTLI_MAX_INPUT_BLOCK_BITS 24
+/** Minimal value for ::BROTLI_PARAM_QUALITY parameter. */
 #define BROTLI_MIN_QUALITY 0
+/** Maximal value for ::BROTLI_PARAM_QUALITY parameter. */
 #define BROTLI_MAX_QUALITY 11
 
+BROTLI_DEPRECATED static const int kBrotliMinWindowBits =
+    BROTLI_MIN_WINDOW_BITS;
+BROTLI_DEPRECATED static const int kBrotliMaxWindowBits =
+    BROTLI_MAX_WINDOW_BITS;
+
+/** Options for ::BROTLI_PARAM_MODE parameter. */
 typedef enum BrotliEncoderMode {
-  /* Default compression mode. The compressor does not know anything in
-     advance about the properties of the input. */
+  /**
+   * Default compression mode.
+   *
+   * In this mode compressor does not know anything in advance about the
+   * properties of the input.
+   */
   BROTLI_MODE_GENERIC = 0,
-  /* Compression mode for UTF-8 format text input. */
+  /** Compression mode for UTF-8 formated text input. */
   BROTLI_MODE_TEXT = 1,
-  /* Compression mode used in WOFF 2.0. */
+  /** Compression mode used in WOFF 2.0. */
   BROTLI_MODE_FONT = 2
 } BrotliEncoderMode;
 
+/** Default value for ::BROTLI_PARAM_QUALITY parameter. */
 #define BROTLI_DEFAULT_QUALITY 11
+/** Default value for ::BROTLI_PARAM_LGWIN parameter. */
 #define BROTLI_DEFAULT_WINDOW 22
+/** Default value for ::BROTLI_PARAM_MODE parameter. */
 #define BROTLI_DEFAULT_MODE BROTLI_MODE_GENERIC
 
+/** Operations that can be performed by streaming encoder. */
 typedef enum BrotliEncoderOperation {
+  /**
+   * Process input.
+   *
+   * Encoder may postpone producing output, until it has processed enough input.
+   */
   BROTLI_OPERATION_PROCESS = 0,
-  /* Request output stream to flush. Performed when input stream is depleted
-     and there is enough space in output stream. */
+  /**
+   * Produce output for all processed input.
+   *
+   * Actual flush is performed when input stream is depleted and there is enough
+   * space in output stream. This means that client should repeat
+   * ::BROTLI_OPERATION_FLUSH operation until @p available_in becomes @c 0, and
+   * ::BrotliEncoderHasMoreOutput returns ::BROTLI_FALSE.
+   *
+   * @warning Until flush is complete, client @b SHOULD @b NOT swap,
+   *          reduce or extend input stream.
+   *
+   * When flush is complete, output data will be sufficient for decoder to
+   * reproduce all the given input.
+   */
   BROTLI_OPERATION_FLUSH = 1,
-  /* Request output stream to finish. Performed when input stream is depleted
-     and there is enough space in output stream. */
+  /**
+   * Finalize the stream.
+   *
+   * Actual finalization is performed when input stream is depleted and there is
+   * enough space in output stream. This means that client should repeat
+   * ::BROTLI_OPERATION_FLUSH operation until @p available_in becomes @c 0, and
+   * ::BrotliEncoderHasMoreOutput returns ::BROTLI_FALSE.
+   *
+   * @warning Until finalization is complete, client @b SHOULD @b NOT swap,
+   *          reduce or extend input stream.
+   *
+   * Helper function ::BrotliEncoderIsFinished checks if stream is finalized and
+   * output fully dumped.
+   *
+   * Adding more input data to finalized stream is impossible.
+   */
   BROTLI_OPERATION_FINISH = 2,
-  /* Emits metadata block to stream. Stream is soft-flushed before metadata
-     block is emitted. CAUTION: when operation is started, length of the input
-     buffer is interpreted as length of a metadata block; changing operation,
-     expanding or truncating input before metadata block is completely emitted
-     will cause an error; metadata block must not be greater than 16MiB. */
+  /**
+   * Emit metadata block to stream.
+   *
+   * Metadata is opaque to Brotli: neither encoder, nor decoder processes this
+   * data or relies on it. It may be used to pass some extra information from
+   * encoder client to decoder client without interfering with main data stream.
+   *
+   * @note Encoder may emit empty metadata blocks internally, to pad encoded
+   *       stream to byte boundary.
+   *
+   * @warning Until emitting metadata is complete client @b SHOULD @b NOT swap,
+   *          reduce or extend input stream.
+   *
+   * @warning The whole content of input buffer is considered to be the content
+   *          of metadata block. Do @b NOT @e append metadata to input stream,
+   *          before it is depleted with other operations.
+   *
+   * Stream is soft-flushed before metadata block is emitted. Metadata block
+   * @b MUST be no longer than than 16MiB.
+   */
   BROTLI_OPERATION_EMIT_METADATA = 3
 } BrotliEncoderOperation;
 
+/** Options to be used with ::BrotliEncoderSetParameter. */
 typedef enum BrotliEncoderParameter {
+  /**
+   * Tune encoder for specific input.
+   *
+   * ::BrotliEncoderMode enumerates all available values.
+   */
   BROTLI_PARAM_MODE = 0,
-  /* Controls the compression-speed vs compression-density tradeoffs. The higher
-     the quality, the slower the compression. Range is 0 to 11. */
+  /**
+   * The main compression speed-density lever.
+   *
+   * The higher the quality, the slower the compression. Range is
+   * from ::BROTLI_MIN_QUALITY to ::BROTLI_MAX_QUALITY.
+   */
   BROTLI_PARAM_QUALITY = 1,
-  /* Base 2 logarithm of the sliding window size. Range is 10 to 24. */
+  /**
+   * Recommended sliding LZ77 window size.
+   *
+   * Encoder may reduce this value, e.g. if input is much smaller than
+   * window size.
+   *
+   * Window size is `(1 << value) - 16`.
+   *
+   * Range is from ::BROTLI_MIN_WINDOW_BITS to ::BROTLI_MAX_WINDOW_BITS.
+   */
   BROTLI_PARAM_LGWIN = 2,
-  /* Base 2 logarithm of the maximum input block size. Range is 16 to 24.
-     If set to 0, the value will be set based on the quality. */
+  /**
+   * Recommended input block size.
+   *
+   * Encoder may reduce this value, e.g. if input is much smaller than input
+   * block size.
+   *
+   * Range is from ::BROTLI_MIN_INPUT_BLOCK_BITS to
+   * ::BROTLI_MAX_INPUT_BLOCK_BITS.
+   *
+   * @note Bigger input block size allows better compression, but consumes more
+   *       memory. \n The rough formula of memory used for temporary input
+   *       storage is `3 << lgBlock`.
+   */
   BROTLI_PARAM_LGBLOCK = 3
 } BrotliEncoderParameter;
 
-/* A state can not be reused for multiple brotli streams. */
+/**
+ * Opaque structure that holds encoder state.
+ *
+ * Allocated and initialized with ::BrotliEncoderCreateInstance.
+ * Cleaned up and deallocated with ::BrotliEncoderDestroyInstance.
+ */
 typedef struct BrotliEncoderStateStruct BrotliEncoderState;
 
-/* Sets the specified parameter to the given encoder instance.
-   Returns BROTLI_FALSE if parameter is unrecognized, or value is invalid.
-   Returns BROTLI_FALSE if value of parameter can not be changed at current
-   encoder state (e.g. when encoding is started, window size might be already
-   encoded and therefore it is impossible to change it).
-   Returns BROTLI_TRUE if value is accepted. CAUTION: invalid values might be
-   accepted in case they would not break encoding process. */
+/**
+ * Sets the specified parameter to the given encoder instance.
+ *
+ * @param state encoder instance
+ * @param param parameter to set
+ * @param value new parameter value
+ * @returns ::BROTLI_FALSE if parameter is unrecognized, or value is invalid
+ * @returns ::BROTLI_FALSE if value of parameter can not be changed at current
+ *          encoder state (e.g. when encoding is started, window size might be
+ *          already encoded and therefore it is impossible to change it)
+ * @returns ::BROTLI_TRUE if value is accepted
+ * @warning invalid values might be accepted in case they would not break
+ *          encoding process.
+ */
 BROTLI_ENC_API BROTLI_BOOL BrotliEncoderSetParameter(
-    BrotliEncoderState* state, BrotliEncoderParameter p, uint32_t value);
+    BrotliEncoderState* state, BrotliEncoderParameter param, uint32_t value);
 
-/* Creates the instance of BrotliEncoderState and initializes it.
-   |alloc_func| and |free_func| MUST be both zero or both non-zero. In the case
-   they are both zero, default memory allocators are used. |opaque| is passed to
-   |alloc_func| and |free_func| when they are called. */
+/**
+ * Creates an instance of ::BrotliEncoderState and initializes it.
+ *
+ * @p alloc_func and @p free_func @b MUST be both zero or both non-zero. In the
+ * case they are both zero, default memory allocators are used. @p opaque is
+ * passed to @p alloc_func and @p free_func when they are called.
+ *
+ * @param alloc_func custom memory allocation function
+ * @param free_func custom memory fee function
+ * @param opaque custom memory manager handle
+ * @returns @c 0 if instance can not be allocated or initialized
+ * @returns pointer to initialized ::BrotliEncoderState otherwise
+ */
 BROTLI_ENC_API BrotliEncoderState* BrotliEncoderCreateInstance(
     brotli_alloc_func alloc_func, brotli_free_func free_func, void* opaque);
 
-/* Deinitializes and frees BrotliEncoderState instance. */
+/**
+ * Deinitializes and frees ::BrotliEncoderState instance.
+ *
+ * @param state decoder instance to be cleaned up and deallocated
+ */
 BROTLI_ENC_API void BrotliEncoderDestroyInstance(BrotliEncoderState* state);
 
-/* The maximum input size that can be processed at once. */
+/** @deprecated Calculates maximum input size that can be processed at once. */
 BROTLI_DEPRECATED BROTLI_ENC_API size_t BrotliEncoderInputBlockSize(
     BrotliEncoderState* state);
 
-/* Copies the given input data to the internal ring buffer of the compressor.
-   No processing of the data occurs at this time and this function can be
-   called multiple times before calling WriteBrotliData() to process the
-   accumulated input. At most input_block_size() bytes of input data can be
-   copied to the ring buffer, otherwise the next WriteBrotliData() will fail.
- */
+/** @deprecated Copies the given input data to the internal ring buffer. */
 BROTLI_DEPRECATED BROTLI_ENC_API void BrotliEncoderCopyInputToRingBuffer(
     BrotliEncoderState* state, const size_t input_size,
     const uint8_t* input_buffer);
 
-/* Processes the accumulated input data and sets |*out_size| to the length of
-   the new output meta-block, or to zero if no new output meta-block has been
-   created (in this case the processed input data is buffered internally).
-   If |*out_size| is positive, |*output| points to the start of the output
-   data. If |is_last| or |force_flush| is BROTLI_TRUE, an output meta-block is
-   always created. However, until |is_last| is BROTLI_TRUE encoder may retain up
-   to 7 bits of the last byte of output. To force encoder to dump the remaining
-   bits use WriteMetadata() to append an empty meta-data block.
-   Returns BROTLI_FALSE if the size of the input data is larger than
-   input_block_size(). */
+/** @deprecated Processes the accumulated input. */
 BROTLI_DEPRECATED BROTLI_ENC_API BROTLI_BOOL BrotliEncoderWriteData(
     BrotliEncoderState* state, const BROTLI_BOOL is_last,
     const BROTLI_BOOL force_flush, size_t* out_size, uint8_t** output);
 
-/* Fills the new state with a dictionary for LZ77, warming up the ringbuffer,
-   e.g. for custom static dictionaries for data formats.
-   Not to be confused with the built-in transformable dictionary of Brotli.
-   To decode, use BrotliDecoderSetCustomDictionary() of the decoder with the
-   same dictionary. */
+/**
+ * Prepends imaginary LZ77 dictionary.
+ *
+ * Fills the fresh ::BrotliEncoderState with additional data corpus for LZ77
+ * backward references.
+ *
+ * @note Not to be confused with the static dictionary (see RFC7932 section 8).
+ *
+ * Workflow:
+ *  -# Allocate and initialize state with ::BrotliEncoderCreateInstance
+ *  -# Set ::BROTLI_PARAM_LGWIN parameter
+ *  -# Invoke ::BrotliEncoderSetCustomDictionary
+ *  -# Use ::BrotliEncoderCompressStream
+ *  -# Clean up and free state with ::BrotliEncoderDestroyInstance
+ *
+ * @param state encoder instance
+ * @param size length of @p dict; at most "window size" bytes are used
+ * @param dict "dictionary"; @b MUST use same dictionary during decompression
+ */
 BROTLI_ENC_API void BrotliEncoderSetCustomDictionary(
     BrotliEncoderState* state, size_t size,
     const uint8_t dict[BROTLI_ARRAY_PARAM(size)]);
 
-/* Returns buffer size that is large enough to contain BrotliEncoderCompress
-   output for any input.
-   CAUTION: result is not applicable to BrotliEncoderCompressStream output,
-   because every "flush" adds extra overhead bytes, and some encoder settings
-   (e.g. quality 0 and 1) might imply a "soft flush" after every chunk of input.
-   Returns 0 if result does not fit size_t. */
+/**
+ * Calculates the output size bound for the given @p input_size.
+ *
+ * @warning Result is not applicable to ::BrotliEncoderCompressStream output,
+ *          because every "flush" adds extra overhead bytes, and some encoder
+ *          settings (e.g. quality @c 0 and @c 1) might imply a "soft flush"
+ *          after every chunk of input.
+ *
+ * @param input_size size of projected input
+ * @returns @c 0 if result does not fit @c size_t
+ */
 BROTLI_ENC_API size_t BrotliEncoderMaxCompressedSize(size_t input_size);
 
-/* Compresses the data in |input_buffer| into |encoded_buffer|, and sets
-   |*encoded_size| to the compressed length.
-   BROTLI_DEFAULT_QUALITY, BROTLI_DEFAULT_WINDOW and BROTLI_DEFAULT_MODE should
-   be used as |quality|, |lgwin| and |mode| if there are no specific
-   requirements to encoder speed and compression ratio.
-   If compression fails, |*encoded_size| is set to 0.
-   If BrotliEncoderMaxCompressedSize(|input_size|) is not zero, then
-   |*encoded_size| is never set to the bigger value.
-   Returns BROTLI_FALSE if there was an error and BROTLI_TRUE otherwise. */
+/**
+ * Performs one-shot memory-to-memory compression.
+ *
+ * Compresses the data in @p input_buffer into @p encoded_buffer, and sets
+ * @p *encoded_size to the compressed length.
+ *
+ * @note If ::BrotliEncoderMaxCompressedSize(@p input_size) returns non-zero
+ *       value, then output is guaranteed to be no longer than that.
+ *
+ * @param quality quality parameter value, e.g. ::BROTLI_DEFAULT_QUALITY
+ * @param lgwin lgwin parameter value, e.g. ::BROTLI_DEFAULT_WINDOW
+ * @param mode mode parameter value, e.g. ::BROTLI_DEFAULT_MODE
+ * @param input_size size of @p input_buffer
+ * @param input_buffer input data buffer with at least @p input_size
+ *        addressable bytes
+ * @param[in, out] encoded_size @b in: size of @p encoded_buffer; \n
+ *                 @b out: length of compressed data written to
+ *                 @p encoded_buffer, or @c 0 if compression fails
+ * @param encoded_buffer compressed data destination buffer
+ * @returns ::BROTLI_FALSE in case of compression error
+ * @returns ::BROTLI_FALSE if output buffer is too small
+ * @returns ::BROTLI_TRUE otherwise
+ */
 BROTLI_ENC_API BROTLI_BOOL BrotliEncoderCompress(
     int quality, int lgwin, BrotliEncoderMode mode, size_t input_size,
     const uint8_t input_buffer[BROTLI_ARRAY_PARAM(input_size)],
     size_t* encoded_size,
     uint8_t encoded_buffer[BROTLI_ARRAY_PARAM(*encoded_size)]);
 
-/* Progressively compress input stream and push produced bytes to output stream.
-   Internally workflow consists of 3 tasks:
-    * (optional) copy input data to internal buffer
-    * actually compress data and (optionally) store it to internal buffer
-    * (optional) copy compressed bytes from internal buffer to output stream
-   Whenever all 3 tasks can't move forward anymore, or error occurs, this
-   method returns.
-
-   |available_in| and |next_in| represent input stream; when X bytes of input
-   are consumed, X is subtracted from |available_in| and added to |next_in|.
-   |available_out| and |next_out| represent output stream; when Y bytes are
-   pushed to output, Y is subtracted from |available_out| and added to
-   |next_out|. |total_out|, if it is not a null-pointer, is assigned to the
-   total amount of bytes pushed by the instance of encoder to output.
-
-   |op| is used to perform flush or finish the stream.
-
-   Flushing the stream means forcing encoding of all input passed to encoder and
-   completing the current output block, so it could be fully decoded by stream
-   decoder. To perform flush |op| must be set to BROTLI_OPERATION_FLUSH. Under
-   some circumstances (e.g. lack of output stream capacity) this operation would
-   require several calls to BrotliEncoderCompressStream. The method must be
-   called again until both input stream is depleted and encoder has no more
-   output (see BrotliEncoderHasMoreOutput) after the method is called.
-
-   Finishing the stream means encoding of all input passed to encoder and
-   adding specific "final" marks, so stream decoder could determine that stream
-   is complete. To perform finish |op| must be set to BROTLI_OPERATION_FINISH.
-   Under some circumstances (e.g. lack of output stream capacity) this operation
-   would require several calls to BrotliEncoderCompressStream. The method must
-   be called again until both input stream is depleted and encoder has no more
-   output (see BrotliEncoderHasMoreOutput) after the method is called.
-
-   WARNING: when flushing and finishing, |op| should not change until operation
-   is complete; input stream should not be refilled as well.
-
-   Returns BROTLI_FALSE if there was an error and BROTLI_TRUE otherwise.
-*/
+/**
+ * Compresses input stream to output stream.
+ *
+ * The values @p *available_in and @p *available_out must specify the number of
+ * bytes addressable at @p *next_in and @p *next_out respectively.
+ * When @p *available_out is @c 0, @p next_out is allowed to be @c NULL.
+ *
+ * After each call, @p *available_in will be decremented by the amount of input
+ * bytes consumed, and the @p *next_in pointer will be incremented by that
+ * amount. Similarly, @p *available_out will be decremented by the amount of
+ * output bytes written, and the @p *next_out pointer will be incremented by
+ * that amount.
+ *
+ * @p total_out, if it is not a null-pointer, will be set to the number
+ * of bytes decompressed since the last @p state initialization.
+ *
+ *
+ *
+ * Internally workflow consists of 3 tasks:
+ *  -# (optionally) copy input data to internal buffer
+ *  -# actually compress data and (optionally) store it to internal buffer
+ *  -# (optionally) copy compressed bytes from internal buffer to output stream
+ * Whenever all 3 tasks can't move forward anymore, or error occurs, this
+ * method returns the control flow to caller.
+ *
+ * @p op is used to perform flush, finish the stream, or inject metadata block.
+ * See ::BrotliEncoderOperation for more information.
+ *
+ * Flushing the stream means forcing encoding of all input passed to encoder and
+ * completing the current output block, so it could be fully decoded by stream
+ * decoder. To perform flush set @p op to ::BROTLI_OPERATION_FLUSH.
+ * Under some circumstances (e.g. lack of output stream capacity) this operation
+ * would require several calls to ::BrotliEncoderCompressStream. The method must
+ * be called again until both input stream is depleted and encoder has no more
+ * output (see ::BrotliEncoderHasMoreOutput) after the method is called.
+ *
+ * Finishing the stream means encoding of all input passed to encoder and
+ * adding specific "final" marks, so stream decoder could determine that stream
+ * is complete. To perform finish set @p op to ::BROTLI_OPERATION_FINISH.
+ * Under some circumstances (e.g. lack of output stream capacity) this operation
+ * would require several calls to ::BrotliEncoderCompressStream. The method must
+ * be called again until both input stream is depleted and encoder has no more
+ * output (see ::BrotliEncoderHasMoreOutput) after the method is called.
+ *
+ * @warning When flushing and finishing, @p op should not change until operation
+ *          is complete; input stream should not be swapped, reduced or
+ *          extended as well.
+ *
+ * @param state encoder instance
+ * @param op requested operation
+ * @param[in, out] available_in @b in: amount of available input; \n
+ *                 @b out: amount of unused input
+ * @param[in, out] next_in pointer to the next input byte
+ * @param[in, out] available_out @b in: length of output buffer; \n
+ *                 @b out: remaining size of output buffer
+ * @param[in, out] next_out compressed output buffer cursor;
+ *                 can be @c NULL if @p available_out is @c 0
+ * @param[out] total_out number of bytes produced so far; can be @c NULL
+ * @returns ::BROTLI_FALSE if there was an error
+ * @returns ::BROTLI_TRUE otherwise
+ */
 BROTLI_ENC_API BROTLI_BOOL BrotliEncoderCompressStream(
-    BrotliEncoderState* s, BrotliEncoderOperation op, size_t* available_in,
+    BrotliEncoderState* state, BrotliEncoderOperation op, size_t* available_in,
     const uint8_t** next_in, size_t* available_out, uint8_t** next_out,
     size_t* total_out);
 
-/* Check if encoder is in "finished" state, i.e. no more input is acceptable and
-   no more output will be produced.
-   Works only with BrotliEncoderCompressStream workflow.
-   Returns BROTLI_TRUE if stream is finished and BROTLI_FALSE otherwise. */
-BROTLI_ENC_API BROTLI_BOOL BrotliEncoderIsFinished(BrotliEncoderState* s);
+/**
+ * Checks if encoder instance reached the final state.
+ *
+ * @param state encoder instance
+ * @returns ::BROTLI_TRUE if encoder is in a state where it reached the end of
+ *          the input and produced all of the output
+ * @returns ::BROTLI_FALSE otherwise
+ */
+BROTLI_ENC_API BROTLI_BOOL BrotliEncoderIsFinished(BrotliEncoderState* state);
 
-/* Check if encoder has more output bytes in internal buffer.
-   Works only with BrotliEncoderCompressStream workflow.
-   Returns BROTLI_TRUE if has more output (in internal buffer) and BROTLI_FALSE
-   otherwise. */
-BROTLI_ENC_API BROTLI_BOOL BrotliEncoderHasMoreOutput(BrotliEncoderState* s);
+/**
+ * Checks if encoder has more output.
+ *
+ * @param state encoder instance
+ * @returns ::BROTLI_TRUE, if encoder has some unconsumed output
+ * @returns ::BROTLI_FALSE otherwise
+ */
+BROTLI_ENC_API BROTLI_BOOL BrotliEncoderHasMoreOutput(
+    BrotliEncoderState* state);
 
-/* Returns pointer to internal output buffer.
-   Set |size| to zero, to request all the continous output produced by encoder
-   so far. Otherwise no more than |size| bytes output will be provided.
-   After return |size| contains the size of output buffer region available for
-   reading. |size| bytes of output are considered consumed for all consecutive
-   calls to the instance methods; returned pointer becomes invalidated as well.
-
-   This method is created to make language bindings easier and more efficient:
-     1. push input data to CompressStream, until HasMoreOutput becomes true
-     2. use TakeOutput to peek bytes and copy to language-specific entity
-   Also this could be useful if there is an output stream that is able to
-   consume all the provided data (e.g. when data is saved to file system).
+/**
+ * Acquires pointer to internal output buffer.
+ *
+ * This method is used to make language bindings easier and more efficient:
+ *  -# push data to ::BrotliEncoderCompressStream,
+ *     until ::BrotliEncoderHasMoreOutput returns BROTL_TRUE
+ *  -# use ::BrotliEncoderTakeOutput to peek bytes and copy to language-specific
+ *     entity
+ *
+ * Also this could be useful if there is an output stream that is able to
+ * consume all the provided data (e.g. when data is saved to file system).
+ *
+ * @attention After every call to ::BrotliEncoderTakeOutput @p *size bytes of
+ *            output are considered consumed for all consecutive calls to the
+ *            instance methods; returned pointer becomes invalidated as well.
+ *
+ * @note Encoder output is not guaranteed to be contiguous. This means that
+ *       after the size-unrestricted call to ::BrotliEncoderTakeOutput,
+ *       immediate next call to ::BrotliEncoderTakeOutput may return more data.
+ *
+ * @param state encoder instance
+ * @param[in, out] size @b in: number of bytes caller is ready to take, @c 0 if
+ *                 any amount could be handled; \n
+ *                 @b out: amount of data pointed by returned pointer and
+ *                 considered consumed; \n
+ *                 out value is never greater than in value, unless it is @c 0
+ * @returns pointer to output data
  */
 BROTLI_ENC_API const uint8_t* BrotliEncoderTakeOutput(
-    BrotliEncoderState* s, size_t* size);
+    BrotliEncoderState* state, size_t* size);
 
 
-/* Encoder version. Look at BROTLI_VERSION for more information. */
+/**
+ * Gets an encoder library version.
+ *
+ * Look at BROTLI_VERSION for more information.
+ */
 BROTLI_ENC_API uint32_t BrotliEncoderVersion(void);
 
 #if defined(__cplusplus) || defined(c_plusplus)

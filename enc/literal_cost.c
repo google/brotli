@@ -57,8 +57,8 @@ static size_t DecideMultiByteStatsLevel(size_t pos, size_t len, size_t mask,
 
 static void EstimateBitCostsForLiteralsUTF8(size_t pos, size_t len, size_t mask,
                                             const uint8_t *data, float *cost) {
-  /* max_utf8 is 0 (normal ascii single byte modeling),
-     1 (for 2-byte utf-8 modeling), or 2 (for 3-byte utf-8 modeling). */
+  /* max_utf8 is 0 (normal ASCII single byte modeling),
+     1 (for 2-byte UTF-8 modeling), or 2 (for 3-byte UTF-8 modeling). */
   const size_t max_utf8 = DecideMultiByteStatsLevel(pos, len, mask, data);
   size_t histogram[3][256] = { { 0 } };
   size_t window_half = 495;

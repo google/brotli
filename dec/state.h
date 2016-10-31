@@ -160,7 +160,7 @@ struct BrotliDecoderStateStruct {
   int distance_code;
 
   /* For partial write operations */
-  size_t rb_roundtrips;  /* How many times we went around the ringbuffer */
+  size_t rb_roundtrips;  /* How many times we went around the ring-buffer */
   size_t partial_pos_out;  /* How much output to the user in total */
 
   /* For ReadHuffmanCode */

@@ -30,7 +30,7 @@ static BROTLI_INLINE void InitHuffmanTree(HuffmanTree* self, uint32_t count,
   self->index_right_or_value_ = right;
 }
 
-/* Returns 1 is assignment of depths succeded, otherwise 0. */
+/* Returns 1 is assignment of depths succeeded, otherwise 0. */
 BROTLI_INTERNAL BROTLI_BOOL BrotliSetDepth(
     int p, HuffmanTree* pool, uint8_t* depth, int max_depth);
 
@@ -53,7 +53,7 @@ BROTLI_INTERNAL void BrotliCreateHuffmanTree(const uint32_t *data,
                                              uint8_t *depth);
 
 /* Change the population counts in a way that the consequent
-   Huffman tree compression, especially its rle-part will be more
+   Huffman tree compression, especially its RLE-part will be more
    likely to compress this data more efficiently.
 
    length contains the size of the histogram.
@@ -62,7 +62,7 @@ BROTLI_INTERNAL void BrotliCreateHuffmanTree(const uint32_t *data,
 BROTLI_INTERNAL void BrotliOptimizeHuffmanCountsForRle(
     size_t length, uint32_t* counts, uint8_t* good_for_rle);
 
-/* Write a Huffman tree from bit depths into the bitstream representation
+/* Write a Huffman tree from bit depths into the bit-stream representation
    of a Huffman tree. The generated Huffman tree is to be compressed once
    more using a Huffman tree */
 BROTLI_INTERNAL void BrotliWriteHuffmanTree(const uint8_t* depth,

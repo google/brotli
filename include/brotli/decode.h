@@ -4,7 +4,10 @@
    See file LICENSE for detail or copy at https://opensource.org/licenses/MIT
 */
 
-/* API for Brotli decompression */
+/**
+ * @file
+ * API for Brotli decompression.
+ */
 
 #ifndef BROTLI_DEC_DECODE_H_
 #define BROTLI_DEC_DECODE_H_
@@ -16,19 +19,47 @@
 extern "C" {
 #endif
 
+/**
+ * Opaque structure that holds decoder state.
+ *
+ * Allocated and initialized with ::BrotliDecoderCreateInstance.
+ * Cleaned up and deallocated with ::BrotliDecoderDestroyInstance.
+ */
 typedef struct BrotliDecoderStateStruct BrotliDecoderState;
 
+/**
+ * Result type for ::BrotliDecoderDecompress and
+ * ::BrotliDecoderDecompressStream functions.
+ */
 typedef enum {
-  /* Decoding error, e.g. corrupt input or memory allocation problem */
+  /** Decoding error, e.g. corrupted input or memory allocation problem. */
   BROTLI_DECODER_RESULT_ERROR = 0,
-  /* Decoding successfully completed */
+  /** Decoding successfully completed */
   BROTLI_DECODER_RESULT_SUCCESS = 1,
-  /* Partially done; should be called again with more input */
+  /** Partially done; should be called again with more input */
   BROTLI_DECODER_RESULT_NEEDS_MORE_INPUT = 2,
-  /* Partially done; should be called again with more output */
+  /** Partially done; should be called again with more output */
   BROTLI_DECODER_RESULT_NEEDS_MORE_OUTPUT = 3
 } BrotliDecoderResult;
 
+/**
+ * Template that evaluates items of ::BrotliDecoderErrorCode.
+ *
+ * Example: @code {.cpp}
+ * // Log Brotli error code.
+ * switch (brotliDecoderErrorCode) {
+ * #define CASE_(PREFIX, NAME, CODE) \
+ *   case BROTLI_DECODER ## PREFIX ## NAME: \
+ *     LOG(INFO) << "error code:" << #NAME; \
+ *     break;
+ * #define NEWLINE_
+ * BROTLI_DECODER_ERROR_CODES_LIST(CASE_, NEWLINE_)
+ * #undef CASE_
+ * #undef NEWLINE_
+ *   default: LOG(FATAL) << "unknown brotli error code";
+ * }
+ * @endcode
+ */
 #define BROTLI_DECODER_ERROR_CODES_LIST(BROTLI_ERROR_CODE, SEPARATOR)      \
   BROTLI_ERROR_CODE(_, NO_ERROR, 0) SEPARATOR                              \
   /* Same as BrotliDecoderResult values */                                 \
@@ -65,112 +96,235 @@ typedef enum {
   BROTLI_ERROR_CODE(_ERROR_ALLOC_, CONTEXT_MAP, -25) SEPARATOR             \
   BROTLI_ERROR_CODE(_ERROR_ALLOC_, RING_BUFFER_1, -26) SEPARATOR           \
   BROTLI_ERROR_CODE(_ERROR_ALLOC_, RING_BUFFER_2, -27) SEPARATOR           \
-  /* -28..-29 codes are reserved for dynamic ringbuffer allocation */      \
+  /* -28..-29 codes are reserved for dynamic ring-buffer allocation */     \
   BROTLI_ERROR_CODE(_ERROR_ALLOC_, BLOCK_TYPE_TREES, -30) SEPARATOR        \
                                                                            \
   /* "Impossible" states */                                                \
   BROTLI_ERROR_CODE(_ERROR_, UNREACHABLE, -31)
 
+/**
+ * Error code for detailed logging / production debugging.
+ *
+ * See ::BrotliDecoderGetErrorCode and ::BROTLI_LAST_ERROR_CODE.
+ */
 typedef enum {
 #define BROTLI_COMMA_ ,
 #define BROTLI_ERROR_CODE_ENUM_ITEM_(PREFIX, NAME, CODE) \
     BROTLI_DECODER ## PREFIX ## NAME = CODE
   BROTLI_DECODER_ERROR_CODES_LIST(BROTLI_ERROR_CODE_ENUM_ITEM_, BROTLI_COMMA_)
+} BrotliDecoderErrorCode;
 #undef BROTLI_ERROR_CODE_ENUM_ITEM_
 #undef BROTLI_COMMA_
-} BrotliDecoderErrorCode;
 
+/**
+ * The value of the last error code, negative integer.
+ *
+ * All other error code values are in the range from ::BROTLI_LAST_ERROR_CODE
+ * to @c -1. There are also 4 other possible non-error codes @c 0 .. @c 3 in
+ * ::BrotliDecoderErrorCode enumeration.
+ */
 #define BROTLI_LAST_ERROR_CODE BROTLI_DECODER_ERROR_UNREACHABLE
 
-/* Creates the instance of BrotliDecoderState and initializes it. |alloc_func|
-   and |free_func| MUST be both zero or both non-zero. In the case they are both
-   zero, default memory allocators are used. |opaque| is passed to |alloc_func|
-   and |free_func| when they are called. */
+/**
+ * Creates an instance of ::BrotliDecoderState and initializes it.
+ *
+ * @p alloc_func and @p free_func @b MUST be both zero or both non-zero. In the
+ * case they are both zero, default memory allocators are used. @p opaque is
+ * passed to @p alloc_func and @p free_func when they are called.
+ *
+ * @param alloc_func custom memory allocation function
+ * @param free_func custom memory fee function
+ * @param opaque custom memory manager handle
+ * @returns @c 0 if instance can not be allocated or initialized
+ * @returns pointer to initialized ::BrotliDecoderState otherwise
+ */
 BROTLI_DEC_API BrotliDecoderState* BrotliDecoderCreateInstance(
     brotli_alloc_func alloc_func, brotli_free_func free_func, void* opaque);
 
-/* Deinitializes and frees BrotliDecoderState instance. */
+/**
+ * Deinitializes and frees ::BrotliDecoderState instance.
+ *
+ * @param state decoder instance to be cleaned up and deallocated
+ */
 BROTLI_DEC_API void BrotliDecoderDestroyInstance(BrotliDecoderState* state);
 
-/* Decompresses the data in |encoded_buffer| into |decoded_buffer|, and sets
-   |*decoded_size| to the decompressed length. */
+/**
+ * Performs one-shot memory-to-memory decompression.
+ *
+ * Decompresses the data in @p encoded_buffer into @p decoded_buffer, and sets
+ * @p *decoded_size to the decompressed length.
+ *
+ * @param encoded_size size of @p encoded_buffer
+ * @param encoded_buffer compressed data buffer with at least @p encoded_size
+ *        addressable bytes
+ * @param[in, out] decoded_size @b in: size of @p decoded_buffer; \n
+ *                 @b out: length of decompressed data written to
+ *                 @p decoded_buffer
+ * @param decoded_buffer decompressed data destination buffer
+ * @returns ::BROTLI_DECODER_RESULT_ERROR if input is corrupted, memory
+ *          allocation failed, or @p decoded_buffer is not large enough;
+ * @returns ::BROTLI_DECODER_RESULT_SUCCESS otherwise
+ */
 BROTLI_DEC_API BrotliDecoderResult BrotliDecoderDecompress(
     size_t encoded_size,
     const uint8_t encoded_buffer[BROTLI_ARRAY_PARAM(encoded_size)],
     size_t* decoded_size,
     uint8_t decoded_buffer[BROTLI_ARRAY_PARAM(*decoded_size)]);
 
-/* Decompresses the data. Supports partial input and output.
-
-   Must be called with an allocated input buffer in |*next_in| and an allocated
-   output buffer in |*next_out|. The values |*available_in| and |*available_out|
-   must specify the allocated size in |*next_in| and |*next_out| respectively;
-   when |*available_out| is 0, |next_out| is allowed to be NULL.
-
-   After each call, |*available_in| will be decremented by the amount of input
-   bytes consumed, and the |*next_in| pointer will be incremented by that
-   amount. Similarly, |*available_out| will be decremented by the amount of
-   output bytes written, and the |*next_out| pointer will be incremented by that
-   amount. |total_out|, if it is not a null-pointer, will be set to the number
-   of bytes decompressed since the last state initialization.
-
-   Input is never overconsumed, so |next_in| and |available_in| could be passed
-   to the next consumer after decoding is complete. */
+/**
+ * Decompresses the input stream to the output stream.
+ *
+ * The values @p *available_in and @p *available_out must specify the number of
+ * bytes addressable at @p *next_in and @p *next_out respectively.
+ * When @p *available_out is @c 0, @p next_out is allowed to be @c NULL.
+ *
+ * After each call, @p *available_in will be decremented by the amount of input
+ * bytes consumed, and the @p *next_in pointer will be incremented by that
+ * amount. Similarly, @p *available_out will be decremented by the amount of
+ * output bytes written, and the @p *next_out pointer will be incremented by
+ * that amount.
+ *
+ * @p total_out, if it is not a null-pointer, will be set to the number
+ * of bytes decompressed since the last @p state initialization.
+ *
+ * @note Input is never overconsumed, so @p next_in and @p available_in could be
+ * passed to the next consumer after decoding is complete.
+ *
+ * @param state decoder instance
+ * @param[in, out] available_in @b in: amount of available input; \n
+ *                 @b out: amount of unused input
+ * @param[in, out] next_in pointer to the next compressed byte
+ * @param[in, out] available_out @b in: length of output buffer; \n
+ *                 @b out: remaining size of output buffer
+ * @param[in, out] next_out output buffer cursor;
+ *                 can be @c NULL if @p available_out is @c 0
+ * @param[out] total_out number of bytes decompressed so far; can be @c NULL
+ * @returns ::BROTLI_DECODER_RESULT_ERROR if input is corrupted, memory
+ *          allocation failed, arguments were invalid, etc.;
+ *          use ::BrotliDecoderGetErrorCode to get detailed error code
+ * @returns ::BROTLI_DECODER_RESULT_NEEDS_MORE_INPUT decoding is blocked until
+ *          more output space is provided
+ * @returns ::BROTLI_DECODER_RESULT_NEEDS_MORE_OUTPUT decoding is blocked until
+ *          more input data is provided
+ * @returns ::BROTLI_DECODER_RESULT_SUCCESS decoding is finished, no more
+ *          input might be consumed and no more output will be produced
+ */
 BROTLI_DEC_API BrotliDecoderResult BrotliDecoderDecompressStream(
-  BrotliDecoderState* s, size_t* available_in, const uint8_t** next_in,
+  BrotliDecoderState* state, size_t* available_in, const uint8_t** next_in,
   size_t* available_out, uint8_t** next_out, size_t* total_out);
 
-/* Fills the new state with a dictionary for LZ77, warming up the ringbuffer,
-   e.g. for custom static dictionaries for data formats.
-   Not to be confused with the built-in transformable dictionary of Brotli.
-   |size| should be less or equal to 2^24 (16MiB), otherwise the dictionary will
-   be ignored. The dictionary must exist in memory until decoding is done and
-   is owned by the caller. To use:
-    1) Allocate and initialize state with BrotliCreateInstance
-    2) Use BrotliDecoderSetCustomDictionary
-    3) Use BrotliDecoderDecompressStream
-    4) Clean up and free state with BrotliDestroyState
-*/
+/**
+ * Prepends LZ77 dictionary.
+ *
+ * Fills the fresh ::BrotliDecoderState with additional data corpus for LZ77
+ * backward references.
+ *
+ * @note Not to be confused with the static dictionary (see RFC7932 section 8).
+ * @warning The dictionary must exist in memory until decoding is done and
+ *          is owned by the caller.
+ *
+ * Workflow:
+ *  -# Allocate and initialize state with ::BrotliDecoderCreateInstance
+ *  -# Invoke ::BrotliDecoderSetCustomDictionary
+ *  -# Use ::BrotliDecoderDecompressStream
+ *  -# Clean up and free state with ::BrotliDecoderDestroyInstance
+ *
+ * @param state decoder instance
+ * @param size length of @p dict; should be less or equal to 2^24 (16MiB),
+ *        otherwise the dictionary will be ignored
+ * @param dict "dictionary"; @b MUST be the same as used during compression
+ */
 BROTLI_DEC_API void BrotliDecoderSetCustomDictionary(
-    BrotliDecoderState* s, size_t size,
+    BrotliDecoderState* state, size_t size,
     const uint8_t dict[BROTLI_ARRAY_PARAM(size)]);
 
-/* Returns BROTLI_TRUE, if decoder has some unconsumed output.
-   Otherwise returns BROTLI_FALSE. */
+/**
+ * Checks if decoder has more output.
+ *
+ * @param state decoder instance
+ * @returns ::BROTLI_TRUE, if decoder has some unconsumed output
+ * @returns ::BROTLI_FALSE otherwise
+ */
 BROTLI_DEC_API BROTLI_BOOL BrotliDecoderHasMoreOutput(
-    const BrotliDecoderState* s);
+    const BrotliDecoderState* state);
 
-/* Returns pointer to internal output buffer.
-   Set |size| to zero, to request all the continous output produced by decoder
-   so far. Otherwise no more than |size| bytes output will be provided.
-   After return |size| contains the size of output buffer region available for
-   reading. |size| bytes of output are considered consumed for all consecutive
-   calls to the instance methods; returned pointer becomes invalidated as well.
-
-   This method is created to make language bindings easier and more efficient:
-     1. push data to DecompressStream, until "needs more output" is reported
-     2. use TakeOutput to peek bytes and copy to language-specific entity
-   Also this could be useful if there is an output stream that is able to
-   consume all the provided data (e.g. when data is saved to file system).
+/**
+ * Acquires pointer to internal output buffer.
+ *
+ * This method is used to make language bindings easier and more efficient:
+ *  -# push data to ::BrotliDecoderDecompressStream,
+ *     until ::BROTLI_DECODER_RESULT_NEEDS_MORE_OUTPUT is reported
+ *  -# use ::BrotliDecoderTakeOutput to peek bytes and copy to language-specific
+ *     entity
+ *
+ * Also this could be useful if there is an output stream that is able to
+ * consume all the provided data (e.g. when data is saved to file system).
+ *
+ * @attention After every call to ::BrotliDecoderTakeOutput @p *size bytes of
+ *            output are considered consumed for all consecutive calls to the
+ *            instance methods; returned pointer becomes invalidated as well.
+ *
+ * @note Decoder output is not guaranteed to be contiguous. This means that
+ *       after the size-unrestricted call to ::BrotliDecoderTakeOutput,
+ *       immediate next call to ::BrotliDecoderTakeOutput may return more data.
+ *
+ * @param state decoder instance
+ * @param[in, out] size @b in: number of bytes caller is ready to take, @c 0 if
+ *                 any amount could be handled; \n
+ *                 @b out: amount of data pointed by returned pointer and
+ *                 considered consumed; \n
+ *                 out value is never greater than in value, unless it is @c 0
+ * @returns pointer to output data
  */
 BROTLI_DEC_API const uint8_t* BrotliDecoderTakeOutput(
-    BrotliDecoderState* s, size_t* size);
+    BrotliDecoderState* state, size_t* size);
 
-/* Returns BROTLI_TRUE, if decoder has already received some input bytes.
-   Otherwise returns BROTLI_FALSE. */
-BROTLI_DEC_API BROTLI_BOOL BrotliDecoderIsUsed(const BrotliDecoderState* s);
+/**
+ * Checks if instance has already consumed input.
+ *
+ * Instance that returns ::BROTLI_FALSE is considered "fresh" and could be
+ * reused.
+ *
+ * @param state decoder instance
+ * @returns ::BROTLI_TRUE if decoder has already used some input bytes
+ * @returns ::BROTLI_FALSE otherwise
+ */
+BROTLI_DEC_API BROTLI_BOOL BrotliDecoderIsUsed(const BrotliDecoderState* state);
 
-/* Returns BROTLI_TRUE, if decoder is in a state where we reached the end of the
-   input and produced all of the output; returns BROTLI_FALSE otherwise. */
-BROTLI_BOOL BrotliDecoderIsFinished(const BrotliDecoderState* s);
+/**
+ * Checks if decoder instance reached the final state.
+ *
+ * @param state decoder instance
+ * @returns ::BROTLI_TRUE if decoder is in a state where it reached the end of
+ *          the input and produced all of the output
+ * @returns ::BROTLI_FALSE otherwise
+ */
+BROTLI_BOOL BrotliDecoderIsFinished(const BrotliDecoderState* state);
 
-/* Returns detailed error code after BrotliDecoderDecompressStream returns
-   BROTLI_DECODER_RESULT_ERROR. */
-BrotliDecoderErrorCode BrotliDecoderGetErrorCode(const BrotliDecoderState* s);
+/**
+ * Acquires a detailed error code.
+ *
+ * Should be used only after ::BrotliDecoderDecompressStream returns
+ * ::BROTLI_DECODER_RESULT_ERROR.
+ *
+ * See also ::BrotliDecoderErrorString
+ *
+ * @param state decoder instance
+ * @returns last saved error code
+ */
+BrotliDecoderErrorCode BrotliDecoderGetErrorCode(
+    const BrotliDecoderState* state);
 
+/**
+ * Converts error code to a c-string.
+ */
 BROTLI_DEC_API const char* BrotliDecoderErrorString(BrotliDecoderErrorCode c);
 
-/* Decoder version. Look at BROTLI_VERSION for more information. */
+/**
+ * Gets a decoder library version.
+ *
+ * Look at BROTLI_VERSION for more information.
+ */
 BROTLI_DEC_API uint32_t BrotliDecoderVersion(void);
 
 #if defined(__cplusplus) || defined(c_plusplus)

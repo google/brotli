@@ -45,7 +45,7 @@ typedef enum BrotliEncoderStreamState {
   BROTLI_STREAM_FLUSH_REQUESTED = 1,
   /* Last metablock was produced; no more input is acceptable. */
   BROTLI_STREAM_FINISHED = 2,
-  /* Flushing compressed block and writing metada block header. */
+  /* Flushing compressed block and writing meta-data block header. */
   BROTLI_STREAM_METADATA_HEAD = 3,
   /* Writing metadata block body. */
   BROTLI_STREAM_METADATA_BODY = 4
@@ -133,7 +133,7 @@ BROTLI_BOOL BrotliEncoderSetParameter(
     BrotliEncoderState* state, BrotliEncoderParameter p, uint32_t value) {
   /* Changing parameters on the fly is not implemented yet. */
   if (state->is_initialized_) return BROTLI_FALSE;
-  /* TODO: Validate/clamp params here. */
+  /* TODO: Validate/clamp parameters here. */
   switch (p) {
     case BROTLI_PARAM_MODE:
       state->params.mode = (BrotliEncoderMode)value;
@@ -175,13 +175,13 @@ static void RecomputeDistancePrefixes(Command* cmds,
   }
 }
 
-/* Wraps 64-bit input position to 32-bit ringbuffer position preserving
+/* Wraps 64-bit input position to 32-bit ring-buffer position preserving
    "not-a-first-lap" feature. */
 static uint32_t WrapPosition(uint64_t position) {
   uint32_t result = (uint32_t)position;
   uint64_t gb = position >> 30;
   if (gb > 2) {
-    /* Wrap every 2GiB; The first 3GB are continous. */
+    /* Wrap every 2GiB; The first 3GB are continuous. */
     result = (result & ((1u << 30) - 1)) | ((uint32_t)((gb - 1) & 1) + 1) << 30;
   }
   return result;
@@ -306,8 +306,8 @@ static void InitCommandPrefixCodes(uint8_t cmd_depths[128],
 
 /* Decide about the context map based on the ability of the prediction
    ability of the previous byte UTF8-prefix on the next byte. The
-   prediction ability is calculated as shannon entropy. Here we need
-   shannon entropy instead of 'BitsEntropy' since the prefix will be
+   prediction ability is calculated as Shannon entropy. Here we need
+   Shannon entropy instead of 'BitsEntropy' since the prefix will be
    encoded with the remaining 6 bits of the following byte, and
    BitsEntropy will assume that symbol to be stored alone using Huffman
    coding. */
@@ -382,7 +382,7 @@ static void DecideOverLiteralContextModeling(const uint8_t* input,
   if (quality < MIN_QUALITY_FOR_CONTEXT_MODELING || length < 64) {
     return;
   } else {
-    /* Gather bigram data of the UTF8 byte prefixes. To make the analysis of
+    /* Gather bi-gram data of the UTF8 byte prefixes. To make the analysis of
        UTF8 data faster we only examine 64 byte long strides at every 4kB
        intervals. */
     const size_t end_pos = start_pos + length;
@@ -687,6 +687,13 @@ void BrotliEncoderDestroyInstance(BrotliEncoderState* state) {
   }
 }
 
+/*
+   Copies the given input data to the internal ring buffer of the compressor.
+   No processing of the data occurs at this time and this function can be
+   called multiple times before calling WriteBrotliData() to process the
+   accumulated input. At most input_block_size() bytes of input data can be
+   copied to the ring buffer, otherwise the next WriteBrotliData() will fail.
+ */
 static void CopyInputToRingBuffer(BrotliEncoderState* s,
                                   const size_t input_size,
                                   const uint8_t* input_buffer) {
@@ -714,8 +721,8 @@ static void CopyInputToRingBuffer(BrotliEncoderState* s,
      reading new bytes from the input. However, at the last few indexes of
      the ring buffer, there are not enough bytes to build full-length
      substrings from. Since the hash table always contains full-length
-     substrings, we erase with dummy 0s here to make sure that those
-     substrings will contain 0s at the end instead of uninitialized
+     substrings, we erase with dummy zeros here to make sure that those
+     substrings will contain zeros at the end instead of uninitialized
      data.
 
      Please note that erasing is not necessary (because the
@@ -724,21 +731,21 @@ static void CopyInputToRingBuffer(BrotliEncoderState* s,
      skip erasing if we have already gone around at least once in
      the ring buffer.
 
-     Only clear during the first round of ringbuffer writes. On
-     subsequent rounds data in the ringbuffer would be affected. */
+     Only clear during the first round of ring-buffer writes. On
+     subsequent rounds data in the ring-buffer would be affected. */
   if (ringbuffer_->pos_ <= ringbuffer_->mask_) {
     /* This is the first time when the ring buffer is being written.
        We clear 7 bytes just after the bytes that have been copied from
        the input buffer.
 
-       The ringbuffer has a "tail" that holds a copy of the beginning,
+       The ring-buffer has a "tail" that holds a copy of the beginning,
        but only once the ring buffer has been fully written once, i.e.,
        pos <= mask. For the first time, we need to write values
        in this tail (where index may be larger than mask), so that
-       we have exactly defined behavior and don't read un-initialized
+       we have exactly defined behavior and don't read uninitialized
        memory. Due to performance reasons, hashing reads data using a
        LOAD64, which can go 7 bytes beyond the bytes written in the
-       ringbuffer. */
+       ring-buffer. */
     memset(ringbuffer_->buffer_ + ringbuffer_->pos_, 0, 7);
   }
 }
@@ -782,6 +789,18 @@ static BROTLI_BOOL UpdateLastProcessedPos(BrotliEncoderState* s) {
   return TO_BROTLI_BOOL(wrapped_input_pos < wrapped_last_processed_pos);
 }
 
+/*
+   Processes the accumulated input data and sets |*out_size| to the length of
+   the new output meta-block, or to zero if no new output meta-block has been
+   created (in this case the processed input data is buffered internally).
+   If |*out_size| is positive, |*output| points to the start of the output
+   data. If |is_last| or |force_flush| is BROTLI_TRUE, an output meta-block is
+   always created. However, until |is_last| is BROTLI_TRUE encoder may retain up
+   to 7 bits of the last byte of output. To force encoder to dump the remaining
+   bits use WriteMetadata() to append an empty meta-data block.
+   Returns BROTLI_FALSE if the size of the input data is larger than
+   input_block_size().
+ */
 static BROTLI_BOOL EncodeData(
     BrotliEncoderState* s, const BROTLI_BOOL is_last,
     const BROTLI_BOOL force_flush, size_t* out_size, uint8_t** output) {
@@ -863,7 +882,7 @@ static BROTLI_BOOL EncodeData(
     if (newsize > s->cmd_alloc_size_) {
       Command* new_commands;
       /* Reserve a bit more memory to allow merging with a next block
-         without realloc: that would impact speed. */
+         without reallocation: that would impact speed. */
       newsize += (bytes / 4) + 16;
       s->cmd_alloc_size_ = newsize;
       new_commands = BROTLI_ALLOC(m, Command, newsize);
@@ -1076,7 +1095,7 @@ static BROTLI_BOOL BrotliCompressBufferQuality10(
          will be likely big enough for the whole metablock, so that for most
          inputs we will not have to reallocate in later iterations. We do the
          allocation here and not before the loop, because if the input is small,
-         this will be allocated after the zopfli cost model is freed, so this
+         this will be allocated after the Zopfli cost model is freed, so this
          will not increase peak memory usage.
          TODO: If the first allocation is too small, increase command
          buffer size exponentially. */
@@ -1276,7 +1295,7 @@ BROTLI_BOOL BrotliEncoderCompress(
   }
   if (quality == 10) {
     /* TODO: Implement this direct path for all quality levels. */
-    const int lg_win = BROTLI_MIN(int, kBrotliMaxWindowBits,
+    const int lg_win = BROTLI_MIN(int, BROTLI_MAX_WINDOW_BITS,
                                        BROTLI_MAX(int, 16, lgwin));
     int ok = BrotliCompressBufferQuality10(lg_win, input_size, input_buffer,
                                            encoded_size, encoded_buffer);
@@ -1326,7 +1345,7 @@ static void InjectBytePaddingBlock(BrotliEncoderState* s) {
   uint8_t* destination;
   s->last_byte_ = 0;
   s->last_byte_bits_ = 0;
-  /* is_last = 0, data_nibbles = 11, reseved = 0, meta_nibbles = 00 */
+  /* is_last = 0, data_nibbles = 11, reserved = 0, meta_nibbles = 00 */
   seal |= 0x6u << seal_bits;
   seal_bits += 6;
   /* If we have already created storage, then append to it.
@@ -1605,7 +1624,7 @@ BROTLI_BOOL BrotliEncoderCompressStream(
       continue;
     }
 
-    /* Compress data only when internal outpuf buffer is empty, stream is not
+    /* Compress data only when internal output buffer is empty, stream is not
        finished and there is no pending flush request. */
     if (s->available_out_ == 0 &&
         s->stream_state_ == BROTLI_STREAM_PROCESSING) {

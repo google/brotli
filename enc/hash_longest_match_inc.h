@@ -24,7 +24,7 @@
    and the older are forgotten. */
 #define BLOCK_SIZE (1u << BLOCK_BITS)
 
-/* Mask for accessing entries in a block (in a ringbuffer manner). */
+/* Mask for accessing entries in a block (in a ring-buffer manner). */
 #define BLOCK_MASK ((1 << BLOCK_BITS) - 1)
 
 #define HASH_MAP_SIZE (2 << BUCKET_BITS)
@@ -83,7 +83,7 @@ static void FN(Init)(
     MemoryManager* m, HashLongestMatch* self, const uint8_t* data,
     const BrotliEncoderParams* params, size_t position, size_t bytes,
     BROTLI_BOOL is_last) {
-  /* Choose which init method is faster.
+  /* Choose which initialization method is faster.
      Init() is about 100 times faster than InitForData(). */
   const size_t kMaxBytesForPartialHashInit = HASH_MAP_SIZE >> 7;
   BROTLI_UNUSED(m);

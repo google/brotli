@@ -246,7 +246,7 @@ void BrotliOptimizeHuffmanCountsForRle(size_t length, uint32_t* counts,
   size_t limit;
   size_t sum;
   const size_t streak_limit = 1240;
-  /* Let's make the Huffman code more compatible with rle encoding. */
+  /* Let's make the Huffman code more compatible with RLE encoding. */
   size_t i;
   for (i = 0; i < length; i++) {
     if (counts[i]) {
@@ -293,10 +293,10 @@ void BrotliOptimizeHuffmanCountsForRle(size_t length, uint32_t* counts,
     }
   }
   /* 2) Let's mark all population counts that already can be encoded
-     with an rle code. */
+     with an RLE code. */
   memset(good_for_rle, 0, length);
   {
-    /* Let's not spoil any of the existing good rle codes.
+    /* Let's not spoil any of the existing good RLE codes.
        Mark any seq of 0's that is longer as 5 as a good_for_rle.
        Mark any seq of non-0's that is longer as 7 as a good_for_rle. */
     uint32_t symbol = counts[0];
@@ -319,7 +319,7 @@ void BrotliOptimizeHuffmanCountsForRle(size_t length, uint32_t* counts,
       }
     }
   }
-  /* 3) Let's replace those population counts that lead to more rle codes.
+  /* 3) Let's replace those population counts that lead to more RLE codes.
      Math here is in 24.8 fixed point representation. */
   stride = 0;
   limit = 256 * (counts[0] + counts[1] + counts[2]) / 3 + 420;
@@ -420,15 +420,15 @@ void BrotliWriteHuffmanTree(const uint8_t* depth,
     }
   }
 
-  /* First gather statistics on if it is a good idea to do rle. */
+  /* First gather statistics on if it is a good idea to do RLE. */
   if (length > 50) {
-    /* Find rle coding for longer codes.
-       Shorter codes seem not to benefit from rle. */
+    /* Find RLE coding for longer codes.
+       Shorter codes seem not to benefit from RLE. */
     DecideOverRleUse(depth, new_length,
                      &use_rle_for_non_zero, &use_rle_for_zero);
   }
 
-  /* Actual rle coding. */
+  /* Actual RLE coding. */
   for (i = 0; i < new_length;) {
     const uint8_t value = depth[i];
     size_t reps = 1;

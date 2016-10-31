@@ -80,7 +80,7 @@ static BROTLI_NOINLINE void FN(CreateBackwardReferences)(
           position + 2 * sr.len + random_heuristics_window_size;
       max_distance = BROTLI_MIN(size_t, position, max_backward_limit);
       {
-        /* The first 16 codes are special shortcodes,
+        /* The first 16 codes are special short-codes,
            and the minimum offset is 1. */
         size_t distance_code =
             ComputeDistanceCode(sr.distance, max_distance, dist_cache);
