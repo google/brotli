@@ -4,7 +4,10 @@
    See file LICENSE for detail or copy at https://opensource.org/licenses/MIT
 */
 
-/* Common types */
+/**
+ * @file
+ * Common types used in decoder and encoder API.
+ */
 
 #ifndef BROTLI_COMMON_TYPES_H_
 #define BROTLI_COMMON_TYPES_H_
@@ -24,15 +27,31 @@ typedef __int64 int64_t;
 #include <stdint.h>
 #endif  /* defined(_MSC_VER) && (_MSC_VER < 1600) */
 
-/* BROTLI_BOOL is a portable "bool" replacement. For input parameters it is
-   preferrable either use BROTLI_TRUE and BROTLI_FALSE macros, or convert
-   boolean expression with TO_BROTLI_BOOL macros.
-   Return values should not be tested for equality with "true", "false",
-   "BROTLI_TRUE", "BROTLI_FALSE", but rather be evaluated, for example:
-   `if (foo(enc) && !bar(dec) { bool x = !!baz(enc); }` */
+/**
+ * A portable @c bool replacement.
+ *
+ * ::BROTLI_BOOL is a "documentation" type: actually it is @c int, but in API it
+ * denotes a type, whose only values are ::BROTLI_TRUE and ::BROTLI_FALSE.
+ *
+ * ::BROTLI_BOOL values passed to Brotli should either be ::BROTLI_TRUE or
+ * ::BROTLI_FALSE, or be a result of ::TO_BROTLI_BOOL macros.
+ *
+ * ::BROTLI_BOOL values returned by Brotli should not be tested for equality
+ * with @c true, @c false, ::BROTLI_TRUE, ::BROTLI_FALSE, but rather should be
+ * evaluated, for example: @code{.cpp}
+ * if (SomeBrotliFunction(encoder, BROTLI_TRUE) &&
+ *     !OtherBrotliFunction(decoder, BROTLI_FALSE)) {
+ *   bool x = !!YetAnotherBrotliFunction(encoder, TO_BROLTI_BOOL(2 * 2 == 4));
+ *   DoSometing(x);
+ * }
+ * @endcode
+ */
 #define BROTLI_BOOL int
+/** Portable @c true replacement. */
 #define BROTLI_TRUE 1
+/** Portable @c false replacement. */
 #define BROTLI_FALSE 0
+/** @c bool to ::BROTLI_BOOL conversion macros. */
 #define TO_BROTLI_BOOL(X) (!!(X) ? BROTLI_TRUE : BROTLI_FALSE)
 
 #define BROTLI_MAKE_UINT64_T(high, low) ((((uint64_t)(high)) << 32) | low)
@@ -40,15 +59,25 @@ typedef __int64 int64_t;
 #define BROTLI_UINT32_MAX (~((uint32_t)0))
 #define BROTLI_SIZE_MAX (~((size_t)0))
 
-/* Allocating function pointer. Function MUST return 0 in the case of failure.
-   Otherwise it MUST return a valid pointer to a memory region of at least
-   size length. Neither items nor size are allowed to be 0.
-   opaque argument is a pointer provided by client and could be used to bind
-   function to specific object (memory pool). */
+/**
+ * Allocating function pointer type.
+ *
+ * @param opaque custom memory manager handle provided by client
+ * @param size requested memory region size; can not be @c 0
+ * @returns @c 0 in the case of failure
+ * @returns a valid pointer to a memory region of at least @p size bytes
+ *          long otherwise
+ */
 typedef void* (*brotli_alloc_func)(void* opaque, size_t size);
 
-/* Deallocating function pointer. Function SHOULD be no-op in the case the
-   address is 0. */
+/**
+ * Deallocating function pointer type.
+ *
+ * This function @b SHOULD do nothing if @p address is @c 0.
+ *
+ * @param opaque custom memory manager handle provided by client
+ * @param address memory region pointer returned by ::brotli_alloc_func, or @c 0
+ */
 typedef void (*brotli_free_func)(void* opaque, void* address);
 
 #if defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L) && \

@@ -18,7 +18,7 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
 /**
- * Decompress files and checks thier checksums.
+ * Decompress files and (optionally) checks their checksums.
  *
  * <p> File are read from ZIP archive passed as an array of bytes. Multiple checkers negotiate about
  * task distribution via shared AtomicInteger counter.
@@ -28,10 +28,15 @@ import java.util.zip.ZipInputStream;
 public class BundleChecker implements Runnable {
   final AtomicInteger nextJob;
   final InputStream input;
+  final boolean sanityCheck;
 
-  public BundleChecker(InputStream input, AtomicInteger nextJob) {
+  /**
+   * @param sanityCheck do not calculate checksum and ignore {@link IOException}.
+   */
+  public BundleChecker(InputStream input, AtomicInteger nextJob, boolean sanityCheck) {
     this.input = input;
     this.nextJob = nextJob;
+    this.sanityCheck = sanityCheck;
   }
 
   /** ECMA CRC64 polynomial. */
@@ -93,10 +98,17 @@ public class BundleChecker implements Runnable {
           continue;
         }
         entryName = entry.getName();
-        String entryCrcString = entryName.substring(0, entryName.indexOf('.'));
+        int dotIndex = entryName.indexOf('.');
+        String entryCrcString = (dotIndex == -1) ? entryName : entryName.substring(0, dotIndex);
         long entryCrc = new BigInteger(entryCrcString, 16).longValue();
-        if (entryCrc != decompressAndCalculateCrc(zis)) {
-          throw new RuntimeException("CRC mismatch");
+        try {
+          if (entryCrc != decompressAndCalculateCrc(zis) && !sanityCheck) {
+            throw new RuntimeException("CRC mismatch");
+          }
+        } catch (IOException iox) {
+          if (!sanityCheck) {
+            throw new RuntimeException("Decompression failed", iox);
+          }
         }
         zis.closeEntry();
         entryName = "";
@@ -110,11 +122,19 @@ public class BundleChecker implements Runnable {
   }
 
   public static void main(String[] args) throws FileNotFoundException {
-    if (args.length == 0) {
-      throw new RuntimeException("Usage: BundleChecker <fileX.zip> ...");
+    int argsOffset = 0;
+    boolean sanityCheck = false;
+    if (args.length != 0) {
+      if (args[0].equals("-s")) {
+        sanityCheck = true;
+        argsOffset = 1;
+      }
     }
-    for (int i = 0; i < args.length; ++i) {
-      new BundleChecker(new FileInputStream(args[i]), new AtomicInteger(0)).run();
+    if (args.length == argsOffset) {
+      throw new RuntimeException("Usage: BundleChecker [-s] <fileX.zip> ...");
+    }
+    for (int i = argsOffset; i < args.length; ++i) {
+      new BundleChecker(new FileInputStream(args[i]), new AtomicInteger(0), sanityCheck).run();
     }
   }
 }

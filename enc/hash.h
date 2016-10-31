@@ -57,7 +57,7 @@ typedef struct DictionarySearchStatictics {
 
 /* kHashMul32 multiplier has these properties:
    * The multiplier must be odd. Otherwise we may lose the highest bit.
-   * No long streaks of 1s or 0s.
+   * No long streaks of ones or zeros.
    * There is no effort to ensure that it is a prime, the oddity is enough
      for this use.
    * The number has been tuned heuristically against compression benchmarks. */
@@ -342,16 +342,16 @@ static BROTLI_INLINE BackwardMatch* FN(StoreAndFindMatches)(
   const uint32_t key = FN(HashBytes)(&data[cur_ix_masked]);
   size_t prev_ix = self->buckets_[key];
   /* The forest index of the rightmost node of the left subtree of the new
-     root, updated as we traverse and reroot the tree of the hash bucket. */
+     root, updated as we traverse and re-root the tree of the hash bucket. */
   size_t node_left = FN(LeftChildIndex)(self, cur_ix);
   /* The forest index of the leftmost node of the right subtree of the new
-     root, updated as we traverse and reroot the tree of the hash bucket. */
+     root, updated as we traverse and re-root the tree of the hash bucket. */
   size_t node_right = FN(RightChildIndex)(self, cur_ix);
   /* The match length of the rightmost node of the left subtree of the new
-     root, updated as we traverse and reroot the tree of the hash bucket. */
+     root, updated as we traverse and re-root the tree of the hash bucket. */
   size_t best_len_left = 0;
   /* The match length of the leftmost node of the right subtree of the new
-     root, updated as we traverse and reroot the tree of the hash bucket. */
+     root, updated as we traverse and re-root the tree of the hash bucket. */
   size_t best_len_right = 0;
   size_t depth_remaining;
   if (should_reroot_tree) {
@@ -511,14 +511,14 @@ static BROTLI_INLINE void FN(StitchToPreviousBlock)(HashToBinaryTree* self,
       /* Maximum distance is window size - 16, see section 9.1. of the spec.
          Furthermore, we have to make sure that we don't look further back
          from the start of the next block than the window size, otherwise we
-         could access already overwritten areas of the ringbuffer. */
+         could access already overwritten areas of the ring-buffer. */
       const size_t max_backward =
           self->window_mask_ - BROTLI_MAX(size_t,
                                           BROTLI_WINDOW_GAP - 1,
                                           position - i);
       /* We know that i + MAX_TREE_COMP_LENGTH <= position + num_bytes, i.e. the
          end of the current block and that we have at least
-         MAX_TREE_COMP_LENGTH tail in the ringbuffer. */
+         MAX_TREE_COMP_LENGTH tail in the ring-buffer. */
       FN(StoreAndFindMatches)(self, ringbuffer, i, ringbuffer_mask,
           MAX_TREE_COMP_LENGTH, max_backward, NULL, NULL);
     }
@@ -532,7 +532,7 @@ static BROTLI_INLINE void FN(StitchToPreviousBlock)(HashToBinaryTree* self,
 
 /* For BUCKET_SWEEP == 1, enabling the dictionary lookup makes compression
    a little faster (0.5% - 1%) and it compresses 0.15% better on small text
-   and html inputs. */
+   and HTML inputs. */
 
 #define HASHER() H2
 #define BUCKET_BITS 16

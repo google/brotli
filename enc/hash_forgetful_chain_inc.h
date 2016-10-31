@@ -94,7 +94,7 @@ static void FN(Init)(
     MemoryManager* m, HashForgetfulChain* self, const uint8_t* data,
     const BrotliEncoderParams* params, size_t position, size_t bytes,
     BROTLI_BOOL is_last) {
-  /* Choose which init method is faster.
+  /* Choose which initialization method is faster.
      Init() is about 100 times faster than InitForData(). */
   const size_t kMaxBytesForPartialHashInit = BUCKET_SIZE >> 6;
   BROTLI_UNUSED(m);

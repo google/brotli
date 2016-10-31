@@ -23,7 +23,7 @@ $(DIRS):
 	mkdir -p $@
 
 $(EXECUTABLE): $(OBJECTS)
-	$(CC) $(OBJECTS) -lm -o $(BINDIR)/$(EXECUTABLE)
+	$(CC) $(LDFLAGS) $(OBJECTS) -lm -o $(BINDIR)/$(EXECUTABLE)
 
 lib: $(LIBOBJECTS)
 	rm -f $(LIB_A)

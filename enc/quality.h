@@ -39,7 +39,7 @@ typedef struct BrotliEncoderParams {
   int lgblock;
 } BrotliEncoderParams;
 
-/* Returns hashtable size for quality levels 0 and 1. */
+/* Returns hash-table size for quality levels 0 and 1. */
 static BROTLI_INLINE size_t MaxHashTableSize(int quality) {
   return quality == FAST_ONE_PASS_COMPRESSION_QUALITY ? 1 << 15 : 1 << 17;
 }
@@ -54,7 +54,7 @@ static BROTLI_INLINE size_t MaxZopfliLen(const BrotliEncoderParams* params) {
       MAX_ZOPFLI_LEN_QUALITY_11;
 }
 
-/* Number of best candidates to evaluate to expand zopfli chain. */
+/* Number of best candidates to evaluate to expand Zopfli chain. */
 static BROTLI_INLINE size_t MaxZopfliCandidates(
   const BrotliEncoderParams* params) {
   return params->quality <= 10 ? 1 : 5;
@@ -63,10 +63,10 @@ static BROTLI_INLINE size_t MaxZopfliCandidates(
 static BROTLI_INLINE void SanitizeParams(BrotliEncoderParams* params) {
   params->quality = BROTLI_MIN(int, BROTLI_MAX_QUALITY,
       BROTLI_MAX(int, BROTLI_MIN_QUALITY, params->quality));
-  if (params->lgwin < kBrotliMinWindowBits) {
-    params->lgwin = kBrotliMinWindowBits;
-  } else if (params->lgwin > kBrotliMaxWindowBits) {
-    params->lgwin = kBrotliMaxWindowBits;
+  if (params->lgwin < BROTLI_MIN_WINDOW_BITS) {
+    params->lgwin = BROTLI_MIN_WINDOW_BITS;
+  } else if (params->lgwin > BROTLI_MAX_WINDOW_BITS) {
+    params->lgwin = BROTLI_MAX_WINDOW_BITS;
   }
 }
 
@@ -84,8 +84,8 @@ static BROTLI_INLINE int ComputeLgBlock(const BrotliEncoderParams* params) {
       lgblock = BROTLI_MIN(int, 18, params->lgwin);
     }
   } else {
-    lgblock = BROTLI_MIN(int, kBrotliMaxInputBlockBits,
-        BROTLI_MAX(int, kBrotliMinInputBlockBits, lgblock));
+    lgblock = BROTLI_MIN(int, BROTLI_MAX_INPUT_BLOCK_BITS,
+        BROTLI_MAX(int, BROTLI_MIN_INPUT_BLOCK_BITS, lgblock));
   }
   return lgblock;
 }
@@ -94,14 +94,15 @@ static BROTLI_INLINE int ComputeLgBlock(const BrotliEncoderParams* params) {
    Allocate at least lgwin + 1 bits for the ring buffer so that the newly
    added block fits there completely and we still get lgwin bits and at least
    read_block_size_bits + 1 bits because the copy tail length needs to be
-   smaller than ringbuffer size. */
+   smaller than ring-buffer size. */
 static BROTLI_INLINE int ComputeRbBits(const BrotliEncoderParams* params) {
   return 1 + BROTLI_MAX(int, params->lgwin, params->lgblock);
 }
 
 static BROTLI_INLINE size_t MaxMetablockSize(
     const BrotliEncoderParams* params) {
-  int bits = BROTLI_MIN(int, ComputeRbBits(params), kBrotliMaxInputBlockBits);
+  int bits =
+      BROTLI_MIN(int, ComputeRbBits(params), BROTLI_MAX_INPUT_BLOCK_BITS);
   return (size_t)1 << bits;
 }
 

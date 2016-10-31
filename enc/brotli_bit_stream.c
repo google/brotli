@@ -82,7 +82,7 @@ static BROTLI_INLINE size_t NextBlockTypeCode(
   return type_code;
 }
 
-/* nibblesbits represents the 2 bits to encode MNIBBLES (0-3)
+/* |nibblesbits| represents the 2 bits to encode MNIBBLES (0-3)
    REQUIRES: length > 0
    REQUIRES: length <= (1 << 24) */
 static void BrotliEncodeMlen(size_t length, uint64_t* bits,
@@ -349,7 +349,7 @@ void BrotliStoreHuffmanTree(const uint8_t* depths, size_t num,
     code_length_bitdepth[code] = 0;
   }
 
-  /* Store the real huffman tree now. */
+  /* Store the real Huffman tree now. */
   BrotliStoreHuffmanTreeToBitMask(huffman_tree_size,
                                   huffman_tree,
                                   huffman_tree_extra_bits,
@@ -554,7 +554,7 @@ void BrotliBuildAndStoreHuffmanTreeFast(MemoryManager* m,
     /* Complex Huffman Tree */
     StoreStaticCodeLengthCode(storage_ix, storage);
 
-    /* Actual rle coding. */
+    /* Actual RLE coding. */
     for (i = 0; i < length;) {
       const uint8_t value = depth[i];
       size_t reps = 1;

@@ -20,8 +20,8 @@ BROTLI_COMMON_API extern const uint8_t kBrotliDictionary[122784];
 BROTLI_COMMON_API extern const uint32_t kBrotliDictionaryOffsetsByLength[25];
 BROTLI_COMMON_API extern const uint8_t kBrotliDictionarySizeBitsByLength[25];
 
-#define kBrotliMinDictionaryWordLength 4
-#define kBrotliMaxDictionaryWordLength 24
+#define BROTLI_MIN_DICTIONARY_WORD_LENGTH 4
+#define BROTLI_MAX_DICTIONARY_WORD_LENGTH 24
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }  /* extern "C" */

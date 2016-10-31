@@ -45,7 +45,7 @@ typedef struct ZopfliNode {
 
   /* This union holds information used by dynamic-programming. During forward
      pass |cost| it used to store the goal function. When node is processed its
-     |cost| is invalidated in favor of |shortcut|. On path backtracing pass
+     |cost| is invalidated in favor of |shortcut|. On path back-tracing pass
      |next| is assigned the offset to next node on the path. */
   union {
     /* Smallest cost to get to this byte from the beginning, as found so far. */
@@ -64,7 +64,7 @@ BROTLI_INTERNAL void BrotliInitZopfliNodes(ZopfliNode* array, size_t length);
    position + num_bytes.
 
    On return, path->size() is the number of commands found and path[i] is the
-   length of the ith command (copy length plus insert length).
+   length of the i-th command (copy length plus insert length).
    Note that the sum of the lengths of all commands can be less than num_bytes.
 
    On return, the nodes[0..num_bytes] array will have the following

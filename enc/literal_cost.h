@@ -18,7 +18,7 @@ extern "C" {
 #endif
 
 /* Estimates how many bits the literals in the interval [pos, pos + len) in the
-   ringbuffer (data, mask) will take entropy coded and writes these estimates
+   ring-buffer (data, mask) will take entropy coded and writes these estimates
    to the cost[0..len) array. */
 BROTLI_INTERNAL void BrotliEstimateBitCostsForLiterals(
     size_t pos, size_t len, size_t mask, const uint8_t *data, float *cost);

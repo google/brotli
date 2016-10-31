@@ -454,8 +454,8 @@ static BrotliDecoderErrorCode ReadSimpleHuffmanSymbols(
 /* Process single decoded symbol code length:
     A) reset the repeat variable
     B) remember code length (if it is not 0)
-    C) extend corredponding index-chain
-    D) reduce the huffman space
+    C) extend corresponding index-chain
+    D) reduce the Huffman space
     E) update the histogram
  */
 static BROTLI_INLINE void ProcessSingleCodeLength(uint32_t code_len,
@@ -479,7 +479,7 @@ static BROTLI_INLINE void ProcessSingleCodeLength(uint32_t code_len,
        value is not BROTLI_REPEAT_PREVIOUS_CODE_LENGTH, then it is a new
        symbol-skip
     B) Update repeat variable
-    C) Check if operation is feasible (fits alphapet)
+    C) Check if operation is feasible (fits alphabet)
     D) For each symbol do the same operations as in ProcessSingleCodeLength
 
    PRECONDITION: code_len == BROTLI_REPEAT_PREVIOUS_CODE_LENGTH or
@@ -949,7 +949,7 @@ static BrotliDecoderErrorCode DecodeContextMap(uint32_t context_map_size,
       if (!BrotliSafeGetBits(br, 5, &bits)) {
         return BROTLI_DECODER_NEEDS_MORE_INPUT;
       }
-      if ((bits & 1) != 0) { /* Use RLE for zeroes. */
+      if ((bits & 1) != 0) { /* Use RLE for zeros. */
         s->max_run_length_prefix = (bits >> 1) + 1;
         BrotliDropBits(br, 5);
       } else {
@@ -1031,7 +1031,7 @@ rleCode:
   }
 }
 
-/* Decodes a command or literal and updates block type ringbuffer.
+/* Decodes a command or literal and updates block type ring-buffer.
    Reads 3..54 bits. */
 static BROTLI_INLINE BROTLI_BOOL DecodeBlockTypeAndLength(
     int safe, BrotliDecoderState* s, int tree_type) {
@@ -1176,7 +1176,7 @@ static size_t UnwrittenBytes(const BrotliDecoderState* s, BROTLI_BOOL wrap) {
 
 /* Dumps output.
    Returns BROTLI_DECODER_NEEDS_MORE_OUTPUT only if there is more output to push
-   and either ringbuffer is as big as window size, or |force| is true.
+   and either ring-buffer is as big as window size, or |force| is true.
  */
 static BrotliDecoderErrorCode BROTLI_NOINLINE WriteRingBuffer(
     BrotliDecoderState* s, size_t* available_out, uint8_t** next_out,
@@ -1228,15 +1228,15 @@ static void BROTLI_NOINLINE WrapRingBuffer(BrotliDecoderState* s) {
   }
 }
 
-/* Allocates ringbuffer.
+/* Allocates ring-buffer.
 
-  s->ringbuffer_size MUST be updated by BrotliCalculateRingBufferSize before
-  this function is called.
+   s->ringbuffer_size MUST be updated by BrotliCalculateRingBufferSize before
+   this function is called.
 
-   Last two bytes of ringbuffer are initialized to 0, so context calculation
+   Last two bytes of ring-buffer are initialized to 0, so context calculation
    could be done uniformly for the first two and all other positions.
 
-   Custom dictionary, if any, is copied to the end of ringbuffer.
+   Custom dictionary, if any, is copied to the end of ring-buffer.
 */
 static BROTLI_BOOL BROTLI_NOINLINE BrotliEnsureRingBuffer(
     BrotliDecoderState* s) {
@@ -1296,7 +1296,7 @@ static BrotliDecoderErrorCode BROTLI_NOINLINE CopyUncompressedBlockToOutput(
         if (s->pos + nbytes > s->ringbuffer_size) {
           nbytes = s->ringbuffer_size - s->pos;
         }
-        /* Copy remaining bytes from s->br.buf_ to ringbuffer. */
+        /* Copy remaining bytes from s->br.buf_ to ring-buffer. */
         BrotliCopyBytes(&s->ringbuffer[s->pos], &s->br, (size_t)nbytes);
         s->pos += nbytes;
         s->meta_block_remaining_len -= nbytes;
@@ -1343,7 +1343,7 @@ static void BROTLI_NOINLINE BrotliCalculateRingBufferSize(
   int min_size = s->ringbuffer_size ? s->ringbuffer_size : 1024;
   int output_size;
 
-  /* If maxumum is already reached, no further extention is reuired. */
+  /* If maximum is already reached, no further extension is retired. */
   if (s->ringbuffer_size == window_size) {
     return;
   }
@@ -1354,7 +1354,7 @@ static void BROTLI_NOINLINE BrotliCalculateRingBufferSize(
   }
 
   if (!s->ringbuffer) {
-    /* Custom dictionanry counts as a "virtual" output. */
+    /* Custom dictionary counts as a "virtual" output. */
     output_size = s->custom_dict_size;
   } else {
     output_size = s->pos;
@@ -1724,8 +1724,8 @@ postReadDistance:
   /* Apply copy of LZ77 back-reference, or static dictionary reference if
   the distance is larger than the max LZ77 distance */
   if (s->distance_code > s->max_distance) {
-    if (i >= kBrotliMinDictionaryWordLength &&
-        i <= kBrotliMaxDictionaryWordLength) {
+    if (i >= BROTLI_MIN_DICTIONARY_WORD_LENGTH &&
+        i <= BROTLI_MAX_DICTIONARY_WORD_LENGTH) {
       int offset = (int)kBrotliDictionaryOffsetsByLength[i];
       int word_id = s->distance_code - s->max_distance - 1;
       uint32_t shift = kBrotliDictionarySizeBitsByLength[i];
@@ -1771,9 +1771,9 @@ postReadDistance:
     s->dist_rb[s->dist_rb_idx & 3] = s->distance_code;
     ++s->dist_rb_idx;
     s->meta_block_remaining_len -= i;
-    /* There are 32+ bytes of slack in the ringbuffer allocation.
+    /* There are 32+ bytes of slack in the ring-buffer allocation.
        Also, we have 16 short codes, that make these 16 bytes irrelevant
-       in the ringbuffer. Let's copy over them as a first guess.
+       in the ring-buffer. Let's copy over them as a first guess.
      */
     memmove16(copy_dst, copy_src);
     if (src_end > pos && dst_end > src_start) {
@@ -1866,7 +1866,7 @@ BrotliDecoderResult BrotliDecoderDecompress(
 /* Invariant: input stream is never overconsumed:
     * invalid input implies that the whole stream is invalid -> any amount of
       input could be read and discarded
-    * when result is "needs more input", then at leat one more byte is REQUIRED
+    * when result is "needs more input", then at least one more byte is REQUIRED
       to complete decoding; all input data MUST be consumed by decoder, so
       client could swap the input buffer
     * when result is "needs more output" decoder MUST ensure that it doesn't
@@ -1899,12 +1899,12 @@ BrotliDecoderResult BrotliDecoderDecompressStream(
   for (;;) {
     if (result != BROTLI_DECODER_SUCCESS) { /* Error, needs more input/output */
       if (result == BROTLI_DECODER_NEEDS_MORE_INPUT) {
-        if (s->ringbuffer != 0) { /* Proactively push output. */
+        if (s->ringbuffer != 0) { /* Pro-actively push output. */
           WriteRingBuffer(s, available_out, next_out, total_out, BROTLI_TRUE);
         }
         if (s->buffer_length != 0) { /* Used with internal buffer. */
           if (br->avail_in == 0) { /* Successfully finished read transaction. */
-            /* Accamulator contains less than 8 bits, because internal buffer
+            /* Accumulator contains less than 8 bits, because internal buffer
                is expanded byte-by-byte until it is enough to complete read. */
             s->buffer_length = 0;
             /* Switch to input stream and restart. */
@@ -1949,8 +1949,8 @@ BrotliDecoderResult BrotliDecoderDecompressStream(
         s->buffer_length = 0;
       } else {
         /* Using input stream in last iteration. When decoder switches to input
-           stream it has less than 8 bits in accamulator, so it is safe to
-           return unused accamulator bits there. */
+           stream it has less than 8 bits in accumulator, so it is safe to
+           return unused accumulator bits there. */
         BrotliBitReaderUnload(br);
         *available_in = br->avail_in;
         *next_in = br->next_in;

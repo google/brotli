@@ -60,7 +60,7 @@
 #define BROTLI_ALIGNED_READ (!!1)
 #elif defined(BROTLI_TARGET_X86) || defined(BROTLI_TARGET_X64) || \
      defined(BROTLI_TARGET_ARMV7) || defined(BROTLI_TARGET_ARMV8)
-/* Allow unaligned read only for whitelisted CPUs. */
+/* Allow unaligned read only for white-listed CPUs. */
 #define BROTLI_ALIGNED_READ (!!0)
 #else
 #define BROTLI_ALIGNED_READ (!!1)
