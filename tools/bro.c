@@ -42,8 +42,8 @@
 #define fopen ms_fopen
 #define open ms_open
 
-#define chmod(F, P)
-#define chown(F, O, G)
+#define chmod(F, P) (0)
+#define chown(F, O, G) (0)
 
 #if defined(_MSC_VER) && (_MSC_VER >= 1400)
 #define fseek _fseeki64
@@ -248,6 +248,7 @@ static int64_t FileSize(const char *path) {
 static void CopyStat(const char* input_path, const char* output_path) {
   struct stat statbuf;
   struct utimbuf times;
+  int res;
   if (input_path == 0 || output_path == 0) {
     return;
   }
@@ -257,9 +258,15 @@ static void CopyStat(const char* input_path, const char* output_path) {
   times.actime = statbuf.st_atime;
   times.modtime = statbuf.st_mtime;
   utime(output_path, &times);
-  chmod(output_path, statbuf.st_mode & (S_IRWXU | S_IRWXG | S_IRWXO));
-  chown(output_path, (uid_t)-1, statbuf.st_gid);
-  chown(output_path, statbuf.st_uid, (gid_t)-1);
+  res = chmod(output_path, statbuf.st_mode & (S_IRWXU | S_IRWXG | S_IRWXO));
+  if (res != 0)
+    perror("chmod failed");
+  res = chown(output_path, (uid_t)-1, statbuf.st_gid);
+  if (res != 0)
+    perror("chown failed");
+  res = chown(output_path, statbuf.st_uid, (gid_t)-1);
+  if (res != 0)
+    perror("chown failed");
 }
 
 /* Result ownersip is passed to caller.
