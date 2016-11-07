@@ -4,7 +4,7 @@ import sys
 import os
 from subprocess import check_call, Popen, PIPE
 
-from test_utils import PYTHON, BRO, TEST_ENV, diff_q
+from _test_utils import PYTHON, BRO, TEST_ENV, diff_q
 
 
 INPUTS = """\
