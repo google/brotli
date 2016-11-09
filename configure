@@ -1,6 +1,6 @@
 #!/bin/bash
 echo "Use Bazel, CMake or Premake5 to generate projects / build files."
-echo "  Bazel: http://www.bazel.io/"
+echo "  Bazel: http://www.bazel.build/"
 echo "  CMake: https://cmake.org/"
 echo "  Premake5: https://premake.github.io/"
 echo "Or simply run 'make' to build and test command line tool."

@@ -216,16 +216,16 @@ BROTLI_ENC_API BrotliEncoderState* BrotliEncoderCreateInstance(
  */
 BROTLI_ENC_API void BrotliEncoderDestroyInstance(BrotliEncoderState* state);
 
-/** @deprecated Calculates maximum input size that can be processed at once. */
+/* Calculates maximum input size that can be processed at once. */
 BROTLI_DEPRECATED BROTLI_ENC_API size_t BrotliEncoderInputBlockSize(
     BrotliEncoderState* state);
 
-/** @deprecated Copies the given input data to the internal ring buffer. */
+/* Copies the given input data to the internal ring buffer. */
 BROTLI_DEPRECATED BROTLI_ENC_API void BrotliEncoderCopyInputToRingBuffer(
     BrotliEncoderState* state, const size_t input_size,
     const uint8_t* input_buffer);
 
-/** @deprecated Processes the accumulated input. */
+/* Processes the accumulated input. */
 BROTLI_DEPRECATED BROTLI_ENC_API BROTLI_BOOL BrotliEncoderWriteData(
     BrotliEncoderState* state, const BROTLI_BOOL is_last,
     const BROTLI_BOOL force_flush, size_t* out_size, uint8_t** output);
@@ -317,6 +317,7 @@ BROTLI_ENC_API BROTLI_BOOL BrotliEncoderCompress(
  *  -# (optionally) copy input data to internal buffer
  *  -# actually compress data and (optionally) store it to internal buffer
  *  -# (optionally) copy compressed bytes from internal buffer to output stream
+ *
  * Whenever all 3 tasks can't move forward anymore, or error occurs, this
  * method returns the control flow to caller.
  *
