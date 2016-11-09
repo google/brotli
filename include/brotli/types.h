@@ -42,7 +42,7 @@ typedef __int64 int64_t;
  * if (SomeBrotliFunction(encoder, BROTLI_TRUE) &&
  *     !OtherBrotliFunction(decoder, BROTLI_FALSE)) {
  *   bool x = !!YetAnotherBrotliFunction(encoder, TO_BROLTI_BOOL(2 * 2 == 4));
- *   DoSometing(x);
+ *   DoSomething(x);
  * }
  * @endcode
  */

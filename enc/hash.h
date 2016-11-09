@@ -490,7 +490,16 @@ static BROTLI_INLINE void FN(Store)(HashToBinaryTree* self, const uint8_t *data,
 static BROTLI_INLINE void FN(StoreRange)(HashToBinaryTree* self,
     const uint8_t *data, const size_t mask, const size_t ix_start,
     const size_t ix_end) {
-  size_t i = ix_start + 63 <= ix_end ? ix_end - 63 : ix_start;
+  size_t i = ix_start;
+  size_t j = ix_start;
+  if (ix_start + 63 <= ix_end) {
+    i = ix_end - 63;
+  }
+  if (ix_start + 512 <= i) {
+    for (; j < i; j += 8) {
+      FN(Store)(self, data, mask, j);
+    }
+  }
   for (; i < ix_end; ++i) {
     FN(Store)(self, data, mask, i);
   }

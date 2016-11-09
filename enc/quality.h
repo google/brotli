@@ -48,6 +48,9 @@ static BROTLI_INLINE size_t MaxHashTableSize(int quality) {
 #define MAX_ZOPFLI_LEN_QUALITY_10 150
 #define MAX_ZOPFLI_LEN_QUALITY_11 325
 
+/* Do not thoroughly search when a long copy is found. */
+#define BROTLI_LONG_COPY_QUICK_STEP 16384
+
 static BROTLI_INLINE size_t MaxZopfliLen(const BrotliEncoderParams* params) {
   return params->quality <= 10 ?
       MAX_ZOPFLI_LEN_QUALITY_10 :

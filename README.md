@@ -27,7 +27,7 @@ If you want to install brotli, use one of the more advanced build systems below.
 
 #### Bazel
 
-See [Bazel](http://www.bazel.io/)
+See [Bazel](http://www.bazel.build/)
 
 #### CMake
 
