@@ -21,5 +21,6 @@ enum RunningState {
     COPY_WRAP_BUFFER,
     TRANSFORM,
     FINISHED,
+    CLOSED,
     WRITE
 }

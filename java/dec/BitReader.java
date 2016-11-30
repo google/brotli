@@ -159,6 +159,14 @@ class BitReader {
     fillBitWindow(br);
   }
 
+  static void close(BitReader br) throws IOException {
+    InputStream is = br.input;
+    br.input = null;
+    if (is != null) {
+      is.close();
+    }
+  }
+
   static void jumpToByteBoundry(BitReader br) {
     int padding = (64 - br.bitOffset) & 7;
     if (padding != 0) {
