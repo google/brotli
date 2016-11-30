@@ -7,6 +7,7 @@
 package org.brotli.dec;
 
 import static org.brotli.dec.RunningState.BLOCK_START;
+import static org.brotli.dec.RunningState.CLOSED;
 import static org.brotli.dec.RunningState.COMPRESSED_BLOCK_START;
 import static org.brotli.dec.RunningState.COPY_LOOP;
 import static org.brotli.dec.RunningState.COPY_UNCOMPRESSED;
@@ -581,6 +582,9 @@ public final class Decode {
   static void decompress(State state) {
     if (state.runningState == UNINITIALIZED) {
       throw new IllegalStateException("Can't decompress until initialized");
+    }
+    if (state.runningState == CLOSED) {
+      throw new IllegalStateException("Can't decompress after close");
     }
     final BitReader br = state.br;
     int ringBufferMask = state.ringBufferSize - 1;

@@ -1336,7 +1336,6 @@ void BrotliStoreSyncMetaBlock(size_t* BROTLI_RESTRICT storage_ix,
   JumpToByteBoundary(storage_ix, storage);
 }
 
-
 #if defined(__cplusplus) || defined(c_plusplus)
 }  /* extern "C" */
 #endif

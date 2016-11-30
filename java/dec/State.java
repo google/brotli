@@ -7,8 +7,10 @@
 package org.brotli.dec;
 
 import static org.brotli.dec.RunningState.BLOCK_START;
+import static org.brotli.dec.RunningState.CLOSED;
 import static org.brotli.dec.RunningState.UNINITIALIZED;
 
+import java.io.IOException;
 import java.io.InputStream;
 
 final class State {
@@ -93,7 +95,7 @@ final class State {
    */
   static void setInput(State state, InputStream input) {
     if (state.runningState != UNINITIALIZED) {
-      throw new IllegalStateException("State is MUST be uninitialized");
+      throw new IllegalStateException("State MUST be uninitialized");
     }
     BitReader.init(state.br, input);
     int windowBits = decodeWindowBits(state.br);
@@ -103,5 +105,16 @@ final class State {
     state.maxRingBufferSize = 1 << windowBits;
     state.maxBackwardDistance = state.maxRingBufferSize - 16;
     state.runningState = BLOCK_START;
+  }
+
+  static void close(State state) throws IOException {
+    if (state.runningState == UNINITIALIZED) {
+      throw new IllegalStateException("State MUST be initialized");
+    }
+    if (state.runningState == CLOSED) {
+      return;
+    }
+    state.runningState = CLOSED;
+    BitReader.close(state.br);
   }
 }

@@ -108,6 +108,14 @@ public class BrotliInputStream extends InputStream {
    * {@inheritDoc}
    */
   @Override
+  public void close() throws IOException {
+    State.close(state);
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
   public int read() throws IOException {
     try {
       if (bufferOffset >= remainingBufferBytes) {
