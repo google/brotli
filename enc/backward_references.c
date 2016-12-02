@@ -346,7 +346,7 @@ static uint32_t ComputeDistanceShortcut(const size_t block_start,
    Section 4. of the Spec) that would be used at (block_start + pos) if we
    used the shortest path of commands from block_start, computed from
    nodes[0..pos]. The last four distances at block_start are in
-   starting_dist_cach[0..3].
+   starting_dist_cache[0..3].
    REQUIRES: nodes[pos].cost < kInfinity
    REQUIRES: nodes[0..pos] satisfies that "ZopfliNode array invariant". */
 static void ComputeDistanceCache(const size_t pos,
@@ -368,6 +368,28 @@ static void ComputeDistanceCache(const size_t pos,
   }
 }
 
+/* Maintains "ZopfliNode array invariant" and pushes node to the queue, if it
+   is eligible. */
+static void EvaluateNode(
+    const size_t block_start, const size_t pos, const size_t max_backward_limit,
+    const int* starting_dist_cache, const ZopfliCostModel* model,
+    StartPosQueue* queue, ZopfliNode* nodes) {
+  /* Save cost, because ComputeDistanceCache invalidates it. */
+  float node_cost = nodes[pos].u.cost;
+  nodes[pos].u.shortcut = ComputeDistanceShortcut(
+      block_start, pos, max_backward_limit, nodes);
+  if (node_cost <= ZopfliCostModelGetLiteralCosts(model, 0, pos)) {
+    PosData posdata;
+    posdata.pos = pos;
+    posdata.cost = node_cost;
+    posdata.costdiff = node_cost -
+        ZopfliCostModelGetLiteralCosts(model, 0, pos);
+    ComputeDistanceCache(
+        pos, starting_dist_cache, nodes, posdata.distance_cache);
+    StartPosQueuePush(queue, &posdata);
+  }
+}
+
 /* Returns longest copy length. */
 static size_t UpdateNodes(
     const size_t num_bytes, const size_t block_start, const size_t pos,
@@ -386,22 +408,8 @@ static size_t UpdateNodes(
   size_t result = 0;
   size_t k;
 
-  {
-    /* Save cost, because ComputeDistanceCache invalidates it. */
-    float node_cost = nodes[pos].u.cost;
-    nodes[pos].u.shortcut = ComputeDistanceShortcut(
-        block_start, pos, max_backward_limit, nodes);
-    if (node_cost <= ZopfliCostModelGetLiteralCosts(model, 0, pos)) {
-      PosData posdata;
-      posdata.pos = pos;
-      posdata.cost = node_cost;
-      posdata.costdiff = node_cost -
-        ZopfliCostModelGetLiteralCosts(model, 0, pos);
-      ComputeDistanceCache(
-          pos, starting_dist_cache, nodes, posdata.distance_cache);
-      StartPosQueuePush(queue, &posdata);
-    }
-  }
+  EvaluateNode(block_start, pos, max_backward_limit, starting_dist_cache, model,
+               queue, nodes);
 
   {
     const PosData* posdata = StartPosQueueAt(queue, 0);
@@ -594,28 +602,30 @@ static size_t ZopfliIterate(size_t num_bytes,
   StartPosQueue queue;
   size_t cur_match_pos = 0;
   size_t i;
-  size_t skip_to = 0;
   nodes[0].length = 0;
   nodes[0].u.cost = 0;
   InitStartPosQueue(&queue);
   for (i = 0; i + 3 < num_bytes; i++) {
-    if (i >= skip_to) {
-      size_t could_skip = UpdateNodes(num_bytes, position, i, ringbuffer,
-          ringbuffer_mask, params, max_backward_limit, dist_cache,
-          num_matches[i], &matches[cur_match_pos], model, &queue, nodes);
-      if (could_skip > BROTLI_LONG_COPY_QUICK_STEP) {
-        /* Previous copy was very long; no need to scan thoroughly. */
-        skip_to = i + could_skip;
-        InitStartPosQueue(&queue);
-      }
-    }
+    size_t skip = UpdateNodes(num_bytes, position, i, ringbuffer,
+        ringbuffer_mask, params, max_backward_limit, dist_cache,
+        num_matches[i], &matches[cur_match_pos], model, &queue, nodes);
+    if (skip < BROTLI_LONG_COPY_QUICK_STEP) skip = 0;
     cur_match_pos += num_matches[i];
-    /* The zopflification can be too slow in case of very long lengths, so in
-       such case skip it all, it does not cost a lot of compression ratio. */
     if (num_matches[i] == 1 &&
         BackwardMatchLength(&matches[cur_match_pos - 1]) > max_zopfli_len) {
-      i += BackwardMatchLength(&matches[cur_match_pos - 1]) - 1;
-      InitStartPosQueue(&queue);
+      skip = BROTLI_MAX(size_t,
+          BackwardMatchLength(&matches[cur_match_pos - 1]), skip);
+    }
+    if (skip > 1) {
+      skip--;
+      while (skip) {
+        i++;
+        if (i + 3 >= num_bytes) break;
+        EvaluateNode(
+            position, i, max_backward_limit, dist_cache, model, &queue, nodes);
+        cur_match_pos += num_matches[i];
+        skip--;
+      }
     }
   }
   return ComputeShortestPathFromNodes(num_bytes, nodes);
@@ -651,28 +661,31 @@ size_t BrotliZopfliComputeShortestPath(MemoryManager* m,
     const size_t max_distance = BROTLI_MIN(size_t, pos, max_backward_limit);
     size_t num_matches = FindAllMatchesH10(hasher, ringbuffer, ringbuffer_mask,
         pos, num_bytes - i, max_distance, params, matches);
-    size_t could_skip;
+    size_t skip;
     if (num_matches > 0 &&
         BackwardMatchLength(&matches[num_matches - 1]) > max_zopfli_len) {
       matches[0] = matches[num_matches - 1];
       num_matches = 1;
     }
-    could_skip = UpdateNodes(num_bytes, position, i, ringbuffer,
-        ringbuffer_mask, params, max_backward_limit, dist_cache, num_matches,
-        matches, &model, &queue, nodes);
-    if (could_skip > BROTLI_LONG_COPY_QUICK_STEP) {
-       i += could_skip - 1;
-      StoreRangeH10(hasher, ringbuffer, ringbuffer_mask, pos + 1, BROTLI_MIN(
-        size_t, pos + could_skip - 1, store_end));
-      InitStartPosQueue(&queue);
-      continue;
-    }
+    skip = UpdateNodes(num_bytes, position, i, ringbuffer, ringbuffer_mask,
+        params, max_backward_limit, dist_cache, num_matches, matches, &model,
+        &queue, nodes);
+    if (skip < BROTLI_LONG_COPY_QUICK_STEP) skip = 0;
     if (num_matches == 1 && BackwardMatchLength(&matches[0]) > max_zopfli_len) {
+      skip = BROTLI_MAX(size_t, BackwardMatchLength(&matches[0]), skip);
+    }
+    if (skip > 1) {
       /* Add the tail of the copy to the hasher. */
       StoreRangeH10(hasher, ringbuffer, ringbuffer_mask, pos + 1, BROTLI_MIN(
-          size_t, pos + BackwardMatchLength(&matches[0]), store_end));
-      i += BackwardMatchLength(&matches[0]) - 1;
-      InitStartPosQueue(&queue);
+          size_t, pos + skip, store_end));
+      skip--;
+      while (skip) {
+        i++;
+        if (i + HashTypeLengthH10() - 1 >= num_bytes) break;
+        EvaluateNode(
+            position, i, max_backward_limit, dist_cache, &model, &queue, nodes);
+        skip--;
+      }
     }
   }
   CleanupZopfliCostModel(m, &model);
