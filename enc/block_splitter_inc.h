@@ -398,7 +398,7 @@ static void FN(SplitByteVector)(MemoryManager* m,
   {
     /* Find a good path through literals with the good entropy codes. */
     uint8_t* block_ids = BROTLI_ALLOC(m, uint8_t, length);
-    size_t num_blocks;
+    size_t num_blocks = 0;
     const size_t bitmaplen = (num_histograms + 7) >> 3;
     double* insert_cost = BROTLI_ALLOC(m, double, data_size * num_histograms);
     double* cost = BROTLI_ALLOC(m, double, num_histograms);
