@@ -1738,9 +1738,14 @@ postReadDistance:
         int len = i;
         if (transform_idx == 0) {
           memcpy(&s->ringbuffer[pos], word, (size_t)len);
+          BROTLI_LOG(("[ProcessCommandsInternal] dictionary word: [%.*s]\n",
+                      len, word));
         } else {
           len = TransformDictionaryWord(
               &s->ringbuffer[pos], word, len, transform_idx);
+          BROTLI_LOG(("[ProcessCommandsInternal] dictionary word: [%.*s],"
+                      " transform_idx = %d, transformed: [%.*s]\n",
+                      i, word, transform_idx, len, &s->ringbuffer[pos]));
         }
         pos += len;
         s->meta_block_remaining_len -= len;
@@ -2030,10 +2035,8 @@ BrotliDecoderResult BrotliDecoderDecompressStream(
         s->state = BROTLI_STATE_HUFFMAN_CODE_0;
         break;
       case BROTLI_STATE_UNCOMPRESSED: {
-        int bytes_copied = s->meta_block_remaining_len;
         result = CopyUncompressedBlockToOutput(
             available_out, next_out, total_out, s);
-        bytes_copied -= s->meta_block_remaining_len;
         if (result != BROTLI_DECODER_SUCCESS) {
           break;
         }
