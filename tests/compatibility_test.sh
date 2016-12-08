@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 #
 # Test that the brotli command-line tool can decompress old brotli-compressed
 # files.
