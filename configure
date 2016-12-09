@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 echo "Use Bazel, CMake or Premake5 to generate projects / build files."
 echo "  Bazel: http://www.bazel.build/"
 echo "  CMake: https://cmake.org/"
