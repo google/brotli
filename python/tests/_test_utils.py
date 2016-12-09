@@ -5,6 +5,7 @@ import itertools
 import os
 import sys
 import sysconfig
+import tempfile
 import unittest
 
 
@@ -44,13 +45,15 @@ TESTDATA_PATHS = [os.path.join(TESTDATA_DIR, f) for f in TESTDATA_FILES]
 TESTDATA_PATHS_FOR_DECOMPRESSION = glob.glob(
     os.path.join(TESTDATA_DIR, '*.compressed'))
 
+TEMP_DIR = tempfile.mkdtemp()
+
 
 def get_temp_compressed_name(filename):
-    return filename + '.bro'
+    return os.path.join(TEMP_DIR, os.path.basename(filename + '.bro'))
 
 
 def get_temp_uncompressed_name(filename):
-    return filename + '.unbro'
+    return os.path.join(TEMP_DIR, os.path.basename(filename + '.unbro'))
 
 
 def bind_method_args(method, *args, **kwargs):
