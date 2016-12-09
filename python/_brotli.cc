@@ -90,6 +90,7 @@ static int lgblock_convertor(PyObject *o, int *lgblock) {
 static BROTLI_BOOL compress_stream(BrotliEncoderState* enc, BrotliEncoderOperation op,
                                    std::vector<uint8_t>* output, uint8_t* input, size_t input_length) {
   BROTLI_BOOL ok = BROTLI_TRUE;
+  Py_BEGIN_ALLOW_THREADS
 
   size_t available_in = input_length;
   const uint8_t* next_in = input;
@@ -116,6 +117,7 @@ static BROTLI_BOOL compress_stream(BrotliEncoderState* enc, BrotliEncoderOperati
     break;
   }
 
+  Py_END_ALLOW_THREADS
   return ok;
 }
 
@@ -201,8 +203,12 @@ static int brotli_Compressor_init(brotli_Compressor *self, PyObject *args, PyObj
     BrotliEncoderSetParameter(self->enc, BROTLI_PARAM_LGBLOCK, (uint32_t)lgblock);
 
   if (custom_dictionary_length != 0) {
+    /* Unlike decoder, encoder processes dictionary immediately, that is why
+       it makes sense to release python GIL. */
+    Py_BEGIN_ALLOW_THREADS
     BrotliEncoderSetCustomDictionary(self->enc, custom_dictionary_length,
                                      custom_dictionary);
+    Py_END_ALLOW_THREADS
   }
 
   return 0;
@@ -431,8 +437,10 @@ static PyObject* brotli_decompress(PyObject *self, PyObject *args, PyObject *key
     return NULL;
 
   std::vector<uint8_t> output;
-  const size_t kBufferSize = 65536;
-  uint8_t* buffer = new uint8_t[kBufferSize];
+
+  /* >>> Pure C block; release python GIL. */
+  Py_BEGIN_ALLOW_THREADS
+
   BrotliDecoderState* state = BrotliDecoderCreateInstance(0, 0, 0);
   if (custom_dictionary_length != 0) {
     BrotliDecoderSetCustomDictionary(state, custom_dictionary_length, custom_dictionary);
@@ -440,23 +448,24 @@ static PyObject* brotli_decompress(PyObject *self, PyObject *args, PyObject *key
 
   BrotliDecoderResult result = BROTLI_DECODER_RESULT_NEEDS_MORE_OUTPUT;
   while (result == BROTLI_DECODER_RESULT_NEEDS_MORE_OUTPUT) {
-    size_t available_out = kBufferSize;
-    uint8_t* next_out = buffer;
+    size_t available_out = 0;
     result = BrotliDecoderDecompressStream(state, &length, &input,
-                                           &available_out, &next_out, 0);
-    size_t used_out = kBufferSize - available_out;
-    if (used_out != 0)
-      output.insert(output.end(), buffer, buffer + used_out);
+                                           &available_out, 0, 0);
+    const uint8_t* next_out = BrotliDecoderTakeOutput(state, &available_out);
+    if (available_out != 0)
+      output.insert(output.end(), next_out, next_out + available_out);
   }
   ok = result == BROTLI_DECODER_RESULT_SUCCESS;
+  BrotliDecoderDestroyInstance(state);
+
+  Py_END_ALLOW_THREADS
+  /* <<< Pure C block end. Python GIL reacquired. */
+
   if (ok) {
     ret = PyBytes_FromStringAndSize((char*)(output.size() ? &output[0] : NULL), output.size());
   } else {
     PyErr_SetString(BrotliError, "BrotliDecompress failed");
   }
-
-  BrotliDecoderDestroyInstance(state);
-  delete[] buffer;
 
   return ret;
 }
