@@ -1,20 +1,11 @@
 from __future__ import print_function
 import filecmp
 import glob
+import itertools
 import os
 import sys
 import sysconfig
 import unittest
-
-
-def diff_q(first_file, second_file):
-    """Simulate call to POSIX diff with -q argument"""
-    if not filecmp.cmp(first_file, second_file, shallow=False):
-        print(
-            'Files %s and %s differ' % (first_file, second_file),
-            file=sys.stderr)
-        return 1
-    return 0
 
 
 project_dir = os.path.abspath(os.path.join(__file__, '..', '..', '..'))
@@ -62,23 +53,39 @@ def get_temp_uncompressed_name(filename):
     return filename + '.unbro'
 
 
-def bind_method_args(method, *args):
-    return lambda self: method(self, *args)
+def bind_method_args(method, *args, **kwargs):
+    return lambda self: method(self, *args, **kwargs)
 
 
-def generate_test_methods(test_case_class, for_decompression=False):
+def generate_test_methods(test_case_class,
+                          for_decompression=False,
+                          variants=None):
     # Add test methods for each test data file.  This makes identifying problems
     # with specific compression scenarios easier.
     if for_decompression:
         paths = TESTDATA_PATHS_FOR_DECOMPRESSION
     else:
         paths = TESTDATA_PATHS
+    opts = []
+    if variants:
+        opts_list = []
+        for k, v in variants.items():
+            opts_list.append([r for r in itertools.product([k], v)])
+        for o in itertools.product(*opts_list):
+            opts_name = '_'.join([str(i) for i in itertools.chain(*o)])
+            opts_dict = dict(o)
+            opts.append([opts_name, opts_dict])
+    else:
+        opts.append(['', {}])
     for method in [m for m in dir(test_case_class) if m.startswith('_test')]:
         for testdata in paths:
-            f = os.path.splitext(os.path.basename(testdata))[0]
-            name = 'test_{method}_{file}'.format(method=method, file=f)
-            func = bind_method_args(getattr(test_case_class, method), testdata)
-            setattr(test_case_class, name, func)
+            for (opts_name, opts_dict) in opts:
+                f = os.path.splitext(os.path.basename(testdata))[0]
+                name = 'test_{method}_{options}_{file}'.format(
+                    method=method, options=opts_name, file=f)
+                func = bind_method_args(
+                    getattr(test_case_class, method), testdata, **opts_dict)
+                setattr(test_case_class, name, func)
 
 
 class TestCase(unittest.TestCase):
