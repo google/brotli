@@ -15,7 +15,6 @@ except:
     from distutils.core import Extension
     from distutils.core import setup
 from distutils.command.build_ext import build_ext
-from distutils.cmd import Command
 
 
 CURR_DIR = os.path.abspath(os.path.dirname(os.path.realpath(__file__)))
