@@ -6,7 +6,7 @@
 import subprocess
 import unittest
 
-import _test_utils
+from . import _test_utils
 import brotli
 
 PYTHON = _test_utils.PYTHON

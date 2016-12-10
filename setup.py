@@ -6,6 +6,8 @@
 import os
 import platform
 import re
+import unittest
+
 try:
     from setuptools import Extension
     from setuptools import setup
@@ -13,7 +15,6 @@ except:
     from distutils.core import Extension
     from distutils.core import setup
 from distutils.command.build_ext import build_ext
-from distutils.cmd import Command
 
 
 CURR_DIR = os.path.abspath(os.path.dirname(os.path.realpath(__file__)))
@@ -37,30 +38,10 @@ def get_version():
     return '{0}.{1}.{2}'.format(major, minor, patch)
 
 
-class TestCommand(Command):
-    """ Run all *_test.py scripts in 'tests' folder with the same Python
-    interpreter used to run setup.py.
-    """
-
-    user_options = []
-
-    def initialize_options(self):
-        pass
-
-    def finalize_options(self):
-        pass
-
-    def run(self):
-        import sys, subprocess, glob
-
-        test_dir = os.path.join(CURR_DIR, 'python', 'tests')
-        os.chdir(test_dir)
-
-        for test in glob.glob('*_test.py'):
-            try:
-                subprocess.check_call([sys.executable, test])
-            except subprocess.CalledProcessError:
-                raise SystemExit(1)
+def get_test_suite():
+    test_loader = unittest.TestLoader()
+    test_suite = test_loader.discover('python', pattern='*_test.py')
+    return test_suite
 
 
 class BuildExt(build_ext):
@@ -258,9 +239,10 @@ EXT_MODULES = [
         language='c++'),
 ]
 
+TEST_SUITE = 'setup.get_test_suite'
+
 CMD_CLASS = {
     'build_ext': BuildExt,
-    'test': TestCommand,
 }
 
 setup(
@@ -275,4 +257,5 @@ setup(
     package_dir=PACKAGE_DIR,
     py_modules=PY_MODULES,
     ext_modules=EXT_MODULES,
+    test_suite=TEST_SUITE,
     cmdclass=CMD_CLASS)
