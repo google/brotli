@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/env bash
 
 # Autotools-style (./configure) wrapper for CMake
 # <https://github.com/nemequ/configure-cmake>
