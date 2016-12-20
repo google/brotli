@@ -33,7 +33,7 @@ See [Bazel](http://www.bazel.build/)
 
 The basic commands to build, test and install brotli are:
 
-    $ mkdir out && cd out && cmake .. && make
+    $ mkdir out && cd out && ../configure-cmake && make
     $ make test
     $ make install
 
@@ -42,7 +42,7 @@ build static libraries and use a custom installation directory:
 
     $ mkdir out-static && \
       cd out-static && \
-      cmake .. -DBUILD_SHARED_LIBS=0 -DCMAKE_INSTALL_PREFIX='/my/install/dir/'
+      ../configure-cmake --disable-shared-libs --prefix='/my/prefix/dir/'
     $ make install
 
 #### Premake5
