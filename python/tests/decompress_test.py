@@ -5,7 +5,7 @@
 
 import unittest
 
-import _test_utils
+from . import _test_utils
 import brotli
 
 
