@@ -51,12 +51,12 @@ See [Premake5](https://premake.github.io/)
 
 #### Python
 
-The basic commands to build, test, and install the Python module are:
+To install the Python module from source, run the following:
 
-    $ python setup.py build test
     $ python setup.py install
 
-See the [Python readme](python/README.md) for more details.
+See the [Python readme](python/README.md) for more details on testing
+and development.
 
 ### Benchmarks
 * [Squash Compression Benchmark](https://quixdb.github.io/squash-benchmark/) / [Unstable Squash Compression Benchmark](https://quixdb.github.io/squash-benchmark/unstable/)
