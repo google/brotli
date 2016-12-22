@@ -81,19 +81,9 @@ BROTLI_INTERNAL void BrotliBuildMetaBlock(MemoryManager* m,
                                           MetaBlockSplit* mb);
 
 /* Uses a fast greedy block splitter that tries to merge current block with the
-   last or the second last block and does not do any context modeling. */
-BROTLI_INTERNAL void BrotliBuildMetaBlockGreedy(MemoryManager* m,
-                                                const uint8_t* ringbuffer,
-                                                size_t pos,
-                                                size_t mask,
-                                                const Command* commands,
-                                                size_t n_commands,
-                                                MetaBlockSplit* mb);
-
-/* Uses a fast greedy block splitter that tries to merge current block with the
    last or the second last block and uses a static context clustering which
    is the same for all block types. */
-BROTLI_INTERNAL void BrotliBuildMetaBlockGreedyWithContexts(
+BROTLI_INTERNAL void BrotliBuildMetaBlockGreedy(
     MemoryManager* m, const uint8_t* ringbuffer, size_t pos, size_t mask,
     uint8_t prev_byte, uint8_t prev_byte2, ContextType literal_context_mode,
     size_t num_contexts, const uint32_t* static_context_map,
