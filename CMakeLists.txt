@@ -313,8 +313,8 @@ endfunction(generate_pkg_config_path)
 
 function(generate_pkg_config output_file)
   set (options)
-  set (oneValueArgs NAME DESCRIPTION PREFIX LIBDIR INCLUDEDIR VERSION)
-  set (multiValueArgs DEPENDS CFLAGS LIBRARIES)
+  set (oneValueArgs NAME DESCRIPTION URL VERSION PREFIX LIBDIR INCLUDEDIR)
+  set (multiValueArgs DEPENDS_PRIVATE CFLAGS LIBRARIES)
   cmake_parse_arguments(GEN_PKG "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
   unset (options)
   unset (oneValueArgs)
@@ -351,8 +351,20 @@ function(generate_pkg_config output_file)
     file(APPEND "${output_file}" "Description: ${GEN_PKG_DESCRIPTION}\n")
   endif()
 
+  if(GEN_PKG_URL)
+    file(APPEND "${output_file}" "URL: ${GEN_PKG_URL}\n")
+  endif()
+
   if(GEN_PKG_VERSION)
     file(APPEND "${output_file}" "Version: ${GEN_PKG_VERSION}\n")
+  endif()
+
+  if(GEN_PKG_DEPENDS_PRIVATE)
+    file(APPEND "${output_file}" "Requires.private:")
+    foreach(lib ${GEN_PKG_DEPENDS_PRIVATE})
+      file(APPEND "${output_file}" " ${lib}")
+    endforeach()
+    file(APPEND "${output_file}" "\n")
   endif()
 
   if(GEN_PKG_LIBRARIES)
@@ -374,14 +386,35 @@ function(generate_pkg_config output_file)
   file(APPEND "${output_file}" "\n")
 endfunction(generate_pkg_config)
 
-generate_pkg_config ("${CMAKE_CURRENT_BINARY_DIR}/brotli.pc"
-  NAME Brotli
-  DESCRIPTION "Brotli compression library"
+generate_pkg_config ("${CMAKE_CURRENT_BINARY_DIR}/libbrotlicommon.pc"
+  NAME libbrotlicommon
+  DESCRIPTION "Shared data used by libbrotlienc and libbrotlidec libraries"
+  URL "https://github.com/google/brotli"
   VERSION "${BROTLI_VERSION_MAJOR}.${BROTLI_VERSION_MINOR}.${BROTLI_VERSION_REVISION}"
-  LIBRARIES brotlicommon brotlidec brotlienc)
+  LIBRARIES brotlicommon)
+
+generate_pkg_config ("${CMAKE_CURRENT_BINARY_DIR}/libbrotlidec.pc"
+  NAME libbrotlidec
+  DESCRIPTION "Brotli decoder library"
+  VERSION "${BROTLI_VERSION_MAJOR}.${BROTLI_VERSION_MINOR}.${BROTLI_VERSION_REVISION}"
+  URL "https://github.com/google/brotli"
+  DEPENDS_PRIVATE libbrotlicommon
+  LIBRARIES brotlidec)
+
+generate_pkg_config ("${CMAKE_CURRENT_BINARY_DIR}/libbrotlienc.pc"
+  NAME libbrotlienc
+  DESCRIPTION "Brotli encoder library"
+  VERSION "${BROTLI_VERSION_MAJOR}.${BROTLI_VERSION_MINOR}.${BROTLI_VERSION_REVISION}"
+  URL "https://github.com/google/brotli"
+  DEPENDS_PRIVATE brotlicommon
+  LIBRARIES brotlienc)
 
 if(NOT BROTLI_BUNDLED_MODE)
-  install(FILES "${CMAKE_CURRENT_BINARY_DIR}/brotli.pc"
+  install(FILES "${CMAKE_CURRENT_BINARY_DIR}/libbrotlicommon.pc"
+    DESTINATION "${CMAKE_INSTALL_LIBDIR}/pkgconfig")
+  install(FILES "${CMAKE_CURRENT_BINARY_DIR}/libbrotlidec.pc"
+    DESTINATION "${CMAKE_INSTALL_LIBDIR}/pkgconfig")
+  install(FILES "${CMAKE_CURRENT_BINARY_DIR}/libbrotlienc.pc"
     DESTINATION "${CMAKE_INSTALL_LIBDIR}/pkgconfig")
 endif()
 
