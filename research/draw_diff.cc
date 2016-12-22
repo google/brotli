@@ -84,16 +84,17 @@ int main(int argc, char* argv[]) {
     return 1;
   }
 
-  FILE* fimage1 = fopen(argv[1], "rb");
-  FILE* fimage2 = fopen(argv[2], "rb");
-  FILE* fdiff = fopen(argv[3], "wb");
-
   uint8_t **image1, **image2;
   size_t h1, w1, h2, w2;
+
+  FILE* fimage1 = fopen(argv[1], "rb");
   ReadPGM(fimage1, &image1, &h1, &w1);
-  ReadPGM(fimage2, &image2, &h2, &w2);
   fclose(fimage1);
+
+  FILE* fimage2 = fopen(argv[2], "rb");
+  ReadPGM(fimage2, &image2, &h2, &w2);
   fclose(fimage2);
+
   if (!(h1 == h2 && w1 == w2)) {
     printf("Images must have the same size.\n");
     return 1;
@@ -103,7 +104,9 @@ int main(int argc, char* argv[]) {
   for (size_t i = 0; i < h1; ++i) diff[i] = new int[w1];
   CalculateDiff(diff, image1, image2, h1, w1);
 
+  FILE* fdiff = fopen(argv[3], "wb");
   DrawDiff(diff, image1, image2, h1, w1, fdiff);
   fclose(fdiff);
+
   return 0;
 }
