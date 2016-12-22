@@ -330,18 +330,13 @@ static void ChooseContextMap(int quality,
 
   uint32_t monogram_histo[3] = { 0 };
   uint32_t two_prefix_histo[6] = { 0 };
-  size_t total = 0;
+  size_t total;
   size_t i;
   size_t dummy;
   double entropy[4];
   for (i = 0; i < 9; ++i) {
-    size_t j = i;
-    total += bigram_histo[i];
     monogram_histo[i % 3] += bigram_histo[i];
-    if (j >= 6) {
-      j -= 6;
-    }
-    two_prefix_histo[j] += bigram_histo[i];
+    two_prefix_histo[i % 6] += bigram_histo[i];
   }
   entropy[1] = ShannonEntropy(monogram_histo, 3, &dummy);
   entropy[2] = (ShannonEntropy(two_prefix_histo, 3, &dummy) +
@@ -351,6 +346,7 @@ static void ChooseContextMap(int quality,
     entropy[3] += ShannonEntropy(bigram_histo + 3 * i, 3, &dummy);
   }
 
+  total = monogram_histo[0] + monogram_histo[1] + monogram_histo[2];
   assert(total != 0);
   entropy[0] = 1.0 / (double)total;
   entropy[1] *= entropy[0];
@@ -480,7 +476,7 @@ static void WriteMetaBlockInternal(MemoryManager* m,
                               num_direct_distance_codes,
                               distance_postfix_bits);
   }
-  if (params->quality <= MAX_QUALITY_FOR_STATIC_ENRTOPY_CODES) {
+  if (params->quality <= MAX_QUALITY_FOR_STATIC_ENTROPY_CODES) {
     BrotliStoreMetaBlockFast(m, data, wrapped_last_flush_pos,
                              bytes, mask, is_last,
                              commands, num_commands,
@@ -505,22 +501,10 @@ static void WriteMetaBlockInternal(MemoryManager* m,
                                        &literal_context_mode,
                                        &num_literal_contexts,
                                        &literal_context_map);
-      if (literal_context_map == NULL) {
-        BrotliBuildMetaBlockGreedy(m, data, wrapped_last_flush_pos, mask,
-                                   commands, num_commands, &mb);
-        if (BROTLI_IS_OOM(m)) return;
-      } else {
-        BrotliBuildMetaBlockGreedyWithContexts(m, data,
-                                               wrapped_last_flush_pos,
-                                               mask,
-                                               prev_byte, prev_byte2,
-                                               literal_context_mode,
-                                               num_literal_contexts,
-                                               literal_context_map,
-                                               commands, num_commands,
-                                               &mb);
-        if (BROTLI_IS_OOM(m)) return;
-      }
+      BrotliBuildMetaBlockGreedy(m, data, wrapped_last_flush_pos, mask,
+          prev_byte, prev_byte2, literal_context_mode, num_literal_contexts,
+          literal_context_map, commands, num_commands, &mb);
+      if (BROTLI_IS_OOM(m)) return;
     } else {
       if (!BrotliIsMostlyUTF8(data, wrapped_last_flush_pos, mask, bytes,
                               kMinUTF8Ratio)) {
