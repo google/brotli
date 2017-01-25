@@ -26,6 +26,10 @@
 extern "C" {
 #endif
 
+#if defined(__HAIKU__) && __GNUC__ < 3
+#undef INFINITY
+#endif
+
 #ifdef INFINITY
 static const float kInfinity = INFINITY;
 #else
