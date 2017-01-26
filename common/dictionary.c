@@ -10,17 +10,32 @@
 extern "C" {
 #endif
 
-const uint32_t kBrotliDictionaryOffsetsByLength[] = {
-  0, 0, 0, 0, 0, 4096, 9216, 21504, 35840, 44032, 53248, 63488, 74752, 87040,
-  93696, 100864, 104704, 106752, 108928, 113536, 115968, 118528, 119872, 121280,
-  122016
+/**
+ * Number of bits to encode index of dictionary word in a bucket.
+ *
+ * Specification: Appendix A. Static Dictionary Data
+ *
+ * Words in a dictionary are bucketed by length.
+ * @c 0 means that there are no words of a given length.
+ * Dictionary consists of words with length of [4..24] bytes.
+ * Values at [0..3] and [25..31] indices should not be addressed.
+ */
+const uint8_t kBrotliDictionarySizeBitsByLength[32] = {
+  0, 0, 0, 0, 10, 10, 11, 11,
+  10, 10, 10, 10, 10, 9, 9, 8,
+  7, 7, 8, 7, 7, 6, 6, 5,
+  5, 0, 0, 0, 0, 0, 0, 0
 };
 
-const uint8_t kBrotliDictionarySizeBitsByLength[] = {
-  0, 0, 0, 0, 10, 10, 11, 11, 10, 10, 10, 10, 10,
-  9, 9, 8, 7, 7,  8,  7,  7,  6,  6,  5,  5,
+/* assert(offset[i + 1] == offset[i] + (bits[i] ? (i << bits[i]) : 0)) */
+const uint32_t kBrotliDictionaryOffsetsByLength[32] = {
+  0, 0, 0, 0, 0, 4096, 9216, 21504,
+  35840, 44032, 53248, 63488, 74752, 87040, 93696, 100864,
+  104704, 106752, 108928, 113536, 115968, 118528, 119872, 121280,
+  122016, 122784, 122784, 122784, 122784, 122784, 122784, 122784
 };
 
+/* assert(sizeof(kBrotliDictionary) == offset[31]) */
 const uint8_t kBrotliDictionary[122784] = {
   0x74, 0x69, 0x6d, 0x65, 0x64, 0x6f, 0x77, 0x6e, 0x6c, 0x69, 0x66, 0x65, 0x6c,
   0x65, 0x66, 0x74, 0x62, 0x61, 0x63, 0x6b, 0x63, 0x6f, 0x64, 0x65, 0x64, 0x61,

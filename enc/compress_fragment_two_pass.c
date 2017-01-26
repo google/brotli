@@ -458,7 +458,9 @@ static void StoreCommands(MemoryManager* m,
   if (BROTLI_IS_OOM(m)) return;
 
   for (i = 0; i < num_commands; ++i) {
-    ++cmd_histo[commands[i] & 0xff];
+    const uint32_t code = commands[i] & 0xFF;
+    assert(code < 128);
+    ++cmd_histo[code];
   }
   cmd_histo[1] += 1;
   cmd_histo[2] += 1;
@@ -469,8 +471,9 @@ static void StoreCommands(MemoryManager* m,
 
   for (i = 0; i < num_commands; ++i) {
     const uint32_t cmd = commands[i];
-    const uint32_t code = cmd & 0xff;
+    const uint32_t code = cmd & 0xFF;
     const uint32_t extra = cmd >> 8;
+    assert(code < 128);
     BrotliWriteBits(cmd_depths[code], cmd_bits[code], storage_ix, storage);
     BrotliWriteBits(kNumExtraBits[code], extra, storage_ix, storage);
     if (code < 24) {

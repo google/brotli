@@ -165,7 +165,13 @@ typedef enum BrotliEncoderParameter {
    *       memory. \n The rough formula of memory used for temporary input
    *       storage is `3 << lgBlock`.
    */
-  BROTLI_PARAM_LGBLOCK = 3
+  BROTLI_PARAM_LGBLOCK = 3,
+  /**
+   * Flag that affects usage of "literal context modeling" format feature.
+   *
+   * This flag is a "decoding-speed vs compression ratio" trade-off.
+   */
+  BROTLI_PARAM_DISABLE_LITERAL_CONTEXT_MODELING = 4
 } BrotliEncoderParameter;
 
 /**

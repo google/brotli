@@ -66,8 +66,10 @@ void BrotliBuildHistogramsWithContext(
     for (j = cmd->insert_len_; j != 0; --j) {
       size_t context;
       BlockSplitIteratorNext(&literal_it);
-      context = (literal_it.type_ << BROTLI_LITERAL_CONTEXT_BITS) +
-          Context(prev_byte, prev_byte2, context_modes[literal_it.type_]);
+      context = context_modes ?
+          ((literal_it.type_ << BROTLI_LITERAL_CONTEXT_BITS) +
+              Context(prev_byte, prev_byte2, context_modes[literal_it.type_])) :
+          literal_it.type_;
       HistogramAddLiteral(&literal_histograms[context],
           ringbuffer[pos & mask]);
       prev_byte2 = prev_byte;

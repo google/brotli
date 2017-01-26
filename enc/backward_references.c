@@ -8,7 +8,6 @@
 
 #include "./backward_references.h"
 
-#include <math.h>  /* INFINITY */
 #include <string.h>  /* memcpy, memset */
 
 #include "../common/constants.h"
@@ -26,11 +25,7 @@
 extern "C" {
 #endif
 
-#ifdef INFINITY
-static const float kInfinity = INFINITY;
-#else
-static const float kInfinity = 3.4028e38f;
-#endif
+static const float kInfinity = 1.7e38f;  /* ~= 2 ^ 127 */
 
 void BrotliInitZopfliNodes(ZopfliNode* array, size_t length) {
   ZopfliNode stub;

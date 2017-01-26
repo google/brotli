@@ -141,7 +141,7 @@ static BROTLI_INLINE BROTLI_BOOL TestStaticDictionaryItem(
   size_t matchlen;
   size_t backward;
   score_t score;
-  len = item & 31;
+  len = item & 0x1F;
   dist = item >> 5;
   offset = kBrotliDictionaryOffsetsByLength[len] + len * dist;
   if (len > max_length) {

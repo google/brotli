@@ -37,6 +37,7 @@ typedef struct BrotliEncoderParams {
   int quality;
   int lgwin;
   int lgblock;
+  BROTLI_BOOL disable_literal_context_modeling;
 } BrotliEncoderParams;
 
 /* Returns hash-table size for quality levels 0 and 1. */
