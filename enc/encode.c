@@ -151,6 +151,11 @@ BROTLI_BOOL BrotliEncoderSetParameter(
       state->params.lgblock = (int)value;
       return BROTLI_TRUE;
 
+    case BROTLI_PARAM_DISABLE_LITERAL_CONTEXT_MODELING:
+      if ((value != 0) && (value != 1)) return BROTLI_FALSE;
+      state->params.disable_literal_context_modeling = TO_BROTLI_BOOL(!!value);
+      return BROTLI_TRUE;
+
     default: return BROTLI_FALSE;
   }
 }
@@ -495,12 +500,11 @@ static void WriteMetaBlockInternal(MemoryManager* m,
     if (params->quality < MIN_QUALITY_FOR_HQ_BLOCK_SPLITTING) {
       size_t num_literal_contexts = 1;
       const uint32_t* literal_context_map = NULL;
-      DecideOverLiteralContextModeling(data, wrapped_last_flush_pos,
-                                       bytes, mask,
-                                       params->quality,
-                                       &literal_context_mode,
-                                       &num_literal_contexts,
-                                       &literal_context_map);
+      if (!params->disable_literal_context_modeling) {
+        DecideOverLiteralContextModeling(
+            data, wrapped_last_flush_pos, bytes, mask, params->quality,
+            &literal_context_mode, &num_literal_contexts, &literal_context_map);
+      }
       BrotliBuildMetaBlockGreedy(m, data, wrapped_last_flush_pos, mask,
           prev_byte, prev_byte2, literal_context_mode, num_literal_contexts,
           literal_context_map, commands, num_commands, &mb);
@@ -584,6 +588,7 @@ static void BrotliEncoderInitState(BrotliEncoderState* s) {
   s->params.quality = BROTLI_DEFAULT_QUALITY;
   s->params.lgwin = BROTLI_DEFAULT_WINDOW;
   s->params.lgblock = 0;
+  s->params.disable_literal_context_modeling = BROTLI_FALSE;
 
   s->input_pos_ = 0;
   s->num_commands_ = 0;
@@ -1031,6 +1036,7 @@ static BROTLI_BOOL BrotliCompressBufferQuality10(
   params.quality = 10;
   params.lgwin = lgwin;
   params.lgblock = 0;
+  params.disable_literal_context_modeling = BROTLI_FALSE;
   SanitizeParams(&params);
   params.lgblock = ComputeLgBlock(&params);
   max_block_size = (size_t)1 << params.lgblock;
