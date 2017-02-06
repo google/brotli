@@ -171,7 +171,13 @@ typedef enum BrotliEncoderParameter {
    *
    * This flag is a "decoding-speed vs compression ratio" trade-off.
    */
-  BROTLI_PARAM_DISABLE_LITERAL_CONTEXT_MODELING = 4
+  BROTLI_PARAM_DISABLE_LITERAL_CONTEXT_MODELING = 4,
+  /**
+   * Estimated total input size for all ::BrotliEncoderCompressStream calls.
+   *
+   * The default value is 0, which means that the total input size is unknown.
+   */
+  BROTLI_PARAM_SIZE_HINT = 5
 } BrotliEncoderParameter;
 
 /**

@@ -56,6 +56,15 @@ typedef struct HashForgetfulChain {
   size_t max_hops;
 } HashForgetfulChain;
 
+static void FN(Initialize)(HashForgetfulChain* self) {
+  BROTLI_UNUSED(self);
+}
+
+static void FN(Cleanup)(MemoryManager* m, HashForgetfulChain* self) {
+  BROTLI_UNUSED(m);
+  BROTLI_UNUSED(self);
+}
+
 static void FN(Reset)(HashForgetfulChain* self) {
   self->is_dirty_ = BROTLI_TRUE;
   DictionarySearchStaticticsReset(&self->dict_search_stats_);

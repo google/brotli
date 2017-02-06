@@ -34,7 +34,7 @@ static const size_t kCompressFragmentTwoPassBlockSize = 1 << 17;
    REQUIRES: All elements in "table[0..table_size-1]" are initialized to zero.
    REQUIRES: "table_size" is a power of two
    OUTPUT: maximal copy distance <= |input_size|
-   OUTPUT: maximal copy distance <= MaxBackwardLimit(18) */
+   OUTPUT: maximal copy distance <= BROTLI_MAX_BACKWARD_LIMIT(18) */
 BROTLI_INTERNAL void BrotliCompressFragmentTwoPass(MemoryManager* m,
                                                    const uint8_t* input,
                                                    size_t input_size,

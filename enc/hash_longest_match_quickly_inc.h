@@ -5,7 +5,9 @@
    See file LICENSE for detail or copy at https://opensource.org/licenses/MIT
 */
 
-/* template parameters: FN, BUCKET_BITS, BUCKET_SWEEP, USE_DICTIONARY */
+/* template parameters: FN, BUCKET_BITS, BUCKET_SWEEP, HASH_LEN,
+                        USE_DICTIONARY
+ */
 
 #define HashLongestMatchQuickly HASHER()
 
@@ -20,9 +22,8 @@ static BROTLI_INLINE size_t FN(StoreLookahead)(void) { return 8; }
    the address in. The HashLongestMatch and HashLongestMatchQuickly
    classes have separate, different implementations of hashing. */
 static uint32_t FN(HashBytes)(const uint8_t *data) {
-  /* Computing a hash based on 5 bytes works much better for
-     qualities 1 and 3, where the next hash value is likely to replace */
-  uint64_t h = (BROTLI_UNALIGNED_LOAD64(data) << 24) * kHashMul32;
+  const uint64_t h = ((BROTLI_UNALIGNED_LOAD64(data) << (64 - 8 * HASH_LEN)) *
+                      kHashMul64);
   /* The higher bits contain more mixture from the multiplication,
      so we take our results from there. */
   return (uint32_t)(h >> (64 - BUCKET_BITS));
@@ -39,6 +40,15 @@ typedef struct HashLongestMatchQuickly {
   BROTLI_BOOL is_dirty_;
   DictionarySearchStatictics dict_search_stats_;
 } HashLongestMatchQuickly;
+
+static void FN(Initialize)(HashLongestMatchQuickly* self) {
+  BROTLI_UNUSED(self);
+}
+
+static void FN(Cleanup)(MemoryManager* m, HashLongestMatchQuickly* self) {
+  BROTLI_UNUSED(m);
+  BROTLI_UNUSED(self);
+}
 
 static void FN(Reset)(HashLongestMatchQuickly* self) {
   self->is_dirty_ = BROTLI_TRUE;

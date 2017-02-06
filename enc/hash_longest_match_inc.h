@@ -55,6 +55,15 @@ typedef struct HashLongestMatch {
   DictionarySearchStatictics dict_search_stats_;
 } HashLongestMatch;
 
+static void FN(Initialize)(HashLongestMatch* self) {
+  BROTLI_UNUSED(self);
+}
+
+static void FN(Cleanup)(MemoryManager* m, HashLongestMatch* self) {
+  BROTLI_UNUSED(m);
+  BROTLI_UNUSED(self);
+}
+
 static void FN(Reset)(HashLongestMatch* self) {
   self->is_dirty_ = BROTLI_TRUE;
   DictionarySearchStaticticsReset(&self->dict_search_stats_);
