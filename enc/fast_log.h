@@ -19,7 +19,7 @@ extern "C" {
 #endif
 
 static BROTLI_INLINE uint32_t Log2FloorNonZero(size_t n) {
-#ifdef __GNUC__
+#if BROTLI_MODERN_COMPILER || __has_builtin(__builtin_clz)
   return 31u ^ (uint32_t)__builtin_clz((uint32_t)n);
 #else
   uint32_t result = 0;

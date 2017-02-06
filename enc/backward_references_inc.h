@@ -10,13 +10,13 @@
 #define Hasher HASHER()
 
 static BROTLI_NOINLINE void FN(CreateBackwardReferences)(
-    MemoryManager* m, size_t num_bytes, size_t position, BROTLI_BOOL is_last,
+    size_t num_bytes, size_t position,
     const uint8_t* ringbuffer, size_t ringbuffer_mask,
     const BrotliEncoderParams* params, Hasher* hasher, int* dist_cache,
     size_t* last_insert_len, Command* commands, size_t* num_commands,
     size_t* num_literals) {
   /* Set maximum distance, see section 9.1. of the spec. */
-  const size_t max_backward_limit = MaxBackwardLimit(params->lgwin);
+  const size_t max_backward_limit = BROTLI_MAX_BACKWARD_LIMIT(params->lgwin);
 
   const Command* const orig_commands = commands;
   size_t insert_length = *last_insert_len;
@@ -31,11 +31,6 @@ static BROTLI_NOINLINE void FN(CreateBackwardReferences)(
 
   /* Minimum score to accept a backward reference. */
   const score_t kMinScore = BROTLI_SCORE_BASE + 400;
-
-  FN(Init)(m, hasher, ringbuffer, params, position, num_bytes, is_last);
-  if (BROTLI_IS_OOM(m)) return;
-  FN(StitchToPreviousBlock)(hasher, num_bytes, position,
-                            ringbuffer, ringbuffer_mask);
 
   while (position + FN(HashTypeLength)() < pos_end) {
     size_t max_length = pos_end - position;

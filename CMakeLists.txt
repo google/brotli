@@ -134,12 +134,14 @@ add_library(brotlidec
   dec/state.c)
 add_library(brotlienc
   enc/backward_references.c
+  enc/backward_references_hq.c
   enc/bit_cost.c
   enc/block_splitter.c
   enc/brotli_bit_stream.c
   enc/cluster.c
   enc/compress_fragment.c
   enc/compress_fragment_two_pass.c
+  enc/dictionary_hash.c
   enc/encode.c
   enc/entropy_encode.c
   enc/histogram.c

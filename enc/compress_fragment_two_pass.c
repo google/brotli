@@ -30,8 +30,7 @@
 extern "C" {
 #endif
 
-/* Same as MaxBackwardLimit(18) */
-#define MAX_DISTANCE ((1 << 18) - BROTLI_WINDOW_GAP)
+#define MAX_DISTANCE (long)BROTLI_MAX_BACKWARD_LIMIT(18)
 
 /* kHashMul32 multiplier has these properties:
    * The multiplier must be odd. Otherwise we may lose the highest bit.

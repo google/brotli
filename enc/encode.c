@@ -13,6 +13,7 @@
 
 #include "../common/version.h"
 #include "./backward_references.h"
+#include "./backward_references_hq.h"
 #include "./bit_cost.h"
 #include "./brotli_bit_stream.h"
 #include "./compress_fragment.h"
@@ -154,6 +155,10 @@ BROTLI_BOOL BrotliEncoderSetParameter(
     case BROTLI_PARAM_DISABLE_LITERAL_CONTEXT_MODELING:
       if ((value != 0) && (value != 1)) return BROTLI_FALSE;
       state->params.disable_literal_context_modeling = TO_BROTLI_BOOL(!!value);
+      return BROTLI_TRUE;
+
+    case BROTLI_PARAM_SIZE_HINT:
+      state->params.size_hint = value;
       return BROTLI_TRUE;
 
     default: return BROTLI_FALSE;
@@ -583,13 +588,17 @@ static BROTLI_BOOL EnsureInitialized(BrotliEncoderState* s) {
   return BROTLI_TRUE;
 }
 
-static void BrotliEncoderInitState(BrotliEncoderState* s) {
-  s->params.mode = BROTLI_DEFAULT_MODE;
-  s->params.quality = BROTLI_DEFAULT_QUALITY;
-  s->params.lgwin = BROTLI_DEFAULT_WINDOW;
-  s->params.lgblock = 0;
-  s->params.disable_literal_context_modeling = BROTLI_FALSE;
+static void BrotliEncoderInitParams(BrotliEncoderParams* params) {
+  params->mode = BROTLI_DEFAULT_MODE;
+  params->quality = BROTLI_DEFAULT_QUALITY;
+  params->lgwin = BROTLI_DEFAULT_WINDOW;
+  params->lgblock = 0;
+  params->size_hint = 0;
+  params->disable_literal_context_modeling = BROTLI_FALSE;
+}
 
+static void BrotliEncoderInitState(BrotliEncoderState* s) {
+  BrotliEncoderInitParams(&s->params);
   s->input_pos_ = 0;
   s->num_commands_ = 0;
   s->num_literals_ = 0;
@@ -741,7 +750,7 @@ static void CopyInputToRingBuffer(BrotliEncoderState* s,
 
 void BrotliEncoderSetCustomDictionary(BrotliEncoderState* s, size_t size,
                                       const uint8_t* dict) {
-  size_t max_dict_size = MaxBackwardLimit(s->params.lgwin);
+  size_t max_dict_size = BROTLI_MAX_BACKWARD_LIMIT(s->params.lgwin);
   size_t dict_size = size;
   MemoryManager* m = &s->memory_manager_;
 
@@ -884,16 +893,28 @@ static BROTLI_BOOL EncodeData(
     }
   }
 
-  BrotliCreateBackwardReferences(m, bytes, wrapped_last_processed_pos,
-                                 is_last, data, mask,
-                                 &s->params,
-                                 &s->hashers_,
-                                 s->dist_cache_,
-                                 &s->last_insert_len_,
-                                 &s->commands_[s->num_commands_],
-                                 &s->num_commands_,
-                                 &s->num_literals_);
+  InitOrStitchToPreviousBlock(m, &s->hashers_, data, mask, &s->params,
+      wrapped_last_processed_pos, bytes, is_last);
   if (BROTLI_IS_OOM(m)) return BROTLI_FALSE;
+
+  if (s->params.quality == ZOPFLIFICATION_QUALITY) {
+    BrotliCreateZopfliBackwardReferences(
+        m, bytes, wrapped_last_processed_pos, data, mask,
+        &s->params, s->hashers_.h10, s->dist_cache_, &s->last_insert_len_,
+        &s->commands_[s->num_commands_], &s->num_commands_, &s->num_literals_);
+    if (BROTLI_IS_OOM(m)) return BROTLI_FALSE;
+  } else if (s->params.quality == HQ_ZOPFLIFICATION_QUALITY) {
+    BrotliCreateHqZopfliBackwardReferences(
+        m, bytes, wrapped_last_processed_pos, data, mask,
+        &s->params, s->hashers_.h10, s->dist_cache_, &s->last_insert_len_,
+        &s->commands_[s->num_commands_], &s->num_commands_, &s->num_literals_);
+    if (BROTLI_IS_OOM(m)) return BROTLI_FALSE;
+  } else {
+    BrotliCreateBackwardReferences(
+        bytes, wrapped_last_processed_pos, data, mask,
+        &s->params, &s->hashers_, s->dist_cache_, &s->last_insert_len_,
+        &s->commands_[s->num_commands_], &s->num_commands_, &s->num_literals_);
+  }
 
   {
     const size_t max_length = MaxMetablockSize(&s->params);
@@ -1008,7 +1029,7 @@ static BROTLI_BOOL BrotliCompressBufferQuality10(
   MemoryManager* m = &memory_manager;
 
   const size_t mask = BROTLI_SIZE_MAX >> 1;
-  const size_t max_backward_limit = MaxBackwardLimit(lgwin);
+  const size_t max_backward_limit = BROTLI_MAX_BACKWARD_LIMIT(lgwin);
   int dist_cache[4] = { 4, 11, 15, 16 };
   int saved_dist_cache[4] = { 4, 11, 15, 16 };
   BROTLI_BOOL ok = BROTLI_TRUE;
@@ -1032,11 +1053,9 @@ static BROTLI_BOOL BrotliCompressBufferQuality10(
   uint8_t prev_byte = 0;
   uint8_t prev_byte2 = 0;
 
-  params.mode = BROTLI_DEFAULT_MODE;
+  BrotliEncoderInitParams(&params);
   params.quality = 10;
   params.lgwin = lgwin;
-  params.lgblock = 0;
-  params.disable_literal_context_modeling = BROTLI_FALSE;
   SanitizeParams(&params);
   params.lgblock = ComputeLgBlock(&params);
   max_block_size = (size_t)1 << params.lgblock;
@@ -1308,6 +1327,7 @@ BROTLI_BOOL BrotliEncoderCompress(
     BrotliEncoderSetParameter(s, BROTLI_PARAM_QUALITY, (uint32_t)quality);
     BrotliEncoderSetParameter(s, BROTLI_PARAM_LGWIN, (uint32_t)lgwin);
     BrotliEncoderSetParameter(s, BROTLI_PARAM_MODE, (uint32_t)mode);
+    BrotliEncoderSetParameter(s, BROTLI_PARAM_SIZE_HINT, (uint32_t)input_size);
     result = BrotliEncoderCompressStream(s, BROTLI_OPERATION_FINISH,
         &available_in, &next_in, &available_out, &next_out, &total_out);
     if (!BrotliEncoderIsFinished(s)) result = 0;
@@ -1572,6 +1592,11 @@ BROTLI_BOOL BrotliEncoderCompressStream(
     BrotliEncoderState* s, BrotliEncoderOperation op, size_t* available_in,
     const uint8_t** next_in, size_t* available_out,uint8_t** next_out,
     size_t* total_out) {
+  /* If we don't have any size hint, set it based on the size of the first
+     input chunk. */
+  if (s->params.size_hint == 0) {
+    s->params.size_hint = (uint32_t)*available_in;
+  }
   if (!EnsureInitialized(s)) return BROTLI_FALSE;
 
   /* Unfinished metadata block; check requirements. */

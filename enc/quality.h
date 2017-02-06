@@ -37,6 +37,7 @@ typedef struct BrotliEncoderParams {
   int quality;
   int lgwin;
   int lgblock;
+  size_t size_hint;
   BROTLI_BOOL disable_literal_context_modeling;
 } BrotliEncoderParams;
 
@@ -124,6 +125,8 @@ static BROTLI_INLINE size_t LiteralSpreeLengthForSparseSearch(
 static BROTLI_INLINE int ChooseHasher(const BrotliEncoderParams* params) {
   if (params->quality > 9) {
     return 10;
+  } else if (params->quality == 4 && params->size_hint >= (1 << 20)) {
+    return 54;
   } else if (params->quality < 5) {
     return params->quality;
   } else if (params->lgwin <= 16) {
