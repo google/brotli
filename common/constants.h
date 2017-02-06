@@ -50,5 +50,6 @@
 /* Number of slack bytes for window size. Don't confuse
    with BROTLI_NUM_DISTANCE_SHORT_CODES. */
 #define BROTLI_WINDOW_GAP 16
+#define BROTLI_MAX_BACKWARD_LIMIT(W) (((size_t)1 << (W)) - BROTLI_WINDOW_GAP)
 
 #endif  /* BROTLI_COMMON_CONSTANTS_H_ */
