@@ -1391,6 +1391,8 @@ static BROTLI_INLINE void TakeDistanceFromRingBuffer(BrotliDecoderState* s) {
   if (s->distance_code == 0) {
     --s->dist_rb_idx;
     s->distance_code = s->dist_rb[s->dist_rb_idx & 3];
+    /* Compensate double distance-ring-buffer roll for dictionary items. */
+    s->distance_context = 1;
   } else {
     int distance_code = s->distance_code << 1;
     /* kDistanceShortCodeIndexOffset has 2-bit values from LSB: */
@@ -1712,6 +1714,8 @@ CommandPostDecodeLiterals:
   if (BROTLI_PREDICT_FALSE(s->block_length[2] == 0)) {
     BROTLI_SAFE(DecodeDistanceBlockSwitch(s));
   }
+  /* Reuse distance_context variable. */
+  s->distance_context = 0;
   BROTLI_SAFE(ReadDistance(s, br));
 postReadDistance:
   BROTLI_LOG(("[ProcessCommandsInternal] pos = %d distance = %d\n",
@@ -1732,6 +1736,8 @@ postReadDistance:
       int mask = (int)BitMask(shift);
       int word_idx = word_id & mask;
       int transform_idx = word_id >> shift;
+      /* Compensate double distance-ring-buffer roll. */
+      s->dist_rb_idx += s->distance_context;
       offset += word_idx * i;
       if (transform_idx < kNumTransforms) {
         const uint8_t* word = &kBrotliDictionary[offset];
