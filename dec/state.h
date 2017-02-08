@@ -140,6 +140,8 @@ struct BrotliDecoderStateStruct {
   /* This is true if the literal context map histogram type always matches the
   block type. It is then not needed to keep the context (faster decoding). */
   int trivial_literal_context;
+  /* Distance context is actual after command is decoded and before distance
+  is computed. After distance computation it is used as a temporary variable. */
   int distance_context;
   int meta_block_remaining_len;
   uint32_t block_length_index;
