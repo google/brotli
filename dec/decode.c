@@ -1446,6 +1446,7 @@ static BROTLI_INLINE BROTLI_BOOL ReadDistanceInternal(
   }
   /* Convert the distance code to the actual distance by possibly */
   /* looking up past distances from the s->ringbuffer. */
+  s->distance_context = 0;
   if ((s->distance_code & ~0xf) == 0) {
     TakeDistanceFromRingBuffer(s);
     --s->block_length[2];
@@ -1706,6 +1707,7 @@ CommandPostDecodeLiterals:
     s->state = BROTLI_STATE_COMMAND_POST_DECODE_LITERALS;
   }
   if (s->distance_code >= 0) {
+    s->distance_context = s->distance_code ? 0 : 1;
     --s->dist_rb_idx;
     s->distance_code = s->dist_rb[s->dist_rb_idx & 3];
     goto postReadDistance;  /* We already have the implicit distance */
@@ -1714,8 +1716,6 @@ CommandPostDecodeLiterals:
   if (BROTLI_PREDICT_FALSE(s->block_length[2] == 0)) {
     BROTLI_SAFE(DecodeDistanceBlockSwitch(s));
   }
-  /* Reuse distance_context variable. */
-  s->distance_context = 0;
   BROTLI_SAFE(ReadDistance(s, br));
 postReadDistance:
   BROTLI_LOG(("[ProcessCommandsInternal] pos = %d distance = %d\n",
