@@ -21,6 +21,13 @@ case "$1" in
 			;;
 		esac
 		;;
+	    "linux")
+		case "${CC}" in
+		    "pgcc")
+			wget -q -O /dev/stdout 'https://raw.githubusercontent.com/nemequ/pgi-travis/master/install-pgi.sh' | /bin/sh
+			;;
+		esac
+		;;
 	esac
 	;;
     "script")
