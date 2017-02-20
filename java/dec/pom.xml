@@ -5,13 +5,13 @@
   <parent>
     <groupId>org.brotli</groupId>
     <artifactId>parent</artifactId>
-    <version>0.1.0-SNAPSHOT</version>
+    <version>0.1.0</version>
   </parent>
   <artifactId>dec</artifactId>
-  <version>0.1.0-SNAPSHOT</version>
+  <version>0.1.0</version>
   <packaging>jar</packaging>
 
-  <name>dec</name>
+  <name>${project.groupId}:${project.artifactId}</name>
 
   <build>
     <sourceDirectory>.</sourceDirectory>
