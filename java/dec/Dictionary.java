@@ -47,16 +47,16 @@ final class Dictionary {
       DATA = new byte[122784];
       String[] chunks = {DataHolder0.getData(), DataHolder1.getData(), DataHolder2.getData()};
       int sum = 0;
-      for (int i = 0; i < chunks.length; ++i) {
-        sum += chunks[i].length();
+      for (String chunk : chunks) {
+        sum += chunk.length();
       }
       if (sum != DATA.length) {
         throw new RuntimeException("Corrupted brotli dictionary");
       }
       sum = 0;
-      for (int i = 0; i < chunks.length; ++i) {
-        for (int j = 0; j < chunks[i].length(); ++j) {
-          DATA[sum++] = (byte) chunks[i].charAt(j);
+      for (String chunk : chunks) {
+        for (int j = 0; j < chunk.length(); ++j) {
+          DATA[sum++] = (byte) chunk.charAt(j);
         }
       }
     }
