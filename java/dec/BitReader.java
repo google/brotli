@@ -47,7 +47,7 @@ class BitReader {
   int bitOffset;
 
   /**
-   * Number of 32-bit integers availabale for reading.
+   * Number of 32-bit integers available for reading.
    */
   private int available;
 
@@ -103,9 +103,9 @@ class BitReader {
     }
     /* When end of stream is reached, we "borrow" up to 64 zeroes to bit reader.
      * If compressed stream is valid, then borrowed zeroes should remain unused. */
-    int valentBytes = (br.available << 2) + ((64 - br.bitOffset) >> 3);
+    int unusedBytes = (br.available << 2) + ((64 - br.bitOffset) >> 3);
     int borrowedBytes = 64 - br.tailBytes;
-    if (valentBytes != borrowedBytes) {
+    if (unusedBytes != borrowedBytes) {
       throw new BrotliRuntimeException("Read after end");
     }
   }
@@ -167,7 +167,7 @@ class BitReader {
     }
   }
 
-  static void jumpToByteBoundry(BitReader br) {
+  static void jumpToByteBoundary(BitReader br) {
     int padding = (64 - br.bitOffset) & 7;
     if (padding != 0) {
       int paddingBits = BitReader.readBits(br, padding);

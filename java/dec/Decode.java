@@ -23,7 +23,7 @@ import static org.brotli.dec.RunningState.WRITE;
 /**
  * API for Brotli decompression.
  */
-public final class Decode {
+final class Decode {
 
   private static final int DEFAULT_CODE_LENGTH = 8;
   private static final int CODE_LENGTH_REPEAT_CODE = 16;
@@ -382,7 +382,7 @@ public final class Decode {
     state.distContextMapSlice = state.blockTypeRb[5] << DISTANCE_CONTEXT_BITS;
   }
 
-  static void maybeReallocateRingBuffer(State state) {
+  private static void maybeReallocateRingBuffer(State state) {
     int newSize = state.maxRingBufferSize;
     if ((long) newSize > state.expectedTotalSize) {
       /* TODO: Handle 2GB+ cases more gracefully. */
@@ -424,7 +424,7 @@ public final class Decode {
    *
    * @param state decoding state
    */
-  static void readMeablockInfo(State state) {
+  private static void readMetablockInfo(State state) {
     final BitReader br = state.br;
 
     if (state.inputEnd) {
@@ -448,7 +448,7 @@ public final class Decode {
       return;
     }
     if (state.isUncompressed || state.isMetadata) {
-      BitReader.jumpToByteBoundry(br);
+      BitReader.jumpToByteBoundary(br);
       state.runningState = state.isMetadata ? READ_METADATA : COPY_UNCOMPRESSED;
     } else {
       state.runningState = COMPRESSED_BLOCK_START;
@@ -463,7 +463,7 @@ public final class Decode {
     }
   }
 
-  static void readMetablockHuffmanCodesAndContextMaps(State state) {
+  private static void readMetablockHuffmanCodesAndContextMaps(State state) {
     final BitReader br = state.br;
 
     for (int i = 0; i < 3; i++) {
@@ -533,7 +533,7 @@ public final class Decode {
     state.blockTypeRb[1] = state.blockTypeRb[3] = state.blockTypeRb[5] = 0;
   }
 
-  static void copyUncompressedData(State state) {
+  private static void copyUncompressedData(State state) {
     final BitReader br = state.br;
     final byte[] ringBuffer = state.ringBuffer;
     final int ringBufferMask = state.ringBufferSize - 1;
@@ -554,7 +554,7 @@ public final class Decode {
     state.runningState = BLOCK_START;
   }
 
-  static boolean writeRingBuffer(State state) {
+  private static boolean writeRingBuffer(State state) {
     /* Ignore custom dictionary bytes. */
     if (state.bytesToIgnore != 0) {
       state.bytesWritten += state.bytesToIgnore;
@@ -597,7 +597,7 @@ public final class Decode {
           if (state.metaBlockLength < 0) {
             throw new BrotliRuntimeException("Invalid metablock length");
           }
-          readMeablockInfo(state);
+          readMetablockInfo(state);
           /* Ring-buffer would be reallocated here. */
           ringBufferMask = state.ringBufferSize - 1;
           ringBuffer = state.ringBuffer;
@@ -832,7 +832,7 @@ public final class Decode {
       if (state.metaBlockLength < 0) {
         throw new BrotliRuntimeException("Invalid metablock length");
       }
-      BitReader.jumpToByteBoundry(br);
+      BitReader.jumpToByteBoundary(br);
       BitReader.checkHealth(state.br);
     }
   }

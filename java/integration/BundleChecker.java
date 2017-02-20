@@ -26,9 +26,9 @@ import java.util.zip.ZipInputStream;
  * is expected to match the checksum hex-encoded in the first part of entry name.
  */
 public class BundleChecker implements Runnable {
-  final AtomicInteger nextJob;
-  final InputStream input;
-  final boolean sanityCheck;
+  private final AtomicInteger nextJob;
+  private final InputStream input;
+  private final boolean sanityCheck;
 
   /**
    * @param sanityCheck do not calculate checksum and ignore {@link IOException}.
@@ -40,7 +40,8 @@ public class BundleChecker implements Runnable {
   }
 
   /** ECMA CRC64 polynomial. */
-  static final long CRC_64_POLY = new BigInteger("C96C5795D7870F42", 16).longValue();
+  private static final long CRC_64_POLY =
+      new BigInteger("C96C5795D7870F42", 16).longValue();
 
   /**
    * Rolls CRC64 calculation.
@@ -78,7 +79,7 @@ public class BundleChecker implements Runnable {
       crc = updateCrc64(crc, buffer, 0, len);
     }
     decompressedStream.close();
-    return crc ^ -1;
+    return ~crc;
   }
 
   @Override
@@ -87,7 +88,7 @@ public class BundleChecker implements Runnable {
     ZipInputStream zis = new ZipInputStream(input);
     try {
       int entryIndex = 0;
-      ZipEntry entry = null;
+      ZipEntry entry;
       int jobIndex = nextJob.getAndIncrement();
       while ((entry = zis.getNextEntry()) != null) {
         if (entry.isDirectory()) {
