@@ -14,18 +14,21 @@
   <name>${project.groupId}:${project.artifactId}</name>
 
   <build>
-    <sourceDirectory>.</sourceDirectory>
-    <testSourceDirectory>.</testSourceDirectory>
+    <sourceDirectory>../../..</sourceDirectory>
+    <testSourceDirectory>../../..</testSourceDirectory>
     <plugins>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-compiler-plugin</artifactId>
         <configuration>
+          <includes>
+            <include>**/dec/*.java</include>
+          </includes>
           <excludes>
             <exclude>**/*Test*.java</exclude>
           </excludes>
           <testIncludes>
-            <include>**/*Test*.java</include>
+            <include>**/dec/*Test*.java</include>
           </testIncludes>
         </configuration>
       </plugin>
@@ -42,7 +45,7 @@
             </goals>
             <configuration>
               <includes>
-                <include>**/*.java</include>
+                <include>**/dec/*.java</include>
               </includes>
               <excludes>
                 <exclude>**/*Test*.java</exclude>
@@ -63,6 +66,7 @@
               <goal>jar</goal>
             </goals>
             <configuration>
+              <sourcepath>.</sourcepath>
               <sourceFileExcludes>
                 <exclude>**/*Test*.java</exclude>
               </sourceFileExcludes>
