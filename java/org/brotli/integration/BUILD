@@ -4,7 +4,7 @@
 java_library(
     name = "bundle_checker_lib",
     srcs = ["BundleChecker.java"],
-    deps = ["//java/dec:lib"],
+    deps = ["//java/org/brotli/dec:lib"],
 )
 
 java_binary(
@@ -15,7 +15,7 @@ java_binary(
 
 java_test(
     name = "bundle_checker_data_test",
-    args = ["java/integration/test_data.zip"],
+    args = ["java/org/brotli/integration/test_data.zip"],
     data = ["test_data.zip"],
     main_class = "org.brotli.integration.BundleChecker",
     use_testrunner = 0,
@@ -26,7 +26,7 @@ java_test(
     name = "bundle_checker_fuzz_test",
     args = [
         "-s",
-        "java/integration/fuzz_data.zip"
+        "java/org/brotli/integration/fuzz_data.zip"
     ],
     data = ["fuzz_data.zip"],
     main_class = "org.brotli.integration.BundleChecker",
