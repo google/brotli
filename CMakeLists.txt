@@ -408,7 +408,7 @@ generate_pkg_config ("${CMAKE_CURRENT_BINARY_DIR}/libbrotlienc.pc"
   DESCRIPTION "Brotli encoder library"
   VERSION "${BROTLI_VERSION_MAJOR}.${BROTLI_VERSION_MINOR}.${BROTLI_VERSION_REVISION}"
   URL "https://github.com/google/brotli"
-  DEPENDS_PRIVATE brotlicommon
+  DEPENDS_PRIVATE libbrotlicommon
   LIBRARIES brotlienc)
 
 if(NOT BROTLI_BUNDLED_MODE)
