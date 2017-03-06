@@ -221,6 +221,7 @@ EXT_MODULES = [
             'enc/find_match_length.h',
             'enc/hash.h',
             'enc/hash_to_binary_tree_inc.h',
+            'enc/hash_longest_match64_inc.h',
             'enc/hash_longest_match_inc.h',
             'enc/hash_longest_match_quickly_inc.h',
             'enc/histogram.h',

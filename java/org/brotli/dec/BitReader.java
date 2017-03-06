@@ -8,25 +8,20 @@ package org.brotli.dec;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
-import java.nio.IntBuffer;
 
 /**
  * Bit reading helpers.
  */
-class BitReader {
+final class BitReader {
 
   /**
    * Input byte buffer, consist of a ring-buffer and a "slack" region where bytes from the start of
    * the ring-buffer are copied.
    */
-  private static final int READ_SIZE = 4096;
-  private static final int BUF_SIZE = READ_SIZE + 64;
+  private static final int BUF_SIZE = IntReader.CAPACITY << 2;
+  private static final int READ_SIZE = BUF_SIZE - 64;
 
-  private final ByteBuffer byteBuffer =
-      ByteBuffer.allocateDirect(BUF_SIZE).order(ByteOrder.LITTLE_ENDIAN);
-  private final IntBuffer intBuffer = byteBuffer.asIntBuffer();
+  private final IntReader intReader = new IntReader();
   private final byte[] shadowBuffer = new byte[BUF_SIZE];
 
   private InputStream input;
@@ -73,7 +68,7 @@ class BitReader {
       }
       throw new BrotliRuntimeException("No more input");
     }
-    int readOffset = br.intBuffer.position() << 2;
+    int readOffset = IntReader.position(br.intReader) << 2;
     int bytesRead = READ_SIZE - readOffset;
     System.arraycopy(br.shadowBuffer, readOffset, br.shadowBuffer, 0, bytesRead);
     try {
@@ -91,9 +86,7 @@ class BitReader {
     } catch (IOException e) {
       throw new BrotliRuntimeException("Failed to read input", e);
     }
-    br.byteBuffer.clear();
-    br.byteBuffer.put(br.shadowBuffer, 0, bytesRead & 0xFFFC);
-    br.intBuffer.rewind();
+    IntReader.reload(br.intReader, br.shadowBuffer, 0, bytesRead >> 2);
     br.available = bytesRead >> 2;
   }
 
@@ -115,7 +108,7 @@ class BitReader {
    */
   static void fillBitWindow(BitReader br) {
     if (br.bitOffset >= 32) {
-      br.accumulator = ((long) br.intBuffer.get() << 32) | (br.accumulator >>> 32);
+      br.accumulator = ((long) IntReader.read(br.intReader) << 32) | (br.accumulator >>> 32);
       br.bitOffset -= 32;
       br.available--;
     }
@@ -146,7 +139,7 @@ class BitReader {
     }
     br.input = input;
     br.accumulator = 0;
-    br.intBuffer.position(READ_SIZE >> 2);
+    IntReader.setPosition(br.intReader, READ_SIZE >> 2);
     br.bitOffset = 64;
     br.available = 0;
     br.endOfStreamReached = false;

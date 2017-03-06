@@ -37,6 +37,7 @@ extern "C" {
    updated to represent the updated "cmd_depth" and "cmd_bits".
 
    REQUIRES: "input_size" is greater than zero, or "is_last" is 1.
+   REQUIRES: "input_size" is less or equal to maximal metablock size (1 << 24).
    REQUIRES: All elements in "table[0..table_size-1]" are initialized to zero.
    REQUIRES: "table_size" is an odd (9, 11, 13, 15) power of two
    OUTPUT: maximal copy distance <= |input_size|

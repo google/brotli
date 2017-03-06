@@ -21,7 +21,7 @@ static BROTLI_INLINE size_t FN(StoreLookahead)(void) { return 8; }
 /* HashBytes is the function that chooses the bucket to place
    the address in. The HashLongestMatch and HashLongestMatchQuickly
    classes have separate, different implementations of hashing. */
-static uint32_t FN(HashBytes)(const uint8_t *data) {
+static uint32_t FN(HashBytes)(const uint8_t* data) {
   const uint64_t h = ((BROTLI_UNALIGNED_LOAD64(data) << (64 - 8 * HASH_LEN)) *
                       kHashMul64);
   /* The higher bits contain more mixture from the multiplication,
@@ -36,95 +36,84 @@ static uint32_t FN(HashBytes)(const uint8_t *data) {
    given index, BUCKET_SWEEP buckets are used to store values of a key. */
 typedef struct HashLongestMatchQuickly {
   uint32_t buckets_[BUCKET_SIZE + BUCKET_SWEEP];
-  /* True if buckets_ array needs to be initialized. */
-  BROTLI_BOOL is_dirty_;
-  DictionarySearchStatictics dict_search_stats_;
 } HashLongestMatchQuickly;
 
-static void FN(Initialize)(HashLongestMatchQuickly* self) {
-  BROTLI_UNUSED(self);
+static BROTLI_INLINE HashLongestMatchQuickly* FN(Self)(HasherHandle handle) {
+  return (HashLongestMatchQuickly*)&(GetHasherCommon(handle)[1]);
 }
 
-static void FN(Cleanup)(MemoryManager* m, HashLongestMatchQuickly* self) {
-  BROTLI_UNUSED(m);
-  BROTLI_UNUSED(self);
+static void FN(Initialize)(
+    HasherHandle handle, const BrotliEncoderParams* params) {
+  BROTLI_UNUSED(handle);
+  BROTLI_UNUSED(params);
 }
 
-static void FN(Reset)(HashLongestMatchQuickly* self) {
-  self->is_dirty_ = BROTLI_TRUE;
-  DictionarySearchStaticticsReset(&self->dict_search_stats_);
-}
-
-static void FN(InitEmpty)(HashLongestMatchQuickly* self) {
-  if (self->is_dirty_) {
+static void FN(Prepare)(HasherHandle handle, BROTLI_BOOL one_shot,
+    size_t input_size, const uint8_t* data) {
+  HashLongestMatchQuickly* self = FN(Self)(handle);
+  /* Partial preparation is 100 times slower (per socket). */
+  size_t partial_prepare_threshold = HASH_MAP_SIZE >> 7;
+  if (one_shot && input_size <= partial_prepare_threshold) {
+    size_t i;
+    for (i = 0; i < input_size; ++i) {
+      const uint32_t key = FN(HashBytes)(&data[i]);
+      memset(&self->buckets_[key], 0, BUCKET_SWEEP * sizeof(self->buckets_[0]));
+    }
+  } else {
     /* It is not strictly necessary to fill this buffer here, but
        not filling will make the results of the compression stochastic
        (but correct). This is because random data would cause the
        system to find accidentally good backward references here and there. */
     memset(&self->buckets_[0], 0, sizeof(self->buckets_));
-    self->is_dirty_ = BROTLI_FALSE;
   }
 }
 
-static void FN(InitForData)(HashLongestMatchQuickly* self, const uint8_t* data,
-    size_t num) {
-  size_t i;
-  for (i = 0; i < num; ++i) {
-    const uint32_t key = FN(HashBytes)(&data[i]);
-    memset(&self->buckets_[key], 0, BUCKET_SWEEP * sizeof(self->buckets_[0]));
-  }
-  if (num != 0) {
-    self->is_dirty_ = BROTLI_FALSE;
-  }
-}
-
-static void FN(Init)(
-    MemoryManager* m, HashLongestMatchQuickly* self, const uint8_t* data,
-    const BrotliEncoderParams* params, size_t position, size_t bytes,
-    BROTLI_BOOL is_last) {
-  /* Choose which initialization method is faster.
-     Init() is about 100 times faster than InitForData(). */
-  const size_t kMaxBytesForPartialHashInit = HASH_MAP_SIZE >> 7;
-  BROTLI_UNUSED(m);
+static BROTLI_INLINE size_t FN(HashMemAllocInBytes)(
+    const BrotliEncoderParams* params, BROTLI_BOOL one_shot,
+    size_t input_size) {
   BROTLI_UNUSED(params);
-  if (position == 0 && is_last && bytes <= kMaxBytesForPartialHashInit) {
-    FN(InitForData)(self, data, bytes);
-  } else {
-    FN(InitEmpty)(self);
-  }
+  BROTLI_UNUSED(one_shot);
+  BROTLI_UNUSED(input_size);
+  return sizeof(HashLongestMatchQuickly);
 }
 
 /* Look at 5 bytes at &data[ix & mask].
    Compute a hash from these, and store the value somewhere within
    [ix .. ix+3]. */
-static BROTLI_INLINE void FN(Store)(HashLongestMatchQuickly* self,
+static BROTLI_INLINE void FN(Store)(HasherHandle handle,
     const uint8_t *data, const size_t mask, const size_t ix) {
   const uint32_t key = FN(HashBytes)(&data[ix & mask]);
   /* Wiggle the value with the bucket sweep range. */
   const uint32_t off = (ix >> 3) % BUCKET_SWEEP;
-  self->buckets_[key + off] = (uint32_t)ix;
+  FN(Self)(handle)->buckets_[key + off] = (uint32_t)ix;
 }
 
-static BROTLI_INLINE void FN(StoreRange)(HashLongestMatchQuickly* self,
+static BROTLI_INLINE void FN(StoreRange)(HasherHandle handle,
     const uint8_t *data, const size_t mask, const size_t ix_start,
     const size_t ix_end) {
   size_t i;
   for (i = ix_start; i < ix_end; ++i) {
-    FN(Store)(self, data, mask, i);
+    FN(Store)(handle, data, mask, i);
   }
 }
 
 static BROTLI_INLINE void FN(StitchToPreviousBlock)(
-    HashLongestMatchQuickly* self, size_t num_bytes, size_t position,
+    HasherHandle handle, size_t num_bytes, size_t position,
     const uint8_t* ringbuffer, size_t ringbuffer_mask) {
   if (num_bytes >= FN(HashTypeLength)() - 1 && position >= 3) {
     /* Prepare the hashes for three last bytes of the last write.
        These could not be calculated before, since they require knowledge
        of both the previous and the current block. */
-    FN(Store)(self, ringbuffer, ringbuffer_mask, position - 3);
-    FN(Store)(self, ringbuffer, ringbuffer_mask, position - 2);
-    FN(Store)(self, ringbuffer, ringbuffer_mask, position - 1);
+    FN(Store)(handle, ringbuffer, ringbuffer_mask, position - 3);
+    FN(Store)(handle, ringbuffer, ringbuffer_mask, position - 2);
+    FN(Store)(handle, ringbuffer, ringbuffer_mask, position - 1);
   }
+}
+
+static BROTLI_INLINE void FN(PrepareDistanceCache)(
+    HasherHandle handle, int* BROTLI_RESTRICT distance_cache) {
+  BROTLI_UNUSED(handle);
+  BROTLI_UNUSED(distance_cache);
 }
 
 /* Find a longest backward match of &data[cur_ix & ring_buffer_mask]
@@ -136,10 +125,12 @@ static BROTLI_INLINE void FN(StitchToPreviousBlock)(
    Writes the best match into |out|.
    Returns true if match is found, otherwise false. */
 static BROTLI_INLINE BROTLI_BOOL FN(FindLongestMatch)(
-    HashLongestMatchQuickly* self, const uint8_t* BROTLI_RESTRICT data,
+    HasherHandle handle, const BrotliDictionary* dictionary,
+    const uint16_t* dictionary_hash, const uint8_t* BROTLI_RESTRICT data,
     const size_t ring_buffer_mask, const int* BROTLI_RESTRICT distance_cache,
     const size_t cur_ix, const size_t max_length, const size_t max_backward,
     HasherSearchResult* BROTLI_RESTRICT out) {
+  HashLongestMatchQuickly* self = FN(Self)(handle);
   const size_t best_len_in = out->len;
   const size_t cur_ix_masked = cur_ix & ring_buffer_mask;
   const uint32_t key = FN(HashBytes)(&data[cur_ix_masked]);
@@ -157,7 +148,7 @@ static BROTLI_INLINE BROTLI_BOOL FN(FindLongestMatch)(
                                             &data[cur_ix_masked],
                                             max_length);
       if (len >= 4) {
-        best_score = BackwardReferenceScoreUsingLastDistance(len, 0);
+        best_score = BackwardReferenceScoreUsingLastDistance(len);
         best_len = len;
         out->len = len;
         out->distance = cached_backward;
@@ -227,8 +218,9 @@ static BROTLI_INLINE BROTLI_BOOL FN(FindLongestMatch)(
     }
   }
   if (USE_DICTIONARY && !is_match_found) {
-    is_match_found = SearchInStaticDictionary(&self->dict_search_stats_,
-        &data[cur_ix_masked], max_length, max_backward, out, BROTLI_TRUE);
+    is_match_found = SearchInStaticDictionary(dictionary, dictionary_hash,
+        handle, &data[cur_ix_masked], max_length, max_backward, out,
+        BROTLI_TRUE);
   }
   self->buckets_[key + ((cur_ix >> 3) % BUCKET_SWEEP)] = (uint32_t)cur_ix;
   return is_match_found;
