@@ -50,7 +50,7 @@ typedef enum BrotliEncoderMode {
    * properties of the input.
    */
   BROTLI_MODE_GENERIC = 0,
-  /** Compression mode for UTF-8 formated text input. */
+  /** Compression mode for UTF-8 formatted text input. */
   BROTLI_MODE_TEXT = 1,
   /** Compression mode used in WOFF 2.0. */
   BROTLI_MODE_FONT = 2

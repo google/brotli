@@ -128,6 +128,10 @@ typedef enum {
 /**
  * Creates an instance of ::BrotliDecoderState and initializes it.
  *
+ * The instance can be used once for decoding and should then be destroyed with
+ * ::BrotliDecoderDestroyInstance, it cannot be reused for a new decoding
+ * session.
+ *
  * @p alloc_func and @p free_func @b MUST be both zero or both non-zero. In the
  * case they are both zero, default memory allocators are used. @p opaque is
  * passed to @p alloc_func and @p free_func when they are called.

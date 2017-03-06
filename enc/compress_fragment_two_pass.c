@@ -216,21 +216,20 @@ static BROTLI_INLINE void EmitDistance(uint32_t distance, uint32_t** commands) {
   ++(*commands);
 }
 
-/* REQUIRES: len <= 1 << 20. */
+/* REQUIRES: len <= 1 << 24. */
 static void BrotliStoreMetaBlockHeader(
     size_t len, BROTLI_BOOL is_uncompressed, size_t* storage_ix,
     uint8_t* storage) {
+  size_t nibbles = 6;
   /* ISLAST */
   BrotliWriteBits(1, 0, storage_ix, storage);
   if (len <= (1U << 16)) {
-    /* MNIBBLES is 4 */
-    BrotliWriteBits(2, 0, storage_ix, storage);
-    BrotliWriteBits(16, len - 1, storage_ix, storage);
-  } else {
-    /* MNIBBLES is 5 */
-    BrotliWriteBits(2, 1, storage_ix, storage);
-    BrotliWriteBits(20, len - 1, storage_ix, storage);
+    nibbles = 4;
+  } else if (len <= (1U << 20)) {
+    nibbles = 5;
   }
+  BrotliWriteBits(2, nibbles - 4, storage_ix, storage);
+  BrotliWriteBits(nibbles * 4, len - 1, storage_ix, storage);
   /* ISUNCOMPRESSED */
   BrotliWriteBits(1, (uint64_t)is_uncompressed, storage_ix, storage);
 }
@@ -507,6 +506,23 @@ static BROTLI_BOOL ShouldCompress(
   }
 }
 
+static void RewindBitPosition(const size_t new_storage_ix,
+                              size_t* storage_ix, uint8_t* storage) {
+  const size_t bitpos = new_storage_ix & 7;
+  const size_t mask = (1u << bitpos) - 1;
+  storage[new_storage_ix >> 3] &= (uint8_t)mask;
+  *storage_ix = new_storage_ix;
+}
+
+static void EmitUncompressedMetaBlock(const uint8_t* input, size_t input_size,
+                                      size_t* storage_ix, uint8_t* storage) {
+  BrotliStoreMetaBlockHeader(input_size, 1, storage_ix, storage);
+  *storage_ix = (*storage_ix + 7u) & ~7u;
+  memcpy(&storage[*storage_ix >> 3], input, input_size);
+  *storage_ix += input_size << 3;
+  storage[*storage_ix >> 3] = 0;
+}
+
 static BROTLI_INLINE void BrotliCompressFragmentTwoPassImpl(
     MemoryManager* m, const uint8_t* input, size_t input_size,
     BROTLI_BOOL is_last, uint32_t* command_buf, uint8_t* literal_buf,
@@ -514,6 +530,7 @@ static BROTLI_INLINE void BrotliCompressFragmentTwoPassImpl(
   /* Save the start of the first block for position and distance computations.
   */
   const uint8_t* base_ip = input;
+  BROTLI_UNUSED(is_last);
 
   while (input_size > 0) {
     size_t block_size =
@@ -536,20 +553,10 @@ static BROTLI_INLINE void BrotliCompressFragmentTwoPassImpl(
       /* Since we did not find many backward references and the entropy of
          the data is close to 8 bits, we can simply emit an uncompressed block.
          This makes compression speed of uncompressible data about 3x faster. */
-      BrotliStoreMetaBlockHeader(block_size, 1, storage_ix, storage);
-      *storage_ix = (*storage_ix + 7u) & ~7u;
-      memcpy(&storage[*storage_ix >> 3], input, block_size);
-      *storage_ix += block_size << 3;
-      storage[*storage_ix >> 3] = 0;
+      EmitUncompressedMetaBlock(input, block_size, storage_ix, storage);
     }
     input += block_size;
     input_size -= block_size;
-  }
-
-  if (is_last) {
-    BrotliWriteBits(1, 1, storage_ix, storage);  /* islast */
-    BrotliWriteBits(1, 1, storage_ix, storage);  /* isempty */
-    *storage_ix = (*storage_ix + 7u) & ~7u;
   }
 }
 
@@ -571,6 +578,7 @@ void BrotliCompressFragmentTwoPass(
     MemoryManager* m, const uint8_t* input, size_t input_size,
     BROTLI_BOOL is_last, uint32_t* command_buf, uint8_t* literal_buf,
     int* table, size_t table_size, size_t* storage_ix, uint8_t* storage) {
+  const size_t initial_storage_ix = *storage_ix;
   const size_t table_bits = Log2FloorNonZero(table_size);
   switch (table_bits) {
 #define CASE_(B)                                      \
@@ -582,6 +590,18 @@ void BrotliCompressFragmentTwoPass(
     FOR_TABLE_BITS_(CASE_)
 #undef CASE_
     default: assert(0); break;
+  }
+
+  /* If output is larger than single uncompressed block, rewrite it. */
+  if (*storage_ix - initial_storage_ix > 31 + (input_size << 3)) {
+    RewindBitPosition(initial_storage_ix, storage_ix, storage);
+    EmitUncompressedMetaBlock(input, input_size, storage_ix, storage);
+  }
+
+  if (is_last) {
+    BrotliWriteBits(1, 1, storage_ix, storage);  /* islast */
+    BrotliWriteBits(1, 1, storage_ix, storage);  /* isempty */
+    *storage_ix = (*storage_ix + 7u) & ~7u;
   }
 }
 

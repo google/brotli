@@ -1730,9 +1730,9 @@ postReadDistance:
   if (s->distance_code > s->max_distance) {
     if (i >= BROTLI_MIN_DICTIONARY_WORD_LENGTH &&
         i <= BROTLI_MAX_DICTIONARY_WORD_LENGTH) {
-      int offset = (int)kBrotliDictionaryOffsetsByLength[i];
+      int offset = (int)s->dictionary->offsets_by_length[i];
       int word_id = s->distance_code - s->max_distance - 1;
-      uint32_t shift = kBrotliDictionarySizeBitsByLength[i];
+      uint32_t shift = s->dictionary->size_bits_by_length[i];
       int mask = (int)BitMask(shift);
       int word_idx = word_id & mask;
       int transform_idx = word_id >> shift;
@@ -1740,7 +1740,7 @@ postReadDistance:
       s->dist_rb_idx += s->distance_context;
       offset += word_idx * i;
       if (transform_idx < kNumTransforms) {
-        const uint8_t* word = &kBrotliDictionary[offset];
+        const uint8_t* word = &s->dictionary->data[offset];
         int len = i;
         if (transform_idx == 0) {
           memcpy(&s->ringbuffer[pos], word, (size_t)len);

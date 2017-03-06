@@ -29,6 +29,7 @@ static const size_t kCompressFragmentTwoPassBlockSize = 1 << 17;
    If "is_last" is 1, emits an additional empty last meta-block.
 
    REQUIRES: "input_size" is greater than zero, or "is_last" is 1.
+   REQUIRES: "input_size" is less or equal to maximal metablock size (1 << 24).
    REQUIRES: "command_buf" and "literal_buf" point to at least
               kCompressFragmentTwoPassBlockSize long arrays.
    REQUIRES: All elements in "table[0..table_size-1]" are initialized to zero.

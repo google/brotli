@@ -31,6 +31,14 @@
    so we buffer at most this much literals and commands. */
 #define MAX_NUM_DELAYED_SYMBOLS 0x2fff
 
+typedef struct BrotliHasherParams {
+  int type;
+  int bucket_bits;
+  int block_bits;
+  int hash_len;
+  int num_last_distances_to_check;
+} BrotliHasherParams;
+
 /* Encoding parameters */
 typedef struct BrotliEncoderParams {
   BrotliEncoderMode mode;
@@ -39,6 +47,7 @@ typedef struct BrotliEncoderParams {
   int lgblock;
   size_t size_hint;
   BROTLI_BOOL disable_literal_context_modeling;
+  BrotliHasherParams hasher;
 } BrotliEncoderParams;
 
 /* Returns hash-table size for quality levels 0 and 1. */
@@ -122,17 +131,30 @@ static BROTLI_INLINE size_t LiteralSpreeLengthForSparseSearch(
   return params->quality < 9 ? 64 : 512;
 }
 
-static BROTLI_INLINE int ChooseHasher(const BrotliEncoderParams* params) {
+static BROTLI_INLINE void ChooseHasher(const BrotliEncoderParams* params,
+                                       BrotliHasherParams* hparams) {
   if (params->quality > 9) {
-    return 10;
+    hparams->type = 10;
   } else if (params->quality == 4 && params->size_hint >= (1 << 20)) {
-    return 54;
+    hparams->type = 54;
   } else if (params->quality < 5) {
-    return params->quality;
+    hparams->type = params->quality;
   } else if (params->lgwin <= 16) {
-    return params->quality < 7 ? 40 : params->quality < 9 ? 41 : 42;
+    hparams->type = params->quality < 7 ? 40 : params->quality < 9 ? 41 : 42;
+  } else if (params->size_hint >= (1 << 20) && params->lgwin >= 19) {
+    hparams->type = 6;
+    hparams->block_bits = params->quality - 1;
+    hparams->bucket_bits = 15;
+    hparams->hash_len = 5;
+    hparams->num_last_distances_to_check =
+        params->quality < 7 ? 4 : params->quality < 9 ? 10 : 16;
+  } else {
+    hparams->type = 5;
+    hparams->block_bits = params->quality - 1;
+    hparams->bucket_bits = params->quality < 7 ? 14 : 15;
+    hparams->num_last_distances_to_check =
+        params->quality < 7 ? 4 : params->quality < 9 ? 10 : 16;
   }
-  return params->quality;
 }
 
 #endif  /* BROTLI_ENC_QUALITY_H_ */

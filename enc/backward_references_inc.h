@@ -7,12 +7,11 @@
 
 /* template parameters: FN */
 
-#define Hasher HASHER()
-
 static BROTLI_NOINLINE void FN(CreateBackwardReferences)(
+    const BrotliDictionary* dictionary, const uint16_t* dictionary_hash,
     size_t num_bytes, size_t position,
     const uint8_t* ringbuffer, size_t ringbuffer_mask,
-    const BrotliEncoderParams* params, Hasher* hasher, int* dist_cache,
+    const BrotliEncoderParams* params, HasherHandle hasher, int* dist_cache,
     size_t* last_insert_len, Command* commands, size_t* num_commands,
     size_t* num_literals) {
   /* Set maximum distance, see section 9.1. of the spec. */
@@ -30,7 +29,9 @@ static BROTLI_NOINLINE void FN(CreateBackwardReferences)(
   size_t apply_random_heuristics = position + random_heuristics_window_size;
 
   /* Minimum score to accept a backward reference. */
-  const score_t kMinScore = BROTLI_SCORE_BASE + 400;
+  const score_t kMinScore = BROTLI_SCORE_BASE + 100;
+
+  FN(PrepareDistanceCache)(hasher, dist_cache);
 
   while (position + FN(HashTypeLength)() < pos_end) {
     size_t max_length = pos_end - position;
@@ -40,13 +41,14 @@ static BROTLI_NOINLINE void FN(CreateBackwardReferences)(
     sr.len_x_code = 0;
     sr.distance = 0;
     sr.score = kMinScore;
-    if (FN(FindLongestMatch)(hasher, ringbuffer, ringbuffer_mask, dist_cache,
+    if (FN(FindLongestMatch)(hasher, dictionary, dictionary_hash,
+                             ringbuffer, ringbuffer_mask, dist_cache,
                              position, max_length, max_distance, &sr)) {
       /* Found a match. Let's look for something even better ahead. */
       int delayed_backward_references_in_row = 0;
       --max_length;
       for (;; --max_length) {
-        const score_t cost_diff_lazy = 700;
+        const score_t cost_diff_lazy = 175;
         BROTLI_BOOL is_match_found;
         HasherSearchResult sr2;
         sr2.len = params->quality < MIN_QUALITY_FOR_EXTENSIVE_REFERENCE_SEARCH ?
@@ -55,9 +57,9 @@ static BROTLI_NOINLINE void FN(CreateBackwardReferences)(
         sr2.distance = 0;
         sr2.score = kMinScore;
         max_distance = BROTLI_MIN(size_t, position + 1, max_backward_limit);
-        is_match_found = FN(FindLongestMatch)(hasher, ringbuffer,
-            ringbuffer_mask, dist_cache, position + 1, max_length, max_distance,
-            &sr2);
+        is_match_found = FN(FindLongestMatch)(hasher, dictionary,
+            dictionary_hash, ringbuffer, ringbuffer_mask, dist_cache,
+            position + 1, max_length, max_distance, &sr2);
         if (is_match_found && sr2.score >= sr.score + cost_diff_lazy) {
           /* Ok, let's just write one byte for now and start a match from the
              next byte. */
@@ -84,6 +86,7 @@ static BROTLI_NOINLINE void FN(CreateBackwardReferences)(
           dist_cache[2] = dist_cache[1];
           dist_cache[1] = dist_cache[0];
           dist_cache[0] = (int)sr.distance;
+          FN(PrepareDistanceCache)(hasher, dist_cache);
         }
         InitCommand(commands++, insert_length, sr.len, sr.len ^ sr.len_x_code,
             distance_code);
@@ -138,5 +141,3 @@ static BROTLI_NOINLINE void FN(CreateBackwardReferences)(
   *last_insert_len = insert_length;
   *num_commands += (size_t)(commands - orig_commands);
 }
-
-#undef Hasher

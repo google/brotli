@@ -57,7 +57,7 @@ typedef struct BrotliEncoderStateStruct {
 
   MemoryManager memory_manager_;
 
-  Hashers hashers_;
+  HasherHandle hasher_;
   uint64_t input_pos_;
   RingBuffer ringbuffer_;
   size_t cmd_alloc_size_;
@@ -67,7 +67,7 @@ typedef struct BrotliEncoderStateStruct {
   size_t last_insert_len_;
   uint64_t last_flush_pos_;
   uint64_t last_processed_pos_;
-  int dist_cache_[4];
+  int dist_cache_[BROTLI_NUM_DISTANCE_SHORT_CODES];
   int saved_dist_cache_[4];
   uint8_t last_byte_;
   uint8_t last_byte_bits_;
@@ -580,10 +580,6 @@ static BROTLI_BOOL EnsureInitialized(BrotliEncoderState* s) {
                            s->cmd_code_, &s->cmd_code_numbits_);
   }
 
-  /* Initialize hashers. */
-  HashersSetup(&s->memory_manager_, &s->hashers_, ChooseHasher(&s->params));
-  if (BROTLI_IS_OOM(&s->memory_manager_)) return BROTLI_FALSE;
-
   s->is_initialized_ = BROTLI_TRUE;
   return BROTLI_TRUE;
 }
@@ -609,6 +605,7 @@ static void BrotliEncoderInitState(BrotliEncoderState* s) {
   s->prev_byte2_ = 0;
   s->storage_size_ = 0;
   s->storage_ = 0;
+  s->hasher_ = NULL;
   s->large_table_ = NULL;
   s->large_table_size_ = 0;
   s->cmd_code_numbits_ = 0;
@@ -620,8 +617,6 @@ static void BrotliEncoderInitState(BrotliEncoderState* s) {
   s->stream_state_ = BROTLI_STREAM_PROCESSING;
   s->is_last_block_emitted_ = BROTLI_FALSE;
   s->is_initialized_ = BROTLI_FALSE;
-
-  InitHashers(&s->hashers_);
 
   RingBufferInit(&s->ringbuffer_);
 
@@ -635,7 +630,7 @@ static void BrotliEncoderInitState(BrotliEncoderState* s) {
   s->dist_cache_[3] = 16;
   /* Save the state of the distance cache in case we need to restore it for
      emitting an uncompressed block. */
-  memcpy(s->saved_dist_cache_, s->dist_cache_, sizeof(s->dist_cache_));
+  memcpy(s->saved_dist_cache_, s->dist_cache_, sizeof(s->saved_dist_cache_));
 }
 
 BrotliEncoderState* BrotliEncoderCreateInstance(brotli_alloc_func alloc_func,
@@ -666,7 +661,7 @@ static void BrotliEncoderCleanupState(BrotliEncoderState* s) {
   BROTLI_FREE(m, s->storage_);
   BROTLI_FREE(m, s->commands_);
   RingBufferFree(m, &s->ringbuffer_);
-  DestroyHashers(m, &s->hashers_);
+  DestroyHasher(m, &s->hasher_);
   BROTLI_FREE(m, s->large_table_);
   BROTLI_FREE(m, s->command_buf_);
   BROTLI_FREE(m, s->literal_buf_);
@@ -774,7 +769,7 @@ void BrotliEncoderSetCustomDictionary(BrotliEncoderState* s, size_t size,
   if (dict_size > 1) {
     s->prev_byte2_ = dict[dict_size - 2];
   }
-  HashersPrependCustomDictionary(m, &s->hashers_, &s->params, dict_size, dict);
+  HasherPrependCustomDictionary(m, &s->hasher_, &s->params, dict_size, dict);
   if (BROTLI_IS_OOM(m)) return;
 }
 
@@ -809,6 +804,7 @@ static BROTLI_BOOL EncodeData(
   uint8_t* data;
   uint32_t mask;
   MemoryManager* m = &s->memory_manager_;
+  const BrotliDictionary* dictionary = BrotliGetDictionary();
 
   if (!EnsureInitialized(s)) return BROTLI_FALSE;
   data = s->ringbuffer_.buffer_;
@@ -893,26 +889,28 @@ static BROTLI_BOOL EncodeData(
     }
   }
 
-  InitOrStitchToPreviousBlock(m, &s->hashers_, data, mask, &s->params,
+  InitOrStitchToPreviousBlock(m, &s->hasher_, data, mask, &s->params,
       wrapped_last_processed_pos, bytes, is_last);
   if (BROTLI_IS_OOM(m)) return BROTLI_FALSE;
 
   if (s->params.quality == ZOPFLIFICATION_QUALITY) {
+    assert(s->params.hasher.type == 10);
     BrotliCreateZopfliBackwardReferences(
-        m, bytes, wrapped_last_processed_pos, data, mask,
-        &s->params, s->hashers_.h10, s->dist_cache_, &s->last_insert_len_,
+        m, dictionary, bytes, wrapped_last_processed_pos, data, mask,
+        &s->params, s->hasher_, s->dist_cache_, &s->last_insert_len_,
         &s->commands_[s->num_commands_], &s->num_commands_, &s->num_literals_);
     if (BROTLI_IS_OOM(m)) return BROTLI_FALSE;
   } else if (s->params.quality == HQ_ZOPFLIFICATION_QUALITY) {
+    assert(s->params.hasher.type == 10);
     BrotliCreateHqZopfliBackwardReferences(
-        m, bytes, wrapped_last_processed_pos, data, mask,
-        &s->params, s->hashers_.h10, s->dist_cache_, &s->last_insert_len_,
+        m, dictionary, bytes, wrapped_last_processed_pos, data, mask,
+        &s->params, s->hasher_, s->dist_cache_, &s->last_insert_len_,
         &s->commands_[s->num_commands_], &s->num_commands_, &s->num_literals_);
     if (BROTLI_IS_OOM(m)) return BROTLI_FALSE;
   } else {
     BrotliCreateBackwardReferences(
-        bytes, wrapped_last_processed_pos, data, mask,
-        &s->params, &s->hashers_, s->dist_cache_, &s->last_insert_len_,
+        dictionary, bytes, wrapped_last_processed_pos, data, mask,
+        &s->params, s->hasher_, s->dist_cache_, &s->last_insert_len_,
         &s->commands_[s->num_commands_], &s->num_commands_, &s->num_literals_);
   }
 
@@ -936,7 +934,7 @@ static BROTLI_BOOL EncodeData(
         s->num_commands_ < max_commands) {
       /* Merge with next input block. Everything will happen later. */
       if (UpdateLastProcessedPos(s)) {
-        HashersReset(&s->hashers_, ChooseHasher(&s->params));
+        HasherReset(s->hasher_);
       }
       *out_size = 0;
       return BROTLI_TRUE;
@@ -976,7 +974,7 @@ static BROTLI_BOOL EncodeData(
     s->last_byte_bits_ = storage_ix & 7u;
     s->last_flush_pos_ = s->input_pos_;
     if (UpdateLastProcessedPos(s)) {
-      HashersReset(&s->hashers_, ChooseHasher(&s->params));
+      HasherReset(s->hasher_);
     }
     if (s->last_flush_pos_ > 0) {
       s->prev_byte_ = data[((uint32_t)s->last_flush_pos_ - 1) & mask];
@@ -988,7 +986,7 @@ static BROTLI_BOOL EncodeData(
     s->num_literals_ = 0;
     /* Save the state of the distance cache in case we need to restore it for
        emitting an uncompressed block. */
-    memcpy(s->saved_dist_cache_, s->dist_cache_, sizeof(s->dist_cache_));
+    memcpy(s->saved_dist_cache_, s->dist_cache_, sizeof(s->saved_dist_cache_));
     *output = &storage[0];
     *out_size = storage_ix >> 3;
     return BROTLI_TRUE;
@@ -1037,12 +1035,13 @@ static BROTLI_BOOL BrotliCompressBufferQuality10(
   size_t total_out_size = 0;
   uint8_t last_byte;
   uint8_t last_byte_bits;
-  H10* hasher;
+  HasherHandle hasher = NULL;
 
   const size_t hasher_eff_size =
       BROTLI_MIN(size_t, input_size, max_backward_limit + BROTLI_WINDOW_GAP);
 
   BrotliEncoderParams params;
+  const BrotliDictionary* dictionary = BrotliGetDictionary();
 
   const int lgmetablock = BROTLI_MIN(int, 24, lgwin + 1);
   size_t max_block_size;
@@ -1064,11 +1063,10 @@ static BROTLI_BOOL BrotliCompressBufferQuality10(
 
   assert(input_size <= mask + 1);
   EncodeWindowBits(lgwin, &last_byte, &last_byte_bits);
-  hasher = BROTLI_ALLOC(m, H10, 1);
+  InitOrStitchToPreviousBlock(m, &hasher, input_buffer, mask, &params,
+      0, hasher_eff_size, BROTLI_TRUE);
   if (BROTLI_IS_OOM(m)) goto oom;
-  InitializeH10(hasher);
-  InitH10(m, hasher, input_buffer, &params, 0, hasher_eff_size, 1);
-  if (BROTLI_IS_OOM(m)) goto oom;
+
 
   while (ok && metablock_start < input_size) {
     const size_t metablock_end =
@@ -1097,7 +1095,7 @@ static BROTLI_BOOL BrotliCompressBufferQuality10(
       StitchToPreviousBlockH10(hasher, block_size, block_start,
                                input_buffer, mask);
       path_size = BrotliZopfliComputeShortestPath(
-          m, block_size, block_start, input_buffer, mask, &params,
+          m, dictionary, block_size, block_start, input_buffer, mask, &params,
           max_backward_limit, dist_cache, hasher, nodes);
       if (BROTLI_IS_OOM(m)) goto oom;
       /* We allocate a command buffer in the first iteration of this loop that
@@ -1227,8 +1225,7 @@ static BROTLI_BOOL BrotliCompressBufferQuality10(
   }
 
   *encoded_size = total_out_size;
-  CleanupH10(m, hasher);
-  BROTLI_FREE(m, hasher);
+  DestroyHasher(m, &hasher);
   return ok;
 
 oom:
@@ -1588,15 +1585,25 @@ static BROTLI_BOOL ProcessMetadata(
   return BROTLI_TRUE;
 }
 
+static void UpdateSizeHint(BrotliEncoderState* s, size_t available_in) {
+  if (s->params.size_hint == 0) {
+    uint64_t delta = UnprocessedInputSize(s);
+    uint64_t tail = available_in;
+    uint32_t limit = 1u << 30;
+    uint32_t total;
+    if ((delta >= limit) || (tail >= limit) || ((delta + tail) >= limit)) {
+      total = limit;
+    } else {
+      total = (uint32_t)(delta + tail);
+    }
+    s->params.size_hint = total;
+  }
+}
+
 BROTLI_BOOL BrotliEncoderCompressStream(
     BrotliEncoderState* s, BrotliEncoderOperation op, size_t* available_in,
     const uint8_t** next_in, size_t* available_out,uint8_t** next_out,
     size_t* total_out) {
-  /* If we don't have any size hint, set it based on the size of the first
-     input chunk. */
-  if (s->params.size_hint == 0) {
-    s->params.size_hint = (uint32_t)*available_in;
-  }
   if (!EnsureInitialized(s)) return BROTLI_FALSE;
 
   /* Unfinished metadata block; check requirements. */
@@ -1606,6 +1613,7 @@ BROTLI_BOOL BrotliEncoderCompressStream(
   }
 
   if (op == BROTLI_OPERATION_EMIT_METADATA) {
+    UpdateSizeHint(s, 0);  /* First data metablock might be emitted here. */
     return ProcessMetadata(
         s, available_in, next_in, available_out, next_out, total_out);
   }
@@ -1648,7 +1656,9 @@ BROTLI_BOOL BrotliEncoderCompressStream(
             (*available_in == 0) && op == BROTLI_OPERATION_FINISH);
         BROTLI_BOOL force_flush = TO_BROTLI_BOOL(
             (*available_in == 0) && op == BROTLI_OPERATION_FLUSH);
-        BROTLI_BOOL result = EncodeData(s, is_last, force_flush,
+        BROTLI_BOOL result;
+        UpdateSizeHint(s, *available_in);
+        result = EncodeData(s, is_last, force_flush,
             &s->available_out_, &s->next_out_);
         if (!result) return BROTLI_FALSE;
         if (force_flush) s->stream_state_ = BROTLI_STREAM_FLUSH_REQUESTED;

@@ -9,8 +9,10 @@
 #include "./backward_references.h"
 
 #include "../common/constants.h"
+#include "../common/dictionary.h"
 #include <brotli/types.h>
 #include "./command.h"
+#include "./dictionary_hash.h"
 #include "./memory.h"
 #include "./port.h"
 #include "./quality.h"
@@ -72,21 +74,6 @@ static BROTLI_INLINE size_t ComputeDistanceCode(size_t distance,
 #include "./backward_references_inc.h"
 #undef HASHER
 
-#define HASHER() H7
-/* NOLINTNEXTLINE(build/include) */
-#include "./backward_references_inc.h"
-#undef HASHER
-
-#define HASHER() H8
-/* NOLINTNEXTLINE(build/include) */
-#include "./backward_references_inc.h"
-#undef HASHER
-
-#define HASHER() H9
-/* NOLINTNEXTLINE(build/include) */
-#include "./backward_references_inc.h"
-#undef HASHER
-
 #define HASHER() H40
 /* NOLINTNEXTLINE(build/include) */
 #include "./backward_references_inc.h"
@@ -111,23 +98,25 @@ static BROTLI_INLINE size_t ComputeDistanceCode(size_t distance,
 #undef CAT
 #undef EXPAND_CAT
 
-void BrotliCreateBackwardReferences(size_t num_bytes,
+void BrotliCreateBackwardReferences(const BrotliDictionary* dictionary,
+                                    size_t num_bytes,
                                     size_t position,
                                     const uint8_t* ringbuffer,
                                     size_t ringbuffer_mask,
                                     const BrotliEncoderParams* params,
-                                    Hashers* hashers,
+                                    HasherHandle hasher,
                                     int* dist_cache,
                                     size_t* last_insert_len,
                                     Command* commands,
                                     size_t* num_commands,
                                     size_t* num_literals) {
-  switch (ChooseHasher(params)) {
-#define CASE_(N)                                                            \
-    case N:                                                                 \
-      CreateBackwardReferencesH ## N(num_bytes, position,                   \
-          ringbuffer, ringbuffer_mask, params, hashers->h ## N, dist_cache, \
-          last_insert_len, commands, num_commands, num_literals);           \
+  switch (params->hasher.type) {
+#define CASE_(N)                                                  \
+    case N:                                                       \
+      CreateBackwardReferencesH ## N(dictionary,                  \
+          kStaticDictionaryHash, num_bytes, position, ringbuffer, \
+          ringbuffer_mask, params, hasher, dist_cache,            \
+          last_insert_len, commands, num_commands, num_literals); \
       break;
     FOR_GENERIC_HASHERS(CASE_)
 #undef CASE_

@@ -51,6 +51,8 @@ void BrotliDecoderStateInitWithCustomAllocators(BrotliDecoderState* s,
   s->substate_decode_uint8 = BROTLI_STATE_DECODE_UINT8_NONE;
   s->substate_read_block_length = BROTLI_STATE_READ_BLOCK_LENGTH_NONE;
 
+  s->dictionary = BrotliGetDictionary();
+
   s->buffer_length = 0;
   s->loop_counter = 0;
   s->pos = 0;
