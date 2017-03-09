@@ -135,7 +135,6 @@ OR:
 #define BROTLI_NOINLINE
 #endif
 
-
 #if BROTLI_MODERN_COMPILER || __has_attribute(deprecated)
 #define BROTLI_DEPRECATED __attribute__((deprecated))
 #else

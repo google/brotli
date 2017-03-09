@@ -13,7 +13,7 @@
    If library is dynamically linked, use BrotliDecoderVersion and
    BrotliEncoderVersion methods. */
 
-/* Semantic version, claculated as (MAJOR << 24) | (MINOR << 12) | PATCH */
+/* Semantic version, calculated as (MAJOR << 24) | (MINOR << 12) | PATCH */
 #define BROTLI_VERSION 0x1000000
 
 #endif  /* BROTLI_COMMON_VERSION_H_ */

@@ -214,7 +214,6 @@ static void FN(ClusterBlocks)(MemoryManager* m,
   size_t num_final_clusters;
   static const uint32_t kInvalidIndex = BROTLI_UINT32_MAX;
   uint32_t* new_index;
-  uint8_t max_type = 0;
   size_t i;
   uint32_t sizes[HISTOGRAMS_PER_BATCH] = { 0 };
   uint32_t new_clusters[HISTOGRAMS_PER_BATCH] = { 0 };
@@ -337,6 +336,7 @@ static void FN(ClusterBlocks)(MemoryManager* m,
   {
     uint32_t cur_length = 0;
     size_t block_idx = 0;
+    uint8_t max_type = 0;
     for (i = 0; i < num_blocks; ++i) {
       cur_length += block_lengths[i];
       if (i + 1 == num_blocks ||

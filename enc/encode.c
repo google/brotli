@@ -1067,7 +1067,6 @@ static BROTLI_BOOL BrotliCompressBufferQuality10(
       0, hasher_eff_size, BROTLI_TRUE);
   if (BROTLI_IS_OOM(m)) goto oom;
 
-
   while (ok && metablock_start < input_size) {
     const size_t metablock_end =
         BROTLI_MIN(size_t, input_size, metablock_start + max_metablock_size);

@@ -38,7 +38,7 @@ typedef struct BrotliDictionary {
   uint8_t data[122784];
 } BrotliDictionary;
 
-BROTLI_COMMON_API extern const BrotliDictionary* BrotliGetDictionary();
+BROTLI_COMMON_API extern const BrotliDictionary* BrotliGetDictionary(void);
 
 #define BROTLI_MIN_DICTIONARY_WORD_LENGTH 4
 #define BROTLI_MAX_DICTIONARY_WORD_LENGTH 24

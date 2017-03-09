@@ -197,7 +197,7 @@ static BROTLI_INLINE BackwardMatch* FN(StoreAndFindMatches)(
    sorted by strictly increasing length and (non-strictly) increasing
    distance. */
 static BROTLI_INLINE size_t FN(FindAllMatches)(HasherHandle handle,
-    const BrotliDictionary* dicionary, const uint8_t* data,
+    const BrotliDictionary* dictionary, const uint8_t* data,
     const size_t ring_buffer_mask, const size_t cur_ix,
     const size_t max_length, const size_t max_backward,
     const BrotliEncoderParams* params, BackwardMatch* matches) {
@@ -240,7 +240,7 @@ static BROTLI_INLINE size_t FN(FindAllMatches)(HasherHandle handle,
   }
   {
     size_t minlen = BROTLI_MAX(size_t, 4, best_len + 1);
-    if (BrotliFindAllStaticDictionaryMatches(dicionary,
+    if (BrotliFindAllStaticDictionaryMatches(dictionary,
         &data[cur_ix_masked], minlen, max_length, &dict_matches[0])) {
       size_t maxlen = BROTLI_MIN(
           size_t, BROTLI_MAX_STATIC_DICTIONARY_MATCH_LEN, max_length);
