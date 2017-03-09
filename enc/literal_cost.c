@@ -38,12 +38,10 @@ static size_t DecideMultiByteStatsLevel(size_t pos, size_t len, size_t mask,
   size_t counts[3] = { 0 };
   size_t max_utf8 = 1;  /* should be 2, but 1 compresses better. */
   size_t last_c = 0;
-  size_t utf8_pos = 0;
   size_t i;
   for (i = 0; i < len; ++i) {
     size_t c = data[(pos + i) & mask];
-    utf8_pos = UTF8Position(last_c, c, 2);
-    ++counts[utf8_pos];
+    ++counts[UTF8Position(last_c, c, 2)];
     last_c = c;
   }
   if (counts[2] < 500) {
@@ -64,7 +62,6 @@ static void EstimateBitCostsForLiteralsUTF8(size_t pos, size_t len, size_t mask,
   size_t window_half = 495;
   size_t in_window = BROTLI_MIN(size_t, window_half, len);
   size_t in_window_utf8[3] = { 0 };
-
 
   size_t i;
   {  /* Bootstrap histograms. */

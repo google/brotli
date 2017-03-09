@@ -242,8 +242,6 @@ BROTLI_INTERNAL void BrotliDecoderStateCleanupAfterMetablock(
 BROTLI_INTERNAL BROTLI_BOOL BrotliDecoderHuffmanTreeGroupInit(
     BrotliDecoderState* s, HuffmanTreeGroup* group, uint32_t alphabet_size,
     uint32_t ntrees);
-BROTLI_INTERNAL void BrotliDecoderHuffmanTreeGroupRelease(
-    BrotliDecoderState* s, HuffmanTreeGroup* group);
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }  /* extern "C" */

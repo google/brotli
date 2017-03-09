@@ -519,6 +519,7 @@ static size_t ComputeShortestPathFromNodes(size_t num_bytes,
   return num_commands;
 }
 
+/* REQUIRES: nodes != NULL and len(nodes) >= num_bytes + 1 */
 void BrotliZopfliCreateCommands(const size_t num_bytes,
                                 const size_t block_start,
                                 const size_t max_backward_limit,
@@ -609,7 +610,7 @@ static size_t ZopfliIterate(size_t num_bytes,
   return ComputeShortestPathFromNodes(num_bytes, nodes);
 }
 
-
+/* REQUIRES: nodes != NULL and len(nodes) >= num_bytes + 1 */
 size_t BrotliZopfliComputeShortestPath(MemoryManager* m,
                                        const BrotliDictionary* dictionary,
                                        size_t num_bytes,
