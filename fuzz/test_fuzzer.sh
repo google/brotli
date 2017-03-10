@@ -17,7 +17,7 @@ ar rvs decode_fuzzer.a decode_fuzzer.o
 c++ ../fuzz/run_decode_fuzzer.cc -o run_decode_fuzzer -lasan decode_fuzzer.a ./libbrotlidec.a ./libbrotlicommon.a
 
 mkdir decode_corpora
-unzip ../java/integration/fuzz_data.zip -d decode_corpora
+unzip ../java/org/brotli/integration/fuzz_data.zip -d decode_corpora
 
 for f in `ls decode_corpora`
 do
