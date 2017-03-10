@@ -16,6 +16,11 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
 
   const int kBufferSize = 1024;
   uint8_t* buffer = new uint8_t[kBufferSize];
+  /* The biggest "magic number" in brotli is 16MiB - 16, so no need to check
+     the cases with much longer output. */
+  const size_t total_out_limit = (addend == 0) ? (1 << 26) : (1 << 24);
+  size_t total_out = 0;
+
   BrotliDecoderState* state = BrotliDecoderCreateInstance(0, 0, 0);
 
   if (addend == 0)
@@ -31,10 +36,13 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
     while (result == BROTLI_DECODER_RESULT_NEEDS_MORE_OUTPUT) {
       size_t avail_out = kBufferSize;
       uint8_t* next_out = buffer;
-      size_t total_out;
       result = BrotliDecoderDecompressStream(
           state, &avail_in, &next_in, &avail_out, &next_out, &total_out);
+      if (total_out > total_out_limit)
+        break;
     }
+    if (total_out > total_out_limit)
+      break;
     if (result != BROTLI_DECODER_RESULT_NEEDS_MORE_INPUT)
       break;
   }
