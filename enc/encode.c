@@ -381,12 +381,100 @@ static void ChooseContextMap(int quality,
   }
 }
 
+/* Decide if we want to use a more complex static context map containing 13
+   context values, based on the entropy reduction of histograms over the
+   first 5 bits of literals. */
+static BROTLI_BOOL ShouldUseComplexStaticContextMap(const uint8_t* input,
+    size_t start_pos, size_t length, size_t mask, int quality,
+    size_t size_hint, ContextType* literal_context_mode,
+    size_t* num_literal_contexts, const uint32_t** literal_context_map) {
+  static const uint32_t kStaticContextMapComplexUTF8[64] = {
+    11, 11, 12, 12, /* 0 special */
+    0, 0, 0, 0, /* 4 lf */
+    1, 1, 9, 9, /* 8 space */
+    2, 2, 2, 2, /* !, first after space/lf and after something else. */
+    1, 1, 1, 1, /* " */
+    8, 3, 3, 3, /* % */
+    1, 1, 1, 1, /* ({[ */
+    2, 2, 2, 2, /* }]) */
+    8, 4, 4, 4, /* :; */
+    8, 7, 4, 4, /* . */
+    8, 0, 0, 0, /* > */
+    3, 3, 3, 3, /* [0..9] */
+    5, 5, 10, 5, /* [A-Z] */
+    5, 5, 10, 5,
+    6, 6, 6, 6, /* [a-z] */
+    6, 6, 6, 6,
+  };
+  BROTLI_UNUSED(quality);
+  /* Try the more complex static context map only for long data. */
+  if (size_hint < (1 << 20)) {
+    return BROTLI_FALSE;
+  } else {
+    const size_t end_pos = start_pos + length;
+    /* To make entropy calculations faster and to fit on the stack, we collect
+       histograms over the 5 most significant bits of literals. One histogram
+       without context and 13 additional histograms for each context value. */
+    uint32_t combined_histo[32] = { 0 };
+    uint32_t context_histo[13][32] = { { 0 } };
+    uint32_t total = 0;
+    double entropy[3];
+    size_t dummy;
+    size_t i;
+    for (; start_pos + 64 <= end_pos; start_pos += 4096) {
+      const size_t stride_end_pos = start_pos + 64;
+      uint8_t prev2 = input[start_pos & mask];
+      uint8_t prev1 = input[(start_pos + 1) & mask];
+      size_t pos;
+      /* To make the analysis of the data faster we only examine 64 byte long
+         strides at every 4kB intervals. */
+      for (pos = start_pos + 2; pos < stride_end_pos; ++pos) {
+        const uint8_t literal = input[pos & mask];
+        const uint8_t context = (uint8_t)kStaticContextMapComplexUTF8[
+            Context(prev1, prev2, CONTEXT_UTF8)];
+        ++total;
+        ++combined_histo[literal >> 3];
+        ++context_histo[context][literal >> 3];
+        prev2 = prev1;
+        prev1 = literal;
+      }
+    }
+    entropy[1] = ShannonEntropy(combined_histo, 32, &dummy);
+    entropy[2] = 0;
+    for (i = 0; i < 13; ++i) {
+      entropy[2] += ShannonEntropy(&context_histo[i][0], 32, &dummy);
+    }
+    entropy[0] = 1.0 / (double)total;
+    entropy[1] *= entropy[0];
+    entropy[2] *= entropy[0];
+    /* The triggering heuristics below were tuned by compressing the individual
+       files of the silesia corpus. If we skip this kind of context modeling
+       for not very well compressible input (i.e. entropy using context modeling
+       is 60% of maximal entropy) or if expected savings by symbol are less
+       than 0.2 bits, then in every case when it triggers, the final compression
+       ratio is improved. Note however that this heuristics might be too strict
+       for some cases and could be tuned further. */
+    if (entropy[2] > 3.0 || entropy[1] - entropy[2] < 0.2) {
+      return BROTLI_FALSE;
+    } else {
+      *literal_context_mode = CONTEXT_UTF8;
+      *num_literal_contexts = 13;
+      *literal_context_map = kStaticContextMapComplexUTF8;
+      return BROTLI_TRUE;
+    }
+  }
+}
+
 static void DecideOverLiteralContextModeling(const uint8_t* input,
     size_t start_pos, size_t length, size_t mask, int quality,
-    ContextType* literal_context_mode, size_t* num_literal_contexts,
-    const uint32_t** literal_context_map) {
+    size_t size_hint, ContextType* literal_context_mode,
+    size_t* num_literal_contexts, const uint32_t** literal_context_map) {
   if (quality < MIN_QUALITY_FOR_CONTEXT_MODELING || length < 64) {
     return;
+  } else if (ShouldUseComplexStaticContextMap(
+      input, start_pos, length, mask, quality, size_hint, literal_context_mode,
+      num_literal_contexts, literal_context_map)) {
+    /* Context map was already set, nothing else to do. */
   } else {
     /* Gather bi-gram data of the UTF8 byte prefixes. To make the analysis of
        UTF8 data faster we only examine 64 byte long strides at every 4kB
@@ -508,7 +596,8 @@ static void WriteMetaBlockInternal(MemoryManager* m,
       if (!params->disable_literal_context_modeling) {
         DecideOverLiteralContextModeling(
             data, wrapped_last_flush_pos, bytes, mask, params->quality,
-            &literal_context_mode, &num_literal_contexts, &literal_context_map);
+            params->size_hint, &literal_context_mode, &num_literal_contexts,
+            &literal_context_map);
       }
       BrotliBuildMetaBlockGreedy(m, data, wrapped_last_flush_pos, mask,
           prev_byte, prev_byte2, literal_context_mode, num_literal_contexts,

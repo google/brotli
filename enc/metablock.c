@@ -156,7 +156,7 @@ void BrotliBuildMetaBlock(MemoryManager* m,
 #include "./metablock_inc.h"  /* NOLINT(build/include) */
 #undef FN
 
-#define BROTLI_MAX_STATIC_CONTEXTS 3
+#define BROTLI_MAX_STATIC_CONTEXTS 13
 
 /* Greedy block splitter for one block category (literal, command or distance).
    Gathers histograms for all context buckets. */
@@ -241,7 +241,7 @@ static void InitContextBlockSplitter(
      (2) emits the current block with the type of the second last block;
      (3) merges the current block with the last block. */
 static void ContextBlockSplitterFinishBlock(
-    ContextBlockSplitter* self, BROTLI_BOOL is_final) {
+    ContextBlockSplitter* self, MemoryManager* m, BROTLI_BOOL is_final) {
   BlockSplit* split = self->split_;
   const size_t num_contexts = self->num_contexts_;
   double* last_entropy = self->last_entropy_;
@@ -275,10 +275,12 @@ static void ContextBlockSplitterFinishBlock(
        Decide over the split based on the total reduction of entropy across
        all contexts. */
     double entropy[BROTLI_MAX_STATIC_CONTEXTS];
-    HistogramLiteral combined_histo[2 * BROTLI_MAX_STATIC_CONTEXTS];  /* 6KiB */
+    HistogramLiteral* combined_histo =
+        BROTLI_ALLOC(m, HistogramLiteral, 2 * num_contexts);
     double combined_entropy[2 * BROTLI_MAX_STATIC_CONTEXTS];
     double diff[2] = { 0.0 };
     size_t i;
+    if (BROTLI_IS_OOM(m)) return;
     for (i = 0; i < num_contexts; ++i) {
       size_t curr_histo_ix = self->curr_histogram_ix_ + i;
       size_t j;
@@ -350,6 +352,7 @@ static void ContextBlockSplitterFinishBlock(
         self->target_block_size_ += self->min_block_size_;
       }
     }
+    BROTLI_FREE(m, combined_histo);
   }
   if (is_final) {
     *self->histograms_size_ = split->num_types * num_contexts;
@@ -360,12 +363,14 @@ static void ContextBlockSplitterFinishBlock(
 /* Adds the next symbol to the current block type and context. When the
    current block reaches the target size, decides on merging the block. */
 static void ContextBlockSplitterAddSymbol(
-    ContextBlockSplitter* self, size_t symbol, size_t context) {
+    ContextBlockSplitter* self, MemoryManager* m,
+    size_t symbol, size_t context) {
   HistogramAddLiteral(&self->histograms_[self->curr_histogram_ix_ + context],
       symbol);
   ++self->block_size_;
   if (self->block_size_ == self->target_block_size_) {
-    ContextBlockSplitterFinishBlock(self, /* is_final = */ BROTLI_FALSE);
+    ContextBlockSplitterFinishBlock(self, m, /* is_final = */ BROTLI_FALSE);
+    if (BROTLI_IS_OOM(m)) return;
   }
 }
 
@@ -437,8 +442,9 @@ static BROTLI_INLINE void BrotliBuildMetaBlockGreedyInternal(
         BlockSplitterAddSymbolLiteral(&lit_blocks.plain, literal);
       } else {
         size_t context = Context(prev_byte, prev_byte2, literal_context_mode);
-        ContextBlockSplitterAddSymbol(&lit_blocks.ctx, literal,
-            static_context_map[context]);
+        ContextBlockSplitterAddSymbol(&lit_blocks.ctx, m, literal,
+                                      static_context_map[context]);
+        if (BROTLI_IS_OOM(m)) return;
       }
       prev_byte2 = prev_byte;
       prev_byte = literal;
@@ -459,7 +465,8 @@ static BROTLI_INLINE void BrotliBuildMetaBlockGreedyInternal(
         &lit_blocks.plain, /* is_final = */ BROTLI_TRUE);
   } else {
     ContextBlockSplitterFinishBlock(
-        &lit_blocks.ctx, /* is_final = */ BROTLI_TRUE);
+        &lit_blocks.ctx, m, /* is_final = */ BROTLI_TRUE);
+    if (BROTLI_IS_OOM(m)) return;
   }
   BlockSplitterFinishBlockCommand(&cmd_blocks, /* is_final = */ BROTLI_TRUE);
   BlockSplitterFinishBlockDistance(&dist_blocks, /* is_final = */ BROTLI_TRUE);
