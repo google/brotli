@@ -49,7 +49,8 @@ case "$1" in
 		python setup.py build test
 		;;
 	    "maven")
-		mvn clean install
+		cd java/org/brotli
+		mvn install && cd integration && mvn verify
 		;;
 	esac
 	;;
