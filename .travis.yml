@@ -223,6 +223,10 @@ matrix:
           - cmake
           - cmake-data
 
+    - os: linux
+      env: BUILD_SYSTEM=maven
+      language: java
+
 before_install:
 ###
 ## If we use the matrix to set CC/CXX Travis, overwrites the values,

@@ -48,6 +48,10 @@ case "$1" in
 		fi
 		python setup.py build test
 		;;
+	    "maven")
+		cd java/org/brotli
+		mvn install && cd integration && mvn verify
+		;;
 	esac
 	;;
     "after_success")
