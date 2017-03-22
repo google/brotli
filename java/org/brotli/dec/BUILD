@@ -39,6 +39,12 @@ java_test(
 )
 
 java_test(
+    name = "EnumTest",
+    test_class = "org.brotli.dec.EnumTest",
+    runtime_deps = [":test_lib"],
+)
+
+java_test(
     name = "SynthTest",
     test_class = "org.brotli.dec.SynthTest",
     runtime_deps = [":test_lib"],

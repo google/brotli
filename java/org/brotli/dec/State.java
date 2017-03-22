@@ -14,8 +14,8 @@ import java.io.IOException;
 import java.io.InputStream;
 
 final class State {
-  RunningState runningState = UNINITIALIZED;
-  RunningState nextRunningState;
+  int runningState = UNINITIALIZED;
+  int nextRunningState;
   final BitReader br = new BitReader();
   byte[] ringBuffer;
   final int[] blockTypeTrees = new int[3 * Huffman.HUFFMAN_MAX_TABLE_SIZE];

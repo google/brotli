@@ -12,37 +12,34 @@ package org.brotli.dec;
  * <p>There are two simple types of transforms: omit X first/last symbols, two character-case
  * transforms and the identity transform.
  */
-enum WordTransformType {
-  IDENTITY(0, 0),
-  OMIT_LAST_1(0, 1),
-  OMIT_LAST_2(0, 2),
-  OMIT_LAST_3(0, 3),
-  OMIT_LAST_4(0, 4),
-  OMIT_LAST_5(0, 5),
-  OMIT_LAST_6(0, 6),
-  OMIT_LAST_7(0, 7),
-  OMIT_LAST_8(0, 8),
-  OMIT_LAST_9(0, 9),
-  UPPERCASE_FIRST(0, 0),
-  UPPERCASE_ALL(0, 0),
-  OMIT_FIRST_1(1, 0),
-  OMIT_FIRST_2(2, 0),
-  OMIT_FIRST_3(3, 0),
-  OMIT_FIRST_4(4, 0),
-  OMIT_FIRST_5(5, 0),
-  OMIT_FIRST_6(6, 0),
-  OMIT_FIRST_7(7, 0),
-  /*
-   * brotli specification doesn't use OMIT_FIRST_8(8, 0) transform.
-   * Probably, it would be used in future format extensions.
-   */
-  OMIT_FIRST_9(9, 0);
+final class WordTransformType {
+  static final int IDENTITY = 0;
+  static final int OMIT_LAST_1 = 1;
+  static final int OMIT_LAST_2 = 2;
+  static final int OMIT_LAST_3 = 3;
+  static final int OMIT_LAST_4 = 4;
+  static final int OMIT_LAST_5 = 5;
+  static final int OMIT_LAST_6 = 6;
+  static final int OMIT_LAST_7 = 7;
+  static final int OMIT_LAST_8 = 8;
+  static final int OMIT_LAST_9 = 9;
+  static final int UPPERCASE_FIRST = 10;
+  static final int UPPERCASE_ALL = 11;
+  static final int OMIT_FIRST_1 = 12;
+  static final int OMIT_FIRST_2 = 13;
+  static final int OMIT_FIRST_3 = 14;
+  static final int OMIT_FIRST_4 = 15;
+  static final int OMIT_FIRST_5 = 16;
+  static final int OMIT_FIRST_6 = 17;
+  static final int OMIT_FIRST_7 = 18;
+  static final int OMIT_FIRST_8 = 19;
+  static final int OMIT_FIRST_9 = 20;
 
-  final int omitFirst;
-  final int omitLast;
+  static int getOmitFirst(int type) {
+    return type >= OMIT_FIRST_1 ? (type - OMIT_FIRST_1 + 1) : 0;
+  }
 
-  WordTransformType(int omitFirst, int omitLast) {
-    this.omitFirst = omitFirst;
-    this.omitLast = omitLast;
+  static int getOmitLast(int type) {
+    return type <= OMIT_LAST_9 ? (type - OMIT_LAST_1 + 1) : 0;
   }
 }

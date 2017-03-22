@@ -33,10 +33,10 @@ import static org.brotli.dec.WordTransformType.UPPERCASE_FIRST;
 final class Transform {
 
   private final byte[] prefix;
-  private final WordTransformType type;
+  private final int type;
   private final byte[] suffix;
 
-  Transform(String prefix, WordTransformType type, String suffix) {
+  Transform(String prefix, int type, String suffix) {
     this.prefix = readUniBytes(prefix);
     this.type = type;
     this.suffix = readUniBytes(suffix);
@@ -188,14 +188,14 @@ final class Transform {
     }
 
     // Copy trimmed word.
-    WordTransformType op = transform.type;
-    tmp = op.omitFirst;
+    int op = transform.type;
+    tmp = WordTransformType.getOmitFirst(op);
     if (tmp > len) {
       tmp = len;
     }
     wordOffset += tmp;
     len -= tmp;
-    len -= op.omitLast;
+    len -= WordTransformType.getOmitLast(op);
     i = len;
     while (i > 0) {
       dst[offset++] = word[wordOffset++];
