@@ -48,6 +48,9 @@ case "$1" in
 		fi
 		python setup.py build test
 		;;
+	    "maven")
+		mvn clean install
+		;;
 	esac
 	;;
     "after_success")

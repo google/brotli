@@ -224,6 +224,7 @@ matrix:
           - cmake-data
 
     - os: linux
+      env: BUILD_SYSTEM=maven
       language: java
 
 before_install:
