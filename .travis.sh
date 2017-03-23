@@ -7,7 +7,7 @@ case "$1" in
 		case "${BUILD_SYSTEM}" in
 		    "bazel")
 			wget https://github.com/bazelbuild/bazel/releases/download/0.4.5/bazel_0.4.5-linux-x86_64.deb
-			echo "b494d0a413e4703b6cd5312403bea4d92246d6425b3be68c9bfbeb8ccafebabe  bazel_0.4.5-linux-x86_64.deb" | sha256sum -c --strict
+			echo "b494d0a413e4703b6cd5312403bea4d92246d6425b3be68c9bfbeb8ccafebabe  bazel_0.4.5-linux-x86_64.deb" | sha256sum -c --strict || exit 1
 			sudo dpkg -i bazel_0.4.5-linux-x86_64.deb
 			;;
 		esac
