@@ -239,6 +239,9 @@ matrix:
             - wget
             - pkg-config
 
+    - os: osx
+      env: BUILD_SYSTEM=bazel
+
 before_install:
 ###
 ## If we use the matrix to set CC/CXX Travis, overwrites the values,

@@ -32,6 +32,9 @@ case "$1" in
 			get_python_environment $INSTALL_TYPE $PYTHON_VERSION venv
 			pip install --upgrade wheel
 			;;
+		    "bazel")
+			brew install bazel
+			;;
 		esac
 		;;
 	    "linux")
