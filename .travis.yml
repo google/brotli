@@ -227,6 +227,16 @@ matrix:
       env: BUILD_SYSTEM=maven
       language: java
 
+    - os: linux
+      env: BUILD_SYSTEM=bazel
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+          packages:
+            - wget
+            - pkg-config
+
 before_install:
 ###
 ## If we use the matrix to set CC/CXX Travis, overwrites the values,
@@ -235,6 +245,7 @@ before_install:
 ###
 - if [ -n "${C_COMPILER}" ]; then export CC="${C_COMPILER}"; fi
 - if [ -n "${CXX_COMPILER}" ]; then export CXX="${CXX_COMPILER}"; fi
+- ./.travis.sh before_install
 install:
 - ./.travis.sh install
 script:
