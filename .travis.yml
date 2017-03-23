@@ -228,6 +228,7 @@ matrix:
       language: java
 
     - os: linux
+      dist: trusty
       env: BUILD_SYSTEM=bazel
       addons:
         apt:
