@@ -14,7 +14,7 @@
 
     "files": [
         {"includePattern": "bazel-bin/(libbrotli.*)", "uploadPattern": "$1"},
-        {"includePattern": "bazel-bin/bro", "uploadPattern": "bro"},
+        {"includePattern": "bazel-bin/bro", "uploadPattern": "bro"}
     ],
 
     "publish": true
