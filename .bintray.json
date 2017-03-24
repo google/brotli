@@ -1,21 +1,16 @@
 {
     "package": {
-        "name": "snapshots",
+        "name": "bin",
         "repo": "brotli",
         "subject": "eustas"
     },
 
-    "version": {
-        "name": "${TRAVIS_OS_NAME}-${RELEASE_DATE}",
-        "desc": "Binary Artifacts (Dev)",
-        "released": "${RELEASE_DATE}",
-        "gpgSign": false
-    },
+    "version": {"name": "snapshot"},
 
     "files": [
         {
             "includePattern": "brotli.zip",
-            "uploadPattern": "brotli.zip",
+            "uploadPattern": "brotli-${TRAVIS_OS_NAME}-${RELEASE_DATE}.zip",
             "matrix_params": {"override": 1}
         }
     ],
