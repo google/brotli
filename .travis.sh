@@ -71,7 +71,7 @@ case "$1" in
 		mvn install && cd integration && mvn verify
 		;;
 	    "bazel")
-		bazel test ...:all
+		bazel test -c opt ...:all
 		;;
 	esac
 	;;
@@ -84,6 +84,15 @@ case "$1" in
 			pip wheel -w dist .
 			;;
 		esac
+		;;
+	esac
+	;;
+    "before_deploy")
+	case "${BUILD_SYSTEM}" in
+	    "bazel")
+		export GIT_REVISION=`git rev-list --count @`
+		export RELEASE_DATE=`date +%Y-%m-%d`
+		perl -p -i -e 's/\$\{([^}]+)\}/defined $ENV{$1} ? $ENV{$1} : $&/eg' .bintray.json
 		;;
 	esac
 	;;
