@@ -6,15 +6,28 @@
     },
 
     "version": {
-        "name": "r${GIT_REVISION}",
-        "desc": "Snapshot Artifacts",
+        "name": "${RELEASE_VERSION}",
+        "desc": "Binary Artifacts (Snapshot)",
         "released": "${RELEASE_DATE}",
         "gpgSign": false
     },
 
     "files": [
-        {"includePattern": "bazel-bin/(libbrotli.*)", "uploadPattern": "$1"},
-        {"includePattern": "bazel-bin/bro", "uploadPattern": "bro"}
+        {
+            "includePattern": "bazel-bin/(libbrotli.*\\.a)",
+            "uploadPattern": "$1",
+            "matrix_params": {"override": 1}
+        },
+        {
+            "includePattern": "bazel-bin/(libbrotli.*\\.so)",
+            "uploadPattern": "$1",
+            "matrix_params": {"override": 1}
+        },
+        {
+            "includePattern": "bazel-bin/bro",
+            "uploadPattern": "bro",
+            "matrix_params": {"override": 1}
+        }
     ],
 
     "publish": true

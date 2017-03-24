@@ -90,8 +90,8 @@ case "$1" in
     "before_deploy")
 	case "${BUILD_SYSTEM}" in
 	    "bazel")
-		export GIT_REVISION=`git rev-list --count @`
 		export RELEASE_DATE=`date +%Y-%m-%d`
+		export RELEASE_VERSION=`date +snapshot.%Y.%m.%d`
 		perl -p -i -e 's/\$\{([^}]+)\}/defined $ENV{$1} ? $ENV{$1} : $&/eg' .bintray.json
 		;;
 	esac
