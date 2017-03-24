@@ -280,4 +280,3 @@ deploy:
   on:
     condition: "${BUILD_SYSTEM} = bazel"
   skip_cleanup: true
-  dry-run: true
