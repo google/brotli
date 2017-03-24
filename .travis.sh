@@ -91,8 +91,8 @@ case "$1" in
 	case "${BUILD_SYSTEM}" in
 	    "bazel")
 		export RELEASE_DATE=`date +%Y-%m-%d`
-		export RELEASE_VERSION=`date +snapshot.%Y.%m.%d`
 		perl -p -i -e 's/\$\{([^}]+)\}/defined $ENV{$1} ? $ENV{$1} : $&/eg' .bintray.json
+		zip -j9 brotli.zip bazel-bin/libbrotli*.a bazel-bin/libbrotli*.so bazel-bin/bro
 		;;
 	esac
 	;;
