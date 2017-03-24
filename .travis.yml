@@ -260,9 +260,10 @@ after_success:
 
 before_deploy:
 - if [ "${BUILD_SYSTEM}" = "python" ] && [ "${TRAVIS_OS_NAME}" = "osx" ]; then export WHEELS=$(ls ./dist/*.whl); fi
+- ./.travis.sh before_deploy
 
 deploy:
-  provider: releases
+- provider: releases
   api_key:
     secure: YcCBi6W/w4dtKCa59Wfm8L5lGWvK7KxaFNDr3yh1Hz5aStXXf758pEMHGewnlbfbwuj5a3SjBb1nLp1M69OQJfxm442uXBaBKo52PM9PPbD7NjvbNIso73pqcSODXQXKuZxDFpEhfuDTVq3hUkUqiwhChWhrFucJsSL51i7qSss=
   file: "${WHEELS}"
@@ -271,3 +272,12 @@ deploy:
     repo: "google/brotli"
     tags: true
     condition: "${BUILD_SYSTEM} = python && ${TRAVIS_OS_NAME} = osx"
+- provider: bintray
+  file: ".bintray.json"
+  user: "eustas"
+  key:
+    secure: "Kbam/lTAdz72fZivbs6riJT+Y4PbuKP7r6t5PAWxJxAAykjwnYTRe3zF472g9HCE14KYMsdB+KSYSgg6TGJnqGC9gL9xhhGU9U/WmA+vbMWS/MSnMWpK9IRpp77pM2i2NKZD4v33JuEwKFCBJP3Vj6QQ5Qd1NKdobuXJyznhgnw="
+  on:
+    condition: "${BUILD_SYSTEM} = bazel"
+  skip_cleanup: true
+  dry-run: true

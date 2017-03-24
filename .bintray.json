@@ -1,0 +1,21 @@
+{
+    "package": {
+        "name": "${TRAVIS_OS_NAME}-bin",
+        "repo": "brotli",
+        "subject": "eustas"
+    },
+
+    "version": {
+        "name": "r${GIT_REVISION}",
+        "desc": "Snapshot Artifacts",
+        "released": "${RELEASE_DATE}",
+        "gpgSign": false
+    },
+
+    "files": [
+        {"includePattern": "bazel-bin/(libbrotli.*)", "uploadPattern": "$1"},
+        {"includePattern": "bazel-bin/bro", "uploadPattern": "bro"},
+    ],
+
+    "publish": true
+}
