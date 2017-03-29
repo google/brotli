@@ -91,7 +91,7 @@ func TestEncoderStreams(t *testing.T) {
 	// to fill the window.
 	const lgWin = 16
 	windowSize := int(math.Pow(2, lgWin))
-	input := make([]byte, 2*windowSize)
+	input := make([]byte, 8*windowSize)
 	rand.Read(input)
 	out := bytes.Buffer{}
 	e := NewWriter(&out, WriterOptions{Quality: 11, LGWin: lgWin})
@@ -106,7 +106,7 @@ func TestEncoderStreams(t *testing.T) {
 	// We've fed more data than the sliding window size. Check that some
 	// compressed data has been output.
 	if out.Len() == 0 {
-		t.Errorf("Output length is after %d bytes written", n)
+		t.Errorf("Output length is 0 after %d bytes written", n)
 	}
 	if err := e.Close(); err != nil {
 		t.Errorf("Close Error after copied %d bytes: %v", n, err)
@@ -151,6 +151,9 @@ func TestEncoderFlush(t *testing.T) {
 	if err := e.Flush(); err != nil {
 		t.Fatalf("Flush(): %v", err)
 	}
+	if out.Len() == 0 {
+		t.Fatalf("0 bytes written after Flush()")
+	}
 	decompressed := make([]byte, 1000)
 	reader := NewReader(bytes.NewReader(out.Bytes()))
 	n, err := reader.Read(decompressed)
@@ -187,8 +190,8 @@ func TestReader(t *testing.T) {
 			"Reader output:\n"+
 			"%q\n"+
 			"want:\n"+
-			"%q",
-			got, content)
+			"<%d bytes>",
+			got, len(content))
 	}
 }
 
@@ -204,8 +207,8 @@ func TestDecode(t *testing.T) {
 			"Decode content:\n"+
 			"%q\n"+
 			"want:\n"+
-			"%q",
-			decoded, content)
+			"<%d bytes>",
+			decoded, len(content))
 	}
 }
 
@@ -213,7 +216,13 @@ func TestDecodeFuzz(t *testing.T) {
 	// Test that the decoder terminates with corrupted input.
 	content := bytes.Repeat([]byte("hello world!"), 100)
 	src := rand.NewSource(0)
-	encoded, _ := Encode(content, WriterOptions{Quality: 5})
+	encoded, err := Encode(content, WriterOptions{Quality: 5})
+	if err != nil {
+		t.Fatalf("Encode(<%d bytes>, _) = _, %s", len(content), err)
+	}
+	if len(encoded) == 0 {
+		t.Fatalf("Encode(<%d bytes>, _) produced empty output", len(content))
+	}
 	for i := 0; i < 100; i++ {
 		enc := append([]byte{}, encoded...)
 		for j := 0; j < 5; j++ {
@@ -260,12 +269,18 @@ func TestEncodeDecode(t *testing.T) {
 			t.Errorf("Decode: %v", err)
 		}
 		if !bytes.Equal(decoded, input) {
+			var want string
+			if len(input) > 320 {
+				want = fmt.Sprintf("<%d bytes>", len(input))
+			} else {
+				want = fmt.Sprintf("%q", input)
+			}
 			t.Errorf(""+
 				"Decode content:\n"+
 				"%q\n"+
 				"want:\n"+
-				"%q",
-				decoded, input)
+				"%s",
+				decoded, want)
 		}
 	}
 }
