@@ -2,16 +2,19 @@ package(default_visibility = ["//visibility:public"])
 
 licenses(["notice"])  # MIT
 
-load("@io_bazel_rules_go//go:def.bzl", "go_prefix", "go_library", "go_test")
+load("@io_bazel_rules_go//go:def.bzl", "go_prefix", "cgo_library", "go_test")
 
 go_prefix("github.com/google/brotli")
 
-go_library(
+cgo_library(
     name = "cbrotli",
-    srcs = ["cbrotli.go"],
-    deps = [
-        "//go/cbrotli/internal:decoder",
-        "//go/cbrotli/internal:encoder",
+    srcs = [
+        "reader.go",
+        "writer.go",
+    ],
+    cdeps = [
+        "//:brotlidec",
+        "//:brotlienc",
     ],
 )
 
