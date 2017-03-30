@@ -77,7 +77,6 @@ type Encoder struct {
 // Close MUST be called to free resources.
 func New(quality, lgWin int) Encoder {
 	state := C.BrotliEncoderCreateInstance(nil, nil, nil)
-	// TODO(b/18187008): Check if LGBLOCK or MODE are useful to Flywheel.
 	C.BrotliEncoderSetParameter(
 		state, C.BROTLI_PARAM_QUALITY, (C.uint32_t)(quality))
 	C.BrotliEncoderSetParameter(
