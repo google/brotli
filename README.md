@@ -1,4 +1,4 @@
-<p align="center"><img src="https://cloud.githubusercontent.com/assets/203457/24612601/07e41f72-1886-11e7-83e7-0a573315d266.png" alt="Brotli" width="64"></p>
+<p align="center"><img src="https://brotli.org/brotli.svg" alt="Brotli" width="64"></p>
 
 ### Introduction
 
