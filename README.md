@@ -1,3 +1,5 @@
+<p align="center"><img src="https://brotli.org/brotli.svg" alt="Brotli" width="64"></p>
+
 ### Introduction
 
 Brotli is a generic-purpose lossless compression algorithm that compresses data
