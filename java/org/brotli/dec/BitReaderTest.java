@@ -6,6 +6,8 @@
 
 package org.brotli.dec;
 
+import static org.junit.Assert.fail;
+
 import java.io.ByteArrayInputStream;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -17,11 +19,17 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class BitReaderTest {
 
-  @Test(expected = BrotliRuntimeException.class)
+  @Test
   public void testReadAfterEos() {
     BitReader reader = new BitReader();
     BitReader.init(reader, new ByteArrayInputStream(new byte[1]));
     BitReader.readBits(reader, 9);
-    BitReader.checkHealth(reader);
+    try {
+      BitReader.checkHealth(reader, false);
+    } catch (BrotliRuntimeException ex) {
+      // This exception is expected.
+      return;
+    }
+    fail("BrotliRuntimeException should have been thrown by BitReader.checkHealth");
   }
 }

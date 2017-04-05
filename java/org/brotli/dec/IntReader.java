@@ -6,43 +6,31 @@
 
 package org.brotli.dec;
 
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
-import java.nio.IntBuffer;
-
 /**
  * Byte-to-int conversion magic.
  */
 final class IntReader {
 
-  static final int CAPACITY = 1024 + 16;
+  private byte[] byteBuffer;
+  private int[] intBuffer;
 
-  private final ByteBuffer byteBuffer =
-      ByteBuffer.allocateDirect(CAPACITY << 2).order(ByteOrder.LITTLE_ENDIAN);
-  private final IntBuffer intBuffer = byteBuffer.asIntBuffer();
+  static void init(IntReader ir, byte[] byteBuffer, int[] intBuffer) {
+    ir.byteBuffer = byteBuffer;
+    ir.intBuffer = intBuffer;
+  }
 
   /**
-   * Reinitialize reader with new data chunk.
+   * Translates bytes to ints.
    *
    * NB: intLen == 4 * byteSize!
-   * NB: intLen should be less or equal to {@link CAPACITY}
+   * NB: intLen should be less or equal to intBuffer length.
    */
-  static void reload(IntReader ir, byte[] data, int offset, int intLen) {
-    ir.byteBuffer.clear();
-    ir.byteBuffer.put(data, offset, intLen << 2);
-    ir.intBuffer.rewind();
-  }
-
-  static int position(IntReader ir) {
-    return ir.intBuffer.position();
-  }
-
-  static void setPosition(IntReader ir, int position) {
-    ir.intBuffer.position(position);
-  }
-
-  static int read(IntReader ir) {
-    // Advances position by 1.
-    return ir.intBuffer.get();
+  static void convert(IntReader ir, int intLen) {
+    for (int i = 0; i < intLen; ++i) {
+      ir.intBuffer[i] = ((ir.byteBuffer[i * 4] & 0xFF))
+          | ((ir.byteBuffer[(i * 4) + 1] & 0xFF) << 8)
+          | ((ir.byteBuffer[(i * 4) + 2] & 0xFF) << 16)
+          | ((ir.byteBuffer[(i * 4) + 3] & 0xFF) << 24);
+    }
   }
 }

@@ -18,11 +18,15 @@ final class BitReader {
    * Input byte buffer, consist of a ring-buffer and a "slack" region where bytes from the start of
    * the ring-buffer are copied.
    */
-  private static final int BUF_SIZE = IntReader.CAPACITY << 2;
-  private static final int READ_SIZE = BUF_SIZE - 64;
+  private static final int CAPACITY = 1024;
+  private static final int SLACK = 16;
+  private static final int INT_BUFFER_SIZE = CAPACITY + SLACK;
+  private static final int BYTE_READ_SIZE = CAPACITY << 2;
+  private static final int BYTE_BUFFER_SIZE = INT_BUFFER_SIZE << 2;
 
+  private final byte[] byteBuffer = new byte[BYTE_BUFFER_SIZE];
+  private final int[] intBuffer = new int[INT_BUFFER_SIZE];
   private final IntReader intReader = new IntReader();
-  private final byte[] shadowBuffer = new byte[BUF_SIZE];
 
   private InputStream input;
 
@@ -42,9 +46,9 @@ final class BitReader {
   int bitOffset;
 
   /**
-   * Number of 32-bit integers available for reading.
+   * Offset of next item in intBuffer.
    */
-  private int available;
+  private int intOffset;
 
   /* Number of bytes in unfinished "int" item. */
   private int tailBytes = 0;
@@ -59,26 +63,26 @@ final class BitReader {
    */
   // TODO: Split to check and read; move read outside of decoding loop.
   static void readMoreInput(BitReader br) {
-    if (br.available > 9) {
+    if (br.intOffset <= CAPACITY - 9) {
       return;
     }
     if (br.endOfStreamReached) {
-      if (br.available > 4) {
+      if (intAvailable(br) >= -2) {
         return;
       }
       throw new BrotliRuntimeException("No more input");
     }
-    int readOffset = IntReader.position(br.intReader) << 2;
-    int bytesRead = READ_SIZE - readOffset;
-    System.arraycopy(br.shadowBuffer, readOffset, br.shadowBuffer, 0, bytesRead);
+    int readOffset = br.intOffset << 2;
+    int bytesRead = BYTE_READ_SIZE - readOffset;
+    System.arraycopy(br.byteBuffer, readOffset, br.byteBuffer, 0, bytesRead);
+    br.intOffset = 0;
     try {
-      while (bytesRead < READ_SIZE) {
-        int len = br.input.read(br.shadowBuffer, bytesRead, READ_SIZE - bytesRead);
+      while (bytesRead < BYTE_READ_SIZE) {
+        int len = br.input.read(br.byteBuffer, bytesRead, BYTE_READ_SIZE - bytesRead);
         if (len == -1) {
           br.endOfStreamReached = true;
-          Utils.fillWithZeroes(br.shadowBuffer, bytesRead, 64);
-          bytesRead += 64;
-          br.tailBytes = bytesRead & 3;
+          br.tailBytes = bytesRead;
+          bytesRead += 3;
           break;
         }
         bytesRead += len;
@@ -86,20 +90,19 @@ final class BitReader {
     } catch (IOException e) {
       throw new BrotliRuntimeException("Failed to read input", e);
     }
-    IntReader.reload(br.intReader, br.shadowBuffer, 0, bytesRead >> 2);
-    br.available = bytesRead >> 2;
+    IntReader.convert(br.intReader, bytesRead >> 2);
   }
 
-  static void checkHealth(BitReader br) {
+  static void checkHealth(BitReader br, boolean endOfStream) {
     if (!br.endOfStreamReached) {
       return;
     }
-    /* When end of stream is reached, we "borrow" up to 64 zeroes to bit reader.
-     * If compressed stream is valid, then borrowed zeroes should remain unused. */
-    int unusedBytes = (br.available << 2) + ((64 - br.bitOffset) >> 3);
-    int borrowedBytes = 64 - br.tailBytes;
-    if (unusedBytes != borrowedBytes) {
+    int byteOffset = (br.intOffset << 2) + ((br.bitOffset + 7) >> 3) - 8;
+    if (byteOffset > br.tailBytes) {
       throw new BrotliRuntimeException("Read after end");
+    }
+    if (endOfStream && (byteOffset != br.tailBytes)) {
+      throw new BrotliRuntimeException("Unused bytes after end");
     }
   }
 
@@ -108,9 +111,8 @@ final class BitReader {
    */
   static void fillBitWindow(BitReader br) {
     if (br.bitOffset >= 32) {
-      br.accumulator = ((long) IntReader.read(br.intReader) << 32) | (br.accumulator >>> 32);
+      br.accumulator = ((long) br.intBuffer[br.intOffset++] << 32) | (br.accumulator >>> 32);
       br.bitOffset -= 32;
-      br.available--;
     }
   }
 
@@ -137,19 +139,26 @@ final class BitReader {
     if (br.input != null) {
       throw new IllegalStateException("Bit reader already has associated input stream");
     }
+    IntReader.init(br.intReader, br.byteBuffer, br.intBuffer);
     br.input = input;
     br.accumulator = 0;
-    IntReader.setPosition(br.intReader, READ_SIZE >> 2);
     br.bitOffset = 64;
-    br.available = 0;
+    br.intOffset = CAPACITY;
     br.endOfStreamReached = false;
+    prepare(br);
+  }
+
+  private static void prepare(BitReader br) {
     readMoreInput(br);
-    /* This situation is impossible in current implementation. */
-    if (br.available == 0) {
-      throw new BrotliRuntimeException("Can't initialize reader");
+    checkHealth(br, false);
+    fillBitWindow(br);
+    fillBitWindow(br);
+  }
+
+  static void reload(BitReader br) {
+    if (br.bitOffset == 64) {
+      prepare(br);
     }
-    fillBitWindow(br);
-    fillBitWindow(br);
   }
 
   static void close(BitReader br) throws IOException {
@@ -165,9 +174,72 @@ final class BitReader {
     if (padding != 0) {
       int paddingBits = BitReader.readBits(br, padding);
       if (paddingBits != 0) {
-        throw new BrotliRuntimeException("Corrupted padding bits ");
+        throw new BrotliRuntimeException("Corrupted padding bits");
       }
     }
   }
 
+  static int intAvailable(BitReader br) {
+    int limit = CAPACITY;
+    if (br.endOfStreamReached) {
+      limit = (br.tailBytes + 3) >> 2;
+    }
+    return limit - br.intOffset;
+  }
+
+  static void copyBytes(BitReader br, byte[] data, int offset, int length) {
+    if ((br.bitOffset & 7) != 0) {
+      throw new BrotliRuntimeException("Unaligned copyBytes");
+    }
+
+    // Drain accumulator.
+    while ((br.bitOffset != 64) && (length != 0)) {
+      data[offset++] = (byte) (br.accumulator >>> br.bitOffset);
+      br.bitOffset += 8;
+      length--;
+    }
+    if (length == 0) {
+      return;
+    }
+
+    // Get data from shadow buffer with "sizeof(int)" granularity.
+    int copyInts = Math.min(intAvailable(br), length >> 2);
+    if (copyInts > 0) {
+      int readOffset = br.intOffset << 2;
+      System.arraycopy(br.byteBuffer, readOffset, data, offset, copyInts << 2);
+      offset += copyInts << 2;
+      length -= copyInts << 2;
+      br.intOffset += copyInts;
+    }
+    if (length == 0) {
+      return;
+    }
+
+    // Read tail bytes.
+    if (intAvailable(br) > 0) {
+      // length = 1..3
+      fillBitWindow(br);
+      while (length != 0) {
+        data[offset++] = (byte) (br.accumulator >>> br.bitOffset);
+        br.bitOffset += 8;
+        length--;
+      }
+      checkHealth(br, false);
+      return;
+    }
+
+    // Now it is possible to copy bytes directly.
+    try {
+      while (length > 0) {
+        int len = br.input.read(data, offset, length);
+        if (len == -1) {
+          throw new BrotliRuntimeException("Unexpected end of input");
+        }
+        offset += len;
+        length -= len;
+      }
+    } catch (IOException e) {
+      throw new BrotliRuntimeException("Failed to read input", e);
+    }
+  }
 }
