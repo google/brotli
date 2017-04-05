@@ -97,7 +97,7 @@ public class BrotliInputStream extends InputStream {
     try {
       State.setInput(state, source);
     } catch (BrotliRuntimeException ex) {
-      throw new IOException(ex);
+      throw new IOException("Brotli decoder initialization failed", ex);
     }
     if (customDictionary != null) {
       Decode.setCustomDictionary(state, customDictionary);
@@ -117,18 +117,14 @@ public class BrotliInputStream extends InputStream {
    */
   @Override
   public int read() throws IOException {
-    try {
-      if (bufferOffset >= remainingBufferBytes) {
-        remainingBufferBytes = read(buffer, 0, buffer.length);
-        bufferOffset = 0;
-        if (remainingBufferBytes == -1) {
-          return -1;
-        }
+    if (bufferOffset >= remainingBufferBytes) {
+      remainingBufferBytes = read(buffer, 0, buffer.length);
+      bufferOffset = 0;
+      if (remainingBufferBytes == -1) {
+        return -1;
       }
-      return buffer[bufferOffset++] & 0xFF;
-    } catch (BrotliRuntimeException ex) {
-      throw new IOException(ex);
     }
+    return buffer[bufferOffset++] & 0xFF;
   }
 
   /**
@@ -168,7 +164,7 @@ public class BrotliInputStream extends InputStream {
       }
       return state.outputUsed + copyLen;
     } catch (BrotliRuntimeException ex) {
-      throw new IOException(ex);
+      throw new IOException("Brotli stream decoding failed", ex);
     }
   }
 }

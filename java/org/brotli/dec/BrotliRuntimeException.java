@@ -18,8 +18,4 @@ class BrotliRuntimeException extends RuntimeException {
   BrotliRuntimeException(String message, Throwable cause) {
     super(message, cause);
   }
-
-  BrotliRuntimeException(Throwable cause) {
-    super(cause);
-  }
 }
