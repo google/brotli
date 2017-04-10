@@ -79,7 +79,8 @@ final class BitReader {
     try {
       while (bytesRead < BYTE_READ_SIZE) {
         int len = br.input.read(br.byteBuffer, bytesRead, BYTE_READ_SIZE - bytesRead);
-        if (len == -1) {
+        // EOF is -1 in Java, but 0 in C#.
+        if (len <= 0) {
           br.endOfStreamReached = true;
           br.tailBytes = bytesRead;
           bytesRead += 3;

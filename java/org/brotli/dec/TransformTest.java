@@ -9,9 +9,6 @@ package org.brotli.dec;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -22,29 +19,44 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class TransformTest {
 
+  private static long crc64(byte[] data) {
+    long crc = -1;
+    for (int i = 0; i < data.length; ++i) {
+      long c = (crc ^ (long) (data[i] & 0xFF)) & 0xFF;
+      for (int k = 0; k < 8; k++) {
+        c = (c >>> 1) ^ (-(c & 1L) & -3932672073523589310L);
+      }
+      crc = c ^ (crc >>> 8);
+    }
+    return ~crc;
+  }
+
   @Test
   public void testTrimAll() {
     byte[] output = new byte[2];
-    byte[] input = "word".getBytes(StandardCharsets.UTF_8);
+    byte[] input = {119, 111, 114, 100}; // "word"
     Transform transform = new Transform("[", WordTransformType.OMIT_FIRST_5, "]");
     Transform.transformDictionaryWord(output, 0, input, 0, input.length, transform);
-    assertArrayEquals(output, "[]".getBytes(StandardCharsets.UTF_8));
+    byte[] expectedOutput = {91, 93}; // "[]"
+    assertArrayEquals(expectedOutput, output);
   }
 
   @Test
   public void testCapitalize() {
     byte[] output = new byte[8];
-    byte[] input = "qæप".getBytes(StandardCharsets.UTF_8);
+    byte[] input = {113, -61, -90, -32, -92, -86}; // "qæप"
     Transform transform = new Transform("[", WordTransformType.UPPERCASE_ALL, "]");
     Transform.transformDictionaryWord(output, 0, input, 0, input.length, transform);
-    assertArrayEquals(output, "[QÆय]".getBytes(StandardCharsets.UTF_8));
+    byte[] expectedOutput = {91, 81, -61, -122, -32, -92, -81, 93}; // "[QÆय]"
+    assertArrayEquals(expectedOutput, output);
   }
 
   @Test
-  public void testAllTransforms() throws NoSuchAlgorithmException {
+  public void testAllTransforms() {
     /* This string allows to apply all transforms: head and tail cutting, capitalization and
        turning to upper case; all results will be mutually different. */
-    byte[] testWord = Transform.readUniBytes("o123456789abcdef");
+    // "o123456789abcdef"
+    byte[] testWord = {111, 49, 50, 51, 52, 53, 54, 55, 56, 57, 97, 98, 99, 100, 101, 102};
     byte[] output = new byte[2259];
     int offset = 0;
     for (int i = 0; i < Transform.TRANSFORMS.length; ++i) {
@@ -53,11 +65,6 @@ public class TransformTest {
       output[offset++] = -1;
     }
     assertEquals(output.length, offset);
-
-    MessageDigest md = MessageDigest.getInstance("SHA-256");
-    md.update(output);
-    byte[] digest = md.digest();
-    String sha256 = String.format("%064x", new java.math.BigInteger(1, digest));
-    assertEquals("60f1c7e45d788e24938c5a3919aaf41a7d8ad474d0ced6b9e4c0079f4d1da8c4", sha256);
+    assertEquals(8929191060211225186L, crc64(output));
   }
 }
