@@ -1792,23 +1792,6 @@ uint32_t BrotliEncoderVersion(void) {
   return BROTLI_VERSION;
 }
 
-
-/* DEPRECATED >>> */
-size_t BrotliEncoderInputBlockSize(BrotliEncoderState* s) {
-  return InputBlockSize(s);
-}
-void BrotliEncoderCopyInputToRingBuffer(BrotliEncoderState* s,
-                                        const size_t input_size,
-                                        const uint8_t* input_buffer) {
-  CopyInputToRingBuffer(s, input_size, input_buffer);
-}
-BROTLI_BOOL BrotliEncoderWriteData(
-    BrotliEncoderState* s, const BROTLI_BOOL is_last,
-    const BROTLI_BOOL force_flush, size_t* out_size, uint8_t** output) {
-  return EncodeData(s, is_last, force_flush, out_size, output);
-}
-/* <<< DEPRECATED */
-
 #if defined(__cplusplus) || defined(c_plusplus)
 }  /* extern "C" */
 #endif

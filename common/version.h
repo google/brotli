@@ -14,6 +14,6 @@
    BrotliEncoderVersion methods. */
 
 /* Semantic version, calculated as (MAJOR << 24) | (MINOR << 12) | PATCH */
-#define BROTLI_VERSION 0x0006000
+#define BROTLI_VERSION 0x1000000
 
 #endif  /* BROTLI_COMMON_VERSION_H_ */

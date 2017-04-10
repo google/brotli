@@ -166,5 +166,7 @@ public class BrotliInputStream extends InputStream {
     } catch (BrotliRuntimeException ex) {
       throw new IOException("Brotli stream decoding failed", ex);
     }
+
+    // <{[INJECTED CODE]}>
   }
 }

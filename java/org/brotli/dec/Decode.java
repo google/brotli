@@ -126,7 +126,8 @@ final class Decode {
       return sym;
     }
     offset += sym;
-    offset += (val & ((1L << bits) - 1)) >>> HUFFMAN_TABLE_BITS;
+    int mask = (1 << bits) - 1;
+    offset += (val & mask) >>> HUFFMAN_TABLE_BITS;
     br.bitOffset += ((table[offset] >> 16) + HUFFMAN_TABLE_BITS);
     return table[offset] & 0xFFFF;
   }

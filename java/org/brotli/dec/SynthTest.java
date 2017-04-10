@@ -12,8 +12,6 @@ import static org.junit.Assert.fail;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
-import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -28,9 +26,9 @@ public class SynthTest {
     byte[] buffer = new byte[65536];
     ByteArrayInputStream input = new ByteArrayInputStream(data);
     ByteArrayOutputStream output = new ByteArrayOutputStream();
-    InputStream brotliInput = new BrotliInputStream(input);
+    BrotliInputStream brotliInput = new BrotliInputStream(input);
     while (true) {
-      int len = brotliInput.read(buffer);
+      int len = brotliInput.read(buffer, 0, buffer.length);
       if (len <= 0) {
         break;
       }
@@ -2022,33 +2020,6 @@ public class SynthTest {
       */
       compressed,
       false, "");
-  }
-
-  @Ignore("Java implementation forbids extra bytes after the stream end.")
-  @Test
-  public void testSimplePrefixPlusExtraData() {
-    byte[] compressed = {
-      (byte) 0x1b, (byte) 0x03, (byte) 0x00, (byte) 0x00, (byte) 0xa0, (byte) 0xc3, (byte) 0xc4,
-      (byte) 0xc6, (byte) 0xc8, (byte) 0x02, (byte) 0x00, (byte) 0x70, (byte) 0xb0, (byte) 0x65,
-      (byte) 0x12, (byte) 0x03, (byte) 0x24, (byte) 0x00, (byte) 0x00, (byte) 0xee, (byte) 0xb4,
-      (byte) 0x51, (byte) 0xa0, (byte) 0x1d, (byte) 0x55, (byte) 0xaa
-    };
-    checkSynth(
-/*
-      main_header
-      metablock_header_begin: 1, 0, 4, 0
-      metablock_header_trivial_context
-      huffman_simple: 1,4,256, 97,98,99,100  // ascii codes for a, b, c, d
-      huffman_fixed: 704
-      huffman_fixed: 64
-      command_inscopy_easy: 4, 0
-      command_literal_bits: 0, 10, 110, 111  // a, b, c, d
-      byte_boundary
-      bits: "01010101", "10101010"
-      */
-      compressed,
-      true, ""
-    +       "abcd");
   }
 
   @Test
