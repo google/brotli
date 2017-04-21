@@ -4,7 +4,7 @@ environment:
     # SDK v7.0 MSVC Express 2008's SetEnv.cmd script will fail if the
     # /E:ON and /V:ON options are not enabled in the batch script intepreter
     # See: http://stackoverflow.com/a/13751649/163740
-    WITH_COMPILER: "cmd /E:ON /V:ON /C .\\appveyor\\run_with_compiler.cmd"
+    WITH_COMPILER: "cmd /E:ON /V:ON /C .\\build\\run_with_compiler.cmd"
 
   matrix:
     - BUILD_SYSTEM: CMake
@@ -56,7 +56,7 @@ install:
   - ps: |
       if ($env:BUILD_SYSTEM -eq "Python") {
         # install Python and pip when not already installed
-        if (-not(Test-Path($env:PYTHON))) { & appveyor\install.ps1 }
+        if (-not(Test-Path($env:PYTHON))) { & build\install.ps1 }
 
         # prepend newly installed Python to the PATH
         $env:Path = $env:PYTHON + ';' + $env:PYTHON + '\\Scripts;' + $env:PATH

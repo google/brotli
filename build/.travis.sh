@@ -28,7 +28,7 @@ case "$1" in
 
 		case "${BUILD_SYSTEM}" in
 		    "python")
-			source terryfy/travis_tools.sh
+			source build/terryfy/travis_tools.sh
 			get_python_environment $INSTALL_TYPE $PYTHON_VERSION venv
 			pip install --upgrade wheel
 			;;
@@ -91,7 +91,7 @@ case "$1" in
 	case "${BUILD_SYSTEM}" in
 	    "bazel")
 		export RELEASE_DATE=`date +%Y-%m-%d`
-		perl -p -i -e 's/\$\{([^}]+)\}/defined $ENV{$1} ? $ENV{$1} : $&/eg' .bintray.json
+		perl -p -i -e 's/\$\{([^}]+)\}/defined $ENV{$1} ? $ENV{$1} : $&/eg' build/.bintray.json
 		zip -j9 brotli.zip bazel-bin/libbrotli*.a bazel-bin/libbrotli*.so bazel-bin/bro
 		;;
 	esac

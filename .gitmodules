@@ -1,5 +1,5 @@
 [submodule "terryfy"]
-	path = terryfy
+	path = build/terryfy
 	url = https://github.com/MacPython/terryfy.git
 [submodule "research/esaxx"]
 	path = research/esaxx
