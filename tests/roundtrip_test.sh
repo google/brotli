@@ -11,9 +11,9 @@ tests/testdata/alice29.txt
 tests/testdata/asyoulik.txt
 tests/testdata/lcet10.txt
 tests/testdata/plrabn12.txt
-enc/encode.c
-common/dictionary.h
-dec/decode.c
+c/enc/encode.c
+c/common/dictionary.h
+c/dec/decode.c
 $BRO
 """
 

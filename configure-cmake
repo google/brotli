@@ -32,8 +32,8 @@ PREFIX=/usr/local
 LIBDIR=
 CMAKE_ARGS=
 
-if [ -e "${TOP_SRCDIR}/.configure-custom.sh" ]; then
-    . "${TOP_SRCDIR}/.configure-custom.sh"
+if [ -e "${TOP_SRCDIR}/scripts/.configure-custom.sh" ]; then
+    . "${TOP_SRCDIR}/scripts/.configure-custom.sh"
 fi
 
 quote() {
