@@ -19,13 +19,24 @@ https://groups.google.com/forum/#!forum/brotli
 
 ### Build instructions
 
-#### Make
+#### Autotools-style CMake
 
-To build and run tests, simply do:
+[configure-cmake](https://github.com/nemequ/configure-cmake) is an
+autotools-style configure script for CMake-based projects.
 
-    $ ./configure && make
+The basic commands to build, test and install brotli are:
 
-If you want to install brotli, use one of the more advanced build systems below.
+    $ mkdir out && cd out
+    $ ../configure-cmake
+    $ make
+    $ make test
+    $ make install
+
+To build static libraries use `--disable-shared-libs` argument:
+
+    $ mkdir out-static && cd out-static
+    $ ../configure-cmake --disable-shared-libs
+    $ make install
 
 #### Bazel
 
@@ -35,17 +46,18 @@ See [Bazel](http://www.bazel.build/)
 
 The basic commands to build, test and install brotli are:
 
-    $ mkdir out && cd out && ../configure-cmake && make
+    $ mkdir out && cd out
+    $ cmake ..
+    $ make
     $ make test
     $ make install
 
 You can use other [CMake](https://cmake.org/) configuration. For example, to
-build static libraries and use a custom installation directory:
+build static libraries:
 
-    $ mkdir out-static && \
-      cd out-static && \
-      ../configure-cmake --disable-shared-libs --prefix='/my/prefix/dir/'
-    $ make install
+    $ mkdir out-static && cd out-static
+    $ cmake .. -DBUILD_SHARED_LIBS=OFF
+    $ make
 
 #### Premake5
 
