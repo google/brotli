@@ -852,19 +852,34 @@ namespace Org.Brotli.Dec
 					case Org.Brotli.Dec.RunningState.CopyLoop:
 					{
 						// fall through
-						for (; state.j < state.copyLength; )
+						int src = (state.pos - state.distance) & ringBufferMask;
+						int dst = state.pos;
+						int copyLength = state.copyLength - state.j;
+						if ((src + copyLength < ringBufferMask) && (dst + copyLength < ringBufferMask))
 						{
-							ringBuffer[state.pos] = ringBuffer[(state.pos - state.distance) & ringBufferMask];
-							// TODO: condense
-							state.metaBlockLength--;
-							state.j++;
-							if (state.pos++ == ringBufferMask)
+							for (int k = 0; k < copyLength; ++k)
 							{
-								state.nextRunningState = Org.Brotli.Dec.RunningState.CopyLoop;
-								state.bytesToWrite = state.ringBufferSize;
-								state.bytesWritten = 0;
-								state.runningState = Org.Brotli.Dec.RunningState.Write;
-								break;
+								ringBuffer[dst++] = ringBuffer[src++];
+							}
+							state.j += copyLength;
+							state.metaBlockLength -= copyLength;
+							state.pos += copyLength;
+						}
+						else
+						{
+							for (; state.j < state.copyLength; )
+							{
+								ringBuffer[state.pos] = ringBuffer[(state.pos - state.distance) & ringBufferMask];
+								state.metaBlockLength--;
+								state.j++;
+								if (state.pos++ == ringBufferMask)
+								{
+									state.nextRunningState = Org.Brotli.Dec.RunningState.CopyLoop;
+									state.bytesToWrite = state.ringBufferSize;
+									state.bytesWritten = 0;
+									state.runningState = Org.Brotli.Dec.RunningState.Write;
+									break;
+								}
 							}
 						}
 						if (state.runningState == Org.Brotli.Dec.RunningState.CopyLoop)
