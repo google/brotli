@@ -759,18 +759,29 @@ final class Decode {
           state.runningState = COPY_LOOP;
           // fall through
         case COPY_LOOP:
-          for (; state.j < state.copyLength;) {
-            ringBuffer[state.pos] =
-                ringBuffer[(state.pos - state.distance) & ringBufferMask];
-            // TODO: condense
-            state.metaBlockLength--;
-            state.j++;
-            if (state.pos++ == ringBufferMask) {
-              state.nextRunningState = COPY_LOOP;
-              state.bytesToWrite = state.ringBufferSize;
-              state.bytesWritten = 0;
-              state.runningState = WRITE;
-              break;
+          int src = (state.pos - state.distance) & ringBufferMask;
+          int dst = state.pos;
+          int copyLength = state.copyLength - state.j;
+          if ((src + copyLength < ringBufferMask) && (dst + copyLength < ringBufferMask)) {
+            for (int k = 0; k < copyLength; ++k) {
+              ringBuffer[dst++] = ringBuffer[src++];
+            }
+            state.j += copyLength;
+            state.metaBlockLength -= copyLength;
+            state.pos += copyLength;
+          } else {
+            for (; state.j < state.copyLength;) {
+              ringBuffer[state.pos] =
+                  ringBuffer[(state.pos - state.distance) & ringBufferMask];
+              state.metaBlockLength--;
+              state.j++;
+              if (state.pos++ == ringBufferMask) {
+                state.nextRunningState = COPY_LOOP;
+                state.bytesToWrite = state.ringBufferSize;
+                state.bytesWritten = 0;
+                state.runningState = WRITE;
+                break;
+              }
             }
           }
           if (state.runningState == COPY_LOOP) {
