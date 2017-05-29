@@ -1,6 +1,6 @@
 execute_process(
   WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
-  COMMAND ${BROTLI_WRAPPER} ${BROTLI_CLI} --force --quality ${QUALITY} --input ${INPUT} --output ${OUTPUT}.bro
+  COMMAND ${BROTLI_WRAPPER} ${BROTLI_CLI} --force --quality=${QUALITY} ${INPUT} --output=${OUTPUT}.br
   RESULT_VARIABLE result
   ERROR_VARIABLE result_stderr)
 if(result)
@@ -9,7 +9,7 @@ endif()
 
 execute_process(
   WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
-  COMMAND ${BROTLI_WRAPPER} ${BROTLI_CLI} --force --decompress --input ${OUTPUT}.bro --output ${OUTPUT}.unbro
+  COMMAND ${BROTLI_WRAPPER} ${BROTLI_CLI} --force --decompress ${OUTPUT}.br --output=${OUTPUT}.unbr
   RESULT_VARIABLE result)
 if(result)
   message(FATAL_ERROR "Decompression failed")
@@ -31,4 +31,4 @@ function(test_file_equality f1 f2)
   endif()
 endfunction()
 
-test_file_equality("${INPUT}" "${OUTPUT}.unbro")
+test_file_equality("${INPUT}" "${OUTPUT}.unbr")

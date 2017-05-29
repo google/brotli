@@ -27,6 +27,8 @@ import static org.brotli.dec.WordTransformType.OMIT_LAST_9;
 import static org.brotli.dec.WordTransformType.UPPERCASE_ALL;
 import static org.brotli.dec.WordTransformType.UPPERCASE_FIRST;
 
+import java.nio.ByteBuffer;
+
 /**
  * Transformations on dictionary words.
  */
@@ -174,7 +176,7 @@ final class Transform {
       new Transform(" ", UPPERCASE_FIRST, "='")
   };
 
-  static int transformDictionaryWord(byte[] dst, int dstOffset, byte[] word, int wordOffset,
+  static int transformDictionaryWord(byte[] dst, int dstOffset, ByteBuffer data, int wordOffset,
       int len, Transform transform) {
     int offset = dstOffset;
 
@@ -198,7 +200,7 @@ final class Transform {
     len -= WordTransformType.getOmitLast(op);
     i = len;
     while (i > 0) {
-      dst[offset++] = word[wordOffset++];
+      dst[offset++] = data.get(wordOffset++);
       i--;
     }
 

@@ -95,7 +95,7 @@ func (r *Reader) Read(p []byte) (n int, err error) {
 		return 0, nil
 	}
 
-	for n == 0 {
+	for {
 		var written, consumed C.size_t
 		var data *C.uint8_t
 		if len(r.in) != 0 {
@@ -128,9 +128,14 @@ func (r *Reader) Read(p []byte) (n int, err error) {
 			return 0, errInvalidState
 		}
 
+		// Calling r.src.Read may block. Don't block if we have data to return.
+		if n > 0 {
+			return n, nil
+		}
+
 		// Top off the buffer.
 		encN, err := r.src.Read(r.buf)
-		if encN == 0 && n == 0 {
+		if encN == 0 {
 			// Not enough data to complete decoding.
 			if err == io.EOF {
 				return 0, io.ErrUnexpectedEOF

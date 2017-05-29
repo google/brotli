@@ -9,6 +9,7 @@ package org.brotli.dec;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 
+import java.nio.ByteBuffer;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -36,7 +37,8 @@ public class TransformTest {
     byte[] output = new byte[2];
     byte[] input = {119, 111, 114, 100}; // "word"
     Transform transform = new Transform("[", WordTransformType.OMIT_FIRST_5, "]");
-    Transform.transformDictionaryWord(output, 0, input, 0, input.length, transform);
+    Transform.transformDictionaryWord(
+        output, 0, ByteBuffer.wrap(input), 0, input.length, transform);
     byte[] expectedOutput = {91, 93}; // "[]"
     assertArrayEquals(expectedOutput, output);
   }
@@ -46,7 +48,8 @@ public class TransformTest {
     byte[] output = new byte[8];
     byte[] input = {113, -61, -90, -32, -92, -86}; // "qæप"
     Transform transform = new Transform("[", WordTransformType.UPPERCASE_ALL, "]");
-    Transform.transformDictionaryWord(output, 0, input, 0, input.length, transform);
+    Transform.transformDictionaryWord(
+      output, 0, ByteBuffer.wrap(input), 0, input.length, transform);
     byte[] expectedOutput = {91, 81, -61, -122, -32, -92, -81, 93}; // "[QÆय]"
     assertArrayEquals(expectedOutput, output);
   }
@@ -61,7 +64,7 @@ public class TransformTest {
     int offset = 0;
     for (int i = 0; i < Transform.TRANSFORMS.length; ++i) {
       offset += Transform.transformDictionaryWord(
-          output, offset, testWord, 0, testWord.length, Transform.TRANSFORMS[i]);
+          output, offset, ByteBuffer.wrap(testWord), 0, testWord.length, Transform.TRANSFORMS[i]);
       output[offset++] = -1;
     }
     assertEquals(output.length, offset);

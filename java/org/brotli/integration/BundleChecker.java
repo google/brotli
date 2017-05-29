@@ -12,7 +12,6 @@ import java.io.FileNotFoundException;
 import java.io.FilterInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.math.BigInteger;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
@@ -39,28 +38,6 @@ public class BundleChecker implements Runnable {
     this.sanityCheck = sanityCheck;
   }
 
-  /** ECMA CRC64 polynomial. */
-  private static final long CRC_64_POLY =
-      new BigInteger("C96C5795D7870F42", 16).longValue();
-
-  /**
-   * Rolls CRC64 calculation.
-   *
-   * <p> {@code CRC64(data) = -1 ^ updateCrc64((... updateCrc64(-1, firstBlock), ...), lastBlock);}
-   * <p> This simple and reliable checksum is chosen to make is easy to calculate the same value
-   * across the variety of languages (C++, Java, Go, ...).
-   */
-  private static long updateCrc64(long crc, byte[] data, int offset, int length) {
-    for (int i = offset; i < offset + length; ++i) {
-      long c = (crc ^ (long) (data[i] & 0xFF)) & 0xFF;
-      for (int k = 0; k < 8; k++) {
-        c = ((c & 1) == 1) ? CRC_64_POLY ^ (c >>> 1) : c >>> 1;
-      }
-      crc = c ^ (crc >>> 8);
-    }
-    return crc;
-  }
-
   private long decompressAndCalculateCrc(ZipInputStream input) throws IOException {
     /* Do not allow entry readers to close the whole ZipInputStream. */
     FilterInputStream entryStream = new FilterInputStream(input) {
@@ -68,18 +45,14 @@ public class BundleChecker implements Runnable {
       public void close() {}
     };
 
-    long crc = -1;
-    byte[] buffer = new byte[65536];
     BrotliInputStream decompressedStream = new BrotliInputStream(entryStream);
-    while (true) {
-      int len = decompressedStream.read(buffer);
-      if (len <= 0) {
-        break;
-      }
-      crc = updateCrc64(crc, buffer, 0, len);
+    long crc;
+    try {
+      crc = BundleHelper.fingerprintStream(decompressedStream);
+    } finally {
+      decompressedStream.close();
     }
-    decompressedStream.close();
-    return ~crc;
+    return crc;
   }
 
   @Override
@@ -99,9 +72,7 @@ public class BundleChecker implements Runnable {
           continue;
         }
         entryName = entry.getName();
-        int dotIndex = entryName.indexOf('.');
-        String entryCrcString = (dotIndex == -1) ? entryName : entryName.substring(0, dotIndex);
-        long entryCrc = new BigInteger(entryCrcString, 16).longValue();
+        long entryCrc = BundleHelper.getExpectedFingerprint(entryName);
         try {
           if (entryCrc != decompressAndCalculateCrc(zis) && !sanityCheck) {
             throw new RuntimeException("CRC mismatch");

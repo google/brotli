@@ -8,6 +8,7 @@ package org.brotli.dec;
 
 import static org.junit.Assert.assertEquals;
 
+import java.nio.ByteBuffer;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -18,10 +19,10 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class DictionaryTest {
 
-  private static long crc64(byte[] data) {
+  private static long crc64(ByteBuffer data) {
     long crc = -1;
-    for (int i = 0; i < data.length; ++i) {
-      long c = (crc ^ (long) (data[i] & 0xFF)) & 0xFF;
+    for (int i = 0; i < data.capacity(); ++i) {
+      long c = (crc ^ (long) (data.get(i) & 0xFF)) & 0xFF;
       for (int k = 0; k < 8; k++) {
         c = (c >>> 1) ^ (-(c & 1L) & -3932672073523589310L);
       }

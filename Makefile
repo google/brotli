@@ -1,12 +1,13 @@
 OS := $(shell uname)
-LIBSOURCES = $(wildcard c/common/*.c) $(wildcard c/dec/*.c) $(wildcard c/enc/*.c)
-SOURCES = $(LIBSOURCES) c/tools/bro.c
+LIBSOURCES = $(wildcard c/common/*.c) $(wildcard c/dec/*.c) \
+             $(wildcard c/enc/*.c)
+SOURCES = $(LIBSOURCES) c/tools/brotli.c
 BINDIR = bin
 OBJDIR = $(BINDIR)/obj
 LIBOBJECTS = $(addprefix $(OBJDIR)/, $(LIBSOURCES:.c=.o))
 OBJECTS = $(addprefix $(OBJDIR)/, $(SOURCES:.c=.o))
 LIB_A = libbrotli.a
-EXECUTABLE = bro
+EXECUTABLE = brotli
 DIRS = $(OBJDIR)/c/common $(OBJDIR)/c/dec $(OBJDIR)/c/enc \
        $(OBJDIR)/c/tools $(BINDIR)/tmp
 CFLAGS += -O2

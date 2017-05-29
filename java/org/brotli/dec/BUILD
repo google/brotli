@@ -6,7 +6,7 @@ package(default_visibility = ["//visibility:public"])
 licenses(["notice"])  # MIT
 
 java_library(
-    name = "lib",
+    name = "dec",
     srcs = glob(["*.java"], exclude = ["*Test*.java"]),
 )
 
@@ -14,7 +14,7 @@ java_library(
     name = "test_lib",
     srcs = glob(["*Test*.java"]),
     deps = [
-        ":lib",
+        ":dec",
         "@junit_junit//jar",
     ],
     testonly = 1,

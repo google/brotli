@@ -13,4 +13,4 @@ include python/brotlimodule.cc
 include python/README.md
 include README.md
 include setup.py
-include c/tools/bro.c
+include c/tools/brotli.c

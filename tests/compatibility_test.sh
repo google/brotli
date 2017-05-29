@@ -5,7 +5,7 @@
 
 set -o errexit
 
-BRO=bin/bro
+BROTLI=bin/brotli
 TMP_DIR=bin/tmp
 
 for file in tests/testdata/*.compressed*; do
@@ -13,10 +13,10 @@ for file in tests/testdata/*.compressed*; do
   expected=${file%.compressed*}
   uncompressed=${TMP_DIR}/${expected##*/}.uncompressed
   echo $uncompressed
-  $BRO -f -d -i $file -o $uncompressed
+  $BROTLI $file -fdo $uncompressed
   diff -q $uncompressed $expected
   # Test the streaming version
-  cat $file | $BRO -d > $uncompressed
+  cat $file | $BROTLI -dc > $uncompressed
   diff -q $uncompressed $expected
   rm -f $uncompressed
 done

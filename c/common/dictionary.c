@@ -10,24 +10,8 @@
 extern "C" {
 #endif
 
-static const BrotliDictionary kBrotliDictionary = {
-  /* size_bits_by_length */
-  {
-    0, 0, 0, 0, 10, 10, 11, 11,
-    10, 10, 10, 10, 10, 9, 9, 8,
-    7, 7, 8, 7, 7, 6, 6, 5,
-    5, 0, 0, 0, 0, 0, 0, 0
-  },
-
-  /* offsets_by_length */
-  {
-    0, 0, 0, 0, 0, 4096, 9216, 21504,
-    35840, 44032, 53248, 63488, 74752, 87040, 93696, 100864,
-    104704, 106752, 108928, 113536, 115968, 118528, 119872, 121280,
-    122016, 122784, 122784, 122784, 122784, 122784, 122784, 122784
-  },
-
-  /* data */
+#ifndef BROTLI_EXTERNAL_DICTIONARY_DATA
+static const uint8_t kBrotliDictionaryData[] =
 {
 116,105,109,101,100,111,119,110,108,105,102,101,108,101,102,116,98,97,99,107,99,
 111,100,101,100,97,116,97,115,104,111,119,111,110,108,121,115,105,116,101,99,105
@@ -5875,10 +5859,45 @@ static const BrotliDictionary kBrotliDictionary = {
 ,164,181,224,164,190,224,164,136,224,164,184,224,164,149,224,165,141,224,164,176
 ,224,164,191,224,164,175,224,164,164,224,164,190
 }
+;
+#endif  /* !BROTLI_EXTERNAL_DICTIONARY_DATA */
+
+static BrotliDictionary kBrotliDictionary = {
+  /* size_bits_by_length */
+  {
+    0, 0, 0, 0, 10, 10, 11, 11,
+    10, 10, 10, 10, 10, 9, 9, 8,
+    7, 7, 8, 7, 7, 6, 6, 5,
+    5, 0, 0, 0, 0, 0, 0, 0
+  },
+
+  /* offsets_by_length */
+  {
+    0, 0, 0, 0, 0, 4096, 9216, 21504,
+    35840, 44032, 53248, 63488, 74752, 87040, 93696, 100864,
+    104704, 106752, 108928, 113536, 115968, 118528, 119872, 121280,
+    122016, 122784, 122784, 122784, 122784, 122784, 122784, 122784
+  },
+
+  /* data_size ==  sizeof(kBrotliDictionaryData) */
+  122784,
+
+  /* data */
+#ifdef BROTLI_EXTERNAL_DICTIONARY_DATA
+  NULL
+#else
+  kBrotliDictionaryData
+#endif
 };
 
 const BrotliDictionary* BrotliGetDictionary() {
   return &kBrotliDictionary;
+}
+
+void BrotliSetDictionaryData(const uint8_t* data) {
+  if (!!data && !kBrotliDictionary.data) {
+    kBrotliDictionary.data = data;
+  }
 }
 
 #if defined(__cplusplus) || defined(c_plusplus)

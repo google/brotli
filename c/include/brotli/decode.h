@@ -84,8 +84,9 @@ typedef enum {
   BROTLI_ERROR_CODE(_ERROR_FORMAT_, PADDING_1, -14) SEPARATOR              \
   BROTLI_ERROR_CODE(_ERROR_FORMAT_, PADDING_2, -15) SEPARATOR              \
                                                                            \
-  /* -16..-19 codes are reserved */                                        \
+  /* -16..-18 codes are reserved */                                        \
                                                                            \
+  BROTLI_ERROR_CODE(_ERROR_, DICTIONARY_NOT_SET, -19) SEPARATOR            \
   BROTLI_ERROR_CODE(_ERROR_, INVALID_ARGUMENTS, -20) SEPARATOR             \
                                                                            \
   /* Memory allocation problems */                                         \
@@ -207,9 +208,9 @@ BROTLI_DEC_API BrotliDecoderResult BrotliDecoderDecompress(
  *          allocation failed, arguments were invalid, etc.;
  *          use ::BrotliDecoderGetErrorCode to get detailed error code
  * @returns ::BROTLI_DECODER_RESULT_NEEDS_MORE_INPUT decoding is blocked until
- *          more output space is provided
- * @returns ::BROTLI_DECODER_RESULT_NEEDS_MORE_OUTPUT decoding is blocked until
  *          more input data is provided
+ * @returns ::BROTLI_DECODER_RESULT_NEEDS_MORE_OUTPUT decoding is blocked until
+ *          more output space is provided
  * @returns ::BROTLI_DECODER_RESULT_SUCCESS decoding is finished, no more
  *          input might be consumed and no more output will be produced
  */

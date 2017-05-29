@@ -66,7 +66,6 @@ BrotliDecoderState* BrotliDecoderCreateInstance(
   }
   BrotliDecoderStateInitWithCustomAllocators(
       state, alloc_func, free_func, opaque);
-  state->error_code = BROTLI_DECODER_NO_ERROR;
   return state;
 }
 
@@ -1747,6 +1746,9 @@ CommandPostDecodeLiterals:
       /* Compensate double distance-ring-buffer roll. */
       s->dist_rb_idx += s->distance_context;
       offset += word_idx * i;
+      if (BROTLI_PREDICT_FALSE(!s->dictionary->data)) {
+        return BROTLI_FAILURE(BROTLI_DECODER_ERROR_DICTIONARY_NOT_SET);
+      }
       if (transform_idx < kNumTransforms) {
         const uint8_t* word = &s->dictionary->data[offset];
         int len = i;
@@ -1899,6 +1901,10 @@ BrotliDecoderResult BrotliDecoderDecompressStream(
     size_t* available_out, uint8_t** next_out, size_t* total_out) {
   BrotliDecoderErrorCode result = BROTLI_DECODER_SUCCESS;
   BrotliBitReader* br = &s->br;
+  /* Do not try to process further in a case of unrecoverable error. */
+  if ((int)s->error_code < 0) {
+    return BROTLI_DECODER_RESULT_ERROR;
+  }
   if (*available_out && (!next_out || !*next_out)) {
     return SaveErrorCode(
         s, BROTLI_FAILURE(BROTLI_DECODER_ERROR_INVALID_ARGUMENTS));

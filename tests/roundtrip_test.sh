@@ -4,7 +4,7 @@
 
 set -o errexit
 
-BRO=bin/bro
+BROTLI=bin/brotli
 TMP_DIR=bin/tmp
 INPUTS="""
 tests/testdata/alice29.txt
@@ -14,19 +14,19 @@ tests/testdata/plrabn12.txt
 c/enc/encode.c
 c/common/dictionary.h
 c/dec/decode.c
-$BRO
+$BROTLI
 """
 
 for file in $INPUTS; do
   for quality in 1 6 9 11; do
     echo "Roundtrip testing $file at quality $quality"
-    compressed=${TMP_DIR}/${file##*/}.bro
-    uncompressed=${TMP_DIR}/${file##*/}.unbro
-    $BRO -f -q $quality -i $file -o $compressed
-    $BRO -f -d -i $compressed -o $uncompressed
+    compressed=${TMP_DIR}/${file##*/}.br
+    uncompressed=${TMP_DIR}/${file##*/}.unbr
+    $BROTLI -fq $quality $file -o $compressed
+    $BROTLI $compressed -fdo $uncompressed
     diff -q $file $uncompressed
     # Test the streaming version
-    cat $file | $BRO -q $quality | $BRO -d >$uncompressed
+    cat $file | $BROTLI -cq $quality | $BROTLI -cd >$uncompressed
     diff -q $file $uncompressed
   done
 done
