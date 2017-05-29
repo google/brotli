@@ -20,8 +20,8 @@ $BROTLI
 for file in $INPUTS; do
   for quality in 1 6 9 11; do
     echo "Roundtrip testing $file at quality $quality"
-    compressed=${TMP_DIR}/${file##*/}.bro
-    uncompressed=${TMP_DIR}/${file##*/}.unbro
+    compressed=${TMP_DIR}/${file##*/}.br
+    uncompressed=${TMP_DIR}/${file##*/}.unbr
     $BROTLI -fq $quality $file -o $compressed
     $BROTLI $compressed -fdo $uncompressed
     diff -q $file $uncompressed

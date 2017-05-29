@@ -13,5 +13,5 @@ __pycache__/
 
 # Tests
 *.txt.uncompressed
-*.bro
-*.unbro
+*.br
+*.unbr
