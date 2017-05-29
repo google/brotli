@@ -63,9 +63,9 @@ project "brotlienc_static"
   files { "c/enc/**.h", "c/enc/**.c" }
   links "brotlicommon_static"
 
-project "bro"
+project "brotli"
   kind "ConsoleApp"
   language "C"
   linkoptions "-static"
-  files { "c/tools/bro.c" }
+  files { "c/tools/brotli.c" }
   links { "brotlicommon_static", "brotlidec_static", "brotlienc_static" }

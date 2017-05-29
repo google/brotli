@@ -3,7 +3,7 @@ get_filename_component(OUTPUT_NAME "${REFERENCE_DATA}" NAME)
 
 execute_process(
   WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
-  COMMAND ${BROTLI_WRAPPER} ${BROTLI_CLI} --force --decompress --input ${INPUT} --output ${CMAKE_CURRENT_BINARY_DIR}/${OUTPUT_NAME}.unbro
+  COMMAND ${BROTLI_WRAPPER} ${BROTLI_CLI} --force --decompress ${INPUT} --output=${CMAKE_CURRENT_BINARY_DIR}/${OUTPUT_NAME}.unbro
   RESULT_VARIABLE result)
 if(result)
   message(FATAL_ERROR "Decompression failed")

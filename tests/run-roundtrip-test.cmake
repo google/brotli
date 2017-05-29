@@ -1,6 +1,6 @@
 execute_process(
   WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
-  COMMAND ${BROTLI_WRAPPER} ${BROTLI_CLI} --force --quality ${QUALITY} --input ${INPUT} --output ${OUTPUT}.bro
+  COMMAND ${BROTLI_WRAPPER} ${BROTLI_CLI} --force --quality=${QUALITY} ${INPUT} --output=${OUTPUT}.bro
   RESULT_VARIABLE result
   ERROR_VARIABLE result_stderr)
 if(result)
@@ -9,7 +9,7 @@ endif()
 
 execute_process(
   WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
-  COMMAND ${BROTLI_WRAPPER} ${BROTLI_CLI} --force --decompress --input ${OUTPUT}.bro --output ${OUTPUT}.unbro
+  COMMAND ${BROTLI_WRAPPER} ${BROTLI_CLI} --force --decompress ${OUTPUT}.bro --output=${OUTPUT}.unbro
   RESULT_VARIABLE result)
 if(result)
   message(FATAL_ERROR "Decompression failed")

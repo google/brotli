@@ -35,6 +35,9 @@
           <testIncludes>
             <include>**/dec/*Test*.java</include>
           </testIncludes>
+          <testExcludes>
+            <exclude>**/dec/SetDictionaryTest.java</exclude>
+          </testExcludes>
         </configuration>
       </plugin>
       <plugin>

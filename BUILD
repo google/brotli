@@ -9,6 +9,46 @@ licenses(["notice"])  # MIT
 
 exports_files(["LICENSE"])
 
+# >>> JNI headers
+
+config_setting(
+    name = "darwin",
+    values = {"cpu": "darwin"},
+    visibility = ["//visibility:public"],
+)
+
+config_setting(
+    name = "darwin_x86_64",
+    values = {"cpu": "darwin_x86_64"},
+    visibility = ["//visibility:public"],
+)
+
+genrule(
+    name = "copy_link_jni_header",
+    srcs = ["@openjdk_linux//:jni_h"],
+    outs = ["jni/jni.h"],
+    cmd = "cp -f $< $@",
+)
+
+genrule(
+    name = "copy_link_jni_md_header",
+    srcs = select({
+        ":darwin": ["@openjdk_macos//:jni_md_h"],
+        ":darwin_x86_64": ["@openjdk_macos//:jni_md_h"],
+        "//conditions:default": ["@openjdk_linux//:jni_md_h"],
+    }),
+    outs = ["jni/jni_md.h"],
+    cmd = "cp -f $< $@",
+)
+
+cc_library(
+    name = "jni_inc",
+    hdrs = [":jni/jni.h", ":jni/jni_md.h"],
+    includes = ["jni"],
+)
+
+# <<< JNI headers
+
 STRICT_C_OPTIONS = [
     "--pedantic-errors",
     "-Wall",
@@ -59,7 +99,7 @@ filegroup(
 )
 
 cc_library(
-    name = "brotli",
+    name = "brotli_inc",
     hdrs = [":public_headers"],
     copts = STRICT_C_OPTIONS,
     includes = ["c/include"],
@@ -70,7 +110,7 @@ cc_library(
     srcs = [":common_sources"],
     hdrs = [":common_headers"],
     copts = STRICT_C_OPTIONS,
-    deps = [":brotli"],
+    deps = [":brotli_inc"],
 )
 
 cc_library(
@@ -91,8 +131,8 @@ cc_library(
 )
 
 cc_binary(
-    name = "bro",
-    srcs = ["c/tools/bro.c"],
+    name = "brotli",
+    srcs = ["c/tools/brotli.c"],
     copts = STRICT_C_OPTIONS,
     linkstatic = 1,
     deps = [

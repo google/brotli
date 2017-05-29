@@ -1,4 +1,4 @@
-.TH "decode.h" 3 "Tue Feb 28 2017" "Brotli" \" -*- nroff -*-
+.TH "decode.h" 3 "Sun May 21 2017" "Brotli" \" -*- nroff -*-
 .ad l
 .nh
 .SH NAME
@@ -233,9 +233,9 @@ Input is never overconsumed, so \fCnext_in\fP and \fCavailable_in\fP could be pa
 .RS 4
 \fBBROTLI_DECODER_RESULT_ERROR\fP if input is corrupted, memory allocation failed, arguments were invalid, etc\&.; use \fBBrotliDecoderGetErrorCode\fP to get detailed error code 
 .PP
-\fBBROTLI_DECODER_RESULT_NEEDS_MORE_INPUT\fP decoding is blocked until more output space is provided 
+\fBBROTLI_DECODER_RESULT_NEEDS_MORE_INPUT\fP decoding is blocked until more input data is provided 
 .PP
-\fBBROTLI_DECODER_RESULT_NEEDS_MORE_OUTPUT\fP decoding is blocked until more input data is provided 
+\fBBROTLI_DECODER_RESULT_NEEDS_MORE_OUTPUT\fP decoding is blocked until more output space is provided 
 .PP
 \fBBROTLI_DECODER_RESULT_SUCCESS\fP decoding is finished, no more input might be consumed and no more output will be produced 
 .RE

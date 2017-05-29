@@ -41,6 +41,8 @@ void BrotliDecoderStateInitWithCustomAllocators(BrotliDecoderState* s,
     s->memory_manager_opaque = opaque;
   }
 
+  s->error_code = 0; /* BROTLI_DECODER_NO_ERROR */
+
   BrotliInitBitReader(&s->br);
   s->state = BROTLI_STATE_UNINITED;
   s->substate_metablock_header = BROTLI_STATE_METABLOCK_HEADER_NONE;

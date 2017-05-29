@@ -9,9 +9,11 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"math"
 	"math/rand"
 	"testing"
+	"time"
 )
 
 func checkCompressedData(compressedData, wantOriginalData []byte) error {
@@ -170,6 +172,85 @@ func TestEncoderFlush(t *testing.T) {
 	}
 	if err := e.Close(); err != nil {
 		t.Errorf("Close(): %v", err)
+	}
+}
+
+type readerWithTimeout struct {
+	io.ReadCloser
+}
+
+func (r readerWithTimeout) Read(p []byte) (int, error) {
+	type result struct {
+		n   int
+		err error
+	}
+	ch := make(chan result)
+	go func() {
+		n, err := r.ReadCloser.Read(p)
+		ch <- result{n, err}
+	}()
+	select {
+	case result := <-ch:
+		return result.n, result.err
+	case <-time.After(5 * time.Second):
+		return 0, fmt.Errorf("read timed out")
+	}
+}
+
+func TestDecoderStreaming(t *testing.T) {
+	pr, pw := io.Pipe()
+	writer := NewWriter(pw, WriterOptions{Quality: 5, LGWin: 20})
+	reader := readerWithTimeout{NewReader(pr)}
+	defer func() {
+		if err := reader.Close(); err != nil {
+			t.Errorf("reader.Close: %v", err)
+		}
+		go ioutil.ReadAll(pr) // swallow the "EOF" token from writer.Close
+		if err := writer.Close(); err != nil {
+			t.Errorf("writer.Close: %v", err)
+		}
+	}()
+
+	ch := make(chan []byte)
+	errch := make(chan error)
+	go func() {
+		for {
+			segment, ok := <-ch
+			if !ok {
+				return
+			}
+			if n, err := writer.Write(segment); err != nil || n != len(segment) {
+				errch <- fmt.Errorf("write=%v,%v, want %v,%v", n, err, len(segment), nil)
+				return
+			}
+			if err := writer.Flush(); err != nil {
+				errch <- fmt.Errorf("flush: %v", err)
+				return
+			}
+		}
+	}()
+	defer close(ch)
+
+	segments := [...][]byte{
+		[]byte("first"),
+		[]byte("second"),
+		[]byte("third"),
+	}
+	for k, segment := range segments {
+		t.Run(fmt.Sprintf("Segment%d", k), func(t *testing.T) {
+			select {
+			case ch <- segment:
+			case err := <-errch:
+				t.Fatalf("write: %v", err)
+			case <-time.After(5 * time.Second):
+				t.Fatalf("timed out")
+			}
+			wantLen := len(segment)
+			got := make([]byte, wantLen)
+			if n, err := reader.Read(got); err != nil || n != wantLen || !bytes.Equal(got, segment) {
+				t.Fatalf("read[%d]=%q,%v,%v, want %q,%v,%v", k, got, n, err, segment, wantLen, nil)
+			}
+		})
 	}
 }
 
