@@ -181,14 +181,14 @@ if(BROTLI_PARENT_DIRECTORY)
   set(BROTLI_LIBRARIES "${BROTLI_LIBRARIES}" PARENT_SCOPE)
 endif()
 
-# Build the bro executable
-add_executable(bro c/tools/bro.c)
-target_link_libraries(bro ${BROTLI_LIBRARIES})
+# Build the brotli executable
+add_executable(brotli c/tools/brotli.c)
+target_link_libraries(brotli ${BROTLI_LIBRARIES})
 
 # Installation
 if(NOT BROTLI_BUNDLED_MODE)
   install(
-    TARGETS bro
+    TARGETS brotli
     RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}"
   )
 
@@ -243,7 +243,7 @@ if(NOT BROTLI_DISABLE_TESTS)
       add_test(NAME "${BROTLI_TEST_PREFIX}roundtrip/${INPUT}/${quality}"
         COMMAND "${CMAKE_COMMAND}"
           -DBROTLI_WRAPPER=${BROTLI_WINE}
-          -DBROTLI_CLI=$<TARGET_FILE:bro>
+          -DBROTLI_CLI=$<TARGET_FILE:brotli>
           -DQUALITY=${quality}
           -DINPUT=${INPUT_FILE}
   	  -DOUTPUT=${OUTPUT_FILE}.${quality}
@@ -260,7 +260,7 @@ if(NOT BROTLI_DISABLE_TESTS)
     add_test(NAME "${BROTLI_TEST_PREFIX}compatibility/${INPUT}"
       COMMAND "${CMAKE_COMMAND}"
         -DBROTLI_WRAPPER=${BROTLI_WINE}
-        -DBROTLI_CLI=$<TARGET_FILE:bro>
+        -DBROTLI_CLI=$<TARGET_FILE:brotli>
         -DINPUT=${CMAKE_CURRENT_SOURCE_DIR}/${INPUT}
         -P ${CMAKE_CURRENT_SOURCE_DIR}/tests/run-compatibility-test.cmake)
   endforeach()
