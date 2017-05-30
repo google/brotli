@@ -43,7 +43,10 @@ genrule(
 
 cc_library(
     name = "jni_inc",
-    hdrs = [":jni/jni.h", ":jni/jni_md.h"],
+    hdrs = [
+        ":jni/jni.h",
+        ":jni/jni_md.h",
+    ],
     includes = ["jni"],
 )
 
@@ -139,6 +142,64 @@ cc_binary(
         ":brotlidec",
         ":brotlienc",
     ],
+)
+
+########################################################
+# WARNING: do not (transitively) depend on this target!
+########################################################
+cc_library(
+    name = "jni",
+    srcs = [
+        ":common_sources",
+        ":dec_sources",
+        ":enc_sources",
+        "//java/org/brotli/wrapper/common:jni_src",
+        "//java/org/brotli/wrapper/dec:jni_src",
+        "//java/org/brotli/wrapper/enc:jni_src",
+    ],
+    hdrs = [
+        ":common_headers",
+        ":dec_headers",
+        ":enc_headers",
+    ],
+    deps = [
+        ":brotli_inc",
+        ":jni_inc",
+    ],
+    alwayslink = 1,
+)
+
+########################################################
+# WARNING: do not (transitively) depend on this target!
+########################################################
+cc_library(
+    name = "jni_no_dictionary_data",
+    srcs = [
+        ":common_sources",
+        ":dec_sources",
+        ":enc_sources",
+        "//java/org/brotli/wrapper/common:jni_src",
+        "//java/org/brotli/wrapper/dec:jni_src",
+        "//java/org/brotli/wrapper/enc:jni_src",
+    ],
+    hdrs = [
+        ":common_headers",
+        ":dec_headers",
+        ":enc_headers",
+    ],
+    defines = [
+        "BROTLI_EXTERNAL_DICTIONARY_DATA=",
+    ],
+    deps = [
+        ":brotli_inc",
+        ":jni_inc",
+    ],
+    alwayslink = 1,
+)
+
+filegroup(
+    name = "dictionary",
+    srcs = ["c/common/dictionary.bin"],
 )
 
 load("@io_bazel_rules_go//go:def.bzl", "go_prefix")

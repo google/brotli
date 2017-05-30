@@ -7,17 +7,20 @@ licenses(["notice"])  # MIT
 
 java_library(
     name = "dec",
-    srcs = glob(["*.java"], exclude = ["*Test*.java"]),
+    srcs = glob(
+        ["*.java"],
+        exclude = ["*Test*.java"],
+    ),
 )
 
 java_library(
     name = "test_lib",
+    testonly = 1,
     srcs = glob(["*Test*.java"]),
     deps = [
         ":dec",
         "@junit_junit//jar",
     ],
-    testonly = 1,
 )
 
 java_test(

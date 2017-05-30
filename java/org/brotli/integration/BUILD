@@ -4,6 +4,10 @@
 java_library(
     name = "bundle_helper",
     srcs = ["BundleHelper.java"],
+    visibility = [
+        "//java/org/brotli/wrapper/dec:__pkg__",
+        "//java/org/brotli/wrapper/enc:__pkg__",
+    ],
 )
 
 java_library(
@@ -34,10 +38,26 @@ java_test(
     name = "bundle_checker_fuzz_test",
     args = [
         "-s",
-        "java/org/brotli/integration/fuzz_data.zip"
+        "java/org/brotli/integration/fuzz_data.zip",
     ],
     data = ["fuzz_data.zip"],
     main_class = "org.brotli.integration.BundleChecker",
     use_testrunner = 0,
     runtime_deps = [":bundle_checker"],
+)
+
+filegroup(
+    name = "test_data",
+    srcs = ["test_data.zip"],
+    visibility = [
+        "//java/org/brotli/wrapper/dec:__pkg__",
+    ],
+)
+
+filegroup(
+    name = "test_corpus",
+    srcs = ["test_corpus.zip"],
+    visibility = [
+        "//java/org/brotli/wrapper/enc:__pkg__",
+    ],
 )
