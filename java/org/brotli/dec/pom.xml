@@ -27,16 +27,16 @@
         <artifactId>maven-compiler-plugin</artifactId>
         <configuration>
           <includes>
-            <include>**/dec/*.java</include>
+            <include>org/brotli/dec/*.java</include>
           </includes>
           <excludes>
             <exclude>**/*Test*.java</exclude>
           </excludes>
           <testIncludes>
-            <include>**/dec/*Test*.java</include>
+            <include>org/brotli/dec/*Test*.java</include>
           </testIncludes>
           <testExcludes>
-            <exclude>**/dec/SetDictionaryTest.java</exclude>
+            <exclude>org/brotli/dec/SetDictionaryTest.java</exclude>
           </testExcludes>
         </configuration>
       </plugin>
@@ -53,7 +53,7 @@
             </goals>
             <configuration>
               <includes>
-                <include>**/dec/*.java</include>
+                <include>org/brotli/dec/*.java</include>
               </includes>
               <excludes>
                 <exclude>**/*Test*.java</exclude>
