@@ -29,7 +29,8 @@ public class BrotliEncoderChannelTest {
 
   // TODO: remove when Bazel get JNI support.
   static {
-    System.loadLibrary("libjni");
+    System.load(new java.io.File(new java.io.File(System.getProperty("java.library.path")),
+        "liblibjni.so").getAbsolutePath());
   }
 
   private static final int CHUNK_SIZE = 256;

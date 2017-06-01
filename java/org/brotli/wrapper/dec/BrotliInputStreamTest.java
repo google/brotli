@@ -25,7 +25,8 @@ public class BrotliInputStreamTest {
 
   // TODO: remove when Bazel get JNI support.
   static {
-    System.loadLibrary("libjni");
+    System.load(new java.io.File(new java.io.File(System.getProperty("java.library.path")),
+        "liblibjni.so").getAbsolutePath());
   }
 
   static InputStream getBundle() throws IOException {
