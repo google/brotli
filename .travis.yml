@@ -1,5 +1,11 @@
 language: c
 sudo: false
+# Revert to the previous default macOS image "beta-xcode6.1"
+# (macOS 10.9 / Xcode 6.4) to work around a Travis compilation bug in the
+# default image released on 04 Oct 2016, "xcode7.3" (macOS 10.11 / Xcode 7.3).
+# See https://blog.travis-ci.com/2016-10-04-osx-73-default-image-live/
+osx_image: beta-xcode6.1
+
 matrix:
   include:
     ###
