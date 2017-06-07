@@ -11,7 +11,7 @@ maven_jar(
 git_repository(
     name = "io_bazel_rules_go",
     remote = "https://github.com/bazelbuild/rules_go.git",
-    tag = "0.4.1",
+    tag = "0.4.4",
 )
 
 new_http_archive(
