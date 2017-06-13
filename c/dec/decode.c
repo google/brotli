@@ -39,6 +39,11 @@ extern "C" {
 #define HUFFMAN_TABLE_BITS 8U
 #define HUFFMAN_TABLE_MASK 0xff
 
+/* We need the slack region for the following reasons:
+    - doing up to two 16-byte copies for fast backward copying
+    - inserting transformed dictionary word (5 prefix + 24 base + 8 suffix) */
+static const uint32_t kRingBufferWriteAheadSlack = 42;
+
 static const uint8_t kCodeLengthCodeOrder[BROTLI_CODE_LENGTH_CODES] = {
   1, 2, 3, 4, 0, 5, 17, 6, 16, 7, 8, 9, 10, 11, 12, 13, 14, 15,
 };
@@ -51,6 +56,17 @@ static const uint8_t kCodeLengthPrefixLength[16] = {
 static const uint8_t kCodeLengthPrefixValue[16] = {
   0, 4, 3, 2, 0, 4, 3, 1, 0, 4, 3, 2, 0, 4, 3, 5,
 };
+
+BROTLI_BOOL BrotliDecoderSetParameter(
+    BrotliDecoderState* state, BrotliDecoderParameter p, uint32_t value) {
+  switch (p) {
+    case BROTLI_DECODER_PARAM_DISABLE_RING_BUFFER_REALLOCATION:
+      state->canny_ringbuffer_allocation = !!value ? 0 : 1;
+      return BROTLI_TRUE;
+
+    default: return BROTLI_FALSE;
+  }
+}
 
 BrotliDecoderState* BrotliDecoderCreateInstance(
     brotli_alloc_func alloc_func, brotli_free_func free_func, void* opaque) {
@@ -1247,17 +1263,13 @@ static void BROTLI_NOINLINE WrapRingBuffer(BrotliDecoderState* s) {
 */
 static BROTLI_BOOL BROTLI_NOINLINE BrotliEnsureRingBuffer(
     BrotliDecoderState* s) {
-  /* We need the slack region for the following reasons:
-      - doing up to two 16-byte copies for fast backward copying
-      - inserting transformed dictionary word (5 prefix + 24 base + 8 suffix) */
-  static const int kRingBufferWriteAheadSlack = 42;
   uint8_t* old_ringbuffer = s->ringbuffer;
   if (s->ringbuffer_size == s->new_ringbuffer_size) {
     return BROTLI_TRUE;
   }
 
-  s->ringbuffer = (uint8_t*)BROTLI_ALLOC(s, (size_t)(s->new_ringbuffer_size +
-      kRingBufferWriteAheadSlack));
+  s->ringbuffer = (uint8_t*)BROTLI_ALLOC(s, (size_t)(s->new_ringbuffer_size) +
+      kRingBufferWriteAheadSlack);
   if (s->ringbuffer == 0) {
     /* Restore previous value. */
     s->ringbuffer = old_ringbuffer;
@@ -1369,8 +1381,13 @@ static void BROTLI_NOINLINE BrotliCalculateRingBufferSize(
   output_size += s->meta_block_remaining_len;
   min_size = min_size < output_size ? output_size : min_size;
 
-  while ((new_ringbuffer_size >> 1) >= min_size) {
-    new_ringbuffer_size >>= 1;
+  if (!!s->canny_ringbuffer_allocation) {
+    /* Reduce ring buffer size to save memory when server is unscrupulous.
+       In worst case memory usage might be 1.5x bigger for a short period of
+       ring buffer reallocation.*/
+    while ((new_ringbuffer_size >> 1) >= min_size) {
+      new_ringbuffer_size >>= 1;
+    }
   }
 
   s->new_ringbuffer_size = new_ringbuffer_size;

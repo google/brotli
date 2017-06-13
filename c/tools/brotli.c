@@ -697,8 +697,8 @@ static BROTLI_BOOL CloseFiles(Context* context, BROTLI_BOOL success) {
 static const size_t kFileBufferSize = 1 << 16;
 
 static BROTLI_BOOL DecompressFile(Context* context, BrotliDecoderState* s) {
-  size_t available_in;
-  const uint8_t* next_in;
+  size_t available_in = 0;
+  const uint8_t* next_in = NULL;
   size_t available_out = kFileBufferSize;
   uint8_t* next_out = context->output;
   BrotliDecoderResult result = BROTLI_DECODER_RESULT_NEEDS_MORE_INPUT;

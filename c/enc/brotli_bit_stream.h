@@ -96,10 +96,6 @@ BROTLI_INTERNAL void BrotliStoreUncompressedMetaBlock(
     BROTLI_BOOL is_final_block, const uint8_t* input, size_t position,
     size_t mask, size_t len, size_t* storage_ix, uint8_t* storage);
 
-/* Stores an empty metadata meta-block and syncs to a byte boundary. */
-BROTLI_INTERNAL void BrotliStoreSyncMetaBlock(size_t* storage_ix,
-                                              uint8_t* storage);
-
 #if defined(__cplusplus) || defined(c_plusplus)
 }  /* extern "C" */
 #endif

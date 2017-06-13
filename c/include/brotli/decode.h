@@ -126,6 +126,29 @@ typedef enum {
  */
 #define BROTLI_LAST_ERROR_CODE BROTLI_DECODER_ERROR_UNREACHABLE
 
+/** Options to be used with ::BrotliDecoderSetParameter. */
+typedef enum BrotliDecoderParameter {
+  /**
+   * Disable "canny" ring buffer allocation strategy.
+   *
+   * Ring buffer is allocated according to window size, despite the real size of
+   * the content.
+   */
+  BROTLI_DECODER_PARAM_DISABLE_RING_BUFFER_REALLOCATION = 0
+} BrotliDecoderParameter;
+
+/**
+ * Sets the specified parameter to the given decoder instance.
+ *
+ * @param state decoder instance
+ * @param param parameter to set
+ * @param value new parameter value
+ * @returns ::BROTLI_FALSE if parameter is unrecognized, or value is invalid
+ * @returns ::BROTLI_TRUE if value is accepted
+ */
+BROTLI_DEC_API BROTLI_BOOL BrotliDecoderSetParameter(
+    BrotliDecoderState* state, BrotliDecoderParameter param, uint32_t value);
+
 /**
  * Creates an instance of ::BrotliDecoderState and initializes it.
  *
