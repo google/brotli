@@ -16,7 +16,9 @@ BROTLI_INTERNAL void FN(BrotliCompareAndPushToQueue)(
     uint32_t idx2, size_t max_num_pairs, HistogramPair* pairs,
     size_t* num_pairs) CODE({
   BROTLI_BOOL is_good_pair = BROTLI_FALSE;
-  HistogramPair p = {0, 0, 0.0, 0.0};
+  HistogramPair p;
+  p.idx1 = p.idx2 = 0;
+  p.cost_diff = p.cost_combo = 0;
   if (idx1 == idx2) {
     return;
   }
