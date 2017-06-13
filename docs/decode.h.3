@@ -1,4 +1,4 @@
-.TH "decode.h" 3 "Sun May 21 2017" "Brotli" \" -*- nroff -*-
+.TH "decode.h" 3 "Tue Jun 13 2017" "Brotli" \" -*- nroff -*-
 .ad l
 .nh
 .SH NAME
@@ -22,6 +22,10 @@ decode.h \- API for Brotli decompression\&.
 .SS "Typedefs"
 
 .in +1c
+.ti -1c
+.RI "typedef enum \fBBrotliDecoderParameter\fP \fBBrotliDecoderParameter\fP"
+.br
+.RI "\fIOptions to be used with \fBBrotliDecoderSetParameter\fP\&. \fP"
 .ti -1c
 .RI "typedef struct BrotliDecoderStateStruct \fBBrotliDecoderState\fP"
 .br
@@ -72,6 +76,10 @@ decode.h \- API for Brotli decompression\&.
 .br
 .RI "\fIPrepends LZ77 dictionary\&. \fP"
 .ti -1c
+.RI "\fBBROTLI_BOOL\fP \fBBrotliDecoderSetParameter\fP (\fBBrotliDecoderState\fP *state, \fBBrotliDecoderParameter\fP param, uint32_t value)"
+.br
+.RI "\fISets the specified parameter to the given decoder instance\&. \fP"
+.ti -1c
 .RI "const uint8_t * \fBBrotliDecoderTakeOutput\fP (\fBBrotliDecoderState\fP *state, size_t *size)"
 .br
 .RI "\fIAcquires pointer to internal output buffer\&. \fP"
@@ -115,6 +123,10 @@ BROTLI_DECODER_ERROR_CODES_LIST(CASE_, NEWLINE_)
 The value of the last error code, negative integer\&. All other error code values are in the range from \fBBROTLI_LAST_ERROR_CODE\fP to \fC-1\fP\&. There are also 4 other possible non-error codes \fC0\fP \&.\&. \fC3\fP in \fBBrotliDecoderErrorCode\fP enumeration\&. 
 .SH "Typedef Documentation"
 .PP 
+.SS "typedef enum \fBBrotliDecoderParameter\fP  \fBBrotliDecoderParameter\fP"
+
+.PP
+Options to be used with \fBBrotliDecoderSetParameter\fP\&. 
 .SS "typedef struct BrotliDecoderStateStruct \fBBrotliDecoderState\fP"
 
 .PP
@@ -125,6 +137,16 @@ Opaque structure that holds decoder state\&. Allocated and initialized with \fBB
 
 .PP
 Error code for detailed logging / production debugging\&. See \fBBrotliDecoderGetErrorCode\fP and \fBBROTLI_LAST_ERROR_CODE\fP\&. 
+.SS "enum \fBBrotliDecoderParameter\fP"
+
+.PP
+Options to be used with \fBBrotliDecoderSetParameter\fP\&. 
+.PP
+\fBEnumerator\fP
+.in +1c
+.TP
+\fB\fIBROTLI_DECODER_PARAM_DISABLE_RING_BUFFER_REALLOCATION \fP\fP
+Disable 'canny' ring buffer allocation strategy\&. Ring buffer is allocated according to window size, despite the real size of the content\&. 
 .SS "enum \fBBrotliDecoderResult\fP"
 
 .PP
@@ -357,6 +379,28 @@ Clean up and free state with \fBBrotliDecoderDestroyInstance\fP
 \fIsize\fP length of \fCdict\fP; should be less or equal to 2^24 (16MiB), otherwise the dictionary will be ignored 
 .br
 \fIdict\fP 'dictionary'; \fBMUST\fP be the same as used during compression 
+.RE
+.PP
+
+.SS "\fBBROTLI_BOOL\fP BrotliDecoderSetParameter (\fBBrotliDecoderState\fP * state, \fBBrotliDecoderParameter\fP param, uint32_t value)"
+
+.PP
+Sets the specified parameter to the given decoder instance\&. 
+.PP
+\fBParameters:\fP
+.RS 4
+\fIstate\fP decoder instance 
+.br
+\fIparam\fP parameter to set 
+.br
+\fIvalue\fP new parameter value 
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+\fBBROTLI_FALSE\fP if parameter is unrecognized, or value is invalid 
+.PP
+\fBBROTLI_TRUE\fP if value is accepted 
 .RE
 .PP
 
