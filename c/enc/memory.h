@@ -40,7 +40,7 @@ BROTLI_INTERNAL void BrotliInitMemoryManager(
 
 BROTLI_INTERNAL void* BrotliAllocate(MemoryManager* m, size_t n);
 #define BROTLI_ALLOC(M, T, N)                               \
-  ((N) ? ((T*)BrotliAllocate((M), (N) * sizeof(T))) : NULL)
+  ((N) > 0 ? ((T*)BrotliAllocate((M), (N) * sizeof(T))) : NULL)
 
 BROTLI_INTERNAL void BrotliFree(MemoryManager* m, void* p);
 #define BROTLI_FREE(M, P) { \
