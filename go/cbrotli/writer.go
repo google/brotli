@@ -56,9 +56,6 @@ type WriterOptions struct {
 	// LGWin is the base 2 logarithm of the sliding window size.
 	// Range is 10 to 24. 0 indicates automatic configuration based on Quality.
 	LGWin int
-	// BufferSize is the number of bytes to use to buffer encoded output.
-	// 0 indicates an implementation-defined default.
-	BufferSize int
 }
 
 // Writer implements io.WriteCloser by writing Brotli-encoded data to an
@@ -80,8 +77,10 @@ func NewWriter(dst io.Writer, options WriterOptions) *Writer {
 	state := C.BrotliEncoderCreateInstance(nil, nil, nil)
 	C.BrotliEncoderSetParameter(
 		state, C.BROTLI_PARAM_QUALITY, (C.uint32_t)(options.Quality))
-	C.BrotliEncoderSetParameter(
-		state, C.BROTLI_PARAM_LGWIN, (C.uint32_t)(options.LGWin))
+	if options.LGWin > 0 {
+		C.BrotliEncoderSetParameter(
+			state, C.BROTLI_PARAM_LGWIN, (C.uint32_t)(options.LGWin))
+	}
 	return &Writer{
 		dst:   dst,
 		state: state,
