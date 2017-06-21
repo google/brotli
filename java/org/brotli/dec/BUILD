@@ -11,6 +11,7 @@ java_library(
         ["*.java"],
         exclude = ["*Test*.java"],
     ),
+    proguard_specs = ["proguard.cfg"],
 )
 
 java_library(
