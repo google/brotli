@@ -2,17 +2,6 @@
 
 case "$1" in
     "before_install")
-	case "${TRAVIS_OS_NAME}" in
-	    "linux")
-		case "${BUILD_SYSTEM}" in
-		    "bazel")
-			wget https://github.com/bazelbuild/bazel/releases/download/0.5.1/bazel_0.5.1-linux-x86_64.deb
-			echo '2ef28a26d3a8f5589673712bf418919c1300aa7b6c19d6407073e34a3baaba83  bazel_0.5.1-linux-x86_64.deb' | sha256sum -c --strict || exit 1
-			sudo dpkg -i bazel_0.5.1-linux-x86_64.deb
-			;;
-		esac
-		;;
-	esac
 	;;
     "install")
 	case "${TRAVIS_OS_NAME}" in
