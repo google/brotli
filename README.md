@@ -82,3 +82,5 @@ and development.
 Independent [decoder](https://github.com/madler/brotli) implementation by Mark Adler, based entirely on format specification.
 
 JavaScript port of brotli [decoder](https://github.com/devongovett/brotli.js). Could be used directly via `npm install brotli`
+
+Hand ported [decoder / encoder](https://github.com/dominikhlbg/BrotliHaxe) in haxe by Dominik Homberger. Output source code: JavaScript, PHP, Python, Java and C#
