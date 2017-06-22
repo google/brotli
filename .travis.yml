@@ -230,6 +230,7 @@ matrix:
     - os: linux
       dist: trusty
       sudo: required
+      language: java
       env: BUILD_SYSTEM=bazel
       addons:
         apt:
