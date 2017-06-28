@@ -19,6 +19,9 @@ MODE_FONT = _brotli.MODE_FONT
 # The Compressor object.
 Compressor = _brotli.Compressor
 
+# The Decompressor object.
+Decompressor = _brotli.Decompressor
+
 # Compress a byte string.
 def compress(string, mode=MODE_GENERIC, quality=11, lgwin=22, lgblock=0,
              dictionary=''):
