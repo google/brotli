@@ -336,7 +336,7 @@ static PyObject* brotli_Compressor_finish(brotli_Compressor *self) {
 
 end:
   if (ok) {
-    ret = PyBytes_FromStringAndSize((char*)(output.size() ? &output[0] : NULL), output.size());
+    ret = PyBytes_FromStringAndSize((char*)(output.empty() ? NULL : &output[0]), output.size());
   } else {
     PyErr_SetString(BrotliError, "BrotliEncoderCompressStream failed while finishing the stream");
   }
@@ -531,7 +531,7 @@ static PyObject* brotli_Decompressor_process(brotli_Decompressor *self, PyObject
 
 end:
   if (ok) {
-    ret = PyBytes_FromStringAndSize((char*)(output.size() ? &output[0] : NULL), output.size());
+    ret = PyBytes_FromStringAndSize((char*)(output.empty() ? NULL : &output[0]), output.size());
   } else {
     PyErr_SetString(BrotliError, "BrotliDecoderDecompressStream failed while processing the stream");
   }
@@ -572,7 +572,7 @@ static PyObject* brotli_Decompressor_is_finished(brotli_Decompressor *self) {
 
 end:
   if (ok) {
-    ret = PyBytes_FromStringAndSize((char*)(output.size() ? &output[0] : NULL), output.size());
+    ret = PyBytes_FromStringAndSize((char*)(output.empty() ? NULL : &output[0]), output.size());
   } else {
     PyErr_SetString(BrotliError, "BrotliDecoderDecompressStream failed while finishing the stream");
   }

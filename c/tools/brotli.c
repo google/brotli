@@ -553,12 +553,14 @@ static BROTLI_BOOL ReadDictionary(Context* context) {
   if (file_size_64 == -1) {
     fprintf(stderr, "could not get size of dictionary file [%s]",
             PrintablePath(context->dictionary_path));
+    fclose(f);
     return BROTLI_FALSE;
   }
 
   if (file_size_64 > kMaxDictionarySize) {
     fprintf(stderr, "dictionary [%s] is larger than maximum allowed: %d\n",
             PrintablePath(context->dictionary_path), kMaxDictionarySize);
+    fclose(f);
     return BROTLI_FALSE;
   }
   context->dictionary_size = (size_t)file_size_64;
@@ -566,6 +568,7 @@ static BROTLI_BOOL ReadDictionary(Context* context) {
   buffer = (uint8_t*)malloc(context->dictionary_size);
   if (!buffer) {
     fprintf(stderr, "could not read dictionary: out of memory\n");
+    fclose(f);
     return BROTLI_FALSE;
   }
   bytes_read = fread(buffer, sizeof(uint8_t), context->dictionary_size, f);
@@ -573,6 +576,7 @@ static BROTLI_BOOL ReadDictionary(Context* context) {
     free(buffer);
     fprintf(stderr, "failed to read dictionary [%s]: %s\n",
             PrintablePath(context->dictionary_path), strerror(errno));
+    fclose(f);
     return BROTLI_FALSE;
   }
   fclose(f);
