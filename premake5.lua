@@ -1,7 +1,7 @@
 -- A solution contains projects, and defines the available configurations
 solution "brotli"
 configurations { "Release", "Debug" }
-platforms { "Win32", "Win64"}
+platforms { "x64", "x86" }
 targetdir "bin"
 location "buildfiles"
 flags "RelativeLinks"
@@ -14,13 +14,11 @@ filter "configurations:Release"
 filter "configurations:Debug"
   flags { "Symbols" }
 
-filter { "platforms:Win32" }
-    system "Windows"
-    architecture "x32"
+filter { "platforms:x64" }
+   architecture "x64"
 
-filter { "platforms:Win64" }
-    system "Windows"
-    architecture "x64"
+filter { "platforms:x86" }
+   architecture "x86_64"
 
 configuration { "gmake" }
   buildoptions { "-Wall -fno-omit-frame-pointer" }
