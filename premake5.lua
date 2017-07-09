@@ -15,10 +15,10 @@ filter "configurations:Debug"
   flags { "Symbols" }
 
 filter { "platforms:x64" }
-   architecture "x64"
+   architecture "x86_64"
 
 filter { "platforms:x86" }
-   architecture "x86_64"
+   architecture "x86"
 
 configuration { "gmake" }
   buildoptions { "-Wall -fno-omit-frame-pointer" }
