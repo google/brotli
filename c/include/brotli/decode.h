@@ -303,7 +303,7 @@ BROTLI_DEC_API BROTLI_BOOL BrotliDecoderIsUsed(const BrotliDecoderState* state);
  *          the input and produced all of the output
  * @returns ::BROTLI_FALSE otherwise
  */
-BROTLI_BOOL BrotliDecoderIsFinished(const BrotliDecoderState* state);
+BROTLI_DEC_API BROTLI_BOOL BrotliDecoderIsFinished(const BrotliDecoderState* state);
 
 /**
  * Acquires a detailed error code.
@@ -316,7 +316,7 @@ BROTLI_BOOL BrotliDecoderIsFinished(const BrotliDecoderState* state);
  * @param state decoder instance
  * @returns last saved error code
  */
-BrotliDecoderErrorCode BrotliDecoderGetErrorCode(
+BROTLI_DEC_API BrotliDecoderErrorCode BrotliDecoderGetErrorCode(
     const BrotliDecoderState* state);
 
 /**
