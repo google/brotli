@@ -1,6 +1,7 @@
 -- A solution contains projects, and defines the available configurations
 solution "brotli"
 configurations { "Release", "Debug" }
+platforms { "x64", "x86" }
 targetdir "bin"
 location "buildfiles"
 flags "RelativeLinks"
@@ -12,6 +13,12 @@ filter "configurations:Release"
 
 filter "configurations:Debug"
   flags { "Symbols" }
+
+filter { "platforms:x64" }
+   architecture "x86_64"
+
+filter { "platforms:x86" }
+   architecture "x86"
 
 configuration { "gmake" }
   buildoptions { "-Wall -fno-omit-frame-pointer" }
