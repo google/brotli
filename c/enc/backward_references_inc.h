@@ -50,7 +50,6 @@ static BROTLI_NOINLINE void FN(CreateBackwardReferences)(
       --max_length;
       for (;; --max_length) {
         const score_t cost_diff_lazy = 175;
-        BROTLI_BOOL is_match_found;
         HasherSearchResult sr2;
         sr2.len = params->quality < MIN_QUALITY_FOR_EXTENSIVE_REFERENCE_SEARCH ?
             BROTLI_MIN(size_t, sr.len - 1, max_length) : 0;
