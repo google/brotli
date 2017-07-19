@@ -681,12 +681,14 @@ static BROTLI_BOOL CloseFiles(Context* context, BROTLI_BOOL success) {
     }
   }
 
-  if (fclose(context->fin) != 0) {
-    if (is_ok) {
-      fprintf(stderr, "fclose failed [%s]: %s\n",
-              PrintablePath(context->current_input_path), strerror(errno));
+  if (context->fin) {
+    if (fclose(context->fin) != 0) {
+      if (is_ok) {
+        fprintf(stderr, "fclose failed [%s]: %s\n",
+                PrintablePath(context->current_input_path), strerror(errno));
+      }
+      is_ok = BROTLI_FALSE;
     }
-    is_ok = BROTLI_FALSE;
   }
   if (success && context->junk_source) {
     unlink(context->current_input_path);

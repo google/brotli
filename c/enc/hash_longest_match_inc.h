@@ -149,8 +149,8 @@ static BROTLI_INLINE void FN(PrepareDistanceCache)(
    Does not look for matches longer than max_length.
    Does not look for matches further away than max_backward.
    Writes the best match into |out|.
-   Returns true when match is found, otherwise false. */
-static BROTLI_INLINE BROTLI_BOOL FN(FindLongestMatch)(HasherHandle handle,
+   |out|->score is updated only if a better match is found. */
+static BROTLI_INLINE void FN(FindLongestMatch)(HasherHandle handle,
     const BrotliDictionary* dictionary, const uint16_t* dictionary_hash,
     const uint8_t* BROTLI_RESTRICT data, const size_t ring_buffer_mask,
     const int* BROTLI_RESTRICT distance_cache, const size_t cur_ix,
@@ -161,13 +161,13 @@ static BROTLI_INLINE BROTLI_BOOL FN(FindLongestMatch)(HasherHandle handle,
   uint16_t* num = FN(Num)(self);
   uint32_t* buckets = FN(Buckets)(self);
   const size_t cur_ix_masked = cur_ix & ring_buffer_mask;
-  BROTLI_BOOL is_match_found = BROTLI_FALSE;
   /* Don't accept a short copy from far away. */
+  score_t min_score = out->score;
   score_t best_score = out->score;
   size_t best_len = out->len;
   size_t i;
   out->len = 0;
-  out->len_x_code = 0;
+  out->len_code_delta = 0;
   /* Try last distance first. */
   for (i = 0; i < (size_t)common->params.num_last_distances_to_check; ++i) {
     const size_t backward = (size_t)distance_cache[i];
@@ -202,7 +202,6 @@ static BROTLI_INLINE BROTLI_BOOL FN(FindLongestMatch)(HasherHandle handle,
             out->len = best_len;
             out->distance = backward;
             out->score = best_score;
-            is_match_found = BROTLI_TRUE;
           }
         }
       }
@@ -242,7 +241,6 @@ static BROTLI_INLINE BROTLI_BOOL FN(FindLongestMatch)(HasherHandle handle,
             out->len = best_len;
             out->distance = backward;
             out->score = best_score;
-            is_match_found = BROTLI_TRUE;
           }
         }
       }
@@ -250,12 +248,11 @@ static BROTLI_INLINE BROTLI_BOOL FN(FindLongestMatch)(HasherHandle handle,
     bucket[num[key] & self->block_mask_] = (uint32_t)cur_ix;
     ++num[key];
   }
-  if (!is_match_found) {
-    is_match_found = SearchInStaticDictionary(dictionary, dictionary_hash,
+  if (min_score == out->score) {
+    SearchInStaticDictionary(dictionary, dictionary_hash,
         handle, &data[cur_ix_masked], max_length, max_backward, out,
         BROTLI_FALSE);
   }
-  return is_match_found;
 }
 
 #undef HashLongestMatch

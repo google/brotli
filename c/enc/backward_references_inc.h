@@ -38,12 +38,13 @@ static BROTLI_NOINLINE void FN(CreateBackwardReferences)(
     size_t max_distance = BROTLI_MIN(size_t, position, max_backward_limit);
     HasherSearchResult sr;
     sr.len = 0;
-    sr.len_x_code = 0;
+    sr.len_code_delta = 0;
     sr.distance = 0;
     sr.score = kMinScore;
-    if (FN(FindLongestMatch)(hasher, dictionary, dictionary_hash,
-                             ringbuffer, ringbuffer_mask, dist_cache,
-                             position, max_length, max_distance, &sr)) {
+    FN(FindLongestMatch)(hasher, dictionary, dictionary_hash, ringbuffer,
+                         ringbuffer_mask, dist_cache, position,
+                         max_length, max_distance, &sr);
+    if (sr.score > kMinScore) {
       /* Found a match. Let's look for something even better ahead. */
       int delayed_backward_references_in_row = 0;
       --max_length;
@@ -53,14 +54,14 @@ static BROTLI_NOINLINE void FN(CreateBackwardReferences)(
         HasherSearchResult sr2;
         sr2.len = params->quality < MIN_QUALITY_FOR_EXTENSIVE_REFERENCE_SEARCH ?
             BROTLI_MIN(size_t, sr.len - 1, max_length) : 0;
-        sr2.len_x_code = 0;
+        sr2.len_code_delta = 0;
         sr2.distance = 0;
         sr2.score = kMinScore;
         max_distance = BROTLI_MIN(size_t, position + 1, max_backward_limit);
-        is_match_found = FN(FindLongestMatch)(hasher, dictionary,
-            dictionary_hash, ringbuffer, ringbuffer_mask, dist_cache,
-            position + 1, max_length, max_distance, &sr2);
-        if (is_match_found && sr2.score >= sr.score + cost_diff_lazy) {
+        FN(FindLongestMatch)(hasher, dictionary, dictionary_hash, ringbuffer,
+                             ringbuffer_mask, dist_cache, position + 1,
+                             max_length, max_distance, &sr2);
+        if (sr2.score >= sr.score + cost_diff_lazy) {
           /* Ok, let's just write one byte for now and start a match from the
              next byte. */
           ++position;
@@ -88,7 +89,7 @@ static BROTLI_NOINLINE void FN(CreateBackwardReferences)(
           dist_cache[0] = (int)sr.distance;
           FN(PrepareDistanceCache)(hasher, dist_cache);
         }
-        InitCommand(commands++, insert_length, sr.len, sr.len ^ sr.len_x_code,
+        InitCommand(commands++, insert_length, sr.len, sr.len_code_delta,
             distance_code);
       }
       *num_literals += insert_length;

@@ -123,8 +123,8 @@ static BROTLI_INLINE void FN(PrepareDistanceCache)(
    Does not look for matches longer than max_length.
    Does not look for matches further away than max_backward.
    Writes the best match into |out|.
-   Returns true if match is found, otherwise false. */
-static BROTLI_INLINE BROTLI_BOOL FN(FindLongestMatch)(
+   |out|->score is updated only if a better match is found. */
+static BROTLI_INLINE void FN(FindLongestMatch)(
     HasherHandle handle, const BrotliDictionary* dictionary,
     const uint16_t* dictionary_hash, const uint8_t* BROTLI_RESTRICT data,
     const size_t ring_buffer_mask, const int* BROTLI_RESTRICT distance_cache,
@@ -135,12 +135,12 @@ static BROTLI_INLINE BROTLI_BOOL FN(FindLongestMatch)(
   const size_t cur_ix_masked = cur_ix & ring_buffer_mask;
   const uint32_t key = FN(HashBytes)(&data[cur_ix_masked]);
   int compare_char = data[cur_ix_masked + best_len_in];
+  score_t min_score = out->score;
   score_t best_score = out->score;
   size_t best_len = best_len_in;
   size_t cached_backward = (size_t)distance_cache[0];
   size_t prev_ix = cur_ix - cached_backward;
-  BROTLI_BOOL is_match_found = BROTLI_FALSE;
-  out->len_x_code = 0;
+  out->len_code_delta = 0;
   if (prev_ix < cur_ix) {
     prev_ix &= (uint32_t)ring_buffer_mask;
     if (compare_char == data[prev_ix + best_len]) {
@@ -148,17 +148,18 @@ static BROTLI_INLINE BROTLI_BOOL FN(FindLongestMatch)(
                                             &data[cur_ix_masked],
                                             max_length);
       if (len >= 4) {
-        best_score = BackwardReferenceScoreUsingLastDistance(len);
-        best_len = len;
-        out->len = len;
-        out->distance = cached_backward;
-        out->score = best_score;
-        compare_char = data[cur_ix_masked + best_len];
-        if (BUCKET_SWEEP == 1) {
-          self->buckets_[key] = (uint32_t)cur_ix;
-          return BROTLI_TRUE;
-        } else {
-          is_match_found = BROTLI_TRUE;
+        const score_t score = BackwardReferenceScoreUsingLastDistance(len);
+        if (best_score < score) {
+          best_score = score;
+          best_len = len;
+          out->len = len;
+          out->distance = cached_backward;
+          out->score = best_score;
+          compare_char = data[cur_ix_masked + best_len];
+          if (BUCKET_SWEEP == 1) {
+            self->buckets_[key] = (uint32_t)cur_ix;
+            return;
+          }
         }
       }
     }
@@ -172,19 +173,22 @@ static BROTLI_INLINE BROTLI_BOOL FN(FindLongestMatch)(
     backward = cur_ix - prev_ix;
     prev_ix &= (uint32_t)ring_buffer_mask;
     if (compare_char != data[prev_ix + best_len_in]) {
-      return BROTLI_FALSE;
+      return;
     }
     if (BROTLI_PREDICT_FALSE(backward == 0 || backward > max_backward)) {
-      return BROTLI_FALSE;
+      return;
     }
     len = FindMatchLengthWithLimit(&data[prev_ix],
                                    &data[cur_ix_masked],
                                    max_length);
     if (len >= 4) {
-      out->len = len;
-      out->distance = backward;
-      out->score = BackwardReferenceScore(len, backward);
-      return BROTLI_TRUE;
+      const score_t score = BackwardReferenceScore(len, backward);
+      if (best_score < score) {
+        out->len = len;
+        out->distance = backward;
+        out->score = score;
+        return;
+      }
     }
   } else {
     uint32_t *bucket = self->buckets_ + key;
@@ -212,18 +216,16 @@ static BROTLI_INLINE BROTLI_BOOL FN(FindLongestMatch)(
           out->distance = backward;
           out->score = score;
           compare_char = data[cur_ix_masked + best_len];
-          is_match_found = BROTLI_TRUE;
         }
       }
     }
   }
-  if (USE_DICTIONARY && !is_match_found) {
-    is_match_found = SearchInStaticDictionary(dictionary, dictionary_hash,
+  if (USE_DICTIONARY && min_score == out->score) {
+    SearchInStaticDictionary(dictionary, dictionary_hash,
         handle, &data[cur_ix_masked], max_length, max_backward, out,
         BROTLI_TRUE);
   }
   self->buckets_[key + ((cur_ix >> 3) % BUCKET_SWEEP)] = (uint32_t)cur_ix;
-  return is_match_found;
 }
 
 #undef HASH_MAP_SIZE
