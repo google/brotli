@@ -1,5 +1,5 @@
-#ifndef BROTLI_RESEARCH_DIG_H_
-#define BROTLI_RESEARCH_DIG_H_
+#ifndef BROTLI_RESEARCH_DEORUMMOLAE_H_
+#define BROTLI_RESEARCH_DEORUMMOLAE_H_
 
 #include <stddef.h>
 #include <stdint.h>
@@ -20,8 +20,8 @@
  * @param sample_data concatenated samples
  * @return generated dictionary size
  */
-size_t DiG_generate(uint8_t* dictionary, size_t dictionary_size_limit,
+size_t DM_generate(uint8_t* dictionary, size_t dictionary_size_limit,
     size_t num_samples, const size_t* sample_sizes,
     const uint8_t* sample_data);
 
-#endif  // BROTLI_RESEARCH_DIG_H_
+#endif  // BROTLI_RESEARCH_DEORUMMOLAE_H_

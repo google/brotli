@@ -1,4 +1,4 @@
-#include "./dig.h"
+#include "./deorummolae.h"
 
 #include <array>
 #include <vector>
@@ -155,7 +155,7 @@ static void cutMatch(std::vector<std::vector<int>>* data, int index, int length,
   }
 }
 
-size_t DiG_generate(uint8_t* dictionary, size_t dictionary_size_limit,
+size_t DM_generate(uint8_t* dictionary, size_t dictionary_size_limit,
     size_t num_samples, const size_t* sample_sizes,
     const uint8_t* sample_data) {
   {
