@@ -1942,7 +1942,13 @@ BrotliDecoderResult BrotliDecoderDecompressStream(
     if (result != BROTLI_DECODER_SUCCESS) { /* Error, needs more input/output */
       if (result == BROTLI_DECODER_NEEDS_MORE_INPUT) {
         if (s->ringbuffer != 0) { /* Pro-actively push output. */
-          WriteRingBuffer(s, available_out, next_out, total_out, BROTLI_TRUE);
+          BrotliDecoderErrorCode intermediate_result = WriteRingBuffer(s,
+              available_out, next_out, total_out, BROTLI_TRUE);
+          /* WriteRingBuffer checks s->meta_block_remaining_len validity. */
+          if ((int)intermediate_result < 0) {
+            result = intermediate_result;
+            break;
+          }
         }
         if (s->buffer_length != 0) { /* Used with internal buffer. */
           if (br->avail_in == 0) { /* Successfully finished read transaction. */
@@ -2327,6 +2333,10 @@ void BrotliDecoderSetCustomDictionary(
 }
 
 BROTLI_BOOL BrotliDecoderHasMoreOutput(const BrotliDecoderState* s) {
+  /* After unrecoverable error remaining output is considered nonsensical. */
+  if ((int)s->error_code < 0) {
+    return BROTLI_FALSE;
+  }
   return TO_BROTLI_BOOL(
       s->ringbuffer != 0 && UnwrittenBytes(s, BROTLI_FALSE) != 0);
 }
@@ -2336,17 +2346,20 @@ const uint8_t* BrotliDecoderTakeOutput(BrotliDecoderState* s, size_t* size) {
   size_t available_out = *size ? *size : 1u << 24;
   size_t requested_out = available_out;
   BrotliDecoderErrorCode status;
-  if (s->ringbuffer == 0) {
+  if ((s->ringbuffer == 0) || ((int)s->error_code < 0)) {
     *size = 0;
     return 0;
   }
   WrapRingBuffer(s);
   status = WriteRingBuffer(s, &available_out, &result, 0, BROTLI_TRUE);
+  /* Either WriteRingBuffer returns those "success" codes... */
   if (status == BROTLI_DECODER_SUCCESS ||
       status == BROTLI_DECODER_NEEDS_MORE_OUTPUT) {
     *size = requested_out - available_out;
   } else {
-    /* This might happen if previous decoder error code was ignored. */
+    /* ... or stream is broken. Normally this should be caught by
+       BrotliDecoderDecompressStream, this is just a safeguard. */
+    if ((int)status < 0) SaveErrorCode(s, status);
     *size = 0;
     result = 0;
   }

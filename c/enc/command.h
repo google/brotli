@@ -114,17 +114,19 @@ typedef struct Command {
 
 /* distance_code is e.g. 0 for same-as-last short code, or 16 for offset 1. */
 static BROTLI_INLINE void InitCommand(Command* self, size_t insertlen,
-    size_t copylen, size_t copylen_code, size_t distance_code) {
+    size_t copylen, int copylen_code_delta, size_t distance_code) {
+  /* Don't rely on signed int representation, use honest casts. */
+  uint32_t delta = (uint8_t)((int8_t)copylen_code_delta);
   self->insert_len_ = (uint32_t)insertlen;
-  self->copy_len_ = (uint32_t)(copylen | ((copylen_code ^ copylen) << 24));
+  self->copy_len_ = (uint32_t)(copylen | (delta << 24));
   /* The distance prefix and extra bits are stored in this Command as if
      npostfix and ndirect were 0, they are only recomputed later after the
      clustering if needed. */
   PrefixEncodeCopyDistance(
       distance_code, 0, 0, &self->dist_prefix_, &self->dist_extra_);
   GetLengthCode(
-      insertlen, copylen_code, TO_BROTLI_BOOL(self->dist_prefix_ == 0),
-      &self->cmd_prefix_);
+      insertlen, (size_t)((int)copylen + copylen_code_delta),
+      TO_BROTLI_BOOL(self->dist_prefix_ == 0), &self->cmd_prefix_);
 }
 
 static BROTLI_INLINE void InitInsertCommand(Command* self, size_t insertlen) {
@@ -167,7 +169,8 @@ static BROTLI_INLINE uint32_t CommandCopyLen(const Command* self) {
 }
 
 static BROTLI_INLINE uint32_t CommandCopyLenCode(const Command* self) {
-  return (self->copy_len_ & 0xFFFFFF) ^ (self->copy_len_ >> 24);
+  int32_t delta = (int8_t)((uint8_t)(self->copy_len_ >> 24));
+  return (uint32_t)((int32_t)(self->copy_len_ & 0xFFFFFF) + delta);
 }
 
 #if defined(__cplusplus) || defined(c_plusplus)

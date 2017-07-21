@@ -549,8 +549,8 @@ void BrotliZopfliCreateCommands(const size_t num_bytes,
       BROTLI_BOOL is_dictionary = TO_BROTLI_BOOL(distance > max_distance);
       size_t dist_code = ZopfliNodeDistanceCode(next);
 
-      InitCommand(
-          &commands[i], insert_length, copy_length, len_code, dist_code);
+      InitCommand(&commands[i], insert_length,
+          copy_length, (int)len_code - (int)copy_length, dist_code);
 
       if (!is_dictionary && dist_code > 0) {
         dist_cache[3] = dist_cache[2];

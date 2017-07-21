@@ -10,10 +10,12 @@ import unittest
 
 
 project_dir = os.path.abspath(os.path.join(__file__, '..', '..', '..'))
+src_dir = os.path.join(project_dir, 'python')
+test_dir = os.path.join(project_dir, 'tests')
 
 PYTHON = sys.executable or 'python'
 
-BRO = os.path.join(project_dir, 'python', 'bro.py')
+BRO = os.path.join(src_dir, 'bro.py')
 
 # Get the platform/version-specific build folder.
 # By default, the distutils build base is in the same location as setup.py.
@@ -30,7 +32,7 @@ if 'PYTHONPATH' not in TEST_ENV:
 else:
     TEST_ENV['PYTHONPATH'] = build_dir + os.pathsep + TEST_ENV['PYTHONPATH']
 
-TESTDATA_DIR = os.path.join(project_dir, 'tests', 'testdata')
+TESTDATA_DIR = os.path.join(test_dir, 'testdata')
 
 TESTDATA_FILES = [
     'empty',  # Empty file
