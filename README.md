@@ -66,12 +66,12 @@ See [Premake5](https://premake.github.io/)
 
 #### Python
 
-To install the Python module from source, run the following:
+To install the latest release of the Python module, run the following:
 
-    $ python setup.py install
+    $ pip install brotli
 
-See the [Python readme](python/README.md) for more details on testing
-and development.
+See the [Python readme](python/README.md) for more details on installing
+from source, development, and testing.
 
 ### Benchmarks
 * [Squash Compression Benchmark](https://quixdb.github.io/squash-benchmark/) / [Unstable Squash Compression Benchmark](https://quixdb.github.io/squash-benchmark/unstable/)
