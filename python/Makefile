@@ -4,10 +4,12 @@
 # See file LICENSE for detail or copy at https://opensource.org/licenses/MIT
 
 
-# Default
+# Default (Build)
 .PHONY: all
 # Build
 .PHONY: build
+# Install
+.PHONY: install
 # Test
 .PHONY: test tests
 # Clean
@@ -30,6 +32,9 @@ build: $(EXTENSIONS)
 
 $(EXTENSIONS): $(EXT_SOURCES)
 	@cd .. && $(PYTHON) setup.py develop
+
+install:
+	@cd .. && $(PYTHON) setup.py install
 
 test: tests
 
