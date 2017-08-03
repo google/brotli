@@ -473,23 +473,6 @@ static BROTLI_BOOL OpenOutputFile(const char* output_path, FILE** f,
   return BROTLI_TRUE;
 }
 
-static int64_t FileSize(const char* path) {
-  FILE* f = fopen(path, "rb");
-  int64_t retval;
-  if (f == NULL) {
-    return -1;
-  }
-  if (fseek(f, 0L, SEEK_END) != 0) {
-    fclose(f);
-    return -1;
-  }
-  retval = ftell(f);
-  if (fclose(f) != 0) {
-    return -1;
-  }
-  return retval;
-}
-
 /* Copy file times and permissions.
    TODO(eustas): this is a "best effort" implementation; honest cross-platform
    fully featured implementation is way too hacky; add more hacks by request. */
