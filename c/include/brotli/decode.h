@@ -84,8 +84,9 @@ typedef enum {
   BROTLI_ERROR_CODE(_ERROR_FORMAT_, PADDING_1, -14) SEPARATOR              \
   BROTLI_ERROR_CODE(_ERROR_FORMAT_, PADDING_2, -15) SEPARATOR              \
                                                                            \
-  /* -16..-18 codes are reserved */                                        \
+  /* -16..-17 codes are reserved */                                        \
                                                                            \
+  BROTLI_ERROR_CODE(_ERROR_, COMPOUND_DICTIONARY, -18) SEPARATOR           \
   BROTLI_ERROR_CODE(_ERROR_, DICTIONARY_NOT_SET, -19) SEPARATOR            \
   BROTLI_ERROR_CODE(_ERROR_, INVALID_ARGUMENTS, -20) SEPARATOR             \
                                                                            \
@@ -242,31 +243,6 @@ BROTLI_DEC_API BrotliDecoderResult BrotliDecoderDecompressStream(
   size_t* available_out, uint8_t** next_out, size_t* total_out);
 
 /**
- * Prepends LZ77 dictionary.
- *
- * Fills the fresh ::BrotliDecoderState with additional data corpus for LZ77
- * backward references.
- *
- * @note Not to be confused with the static dictionary (see RFC7932 section 8).
- * @warning The dictionary must exist in memory until decoding is done and
- *          is owned by the caller.
- *
- * Workflow:
- *  -# Allocate and initialize state with ::BrotliDecoderCreateInstance
- *  -# Invoke ::BrotliDecoderSetCustomDictionary
- *  -# Use ::BrotliDecoderDecompressStream
- *  -# Clean up and free state with ::BrotliDecoderDestroyInstance
- *
- * @param state decoder instance
- * @param size length of @p dict; should be less or equal to 2^24 (16MiB),
- *        otherwise the dictionary will be ignored
- * @param dict "dictionary"; @b MUST be the same as used during compression
- */
-BROTLI_DEC_API void BrotliDecoderSetCustomDictionary(
-    BrotliDecoderState* state, size_t size,
-    const uint8_t dict[BROTLI_ARRAY_PARAM(size)]);
-
-/**
  * Checks if decoder has more output.
  *
  * @param state decoder instance
@@ -327,7 +303,8 @@ BROTLI_DEC_API BROTLI_BOOL BrotliDecoderIsUsed(const BrotliDecoderState* state);
  *          the input and produced all of the output
  * @returns ::BROTLI_FALSE otherwise
  */
-BROTLI_DEC_API BROTLI_BOOL BrotliDecoderIsFinished(const BrotliDecoderState* state);
+BROTLI_DEC_API BROTLI_BOOL BrotliDecoderIsFinished(
+    const BrotliDecoderState* state);
 
 /**
  * Acquires a detailed error code.

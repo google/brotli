@@ -34,23 +34,21 @@ public class TransformTest {
 
   @Test
   public void testTrimAll() {
-    byte[] output = new byte[2];
+    byte[] output = new byte[0];
     byte[] input = {119, 111, 114, 100}; // "word"
-    Transform transform = new Transform("[", WordTransformType.OMIT_FIRST_5, "]");
     Transform.transformDictionaryWord(
-        output, 0, ByteBuffer.wrap(input), 0, input.length, transform);
-    byte[] expectedOutput = {91, 93}; // "[]"
+        output, 0, ByteBuffer.wrap(input), 0, input.length, 39);
+    byte[] expectedOutput = new byte[0];
     assertArrayEquals(expectedOutput, output);
   }
 
   @Test
   public void testCapitalize() {
-    byte[] output = new byte[8];
+    byte[] output = new byte[6];
     byte[] input = {113, -61, -90, -32, -92, -86}; // "qæप"
-    Transform transform = new Transform("[", WordTransformType.UPPERCASE_ALL, "]");
     Transform.transformDictionaryWord(
-      output, 0, ByteBuffer.wrap(input), 0, input.length, transform);
-    byte[] expectedOutput = {91, 81, -61, -122, -32, -92, -81, 93}; // "[QÆय]"
+      output, 0, ByteBuffer.wrap(input), 0, input.length, 44);
+    byte[] expectedOutput = {81, -61, -122, -32, -92, -81}; // "QÆय"
     assertArrayEquals(expectedOutput, output);
   }
 
@@ -62,9 +60,9 @@ public class TransformTest {
     byte[] testWord = {111, 49, 50, 51, 52, 53, 54, 55, 56, 57, 97, 98, 99, 100, 101, 102};
     byte[] output = new byte[2259];
     int offset = 0;
-    for (int i = 0; i < Transform.TRANSFORMS.length; ++i) {
+    for (int i = 0; i < Transform.NUM_TRANSFORMS; ++i) {
       offset += Transform.transformDictionaryWord(
-          output, offset, ByteBuffer.wrap(testWord), 0, testWord.length, Transform.TRANSFORMS[i]);
+          output, offset, ByteBuffer.wrap(testWord), 0, testWord.length, i);
       output[offset++] = -1;
     }
     assertEquals(output.length, offset);

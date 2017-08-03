@@ -21,11 +21,11 @@ public class BitReaderTest {
 
   @Test
   public void testReadAfterEos() {
-    BitReader reader = new BitReader();
-    BitReader.init(reader, new ByteArrayInputStream(new byte[1]));
+    State reader = new State();
+    Decode.initState(reader, new ByteArrayInputStream(new byte[1]));
     BitReader.readBits(reader, 9);
     try {
-      BitReader.checkHealth(reader, false);
+      BitReader.checkHealth(reader, 0);
     } catch (BrotliRuntimeException ex) {
       // This exception is expected.
       return;

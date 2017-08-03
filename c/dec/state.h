@@ -197,10 +197,6 @@ struct BrotliDecoderStateStruct {
   uint32_t mtf_upper_bound;
   uint32_t mtf[64 + 1];
 
-  /* For custom dictionaries */
-  const uint8_t* custom_dict;
-  int custom_dict_size;
-
   /* less used attributes are in the end of this struct */
   /* States inside function calls */
   BrotliRunningMetablockHeaderState substate_metablock_header;

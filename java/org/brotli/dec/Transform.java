@@ -6,27 +6,6 @@
 
 package org.brotli.dec;
 
-import static org.brotli.dec.WordTransformType.IDENTITY;
-import static org.brotli.dec.WordTransformType.OMIT_FIRST_1;
-import static org.brotli.dec.WordTransformType.OMIT_FIRST_2;
-import static org.brotli.dec.WordTransformType.OMIT_FIRST_3;
-import static org.brotli.dec.WordTransformType.OMIT_FIRST_4;
-import static org.brotli.dec.WordTransformType.OMIT_FIRST_5;
-import static org.brotli.dec.WordTransformType.OMIT_FIRST_6;
-import static org.brotli.dec.WordTransformType.OMIT_FIRST_7;
-import static org.brotli.dec.WordTransformType.OMIT_FIRST_9;
-import static org.brotli.dec.WordTransformType.OMIT_LAST_1;
-import static org.brotli.dec.WordTransformType.OMIT_LAST_2;
-import static org.brotli.dec.WordTransformType.OMIT_LAST_3;
-import static org.brotli.dec.WordTransformType.OMIT_LAST_4;
-import static org.brotli.dec.WordTransformType.OMIT_LAST_5;
-import static org.brotli.dec.WordTransformType.OMIT_LAST_6;
-import static org.brotli.dec.WordTransformType.OMIT_LAST_7;
-import static org.brotli.dec.WordTransformType.OMIT_LAST_8;
-import static org.brotli.dec.WordTransformType.OMIT_LAST_9;
-import static org.brotli.dec.WordTransformType.UPPERCASE_ALL;
-import static org.brotli.dec.WordTransformType.UPPERCASE_FIRST;
-
 import java.nio.ByteBuffer;
 
 /**
@@ -34,185 +13,82 @@ import java.nio.ByteBuffer;
  */
 final class Transform {
 
-  private final byte[] prefix;
-  private final int type;
-  private final byte[] suffix;
+  static final int NUM_TRANSFORMS = 121;
+  private static final int[] TRANSFORMS = new int[NUM_TRANSFORMS * 3];
+  private static final byte[] PREFIX_SUFFIX = new byte[217];
+  private static final int[] PREFIX_SUFFIX_HEADS = new int[51];
 
-  Transform(String prefix, int type, String suffix) {
-    this.prefix = readUniBytes(prefix);
-    this.type = type;
-    this.suffix = readUniBytes(suffix);
-  }
+  // Bundle of 0-terminated strings.
+  private static final String PREFIX_SUFFIX_SRC = "# #s #, #e #.# the #.com/#\u00C2\u00A0# of # and"
+      + " # in # to #\"#\">#\n#]# for # a # that #. # with #'# from # by #. The # on # as # is #ing"
+      + " #\n\t#:#ed #(# at #ly #=\"# of the #. This #,# not #er #al #='#ful #ive #less #est #ize #"
+      + "ous #";
+  private static final String TRANSFORMS_SRC = "     !! ! ,  *!  &!  \" !  ) *   * -  ! # !  #!*!  "
+      + "+  ,$ !  -  %  .  / #   0  1 .  \"   2  3!*   4%  ! # /   5  6  7  8 0  1 &   $   9 +   : "
+      + " ;  < '  !=  >  ?! 4  @ 4  2  &   A *# (   B  C& ) %  ) !*# *-% A +! *.  D! %'  & E *6  F "
+      + " G% ! *A *%  H! D  I!+!  J!+   K +- *4! A  L!*4  M  N +6  O!*% +.! K *G  P +%(  ! G *D +D "
+      + " Q +# *K!*G!+D!+# +G +A +4!+% +K!+4!*D!+K!*K";
 
-  static byte[] readUniBytes(String uniBytes) {
-    byte[] result = new byte[uniBytes.length()];
-    for (int i = 0; i < result.length; ++i) {
-      result[i] = (byte) uniBytes.charAt(i);
+  private static void unpackTransforms(byte[] prefixSuffix, int[] prefixSuffixHeads,
+      int[] transforms, String prefixSuffixSrc, String transformsSrc) {
+    int n = prefixSuffixSrc.length();
+    int index = 1;
+    for (int i = 0; i < n; ++i) {
+      char c = prefixSuffixSrc.charAt(i);
+      prefixSuffix[i] = (byte) c;
+      if (c == 35) { // == #
+        prefixSuffixHeads[index++] = i + 1;
+        prefixSuffix[i] = 0;
+      }
     }
-    return result;
+
+    for (int i = 0; i < NUM_TRANSFORMS * 3; ++i) {
+      transforms[i] = transformsSrc.charAt(i) - 32;
+    }
   }
 
-  static final Transform[] TRANSFORMS = {
-      new Transform("", IDENTITY, ""),
-      new Transform("", IDENTITY, " "),
-      new Transform(" ", IDENTITY, " "),
-      new Transform("", OMIT_FIRST_1, ""),
-      new Transform("", UPPERCASE_FIRST, " "),
-      new Transform("", IDENTITY, " the "),
-      new Transform(" ", IDENTITY, ""),
-      new Transform("s ", IDENTITY, " "),
-      new Transform("", IDENTITY, " of "),
-      new Transform("", UPPERCASE_FIRST, ""),
-      new Transform("", IDENTITY, " and "),
-      new Transform("", OMIT_FIRST_2, ""),
-      new Transform("", OMIT_LAST_1, ""),
-      new Transform(", ", IDENTITY, " "),
-      new Transform("", IDENTITY, ", "),
-      new Transform(" ", UPPERCASE_FIRST, " "),
-      new Transform("", IDENTITY, " in "),
-      new Transform("", IDENTITY, " to "),
-      new Transform("e ", IDENTITY, " "),
-      new Transform("", IDENTITY, "\""),
-      new Transform("", IDENTITY, "."),
-      new Transform("", IDENTITY, "\">"),
-      new Transform("", IDENTITY, "\n"),
-      new Transform("", OMIT_LAST_3, ""),
-      new Transform("", IDENTITY, "]"),
-      new Transform("", IDENTITY, " for "),
-      new Transform("", OMIT_FIRST_3, ""),
-      new Transform("", OMIT_LAST_2, ""),
-      new Transform("", IDENTITY, " a "),
-      new Transform("", IDENTITY, " that "),
-      new Transform(" ", UPPERCASE_FIRST, ""),
-      new Transform("", IDENTITY, ". "),
-      new Transform(".", IDENTITY, ""),
-      new Transform(" ", IDENTITY, ", "),
-      new Transform("", OMIT_FIRST_4, ""),
-      new Transform("", IDENTITY, " with "),
-      new Transform("", IDENTITY, "'"),
-      new Transform("", IDENTITY, " from "),
-      new Transform("", IDENTITY, " by "),
-      new Transform("", OMIT_FIRST_5, ""),
-      new Transform("", OMIT_FIRST_6, ""),
-      new Transform(" the ", IDENTITY, ""),
-      new Transform("", OMIT_LAST_4, ""),
-      new Transform("", IDENTITY, ". The "),
-      new Transform("", UPPERCASE_ALL, ""),
-      new Transform("", IDENTITY, " on "),
-      new Transform("", IDENTITY, " as "),
-      new Transform("", IDENTITY, " is "),
-      new Transform("", OMIT_LAST_7, ""),
-      new Transform("", OMIT_LAST_1, "ing "),
-      new Transform("", IDENTITY, "\n\t"),
-      new Transform("", IDENTITY, ":"),
-      new Transform(" ", IDENTITY, ". "),
-      new Transform("", IDENTITY, "ed "),
-      new Transform("", OMIT_FIRST_9, ""),
-      new Transform("", OMIT_FIRST_7, ""),
-      new Transform("", OMIT_LAST_6, ""),
-      new Transform("", IDENTITY, "("),
-      new Transform("", UPPERCASE_FIRST, ", "),
-      new Transform("", OMIT_LAST_8, ""),
-      new Transform("", IDENTITY, " at "),
-      new Transform("", IDENTITY, "ly "),
-      new Transform(" the ", IDENTITY, " of "),
-      new Transform("", OMIT_LAST_5, ""),
-      new Transform("", OMIT_LAST_9, ""),
-      new Transform(" ", UPPERCASE_FIRST, ", "),
-      new Transform("", UPPERCASE_FIRST, "\""),
-      new Transform(".", IDENTITY, "("),
-      new Transform("", UPPERCASE_ALL, " "),
-      new Transform("", UPPERCASE_FIRST, "\">"),
-      new Transform("", IDENTITY, "=\""),
-      new Transform(" ", IDENTITY, "."),
-      new Transform(".com/", IDENTITY, ""),
-      new Transform(" the ", IDENTITY, " of the "),
-      new Transform("", UPPERCASE_FIRST, "'"),
-      new Transform("", IDENTITY, ". This "),
-      new Transform("", IDENTITY, ","),
-      new Transform(".", IDENTITY, " "),
-      new Transform("", UPPERCASE_FIRST, "("),
-      new Transform("", UPPERCASE_FIRST, "."),
-      new Transform("", IDENTITY, " not "),
-      new Transform(" ", IDENTITY, "=\""),
-      new Transform("", IDENTITY, "er "),
-      new Transform(" ", UPPERCASE_ALL, " "),
-      new Transform("", IDENTITY, "al "),
-      new Transform(" ", UPPERCASE_ALL, ""),
-      new Transform("", IDENTITY, "='"),
-      new Transform("", UPPERCASE_ALL, "\""),
-      new Transform("", UPPERCASE_FIRST, ". "),
-      new Transform(" ", IDENTITY, "("),
-      new Transform("", IDENTITY, "ful "),
-      new Transform(" ", UPPERCASE_FIRST, ". "),
-      new Transform("", IDENTITY, "ive "),
-      new Transform("", IDENTITY, "less "),
-      new Transform("", UPPERCASE_ALL, "'"),
-      new Transform("", IDENTITY, "est "),
-      new Transform(" ", UPPERCASE_FIRST, "."),
-      new Transform("", UPPERCASE_ALL, "\">"),
-      new Transform(" ", IDENTITY, "='"),
-      new Transform("", UPPERCASE_FIRST, ","),
-      new Transform("", IDENTITY, "ize "),
-      new Transform("", UPPERCASE_ALL, "."),
-      new Transform("\u00c2\u00a0", IDENTITY, ""),
-      new Transform(" ", IDENTITY, ","),
-      new Transform("", UPPERCASE_FIRST, "=\""),
-      new Transform("", UPPERCASE_ALL, "=\""),
-      new Transform("", IDENTITY, "ous "),
-      new Transform("", UPPERCASE_ALL, ", "),
-      new Transform("", UPPERCASE_FIRST, "='"),
-      new Transform(" ", UPPERCASE_FIRST, ","),
-      new Transform(" ", UPPERCASE_ALL, "=\""),
-      new Transform(" ", UPPERCASE_ALL, ", "),
-      new Transform("", UPPERCASE_ALL, ","),
-      new Transform("", UPPERCASE_ALL, "("),
-      new Transform("", UPPERCASE_ALL, ". "),
-      new Transform(" ", UPPERCASE_ALL, "."),
-      new Transform("", UPPERCASE_ALL, "='"),
-      new Transform(" ", UPPERCASE_ALL, ". "),
-      new Transform(" ", UPPERCASE_FIRST, "=\""),
-      new Transform(" ", UPPERCASE_ALL, "='"),
-      new Transform(" ", UPPERCASE_FIRST, "='")
-  };
+  static {
+    unpackTransforms(PREFIX_SUFFIX, PREFIX_SUFFIX_HEADS, TRANSFORMS, PREFIX_SUFFIX_SRC,
+        TRANSFORMS_SRC);
+  }
 
   static int transformDictionaryWord(byte[] dst, int dstOffset, ByteBuffer data, int wordOffset,
-      int len, Transform transform) {
+      int len, int transformIndex) {
     int offset = dstOffset;
+    int transformOffset = 3 * transformIndex;
+    int transformPrefix = PREFIX_SUFFIX_HEADS[TRANSFORMS[transformOffset]];
+    int transformType = TRANSFORMS[transformOffset + 1];
+    int transformSuffix = PREFIX_SUFFIX_HEADS[TRANSFORMS[transformOffset + 2]];
 
     // Copy prefix.
-    byte[] string = transform.prefix;
-    int tmp = string.length;
-    int i = 0;
-    // In most cases tmp < 10 -> no benefits from System.arrayCopy
-    while (i < tmp) {
-      dst[offset++] = string[i++];
+    while (PREFIX_SUFFIX[transformPrefix] != 0) {
+      dst[offset++] = PREFIX_SUFFIX[transformPrefix++];
     }
 
     // Copy trimmed word.
-    int op = transform.type;
-    tmp = WordTransformType.getOmitFirst(op);
-    if (tmp > len) {
-      tmp = len;
+    int omitFirst = transformType >= 12 ? (transformType - 11) : 0;
+    if (omitFirst > len) {
+      omitFirst = len;
     }
-    wordOffset += tmp;
-    len -= tmp;
-    len -= WordTransformType.getOmitLast(op);
-    i = len;
+    wordOffset += omitFirst;
+    len -= omitFirst;
+    len -= transformType <= 9 ? transformType : 0;  // Omit last.
+    int i = len;
     while (i > 0) {
       dst[offset++] = data.get(wordOffset++);
       i--;
     }
 
-    if (op == UPPERCASE_ALL || op == UPPERCASE_FIRST) {
+    // Ferment.
+    if (transformType == 11 || transformType == 10) {
       int uppercaseOffset = offset - len;
-      if (op == UPPERCASE_FIRST) {
+      if (transformType == 10) {
         len = 1;
       }
       while (len > 0) {
-        tmp = dst[uppercaseOffset] & 0xFF;
+        int tmp = dst[uppercaseOffset] & 0xFF;
         if (tmp < 0xc0) {
-          if (tmp >= 'a' && tmp <= 'z') {
+          if (tmp >= 97 && tmp <= 122) { // in [a..z] range
             dst[uppercaseOffset] ^= (byte) 32;
           }
           uppercaseOffset += 1;
@@ -230,11 +106,8 @@ final class Transform {
     }
 
     // Copy suffix.
-    string = transform.suffix;
-    tmp = string.length;
-    i = 0;
-    while (i < tmp) {
-      dst[offset++] = string[i++];
+    while (PREFIX_SUFFIX[transformSuffix] != 0) {
+      dst[offset++] = PREFIX_SUFFIX[transformSuffix++];
     }
 
     return offset - dstOffset;

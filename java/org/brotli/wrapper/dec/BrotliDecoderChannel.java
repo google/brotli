@@ -27,13 +27,8 @@ public class BrotliDecoderChannel extends Decoder implements ReadableByteChannel
    * @param bufferSize intermediate buffer size
    * @param customDictionary initial LZ77 dictionary
    */
-  public BrotliDecoderChannel(ReadableByteChannel source, int bufferSize,
-      ByteBuffer customDictionary) throws IOException {
-    super(source, bufferSize, customDictionary);
-  }
-
   public BrotliDecoderChannel(ReadableByteChannel source, int bufferSize) throws IOException {
-    super(source, bufferSize, null);
+    super(source, bufferSize);
   }
 
   public BrotliDecoderChannel(ReadableByteChannel source) throws IOException {

@@ -832,36 +832,6 @@ static void CopyInputToRingBuffer(BrotliEncoderState* s,
   }
 }
 
-void BrotliEncoderSetCustomDictionary(BrotliEncoderState* s, size_t size,
-                                      const uint8_t* dict) {
-  size_t max_dict_size = BROTLI_MAX_BACKWARD_LIMIT(s->params.lgwin);
-  size_t dict_size = size;
-  MemoryManager* m = &s->memory_manager_;
-
-  if (!EnsureInitialized(s)) return;
-
-  if (dict_size == 0 ||
-      s->params.quality == FAST_ONE_PASS_COMPRESSION_QUALITY ||
-      s->params.quality == FAST_TWO_PASS_COMPRESSION_QUALITY) {
-    return;
-  }
-  if (size > max_dict_size) {
-    dict += size - max_dict_size;
-    dict_size = max_dict_size;
-  }
-  CopyInputToRingBuffer(s, dict_size, dict);
-  s->last_flush_pos_ = dict_size;
-  s->last_processed_pos_ = dict_size;
-  if (dict_size > 0) {
-    s->prev_byte_ = dict[dict_size - 1];
-  }
-  if (dict_size > 1) {
-    s->prev_byte2_ = dict[dict_size - 2];
-  }
-  HasherPrependCustomDictionary(m, &s->hasher_, &s->params, dict_size, dict);
-  if (BROTLI_IS_OOM(m)) return;
-}
-
 /* Marks all input as processed.
    Returns true if position wrapping occurs. */
 static BROTLI_BOOL UpdateLastProcessedPos(BrotliEncoderState* s) {

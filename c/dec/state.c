@@ -83,9 +83,6 @@ void BrotliDecoderStateInitWithCustomAllocators(BrotliDecoderState* s,
   s->distance_hgroup.codes = NULL;
   s->distance_hgroup.htrees = NULL;
 
-  s->custom_dict = NULL;
-  s->custom_dict_size = 0;
-
   s->is_last_metablock = 0;
   s->is_uncompressed = 0;
   s->is_metadata = 0;

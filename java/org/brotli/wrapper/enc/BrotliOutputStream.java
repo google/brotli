@@ -8,7 +8,6 @@ package org.brotli.wrapper.enc;
 
 import java.io.IOException;
 import java.io.OutputStream;
-import java.nio.ByteBuffer;
 import java.nio.channels.Channels;
 
 /**
@@ -26,17 +25,10 @@ public class BrotliOutputStream extends OutputStream {
    * @param destination underlying destination
    * @param params encoding settings
    * @param bufferSize intermediate buffer size
-   * @param customDictionary initial LZ77 dictionary
    */
-  public BrotliOutputStream(OutputStream destination, Encoder.Parameters params, int bufferSize,
-      ByteBuffer customDictionary) throws IOException {
-    this.encoder = new Encoder(
-        Channels.newChannel(destination), params, bufferSize, customDictionary);
-  }
-
   public BrotliOutputStream(OutputStream destination, Encoder.Parameters params, int bufferSize)
       throws IOException {
-    this.encoder = new Encoder(Channels.newChannel(destination), params, bufferSize, null);
+    this.encoder = new Encoder(Channels.newChannel(destination), params, bufferSize);
   }
 
   public BrotliOutputStream(OutputStream destination, Encoder.Parameters params)

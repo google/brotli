@@ -6,6 +6,9 @@
 
 package org.brotli.dec;
 
+import java.io.IOException;
+import java.io.InputStream;
+
 /**
  * A set of utility methods.
  */
@@ -25,11 +28,11 @@ final class Utils {
    * @param offset the first byte to fill
    * @param length number of bytes to change
    */
-  static void fillWithZeroes(byte[] dest, int offset, int length) {
-    int cursor = 0;
-    while (cursor < length) {
-      int step = Math.min(cursor + 1024, length) - cursor;
-      System.arraycopy(BYTE_ZEROES, 0, dest, offset + cursor, step);
+  static void fillBytesWithZeroes(byte[] dest, int start, int end) {
+    int cursor = start;
+    while (cursor < end) {
+      int step = Math.min(cursor + 1024, end) - cursor;
+      System.arraycopy(BYTE_ZEROES, 0, dest, cursor, step);
       cursor += step;
     }
   }
@@ -44,12 +47,28 @@ final class Utils {
    * @param offset the first item to fill
    * @param length number of item to change
    */
-  static void fillWithZeroes(int[] dest, int offset, int length) {
-    int cursor = 0;
-    while (cursor < length) {
-      int step = Math.min(cursor + 1024, length) - cursor;
-      System.arraycopy(INT_ZEROES, 0, dest, offset + cursor, step);
+  static void fillIntsWithZeroes(int[] dest, int start, int end) {
+    int cursor = start;
+    while (cursor < end) {
+      int step = Math.min(cursor + 1024, end) - cursor;
+      System.arraycopy(INT_ZEROES, 0, dest, cursor, step);
       cursor += step;
     }
+  }
+
+  static void copyBytesWithin(byte[] bytes, int target, int start, int end) {
+    System.arraycopy(bytes, start, bytes, target, end - start);
+  }
+
+  static int readInput(InputStream src, byte[] dst, int offset, int length) {
+    try {
+      return src.read(dst, offset, length);
+    } catch (IOException e) {
+      throw new BrotliRuntimeException("Failed to read input", e);
+    }
+  }
+
+  static void closeInput(InputStream src) throws IOException {
+    src.close();
   }
 }

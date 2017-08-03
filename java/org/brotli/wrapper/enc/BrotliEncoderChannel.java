@@ -26,16 +26,10 @@ public class BrotliEncoderChannel extends Encoder implements WritableByteChannel
    * @param destination underlying destination
    * @param params encoding settings
    * @param bufferSize intermediate buffer size
-   * @param customDictionary initial LZ77 dictionary
    */
   public BrotliEncoderChannel(WritableByteChannel destination, Encoder.Parameters params,
-      int bufferSize, ByteBuffer customDictionary) throws IOException {
-    super(destination, params, bufferSize, customDictionary);
-  }
-
-  public BrotliEncoderChannel(WritableByteChannel destination, Encoder.Parameters params,
       int bufferSize) throws IOException {
-    super(destination, params, bufferSize, null);
+    super(destination, params, bufferSize);
   }
 
   public BrotliEncoderChannel(WritableByteChannel destination, Encoder.Parameters params)

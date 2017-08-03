@@ -21,6 +21,14 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class DecodeTest {
 
+  static byte[] readUniBytes(String uniBytes) {
+    byte[] result = new byte[uniBytes.length()];
+    for (int i = 0; i < result.length; ++i) {
+      result[i] = (byte) uniBytes.charAt(i);
+    }
+    return result;
+  }
+
   private byte[] decompress(byte[] data, boolean byByte) throws IOException {
     byte[] buffer = new byte[65536];
     ByteArrayInputStream input = new ByteArrayInputStream(data);
@@ -49,35 +57,9 @@ public class DecodeTest {
     return output.toByteArray();
   }
 
-  private byte[] decompressWithDictionary(byte[] data, byte[] dictionary) throws IOException {
-    byte[] buffer = new byte[65536];
-    ByteArrayInputStream input = new ByteArrayInputStream(data);
-    ByteArrayOutputStream output = new ByteArrayOutputStream();
-    BrotliInputStream brotliInput = new BrotliInputStream(
-        input, BrotliInputStream.DEFAULT_INTERNAL_BUFFER_SIZE, dictionary);
-    while (true) {
-      int len = brotliInput.read(buffer, 0, buffer.length);
-      if (len <= 0) {
-        break;
-      }
-      output.write(buffer, 0, len);
-    }
-    brotliInput.close();
-    return output.toByteArray();
-  }
-
-  private void checkDecodeResourceWithDictionary(String expected, String compressed,
-      String dictionary) throws IOException {
-    byte[] expectedBytes = Transform.readUniBytes(expected);
-    byte[] compressedBytes = Transform.readUniBytes(compressed);
-    byte[] dictionaryBytes = Transform.readUniBytes(dictionary);
-    byte[] actual = decompressWithDictionary(compressedBytes, dictionaryBytes);
-    assertArrayEquals(expectedBytes, actual);
-  }
-
   private void checkDecodeResource(String expected, String compressed) throws IOException {
-    byte[] expectedBytes = Transform.readUniBytes(expected);
-    byte[] compressedBytes = Transform.readUniBytes(compressed);
+    byte[] expectedBytes = readUniBytes(expected);
+    byte[] compressedBytes = readUniBytes(compressed);
     byte[] actual = decompress(compressedBytes, false);
     assertArrayEquals(expectedBytes, actual);
     byte[] actualByByte = decompress(compressedBytes, true);
@@ -169,19 +151,10 @@ public class DecodeTest {
   }
 
   @Test
-  public void testFoxFox() throws IOException {
-    checkDecodeResourceWithDictionary(
-        "The quick brown fox jumps over the lazy dog",
-        "\u001B*\u0000\u0000 \u0000\u00C2\u0098\u00B0\u00CA\u0001",
-        "The quick brown fox jumps over the lazy dog");
-  }
-
-  @Test
   public void testUtils() {
     new Context();
     new Decode();
     new Dictionary();
     new Huffman();
-    new Prefix();
   }
 }

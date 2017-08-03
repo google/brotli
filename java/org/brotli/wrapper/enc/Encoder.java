@@ -65,8 +65,8 @@ public class Encoder {
    * @param params encoding parameters
    * @param inputBufferSize read buffer size
    */
-  Encoder(WritableByteChannel destination, Parameters params, int inputBufferSize,
-      ByteBuffer customDictionary) throws IOException {
+  Encoder(WritableByteChannel destination, Parameters params, int inputBufferSize)
+      throws IOException {
     if (inputBufferSize <= 0) {
       throw new IllegalArgumentException("buffer size must be positive");
     }
@@ -74,8 +74,7 @@ public class Encoder {
       throw new NullPointerException("destination can not be null");
     }
     this.destination = destination;
-    this.encoder = new EncoderJNI.Wrapper(
-        inputBufferSize, params.quality, params.lgwin, customDictionary);
+    this.encoder = new EncoderJNI.Wrapper(inputBufferSize, params.quality, params.lgwin);
     this.inputBuffer = this.encoder.getInputBuffer();
   }
 
@@ -157,8 +156,7 @@ public class Encoder {
    * Encodes the given data buffer.
    */
   public static byte[] compress(byte[] data, Parameters params) throws IOException {
-    EncoderJNI.Wrapper encoder = new EncoderJNI.Wrapper(
-        data.length, params.quality, params.lgwin, null);
+    EncoderJNI.Wrapper encoder = new EncoderJNI.Wrapper(data.length, params.quality, params.lgwin);
     ArrayList<byte[]> output = new ArrayList<byte[]>();
     int totalOutputSize = 0;
     try {

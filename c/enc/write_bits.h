@@ -40,7 +40,7 @@ static BROTLI_INLINE void BrotliWriteBits(size_t n_bits,
                                           uint64_t bits,
                                           size_t * BROTLI_RESTRICT pos,
                                           uint8_t * BROTLI_RESTRICT array) {
-#ifdef IS_LITTLE_ENDIAN
+#ifdef BROTLI_LITTLE_ENDIAN
   /* This branch of the code can write up to 56 bits at a time,
      7 bits are lost by being perhaps already in *p and at least
      1 bit is needed to initialize the bit-stream ahead (i.e. if 7
@@ -54,7 +54,7 @@ static BROTLI_INLINE void BrotliWriteBits(size_t n_bits,
   assert((bits >> n_bits) == 0);
   assert(n_bits <= 56);
   v |= bits << (*pos & 7);
-  BROTLI_UNALIGNED_STORE64(p, v);  /* Set some bits. */
+  BROTLI_UNALIGNED_STORE64LE(p, v);  /* Set some bits. */
   *pos += n_bits;
 #else
   /* implicit & 0xff is assumed for uint8_t arithmetics */

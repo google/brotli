@@ -50,7 +50,7 @@ public class BrotliInputStream extends InputStream {
    * @throws IOException in case of corrupted data or source stream problems
    */
   public BrotliInputStream(InputStream source) throws IOException {
-    this(source, DEFAULT_INTERNAL_BUFFER_SIZE, null);
+    this(source, DEFAULT_INTERNAL_BUFFER_SIZE);
   }
 
   /**
@@ -67,25 +67,6 @@ public class BrotliInputStream extends InputStream {
    * @throws IOException in case of corrupted data or source stream problems
    */
   public BrotliInputStream(InputStream source, int byteReadBufferSize) throws IOException {
-    this(source, byteReadBufferSize, null);
-  }
-
-  /**
-   * Creates a {@link InputStream} wrapper that decompresses brotli data.
-   *
-   * <p> For byte-by-byte reading ({@link #read()}) internal buffer of specified size is
-   * allocated and used.
-   *
-   * <p> Will block the thread until first kilobyte of data of source is available.
-   *
-   * @param source compressed data source
-   * @param byteReadBufferSize size of internal buffer used in case of
-   *        byte-by-byte reading
-   * @param customDictionary custom dictionary data; {@code null} if not used
-   * @throws IOException in case of corrupted data or source stream problems
-   */
-  public BrotliInputStream(InputStream source, int byteReadBufferSize,
-      byte[] customDictionary) throws IOException {
     if (byteReadBufferSize <= 0) {
       throw new IllegalArgumentException("Bad buffer size:" + byteReadBufferSize);
     } else if (source == null) {
@@ -95,12 +76,9 @@ public class BrotliInputStream extends InputStream {
     this.remainingBufferBytes = 0;
     this.bufferOffset = 0;
     try {
-      State.setInput(state, source);
+      Decode.initState(state, source);
     } catch (BrotliRuntimeException ex) {
       throw new IOException("Brotli decoder initialization failed", ex);
-    }
-    if (customDictionary != null) {
-      Decode.setCustomDictionary(state, customDictionary);
     }
   }
 
@@ -109,7 +87,7 @@ public class BrotliInputStream extends InputStream {
    */
   @Override
   public void close() throws IOException {
-    State.close(state);
+    Decode.close(state);
   }
 
   /**
