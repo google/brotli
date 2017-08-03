@@ -14,11 +14,7 @@ class TestCompress(_test_utils.TestCase):
     VARIANTS = {'quality': (1, 6, 9, 11), 'lgwin': (10, 15, 20, 24)}
 
     def _check_decompression(self, test_data, **kwargs):
-        # Only dictionary is supported as a kwarg to brotli.decompress.
-        if 'dictionary' in kwargs:
-            kwargs = {'dictionary': kwargs['dictionary']}
-        else:
-            kwargs = {}
+        kwargs = {}
         # Write decompression to temp file and verify it matches the original.
         temp_uncompressed = _test_utils.get_temp_uncompressed_name(test_data)
         temp_compressed = _test_utils.get_temp_compressed_name(test_data)
@@ -35,13 +31,6 @@ class TestCompress(_test_utils.TestCase):
                 out_file.write(brotli.compress(in_file.read(), **kwargs))
 
     def _test_compress(self, test_data, **kwargs):
-        self._compress(test_data, **kwargs)
-        self._check_decompression(test_data, **kwargs)
-
-    def _test_compress_custom_dictionary(self, test_data, **kwargs):
-        with open(test_data, 'rb') as in_file:
-            dictionary = in_file.read()
-        kwargs['dictionary'] = dictionary
         self._compress(test_data, **kwargs)
         self._check_decompression(test_data, **kwargs)
 

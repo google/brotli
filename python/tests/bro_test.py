@@ -62,8 +62,6 @@ class TestBroCompress(_test_utils.TestCase):
         temp_compressed = _test_utils.get_temp_compressed_name(test_data)
         original = test_data
         args = [PYTHON, BRO, '-f', '-d']
-        if 'dictionary' in kwargs:
-            args.extend(['--custom-dictionary', str(kwargs['dictionary'])])
         args.extend(['-i', temp_compressed, '-o', temp_uncompressed])
         subprocess.check_call(args, env=TEST_ENV)
         self.assertFilesMatch(temp_uncompressed, original)
@@ -75,8 +73,6 @@ class TestBroCompress(_test_utils.TestCase):
             args.extend(['-q', str(kwargs['quality'])])
         if 'lgwin' in kwargs:
             args.extend(['--lgwin', str(kwargs['lgwin'])])
-        if 'dictionary' in kwargs:
-            args.extend(['--custom-dictionary', str(kwargs['dictionary'])])
         args.extend(['-i', test_data, '-o', temp_compressed])
         subprocess.check_call(args, env=TEST_ENV)
 
@@ -87,8 +83,6 @@ class TestBroCompress(_test_utils.TestCase):
             args.extend(['-q', str(kwargs['quality'])])
         if 'lgwin' in kwargs:
             args.extend(['--lgwin', str(kwargs['lgwin'])])
-        if 'dictionary' in kwargs:
-            args.extend(['--custom-dictionary', str(kwargs['dictionary'])])
         with open(temp_compressed, 'wb') as out_file:
             with open(test_data, 'rb') as in_file:
                 subprocess.check_call(
@@ -101,16 +95,6 @@ class TestBroCompress(_test_utils.TestCase):
     def _test_compress_pipe(self, test_data, **kwargs):
         self._compress_pipe(test_data, **kwargs)
         self._check_decompression(test_data)
-
-    def _test_compress_file_custom_dictionary(self, test_data, **kwargs):
-        kwargs['dictionary'] = test_data
-        self._compress_file(test_data, **kwargs)
-        self._check_decompression(test_data, **kwargs)
-
-    def _test_compress_pipe_custom_dictionary(self, test_data, **kwargs):
-        kwargs['dictionary'] = test_data
-        self._compress_pipe(test_data, **kwargs)
-        self._check_decompression(test_data, **kwargs)
 
 
 _test_utils.generate_test_methods(

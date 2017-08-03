@@ -23,8 +23,7 @@ Compressor = _brotli.Compressor
 Decompressor = _brotli.Decompressor
 
 # Compress a byte string.
-def compress(string, mode=MODE_GENERIC, quality=11, lgwin=22, lgblock=0,
-             dictionary=''):
+def compress(string, mode=MODE_GENERIC, quality=11, lgwin=22, lgblock=0):
     """Compress a byte string.
 
     Args:
@@ -39,8 +38,6 @@ def compress(string, mode=MODE_GENERIC, quality=11, lgwin=22, lgblock=0,
       lgblock (int, optional): Base 2 logarithm of the maximum input block size.
         Range is 16 to 24. If set to 0, the value will be set based on the
         quality. Defaults to 0.
-      dictionary (bytes, optional): Custom dictionary. Only last sliding window
-        size bytes will be used.
 
     Returns:
       The compressed byte string.
@@ -49,7 +46,7 @@ def compress(string, mode=MODE_GENERIC, quality=11, lgwin=22, lgblock=0,
       brotli.error: If arguments are invalid, or compressor fails.
     """
     compressor = Compressor(mode=mode, quality=quality, lgwin=lgwin,
-                            lgblock=lgblock, dictionary=dictionary)
+                            lgblock=lgblock)
     return compressor.process(string) + compressor.finish()
 
 # Decompress a compressed byte string.
