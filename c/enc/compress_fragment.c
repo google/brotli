@@ -42,7 +42,7 @@ extern "C" {
 static const uint32_t kHashMul32 = 0x1e35a7bd;
 
 static BROTLI_INLINE uint32_t Hash(const uint8_t* p, size_t shift) {
-  const uint64_t h = (BROTLI_UNALIGNED_LOAD64(p) << 24) * kHashMul32;
+  const uint64_t h = (BROTLI_UNALIGNED_LOAD64LE(p) << 24) * kHashMul32;
   return (uint32_t)(h >> shift);
 }
 
@@ -603,7 +603,7 @@ trawl:
            compression we first update "table" with the hashes of some positions
            within the last copy. */
         {
-          uint64_t input_bytes = BROTLI_UNALIGNED_LOAD64(ip - 3);
+          uint64_t input_bytes = BROTLI_UNALIGNED_LOAD64LE(ip - 3);
           uint32_t prev_hash = HashBytesAtOffset(input_bytes, 0, shift);
           uint32_t cur_hash = HashBytesAtOffset(input_bytes, 3, shift);
           table[prev_hash] = (int)(ip - base_ip - 3);
@@ -640,7 +640,7 @@ trawl:
            compression we first update "table" with the hashes of some positions
            within the last copy. */
         {
-          uint64_t input_bytes = BROTLI_UNALIGNED_LOAD64(ip - 3);
+          uint64_t input_bytes = BROTLI_UNALIGNED_LOAD64LE(ip - 3);
           uint32_t prev_hash = HashBytesAtOffset(input_bytes, 0, shift);
           uint32_t cur_hash = HashBytesAtOffset(input_bytes, 3, shift);
           table[prev_hash] = (int)(ip - base_ip - 3);

@@ -11,12 +11,6 @@ package org.brotli.dec;
  */
 final class Huffman {
 
-  /**
-   * Maximum possible Huffman table size for an alphabet size of 704, max code length 15 and root
-   * table bits 8.
-   */
-  static final int HUFFMAN_MAX_TABLE_SIZE = 1080;
-
   private static final int MAX_LENGTH = 15;
 
   /**

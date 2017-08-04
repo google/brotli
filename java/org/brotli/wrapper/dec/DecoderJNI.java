@@ -13,7 +13,7 @@ import java.nio.ByteBuffer;
  * JNI wrapper for brotli decoder.
  */
 class DecoderJNI {
-  private static native ByteBuffer nativeCreate(long[] context, ByteBuffer customDictionary);
+  private static native ByteBuffer nativeCreate(long[] context);
   private static native void nativePush(long[] context, int length);
   private static native ByteBuffer nativePull(long[] context);
   private static native void nativeDestroy(long[] context);
@@ -31,12 +31,9 @@ class DecoderJNI {
     private final ByteBuffer inputBuffer;
     private Status lastStatus = Status.NEEDS_MORE_INPUT;
 
-    Wrapper(int inputBufferSize, ByteBuffer customDictionary) throws IOException {
-      if (customDictionary != null && !customDictionary.isDirect()) {
-        throw new IllegalArgumentException("LZ77 dictionary must be direct ByteBuffer");
-      }
+    Wrapper(int inputBufferSize) throws IOException {
       this.context[1] = inputBufferSize;
-      this.inputBuffer = nativeCreate(this.context, customDictionary);
+      this.inputBuffer = nativeCreate(this.context);
       if (this.context[0] == 0) {
         throw new IOException("failed to initialize native brotli decoder");
       }

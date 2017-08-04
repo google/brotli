@@ -14,7 +14,7 @@ import java.util.ArrayList;
 /**
  * Base class for InputStream / Channel implementations.
  */
-class Decoder {
+public class Decoder {
   private final ReadableByteChannel source;
   private final DecoderJNI.Wrapper decoder;
   ByteBuffer buffer;
@@ -26,7 +26,7 @@ class Decoder {
    * @param source underlying source
    * @param inputBufferSize read buffer size
    */
-  public Decoder(ReadableByteChannel source, int inputBufferSize, ByteBuffer customDictionary)
+  public Decoder(ReadableByteChannel source, int inputBufferSize)
       throws IOException {
     if (inputBufferSize <= 0) {
       throw new IllegalArgumentException("buffer size must be positive");
@@ -35,7 +35,7 @@ class Decoder {
       throw new NullPointerException("source can not be null");
     }
     this.source = source;
-    this.decoder = new DecoderJNI.Wrapper(inputBufferSize, customDictionary);
+    this.decoder = new DecoderJNI.Wrapper(inputBufferSize);
   }
 
   private void fail(String message) throws IOException {
@@ -119,7 +119,7 @@ class Decoder {
    * Decodes the given data buffer.
    */
   public static byte[] decompress(byte[] data) throws IOException {
-    DecoderJNI.Wrapper decoder = new DecoderJNI.Wrapper(data.length, null);
+    DecoderJNI.Wrapper decoder = new DecoderJNI.Wrapper(data.length);
     ArrayList<byte[]> output = new ArrayList<byte[]>();
     int totalOutputSize = 0;
     try {

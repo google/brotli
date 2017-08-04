@@ -77,22 +77,3 @@ java_test(
         "@junit_junit//jar",
     ],
 )
-
-java_test(
-    name = "UseCustomDictionaryTest",
-    size = "large",
-    srcs = ["UseCustomDictionaryTest.java"],
-    data = [
-        ":test_bundle",
-        "//:jni",  # Bazel JNI workaround
-    ],
-    jvm_flags = ["-DTEST_BUNDLE=$(location :test_bundle)"],
-    shard_count = 15,
-    deps = [
-        ":enc",
-        "//java/org/brotli/integration:bundle_helper",
-        "//java/org/brotli/wrapper/common",
-        "//java/org/brotli/wrapper/dec",
-        "@junit_junit//jar",
-    ],
-)

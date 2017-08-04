@@ -1,4 +1,4 @@
-.TH "decode.h" 3 "Tue Jun 13 2017" "Brotli" \" -*- nroff -*-
+.TH "decode.h" 3 "Wed Aug 2 2017" "Brotli" \" -*- nroff -*-
 .ad l
 .nh
 .SH NAME
@@ -71,10 +71,6 @@ decode.h \- API for Brotli decompression\&.
 .RI "\fBBROTLI_BOOL\fP \fBBrotliDecoderIsUsed\fP (const \fBBrotliDecoderState\fP *state)"
 .br
 .RI "\fIChecks if instance has already consumed input\&. \fP"
-.ti -1c
-.RI "void \fBBrotliDecoderSetCustomDictionary\fP (\fBBrotliDecoderState\fP *state, size_t size, const uint8_t dict[size])"
-.br
-.RI "\fIPrepends LZ77 dictionary\&. \fP"
 .ti -1c
 .RI "\fBBROTLI_BOOL\fP \fBBrotliDecoderSetParameter\fP (\fBBrotliDecoderState\fP *state, \fBBrotliDecoderParameter\fP param, uint32_t value)"
 .br
@@ -343,42 +339,6 @@ Checks if instance has already consumed input\&. Instance that returns \fBBROTLI
 \fBBROTLI_TRUE\fP if decoder has already used some input bytes 
 .PP
 \fBBROTLI_FALSE\fP otherwise 
-.RE
-.PP
-
-.SS "void BrotliDecoderSetCustomDictionary (\fBBrotliDecoderState\fP * state, size_t size, const uint8_t dict[size])"
-
-.PP
-Prepends LZ77 dictionary\&. Fills the fresh \fBBrotliDecoderState\fP with additional data corpus for LZ77 backward references\&.
-.PP
-\fBNote:\fP
-.RS 4
-Not to be confused with the static dictionary (see RFC7932 section 8)\&. 
-.RE
-.PP
-\fBWarning:\fP
-.RS 4
-The dictionary must exist in memory until decoding is done and is owned by the caller\&.
-.RE
-.PP
-Workflow:
-.IP "1." 4
-Allocate and initialize state with \fBBrotliDecoderCreateInstance\fP
-.IP "2." 4
-Invoke \fBBrotliDecoderSetCustomDictionary\fP
-.IP "3." 4
-Use \fBBrotliDecoderDecompressStream\fP
-.IP "4." 4
-Clean up and free state with \fBBrotliDecoderDestroyInstance\fP
-.PP
-.PP
-\fBParameters:\fP
-.RS 4
-\fIstate\fP decoder instance 
-.br
-\fIsize\fP length of \fCdict\fP; should be less or equal to 2^24 (16MiB), otherwise the dictionary will be ignored 
-.br
-\fIdict\fP 'dictionary'; \fBMUST\fP be the same as used during compression 
 .RE
 .PP
 

@@ -38,6 +38,8 @@
                                      BROTLI_MAX_NDIRECT +              \
                                      (BROTLI_MAX_DISTANCE_BITS <<      \
                                       (BROTLI_MAX_NPOSTFIX + 1)))
+/* Distance that is guaranteed to be representable in any stream. */
+#define BROTLI_MAX_DISTANCE 0x3FFFFFC
 
 /* 7.1. Context modes and context ID lookup for literals */
 /* "context IDs for literals are in the range of 0..63" */

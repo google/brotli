@@ -23,7 +23,7 @@ static BROTLI_INLINE size_t FN(StoreLookahead)(void) { return 8; }
 static BROTLI_INLINE uint32_t FN(HashBytes)(const uint8_t *data,
                                             const uint64_t mask,
                                             const int shift) {
-  const uint64_t h = (BROTLI_UNALIGNED_LOAD64(data) & mask) * kHashMul64Long;
+  const uint64_t h = (BROTLI_UNALIGNED_LOAD64LE(data) & mask) * kHashMul64Long;
   /* The higher bits contain more mixture from the multiplication,
      so we take our results from there. */
   return (uint32_t)(h >> shift);
@@ -161,7 +161,7 @@ static BROTLI_INLINE void FN(FindLongestMatch)(HasherHandle handle,
     const BrotliDictionary* dictionary, const uint16_t* dictionary_hash,
     const uint8_t* BROTLI_RESTRICT data, const size_t ring_buffer_mask,
     const int* BROTLI_RESTRICT distance_cache, const size_t cur_ix,
-    const size_t max_length, const size_t max_backward,
+    const size_t max_length, const size_t max_backward, const size_t gap,
     HasherSearchResult* BROTLI_RESTRICT out) {
   HasherCommon* common = GetHasherCommon(handle);
   HashLongestMatch* self = FN(Self)(handle);
@@ -258,7 +258,7 @@ static BROTLI_INLINE void FN(FindLongestMatch)(HasherHandle handle,
   }
   if (min_score == out->score) {
     SearchInStaticDictionary(dictionary, dictionary_hash,
-        handle, &data[cur_ix_masked], max_length, max_backward, out,
+        handle, &data[cur_ix_masked], max_length, max_backward + gap, out,
         BROTLI_FALSE);
   }
 }

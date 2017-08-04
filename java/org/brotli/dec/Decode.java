@@ -6,24 +6,30 @@
 
 package org.brotli.dec;
 
-import static org.brotli.dec.RunningState.BLOCK_START;
-import static org.brotli.dec.RunningState.CLOSED;
-import static org.brotli.dec.RunningState.COMPRESSED_BLOCK_START;
-import static org.brotli.dec.RunningState.COPY_LOOP;
-import static org.brotli.dec.RunningState.COPY_UNCOMPRESSED;
-import static org.brotli.dec.RunningState.COPY_WRAP_BUFFER;
-import static org.brotli.dec.RunningState.FINISHED;
-import static org.brotli.dec.RunningState.INSERT_LOOP;
-import static org.brotli.dec.RunningState.MAIN_LOOP;
-import static org.brotli.dec.RunningState.READ_METADATA;
-import static org.brotli.dec.RunningState.TRANSFORM;
-import static org.brotli.dec.RunningState.UNINITIALIZED;
-import static org.brotli.dec.RunningState.WRITE;
+import java.io.IOException;
+import java.io.InputStream;
 
 /**
  * API for Brotli decompression.
  */
 final class Decode {
+
+  //----------------------------------------------------------------------------
+  // RunningState
+  //----------------------------------------------------------------------------
+  private static final int UNINITIALIZED = 0;
+  private static final int BLOCK_START = 1;
+  private static final int COMPRESSED_BLOCK_START = 2;
+  private static final int MAIN_LOOP = 3;
+  private static final int READ_METADATA = 4;
+  private static final int COPY_UNCOMPRESSED = 5;
+  private static final int INSERT_LOOP = 6;
+  private static final int COPY_LOOP = 7;
+  private static final int COPY_WRAP_BUFFER = 8;
+  private static final int TRANSFORM = 9;
+  private static final int FINISHED = 10;
+  private static final int CLOSED = 11;
+  private static final int WRITE = 12;
 
   private static final int DEFAULT_CODE_LENGTH = 8;
   private static final int CODE_LENGTH_REPEAT_CODE = 16;
@@ -35,6 +41,12 @@ final class Decode {
 
   private static final int HUFFMAN_TABLE_BITS = 8;
   private static final int HUFFMAN_TABLE_MASK = 0xFF;
+
+  /**
+   * Maximum possible Huffman table size for an alphabet size of 704, max code length 15 and root
+   * table bits 8.
+   */
+  static final int HUFFMAN_TABLE_SIZE = 1080;
 
   private static final int CODE_LENGTH_CODES = 18;
   private static final int[] CODE_LENGTH_CODE_ORDER = {
@@ -58,85 +70,189 @@ final class Decode {
       0x020000, 0x020004, 0x020003, 0x030002, 0x020000, 0x020004, 0x020003, 0x040005
   };
 
+  static final int[] DICTIONARY_OFFSETS_BY_LENGTH = {
+    0, 0, 0, 0, 0, 4096, 9216, 21504, 35840, 44032, 53248, 63488, 74752, 87040, 93696, 100864,
+    104704, 106752, 108928, 113536, 115968, 118528, 119872, 121280, 122016
+  };
+
+  static final int[] DICTIONARY_SIZE_BITS_BY_LENGTH = {
+    0, 0, 0, 0, 10, 10, 11, 11, 10, 10, 10, 10, 10, 9, 9, 8, 7, 7, 8, 7, 7, 6, 6, 5, 5
+  };
+
+  static final int MIN_WORD_LENGTH = 4;
+
+  static final int MAX_WORD_LENGTH = 24;
+
+  static final int MAX_TRANSFORMED_WORD_LENGTH = 5 + MAX_WORD_LENGTH + 8;
+
+  //----------------------------------------------------------------------------
+  // Prefix code LUT.
+  //----------------------------------------------------------------------------
+  static final int[] BLOCK_LENGTH_OFFSET = {
+      1, 5, 9, 13, 17, 25, 33, 41, 49, 65, 81, 97, 113, 145, 177, 209, 241, 305, 369, 497,
+      753, 1265, 2289, 4337, 8433, 16625
+  };
+
+  static final int[] BLOCK_LENGTH_N_BITS = {
+      2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5, 5, 6, 6, 7, 8, 9, 10, 11, 12, 13, 24
+  };
+
+  static final int[] INSERT_LENGTH_OFFSET = {
+      0, 1, 2, 3, 4, 5, 6, 8, 10, 14, 18, 26, 34, 50, 66, 98, 130, 194, 322, 578, 1090, 2114, 6210,
+      22594
+  };
+
+  static final int[] INSERT_LENGTH_N_BITS = {
+      0, 0, 0, 0, 0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 7, 8, 9, 10, 12, 14, 24
+  };
+
+  static final int[] COPY_LENGTH_OFFSET = {
+      2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 14, 18, 22, 30, 38, 54, 70, 102, 134, 198, 326, 582, 1094,
+      2118
+  };
+
+  static final int[] COPY_LENGTH_N_BITS = {
+      0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 7, 8, 9, 10, 24
+  };
+
+  static final int[] INSERT_RANGE_LUT = {
+      0, 0, 8, 8, 0, 16, 8, 16, 16
+  };
+
+  static final int[] COPY_RANGE_LUT = {
+      0, 8, 0, 8, 16, 0, 16, 8, 16
+  };
+
+  private static int decodeWindowBits(State s) {
+    if (BitReader.readFewBits(s, 1) == 0) {
+      return 16;
+    }
+    int n = BitReader.readFewBits(s, 3);
+    if (n != 0) {
+      return 17 + n;
+    }
+    n = BitReader.readFewBits(s, 3);
+    if (n != 0) {
+      return 8 + n;
+    }
+    return 17;
+  }
+
+  /**
+   * Associate input with decoder state.
+   *
+   * @param s uninitialized state without associated input
+   * @param input compressed data source
+   */
+  static void initState(State s, InputStream input) {
+    if (s.runningState != UNINITIALIZED) {
+      throw new IllegalStateException("State MUST be uninitialized");
+    }
+    s.blockTrees = new int[6 * HUFFMAN_TABLE_SIZE];
+    s.input = input;
+    BitReader.initBitReader(s);
+    int windowBits = decodeWindowBits(s);
+    if (windowBits == 9) { /* Reserved case for future expansion. */
+      throw new BrotliRuntimeException("Invalid 'windowBits' code");
+    }
+    s.maxRingBufferSize = 1 << windowBits;
+    s.maxBackwardDistance = s.maxRingBufferSize - 16;
+    s.runningState = BLOCK_START;
+  }
+
+  static void close(State s) throws IOException {
+    if (s.runningState == UNINITIALIZED) {
+      throw new IllegalStateException("State MUST be initialized");
+    }
+    if (s.runningState == CLOSED) {
+      return;
+    }
+    s.runningState = CLOSED;
+    if (s.input != null) {
+      Utils.closeInput(s.input);
+      s.input = null;
+    }
+  }
+
   /**
    * Decodes a number in the range [0..255], by reading 1 - 11 bits.
    */
-  private static int decodeVarLenUnsignedByte(BitReader br) {
-    if (BitReader.readBits(br, 1) != 0) {
-      int n = BitReader.readBits(br, 3);
+  private static int decodeVarLenUnsignedByte(State s) {
+    if (BitReader.readFewBits(s, 1) != 0) {
+      int n = BitReader.readFewBits(s, 3);
       if (n == 0) {
         return 1;
       } else {
-        return BitReader.readBits(br, n) + (1 << n);
+        return BitReader.readFewBits(s, n) + (1 << n);
       }
     }
     return 0;
   }
 
-  private static void decodeMetaBlockLength(BitReader br, State state) {
-    state.inputEnd = BitReader.readBits(br, 1) == 1;
-    state.metaBlockLength = 0;
-    state.isUncompressed = false;
-    state.isMetadata = false;
-    if (state.inputEnd && BitReader.readBits(br, 1) != 0) {
+  private static void decodeMetaBlockLength(State s) {
+    s.inputEnd = BitReader.readFewBits(s, 1);
+    s.metaBlockLength = 0;
+    s.isUncompressed = 0;
+    s.isMetadata = 0;
+    if ((s.inputEnd != 0) && BitReader.readFewBits(s, 1) != 0) {
       return;
     }
-    int sizeNibbles = BitReader.readBits(br, 2) + 4;
+    int sizeNibbles = BitReader.readFewBits(s, 2) + 4;
     if (sizeNibbles == 7) {
-      state.isMetadata = true;
-      if (BitReader.readBits(br, 1) != 0) {
+      s.isMetadata = 1;
+      if (BitReader.readFewBits(s, 1) != 0) {
         throw new BrotliRuntimeException("Corrupted reserved bit");
       }
-      int sizeBytes = BitReader.readBits(br, 2);
+      int sizeBytes = BitReader.readFewBits(s, 2);
       if (sizeBytes == 0) {
         return;
       }
       for (int i = 0; i < sizeBytes; i++) {
-        int bits = BitReader.readBits(br, 8);
+        int bits = BitReader.readFewBits(s, 8);
         if (bits == 0 && i + 1 == sizeBytes && sizeBytes > 1) {
           throw new BrotliRuntimeException("Exuberant nibble");
         }
-        state.metaBlockLength |= bits << (i * 8);
+        s.metaBlockLength |= bits << (i * 8);
       }
     } else {
       for (int i = 0; i < sizeNibbles; i++) {
-        int bits = BitReader.readBits(br, 4);
+        int bits = BitReader.readFewBits(s, 4);
         if (bits == 0 && i + 1 == sizeNibbles && sizeNibbles > 4) {
           throw new BrotliRuntimeException("Exuberant nibble");
         }
-        state.metaBlockLength |= bits << (i * 4);
+        s.metaBlockLength |= bits << (i * 4);
       }
     }
-    state.metaBlockLength++;
-    if (!state.inputEnd) {
-      state.isUncompressed = BitReader.readBits(br, 1) == 1;
+    s.metaBlockLength++;
+    if (s.inputEnd == 0) {
+      s.isUncompressed = BitReader.readFewBits(s, 1);
     }
   }
 
   /**
    * Decodes the next Huffman code from bit-stream.
    */
-  private static int readSymbol(int[] table, int offset, BitReader br) {
-    int val = (int) (br.accumulator >>> br.bitOffset);
+  private static int readSymbol(int[] table, int offset, State s) {
+    int val = BitReader.peekBits(s);
     offset += val & HUFFMAN_TABLE_MASK;
     int bits = table[offset] >> 16;
     int sym = table[offset] & 0xFFFF;
     if (bits <= HUFFMAN_TABLE_BITS) {
-      br.bitOffset += bits;
+      s.bitOffset += bits;
       return sym;
     }
     offset += sym;
     int mask = (1 << bits) - 1;
     offset += (val & mask) >>> HUFFMAN_TABLE_BITS;
-    br.bitOffset += ((table[offset] >> 16) + HUFFMAN_TABLE_BITS);
+    s.bitOffset += ((table[offset] >> 16) + HUFFMAN_TABLE_BITS);
     return table[offset] & 0xFFFF;
   }
 
-  private static int readBlockLength(int[] table, int offset, BitReader br) {
-    BitReader.fillBitWindow(br);
-    int code = readSymbol(table, offset, br);
-    int n = Prefix.BLOCK_LENGTH_N_BITS[code];
-    return Prefix.BLOCK_LENGTH_OFFSET[code] + BitReader.readBits(br, n);
+  private static int readBlockLength(int[] table, int offset, State s) {
+    BitReader.fillBitWindow(s);
+    int code = readSymbol(table, offset, s);
+    int n = BLOCK_LENGTH_N_BITS[code];
+    return BLOCK_LENGTH_OFFSET[code] + BitReader.readBits(s, n);
   }
 
   private static int translateShortCodes(int code, int[] ringBuffer, int index) {
@@ -171,7 +287,7 @@ final class Decode {
   }
 
   private static void readHuffmanCodeLengths(
-      int[] codeLengthCodeLengths, int numSymbols, int[] codeLengths, BitReader br) {
+      int[] codeLengthCodeLengths, int numSymbols, int[] codeLengths, State s) {
     int symbol = 0;
     int prevCodeLen = DEFAULT_CODE_LENGTH;
     int repeat = 0;
@@ -182,10 +298,10 @@ final class Decode {
     Huffman.buildHuffmanTable(table, 0, 5, codeLengthCodeLengths, CODE_LENGTH_CODES);
 
     while (symbol < numSymbols && space > 0) {
-      BitReader.readMoreInput(br);
-      BitReader.fillBitWindow(br);
-      int p = (int) ((br.accumulator >>> br.bitOffset)) & 31;
-      br.bitOffset += table[p] >> 16;
+      BitReader.readMoreInput(s);
+      BitReader.fillBitWindow(s);
+      int p = BitReader.peekBits(s) & 31;
+      s.bitOffset += table[p] >> 16;
       int codeLen = table[p] & 0xFFFF;
       if (codeLen < CODE_LENGTH_REPEAT_CODE) {
         repeat = 0;
@@ -209,7 +325,7 @@ final class Decode {
           repeat -= 2;
           repeat <<= extraBits;
         }
-        repeat += BitReader.readBits(br, extraBits) + 3;
+        repeat += BitReader.readFewBits(s, extraBits) + 3;
         int repeatDelta = repeat - oldRepeat;
         if (symbol + repeatDelta > numSymbols) {
           throw new BrotliRuntimeException("symbol + repeatDelta > numSymbols"); // COV_NF_LINE
@@ -226,22 +342,33 @@ final class Decode {
       throw new BrotliRuntimeException("Unused space"); // COV_NF_LINE
     }
     // TODO: Pass max_symbol to Huffman table builder instead?
-    Utils.fillWithZeroes(codeLengths, symbol, numSymbols - symbol);
+    Utils.fillIntsWithZeroes(codeLengths, symbol, numSymbols);
+  }
+
+  static int checkDupes(int[] symbols, int length) {
+    for (int i = 0; i < length - 1; ++i) {
+      for (int j = i + 1; j < length; ++j) {
+        if (symbols[i] == symbols[j]) {
+          return 0;
+        }
+      }
+    }
+    return 1;
   }
 
   // TODO: Use specialized versions for smaller tables.
-  static void readHuffmanCode(int alphabetSize, int[] table, int offset, BitReader br) {
-    boolean ok = true;
+  static void readHuffmanCode(int alphabetSize, int[] table, int offset, State s) {
+    int ok = 1;
     int simpleCodeOrSkip;
-    BitReader.readMoreInput(br);
+    BitReader.readMoreInput(s);
     // TODO: Avoid allocation.
     int[] codeLengths = new int[alphabetSize];
-    simpleCodeOrSkip = BitReader.readBits(br, 2);
+    simpleCodeOrSkip = BitReader.readFewBits(s, 2);
     if (simpleCodeOrSkip == 1) { // Read symbols, codes & code lengths directly.
       int maxBitsCounter = alphabetSize - 1;
       int maxBits = 0;
       int[] symbols = new int[4];
-      int numSymbols = BitReader.readBits(br, 2) + 1;
+      int numSymbols = BitReader.readFewBits(s, 2) + 1;
       while (maxBitsCounter != 0) {
         maxBitsCounter >>= 1;
         maxBits++;
@@ -249,42 +376,36 @@ final class Decode {
       // TODO: uncomment when codeLengths is reused.
       // Utils.fillWithZeroes(codeLengths, 0, alphabetSize);
       for (int i = 0; i < numSymbols; i++) {
-        symbols[i] = BitReader.readBits(br, maxBits) % alphabetSize;
+        symbols[i] = BitReader.readFewBits(s, maxBits) % alphabetSize;
         codeLengths[symbols[i]] = 2;
       }
       codeLengths[symbols[0]] = 1;
       switch (numSymbols) {
-        case 1:
-          break;
         case 2:
-          ok = symbols[0] != symbols[1];
           codeLengths[symbols[1]] = 1;
           break;
-        case 3:
-          ok = symbols[0] != symbols[1] && symbols[0] != symbols[2] && symbols[1] != symbols[2];
-          break;
         case 4:
-        default:
-          ok = symbols[0] != symbols[1] && symbols[0] != symbols[2] && symbols[0] != symbols[3]
-              && symbols[1] != symbols[2] && symbols[1] != symbols[3] && symbols[2] != symbols[3];
-          if (BitReader.readBits(br, 1) == 1) {
+          if (BitReader.readFewBits(s, 1) == 1) {
             codeLengths[symbols[2]] = 3;
             codeLengths[symbols[3]] = 3;
           } else {
             codeLengths[symbols[0]] = 2;
           }
           break;
+        default:
+          break;
       }
+      ok = checkDupes(symbols, numSymbols);
     } else { // Decode Huffman-coded code lengths.
       int[] codeLengthCodeLengths = new int[CODE_LENGTH_CODES];
       int space = 32;
       int numCodes = 0;
       for (int i = simpleCodeOrSkip; i < CODE_LENGTH_CODES && space > 0; i++) {
         int codeLenIdx = CODE_LENGTH_CODE_ORDER[i];
-        BitReader.fillBitWindow(br);
-        int p = (int) (br.accumulator >>> br.bitOffset) & 15;
+        BitReader.fillBitWindow(s);
+        int p = BitReader.peekBits(s) & 15;
         // TODO: Demultiplex FIXED_TABLE.
-        br.bitOffset += FIXED_TABLE[p] >> 16;
+        s.bitOffset += FIXED_TABLE[p] >> 16;
         int v = FIXED_TABLE[p] & 0xFFFF;
         codeLengthCodeLengths[codeLenIdx] = v;
         if (v != 0) {
@@ -292,40 +413,42 @@ final class Decode {
           numCodes++;
         }
       }
-      ok = (numCodes == 1 || space == 0);
-      readHuffmanCodeLengths(codeLengthCodeLengths, alphabetSize, codeLengths, br);
+      if (space != 0 && numCodes != 1) {
+        ok = 0;
+      }
+      readHuffmanCodeLengths(codeLengthCodeLengths, alphabetSize, codeLengths, s);
     }
-    if (!ok) {
+    if (ok == 0) {
       throw new BrotliRuntimeException("Can't readHuffmanCode"); // COV_NF_LINE
     }
     Huffman.buildHuffmanTable(table, offset, HUFFMAN_TABLE_BITS, codeLengths, alphabetSize);
   }
 
-  private static int decodeContextMap(int contextMapSize, byte[] contextMap, BitReader br) {
-    BitReader.readMoreInput(br);
-    int numTrees = decodeVarLenUnsignedByte(br) + 1;
+  private static int decodeContextMap(int contextMapSize, byte[] contextMap, State s) {
+    BitReader.readMoreInput(s);
+    int numTrees = decodeVarLenUnsignedByte(s) + 1;
 
     if (numTrees == 1) {
-      Utils.fillWithZeroes(contextMap, 0, contextMapSize);
+      Utils.fillBytesWithZeroes(contextMap, 0, contextMapSize);
       return numTrees;
     }
 
-    boolean useRleForZeros = BitReader.readBits(br, 1) == 1;
+    int useRleForZeros = BitReader.readFewBits(s, 1);
     int maxRunLengthPrefix = 0;
-    if (useRleForZeros) {
-      maxRunLengthPrefix = BitReader.readBits(br, 4) + 1;
+    if (useRleForZeros != 0) {
+      maxRunLengthPrefix = BitReader.readFewBits(s, 4) + 1;
     }
-    int[] table = new int[Huffman.HUFFMAN_MAX_TABLE_SIZE];
-    readHuffmanCode(numTrees + maxRunLengthPrefix, table, 0, br);
+    int[] table = new int[HUFFMAN_TABLE_SIZE];
+    readHuffmanCode(numTrees + maxRunLengthPrefix, table, 0, s);
     for (int i = 0; i < contextMapSize; ) {
-      BitReader.readMoreInput(br);
-      BitReader.fillBitWindow(br);
-      int code = readSymbol(table, 0, br);
+      BitReader.readMoreInput(s);
+      BitReader.fillBitWindow(s);
+      int code = readSymbol(table, 0, s);
       if (code == 0) {
         contextMap[i] = 0;
         i++;
       } else if (code <= maxRunLengthPrefix) {
-        int reps = (1 << code) + BitReader.readBits(br, code);
+        int reps = (1 << code) + BitReader.readFewBits(s, code);
         while (reps != 0) {
           if (i >= contextMapSize) {
             throw new BrotliRuntimeException("Corrupted context map"); // COV_NF_LINE
@@ -339,21 +462,18 @@ final class Decode {
         i++;
       }
     }
-    if (BitReader.readBits(br, 1) == 1) {
+    if (BitReader.readFewBits(s, 1) == 1) {
       inverseMoveToFrontTransform(contextMap, contextMapSize);
     }
     return numTrees;
   }
 
-  private static void decodeBlockTypeAndLength(State state, int treeType) {
-    final BitReader br = state.br;
-    final int[] ringBuffers = state.blockTypeRb;
-    final int offset = treeType * 2;
-    BitReader.fillBitWindow(br);
-    int blockType = readSymbol(
-        state.blockTypeTrees, treeType * Huffman.HUFFMAN_MAX_TABLE_SIZE, br);
-    state.blockLength[treeType] = readBlockLength(state.blockLenTrees,
-        treeType * Huffman.HUFFMAN_MAX_TABLE_SIZE, br);
+  private static int decodeBlockTypeAndLength(State s, int treeType, int numBlockTypes) {
+    final int[] ringBuffers = s.rings;
+    final int offset = 4 + treeType * 2;
+    BitReader.fillBitWindow(s);
+    int blockType = readSymbol(s.blockTrees, treeType * HUFFMAN_TABLE_SIZE, s);
+    int result = readBlockLength(s.blockTrees, (treeType + 3) * HUFFMAN_TABLE_SIZE, s);
 
     if (blockType == 1) {
       blockType = ringBuffers[offset + 1] + 1;
@@ -362,455 +482,445 @@ final class Decode {
     } else {
       blockType -= 2;
     }
-    if (blockType >= state.numBlockTypes[treeType]) {
-      blockType -= state.numBlockTypes[treeType];
+    if (blockType >= numBlockTypes) {
+      blockType -= numBlockTypes;
     }
     ringBuffers[offset] = ringBuffers[offset + 1];
     ringBuffers[offset + 1] = blockType;
+    return result;
   }
 
-  private static void decodeLiteralBlockSwitch(State state) {
-    decodeBlockTypeAndLength(state, 0);
-    int literalBlockType = state.blockTypeRb[1];
-    state.contextMapSlice = literalBlockType << LITERAL_CONTEXT_BITS;
-    state.literalTreeIndex = state.contextMap[state.contextMapSlice] & 0xFF;
-    state.literalTree = state.hGroup0.trees[state.literalTreeIndex];
-    int contextMode = state.contextModes[literalBlockType];
-    state.contextLookupOffset1 = Context.LOOKUP_OFFSETS[contextMode];
-    state.contextLookupOffset2 = Context.LOOKUP_OFFSETS[contextMode + 1];
+  private static void decodeLiteralBlockSwitch(State s) {
+    s.literalBlockLength = decodeBlockTypeAndLength(s, 0, s.numLiteralBlockTypes);
+    int literalBlockType = s.rings[5];
+    s.contextMapSlice = literalBlockType << LITERAL_CONTEXT_BITS;
+    s.literalTreeIndex = s.contextMap[s.contextMapSlice] & 0xFF;
+    s.literalTree = s.hGroup0[s.literalTreeIndex];
+    int contextMode = s.contextModes[literalBlockType];
+    s.contextLookupOffset1 = contextMode << 9;
+    s.contextLookupOffset2 = s.contextLookupOffset1 + 256;
   }
 
-  private static void decodeCommandBlockSwitch(State state) {
-    decodeBlockTypeAndLength(state, 1);
-    state.treeCommandOffset = state.hGroup1.trees[state.blockTypeRb[3]];
+  private static void decodeCommandBlockSwitch(State s) {
+    s.commandBlockLength = decodeBlockTypeAndLength(s, 1, s.numCommandBlockTypes);
+    s.treeCommandOffset = s.hGroup1[s.rings[7]];
   }
 
-  private static void decodeDistanceBlockSwitch(State state) {
-    decodeBlockTypeAndLength(state, 2);
-    state.distContextMapSlice = state.blockTypeRb[5] << DISTANCE_CONTEXT_BITS;
+  private static void decodeDistanceBlockSwitch(State s) {
+    s.distanceBlockLength = decodeBlockTypeAndLength(s, 2, s.numDistanceBlockTypes);
+    s.distContextMapSlice = s.rings[9] << DISTANCE_CONTEXT_BITS;
   }
 
-  private static void maybeReallocateRingBuffer(State state) {
-    int newSize = state.maxRingBufferSize;
-    if ((long) newSize > state.expectedTotalSize) {
+  private static void maybeReallocateRingBuffer(State s) {
+    int newSize = s.maxRingBufferSize;
+    if (newSize > s.expectedTotalSize) {
       /* TODO: Handle 2GB+ cases more gracefully. */
-      int minimalNewSize = (int) state.expectedTotalSize + state.customDictionary.length;
+      int minimalNewSize = s.expectedTotalSize;
       while ((newSize >> 1) > minimalNewSize) {
         newSize >>= 1;
       }
-      if (!state.inputEnd && newSize < 16384 && state.maxRingBufferSize >= 16384) {
+      if ((s.inputEnd == 0) && newSize < 16384 && s.maxRingBufferSize >= 16384) {
         newSize = 16384;
       }
     }
-    if (newSize <= state.ringBufferSize) {
+    if (newSize <= s.ringBufferSize) {
       return;
     }
-    int ringBufferSizeWithSlack = newSize + Dictionary.MAX_TRANSFORMED_WORD_LENGTH;
+    int ringBufferSizeWithSlack = newSize + MAX_TRANSFORMED_WORD_LENGTH;
     byte[] newBuffer = new byte[ringBufferSizeWithSlack];
-    if (state.ringBuffer != null) {
-      System.arraycopy(state.ringBuffer, 0, newBuffer, 0, state.ringBufferSize);
-    } else {
-      /* Prepend custom dictionary, if any. */
-      if (state.customDictionary.length != 0) {
-        int length = state.customDictionary.length;
-        int offset = 0;
-        if (length > state.maxBackwardDistance) {
-          offset = length - state.maxBackwardDistance;
-          length = state.maxBackwardDistance;
-        }
-        System.arraycopy(state.customDictionary, offset, newBuffer, 0, length);
-        state.pos = length;
-        state.bytesToIgnore = length;
-      }
+    if (s.ringBuffer.length != 0) {
+      System.arraycopy(s.ringBuffer, 0, newBuffer, 0, s.ringBufferSize);
     }
-    state.ringBuffer = newBuffer;
-    state.ringBufferSize = newSize;
+    s.ringBuffer = newBuffer;
+    s.ringBufferSize = newSize;
   }
 
-  /**
-   * Reads next metablock header.
-   *
-   * @param state decoding state
-   */
-  private static void readMetablockInfo(State state) {
-    final BitReader br = state.br;
-
-    if (state.inputEnd) {
-      state.nextRunningState = FINISHED;
-      state.bytesToWrite = state.pos;
-      state.bytesWritten = 0;
-      state.runningState = WRITE;
+  private static void readNextMetablockHeader(State s) {
+    if (s.inputEnd != 0) {
+      s.nextRunningState = FINISHED;
+      s.bytesToWrite = s.pos;
+      s.bytesWritten = 0;
+      s.runningState = WRITE;
       return;
     }
     // TODO: Reset? Do we need this?
-    state.hGroup0.codes = null;
-    state.hGroup0.trees = null;
-    state.hGroup1.codes = null;
-    state.hGroup1.trees = null;
-    state.hGroup2.codes = null;
-    state.hGroup2.trees = null;
+    s.hGroup0 = new int[0];
+    s.hGroup1 = new int[0];
+    s.hGroup2 = new int[0];
 
-    BitReader.readMoreInput(br);
-    decodeMetaBlockLength(br, state);
-    if (state.metaBlockLength == 0 && !state.isMetadata) {
+    BitReader.readMoreInput(s);
+    decodeMetaBlockLength(s);
+    if ((s.metaBlockLength == 0) && (s.isMetadata == 0)) {
       return;
     }
-    if (state.isUncompressed || state.isMetadata) {
-      BitReader.jumpToByteBoundary(br);
-      state.runningState = state.isMetadata ? READ_METADATA : COPY_UNCOMPRESSED;
+    if ((s.isUncompressed != 0) || (s.isMetadata != 0)) {
+      BitReader.jumpToByteBoundary(s);
+      s.runningState = (s.isMetadata != 0) ? READ_METADATA : COPY_UNCOMPRESSED;
     } else {
-      state.runningState = COMPRESSED_BLOCK_START;
+      s.runningState = COMPRESSED_BLOCK_START;
     }
 
-    if (state.isMetadata) {
+    if (s.isMetadata != 0) {
       return;
     }
-    state.expectedTotalSize += state.metaBlockLength;
-    if (state.ringBufferSize < state.maxRingBufferSize) {
-      maybeReallocateRingBuffer(state);
+    s.expectedTotalSize += s.metaBlockLength;
+    if (s.expectedTotalSize > 1 << 30) {
+      s.expectedTotalSize = 1 << 30;
+    }
+    if (s.ringBufferSize < s.maxRingBufferSize) {
+      maybeReallocateRingBuffer(s);
     }
   }
 
-  private static void readMetablockHuffmanCodesAndContextMaps(State state) {
-    final BitReader br = state.br;
-
-    for (int i = 0; i < 3; i++) {
-      state.numBlockTypes[i] = decodeVarLenUnsignedByte(br) + 1;
-      state.blockLength[i] = 1 << 28;
-      if (state.numBlockTypes[i] > 1) {
-        readHuffmanCode(state.numBlockTypes[i] + 2, state.blockTypeTrees,
-            i * Huffman.HUFFMAN_MAX_TABLE_SIZE, br);
-        readHuffmanCode(NUM_BLOCK_LENGTH_CODES, state.blockLenTrees,
-            i * Huffman.HUFFMAN_MAX_TABLE_SIZE, br);
-        state.blockLength[i] = readBlockLength(state.blockLenTrees,
-            i * Huffman.HUFFMAN_MAX_TABLE_SIZE, br);
-      }
+  private static int readMetablockPartition(State s, int treeType, int numBlockTypes) {
+    if (numBlockTypes <= 1) {
+      return 1 << 28;
     }
+    readHuffmanCode(numBlockTypes + 2, s.blockTrees, treeType * HUFFMAN_TABLE_SIZE, s);
+    readHuffmanCode(NUM_BLOCK_LENGTH_CODES, s.blockTrees, (treeType + 3) * HUFFMAN_TABLE_SIZE, s);
+    return readBlockLength(s.blockTrees, (treeType + 3) * HUFFMAN_TABLE_SIZE, s);
+  }
 
-    BitReader.readMoreInput(br);
-    state.distancePostfixBits = BitReader.readBits(br, 2);
-    state.numDirectDistanceCodes =
-        NUM_DISTANCE_SHORT_CODES + (BitReader.readBits(br, 4) << state.distancePostfixBits);
-    state.distancePostfixMask = (1 << state.distancePostfixBits) - 1;
-    int numDistanceCodes = state.numDirectDistanceCodes + (48 << state.distancePostfixBits);
+  private static void readMetablockHuffmanCodesAndContextMaps(State s) {
+    s.numLiteralBlockTypes = decodeVarLenUnsignedByte(s) + 1;
+    s.literalBlockLength = readMetablockPartition(s, 0, s.numLiteralBlockTypes);
+    s.numCommandBlockTypes = decodeVarLenUnsignedByte(s) + 1;
+    s.commandBlockLength = readMetablockPartition(s, 1, s.numCommandBlockTypes);
+    s.numDistanceBlockTypes = decodeVarLenUnsignedByte(s) + 1;
+    s.distanceBlockLength = readMetablockPartition(s, 2, s.numDistanceBlockTypes);
+
+    BitReader.readMoreInput(s);
+    s.distancePostfixBits = BitReader.readFewBits(s, 2);
+    s.numDirectDistanceCodes =
+        NUM_DISTANCE_SHORT_CODES + (BitReader.readFewBits(s, 4) << s.distancePostfixBits);
+    s.distancePostfixMask = (1 << s.distancePostfixBits) - 1;
+    int numDistanceCodes = s.numDirectDistanceCodes + (48 << s.distancePostfixBits);
     // TODO: Reuse?
-    state.contextModes = new byte[state.numBlockTypes[0]];
-    for (int i = 0; i < state.numBlockTypes[0];) {
+    s.contextModes = new byte[s.numLiteralBlockTypes];
+    for (int i = 0; i < s.numLiteralBlockTypes;) {
       /* Ensure that less than 256 bits read between readMoreInput. */
-      int limit = Math.min(i + 96, state.numBlockTypes[0]);
+      int limit = Math.min(i + 96, s.numLiteralBlockTypes);
       for (; i < limit; ++i) {
-        state.contextModes[i] = (byte) (BitReader.readBits(br, 2) << 1);
+        s.contextModes[i] = (byte) (BitReader.readFewBits(s, 2));
       }
-      BitReader.readMoreInput(br);
+      BitReader.readMoreInput(s);
     }
 
     // TODO: Reuse?
-    state.contextMap = new byte[state.numBlockTypes[0] << LITERAL_CONTEXT_BITS];
-    int numLiteralTrees = decodeContextMap(state.numBlockTypes[0] << LITERAL_CONTEXT_BITS,
-        state.contextMap, br);
-    state.trivialLiteralContext = true;
-    for (int j = 0; j < state.numBlockTypes[0] << LITERAL_CONTEXT_BITS; j++) {
-      if (state.contextMap[j] != j >> LITERAL_CONTEXT_BITS) {
-        state.trivialLiteralContext = false;
+    s.contextMap = new byte[s.numLiteralBlockTypes << LITERAL_CONTEXT_BITS];
+    int numLiteralTrees = decodeContextMap(s.numLiteralBlockTypes << LITERAL_CONTEXT_BITS,
+        s.contextMap, s);
+    s.trivialLiteralContext = 1;
+    for (int j = 0; j < s.numLiteralBlockTypes << LITERAL_CONTEXT_BITS; j++) {
+      if (s.contextMap[j] != j >> LITERAL_CONTEXT_BITS) {
+        s.trivialLiteralContext = 0;
         break;
       }
     }
 
     // TODO: Reuse?
-    state.distContextMap = new byte[state.numBlockTypes[2] << DISTANCE_CONTEXT_BITS];
-    int numDistTrees = decodeContextMap(state.numBlockTypes[2] << DISTANCE_CONTEXT_BITS,
-        state.distContextMap, br);
+    s.distContextMap = new byte[s.numDistanceBlockTypes << DISTANCE_CONTEXT_BITS];
+    int numDistTrees = decodeContextMap(s.numDistanceBlockTypes << DISTANCE_CONTEXT_BITS,
+        s.distContextMap, s);
 
-    HuffmanTreeGroup.init(state.hGroup0, NUM_LITERAL_CODES, numLiteralTrees);
-    HuffmanTreeGroup.init(state.hGroup1, NUM_INSERT_AND_COPY_CODES, state.numBlockTypes[1]);
-    HuffmanTreeGroup.init(state.hGroup2, numDistanceCodes, numDistTrees);
+    s.hGroup0 = decodeHuffmanTreeGroup(NUM_LITERAL_CODES, numLiteralTrees, s);
+    s.hGroup1 =
+        decodeHuffmanTreeGroup(NUM_INSERT_AND_COPY_CODES, s.numCommandBlockTypes, s);
+    s.hGroup2 = decodeHuffmanTreeGroup(numDistanceCodes, numDistTrees, s);
 
-    HuffmanTreeGroup.decode(state.hGroup0, br);
-    HuffmanTreeGroup.decode(state.hGroup1, br);
-    HuffmanTreeGroup.decode(state.hGroup2, br);
+    s.contextMapSlice = 0;
+    s.distContextMapSlice = 0;
+    s.contextLookupOffset1 = (int) (s.contextModes[0]) << 9;
+    s.contextLookupOffset2 = s.contextLookupOffset1 + 256;
+    s.literalTreeIndex = 0;
+    s.literalTree = s.hGroup0[0];
+    s.treeCommandOffset = s.hGroup1[0];
 
-    state.contextMapSlice = 0;
-    state.distContextMapSlice = 0;
-    state.contextLookupOffset1 = Context.LOOKUP_OFFSETS[state.contextModes[0]];
-    state.contextLookupOffset2 = Context.LOOKUP_OFFSETS[state.contextModes[0] + 1];
-    state.literalTreeIndex = 0;
-    state.literalTree = state.hGroup0.trees[0];
-    state.treeCommandOffset = state.hGroup1.trees[0]; // TODO: == 0?
-
-    state.blockTypeRb[0] = state.blockTypeRb[2] = state.blockTypeRb[4] = 1;
-    state.blockTypeRb[1] = state.blockTypeRb[3] = state.blockTypeRb[5] = 0;
+    s.rings[4] = 1;
+    s.rings[5] = 0;
+    s.rings[6] = 1;
+    s.rings[7] = 0;
+    s.rings[8] = 1;
+    s.rings[9] = 0;
   }
 
-  private static void copyUncompressedData(State state) {
-    final BitReader br = state.br;
-    final byte[] ringBuffer = state.ringBuffer;
+  private static void copyUncompressedData(State s) {
+    final byte[] ringBuffer = s.ringBuffer;
 
     // Could happen if block ends at ring buffer end.
-    if (state.metaBlockLength <= 0) {
-      BitReader.reload(br);
-      state.runningState = BLOCK_START;
+    if (s.metaBlockLength <= 0) {
+      BitReader.reload(s);
+      s.runningState = BLOCK_START;
       return;
     }
 
-    int chunkLength = Math.min(state.ringBufferSize - state.pos, state.metaBlockLength);
-    BitReader.copyBytes(br, ringBuffer, state.pos, chunkLength);
-    state.metaBlockLength -= chunkLength;
-    state.pos += chunkLength;
-    if (state.pos == state.ringBufferSize) {
-        state.nextRunningState = COPY_UNCOMPRESSED;
-        state.bytesToWrite = state.ringBufferSize;
-        state.bytesWritten = 0;
-        state.runningState = WRITE;
+    int chunkLength = Math.min(s.ringBufferSize - s.pos, s.metaBlockLength);
+    BitReader.copyBytes(s, ringBuffer, s.pos, chunkLength);
+    s.metaBlockLength -= chunkLength;
+    s.pos += chunkLength;
+    if (s.pos == s.ringBufferSize) {
+        s.nextRunningState = COPY_UNCOMPRESSED;
+        s.bytesToWrite = s.ringBufferSize;
+        s.bytesWritten = 0;
+        s.runningState = WRITE;
         return;
       }
 
-    BitReader.reload(br);
-    state.runningState = BLOCK_START;
+    BitReader.reload(s);
+    s.runningState = BLOCK_START;
   }
 
-  private static boolean writeRingBuffer(State state) {
-    /* Ignore custom dictionary bytes. */
-    if (state.bytesToIgnore != 0) {
-      state.bytesWritten += state.bytesToIgnore;
-      state.bytesToIgnore = 0;
+  private static int writeRingBuffer(State s) {
+    if (s.bytesToIgnore != 0) {
+      s.bytesWritten += s.bytesToIgnore;
+      s.bytesToIgnore = 0;
     }
-    int toWrite = Math.min(state.outputLength - state.outputUsed,
-        state.bytesToWrite - state.bytesWritten);
+    int toWrite = Math.min(s.outputLength - s.outputUsed,
+        s.bytesToWrite - s.bytesWritten);
     if (toWrite != 0) {
-      System.arraycopy(state.ringBuffer, state.bytesWritten, state.output,
-          state.outputOffset + state.outputUsed, toWrite);
-      state.outputUsed += toWrite;
-      state.bytesWritten += toWrite;
+      System.arraycopy(s.ringBuffer, s.bytesWritten, s.output,
+          s.outputOffset + s.outputUsed, toWrite);
+      s.outputUsed += toWrite;
+      s.bytesWritten += toWrite;
     }
 
-    return state.outputUsed < state.outputLength;
+    if (s.outputUsed < s.outputLength) {
+      return 1;
+    } else {
+      return 0;
+    }
   }
 
-  static void setCustomDictionary(State state, byte[] data) {
-    state.customDictionary = (data == null) ? new byte[0] : data;
+  private static int[] decodeHuffmanTreeGroup(int alphabetSize, int n, State s) {
+    int[] group = new int[n + (n * HUFFMAN_TABLE_SIZE)];
+    int next = n;
+    for (int i = 0; i < n; i++) {
+      group[i] = next;
+      Decode.readHuffmanCode(alphabetSize, group, next, s);
+      next += HUFFMAN_TABLE_SIZE;
+    }
+    return group;
   }
 
   /**
    * Actual decompress implementation.
    */
-  static void decompress(State state) {
-    if (state.runningState == UNINITIALIZED) {
+  static void decompress(State s) {
+    if (s.runningState == UNINITIALIZED) {
       throw new IllegalStateException("Can't decompress until initialized");
     }
-    if (state.runningState == CLOSED) {
+    if (s.runningState == CLOSED) {
       throw new IllegalStateException("Can't decompress after close");
     }
-    final BitReader br = state.br;
-    int ringBufferMask = state.ringBufferSize - 1;
-    byte[] ringBuffer = state.ringBuffer;
+    int ringBufferMask = s.ringBufferSize - 1;
+    byte[] ringBuffer = s.ringBuffer;
 
-    while (state.runningState != FINISHED) {
+    while (s.runningState != FINISHED) {
       // TODO: extract cases to methods for the better readability.
-      switch (state.runningState) {
+      switch (s.runningState) {
         case BLOCK_START:
-          if (state.metaBlockLength < 0) {
+          if (s.metaBlockLength < 0) {
             throw new BrotliRuntimeException("Invalid metablock length");
           }
-          readMetablockInfo(state);
+          readNextMetablockHeader(s);
           /* Ring-buffer would be reallocated here. */
-          ringBufferMask = state.ringBufferSize - 1;
-          ringBuffer = state.ringBuffer;
+          ringBufferMask = s.ringBufferSize - 1;
+          ringBuffer = s.ringBuffer;
           continue;
 
         case COMPRESSED_BLOCK_START:
-          readMetablockHuffmanCodesAndContextMaps(state);
-          state.runningState = MAIN_LOOP;
+          readMetablockHuffmanCodesAndContextMaps(s);
+          s.runningState = MAIN_LOOP;
           // Fall through
 
         case MAIN_LOOP:
-          if (state.metaBlockLength <= 0) {
-            state.runningState = BLOCK_START;
+          if (s.metaBlockLength <= 0) {
+            s.runningState = BLOCK_START;
             continue;
           }
-          BitReader.readMoreInput(br);
-          if (state.blockLength[1] == 0) {
-            decodeCommandBlockSwitch(state);
+          BitReader.readMoreInput(s);
+          if (s.commandBlockLength == 0) {
+            decodeCommandBlockSwitch(s);
           }
-          state.blockLength[1]--;
-          BitReader.fillBitWindow(br);
-          int cmdCode = readSymbol(state.hGroup1.codes, state.treeCommandOffset, br);
+          s.commandBlockLength--;
+          BitReader.fillBitWindow(s);
+          int cmdCode = readSymbol(s.hGroup1, s.treeCommandOffset, s);
           int rangeIdx = cmdCode >>> 6;
-          state.distanceCode = 0;
+          s.distanceCode = 0;
           if (rangeIdx >= 2) {
             rangeIdx -= 2;
-            state.distanceCode = -1;
+            s.distanceCode = -1;
           }
-          int insertCode = Prefix.INSERT_RANGE_LUT[rangeIdx] + ((cmdCode >>> 3) & 7);
-          int copyCode = Prefix.COPY_RANGE_LUT[rangeIdx] + (cmdCode & 7);
-          state.insertLength = Prefix.INSERT_LENGTH_OFFSET[insertCode] + BitReader
-              .readBits(br, Prefix.INSERT_LENGTH_N_BITS[insertCode]);
-          state.copyLength = Prefix.COPY_LENGTH_OFFSET[copyCode] + BitReader
-              .readBits(br, Prefix.COPY_LENGTH_N_BITS[copyCode]);
+          int insertCode = INSERT_RANGE_LUT[rangeIdx] + ((cmdCode >>> 3) & 7);
+          int copyCode = COPY_RANGE_LUT[rangeIdx] + (cmdCode & 7);
+          s.insertLength = INSERT_LENGTH_OFFSET[insertCode] + BitReader
+              .readBits(s, INSERT_LENGTH_N_BITS[insertCode]);
+          s.copyLength = COPY_LENGTH_OFFSET[copyCode] + BitReader
+              .readBits(s, COPY_LENGTH_N_BITS[copyCode]);
 
-          state.j = 0;
-          state.runningState = INSERT_LOOP;
+          s.j = 0;
+          s.runningState = INSERT_LOOP;
 
           // Fall through
         case INSERT_LOOP:
-          if (state.trivialLiteralContext) {
-            while (state.j < state.insertLength) {
-              BitReader.readMoreInput(br);
-              if (state.blockLength[0] == 0) {
-                decodeLiteralBlockSwitch(state);
+          if (s.trivialLiteralContext != 0) {
+            while (s.j < s.insertLength) {
+              BitReader.readMoreInput(s);
+              if (s.literalBlockLength == 0) {
+                decodeLiteralBlockSwitch(s);
               }
-              state.blockLength[0]--;
-              BitReader.fillBitWindow(br);
-              ringBuffer[state.pos] =
-                  (byte) readSymbol(state.hGroup0.codes, state.literalTree, br);
-              state.j++;
-              if (state.pos++ == ringBufferMask) {
-                state.nextRunningState = INSERT_LOOP;
-                state.bytesToWrite = state.ringBufferSize;
-                state.bytesWritten = 0;
-                state.runningState = WRITE;
+              s.literalBlockLength--;
+              BitReader.fillBitWindow(s);
+              ringBuffer[s.pos] =
+                  (byte) readSymbol(s.hGroup0, s.literalTree, s);
+              s.j++;
+              if (s.pos++ == ringBufferMask) {
+                s.nextRunningState = INSERT_LOOP;
+                s.bytesToWrite = s.ringBufferSize;
+                s.bytesWritten = 0;
+                s.runningState = WRITE;
                 break;
               }
             }
           } else {
-            int prevByte1 = ringBuffer[(state.pos - 1) & ringBufferMask] & 0xFF;
-            int prevByte2 = ringBuffer[(state.pos - 2) & ringBufferMask] & 0xFF;
-            while (state.j < state.insertLength) {
-              BitReader.readMoreInput(br);
-              if (state.blockLength[0] == 0) {
-                decodeLiteralBlockSwitch(state);
+            int prevByte1 = ringBuffer[(s.pos - 1) & ringBufferMask] & 0xFF;
+            int prevByte2 = ringBuffer[(s.pos - 2) & ringBufferMask] & 0xFF;
+            while (s.j < s.insertLength) {
+              BitReader.readMoreInput(s);
+              if (s.literalBlockLength == 0) {
+                decodeLiteralBlockSwitch(s);
               }
-              int literalTreeIndex = state.contextMap[state.contextMapSlice
-                + (Context.LOOKUP[state.contextLookupOffset1 + prevByte1]
-                    | Context.LOOKUP[state.contextLookupOffset2 + prevByte2])] & 0xFF;
-              state.blockLength[0]--;
+              int literalTreeIndex = s.contextMap[s.contextMapSlice
+                + (Context.LOOKUP[s.contextLookupOffset1 + prevByte1]
+                    | Context.LOOKUP[s.contextLookupOffset2 + prevByte2])] & 0xFF;
+              s.literalBlockLength--;
               prevByte2 = prevByte1;
-              BitReader.fillBitWindow(br);
+              BitReader.fillBitWindow(s);
               prevByte1 = readSymbol(
-                  state.hGroup0.codes, state.hGroup0.trees[literalTreeIndex], br);
-              ringBuffer[state.pos] = (byte) prevByte1;
-              state.j++;
-              if (state.pos++ == ringBufferMask) {
-                state.nextRunningState = INSERT_LOOP;
-                state.bytesToWrite = state.ringBufferSize;
-                state.bytesWritten = 0;
-                state.runningState = WRITE;
+                  s.hGroup0, s.hGroup0[literalTreeIndex], s);
+              ringBuffer[s.pos] = (byte) prevByte1;
+              s.j++;
+              if (s.pos++ == ringBufferMask) {
+                s.nextRunningState = INSERT_LOOP;
+                s.bytesToWrite = s.ringBufferSize;
+                s.bytesWritten = 0;
+                s.runningState = WRITE;
                 break;
               }
             }
           }
-          if (state.runningState != INSERT_LOOP) {
+          if (s.runningState != INSERT_LOOP) {
             continue;
           }
-          state.metaBlockLength -= state.insertLength;
-          if (state.metaBlockLength <= 0) {
-            state.runningState = MAIN_LOOP;
+          s.metaBlockLength -= s.insertLength;
+          if (s.metaBlockLength <= 0) {
+            s.runningState = MAIN_LOOP;
             continue;
           }
-          if (state.distanceCode < 0) {
-            BitReader.readMoreInput(br);
-            if (state.blockLength[2] == 0) {
-              decodeDistanceBlockSwitch(state);
+          if (s.distanceCode < 0) {
+            BitReader.readMoreInput(s);
+            if (s.distanceBlockLength == 0) {
+              decodeDistanceBlockSwitch(s);
             }
-            state.blockLength[2]--;
-            BitReader.fillBitWindow(br);
-            state.distanceCode = readSymbol(state.hGroup2.codes, state.hGroup2.trees[
-                state.distContextMap[state.distContextMapSlice
-                    + (state.copyLength > 4 ? 3 : state.copyLength - 2)] & 0xFF], br);
-            if (state.distanceCode >= state.numDirectDistanceCodes) {
-              state.distanceCode -= state.numDirectDistanceCodes;
-              int postfix = state.distanceCode & state.distancePostfixMask;
-              state.distanceCode >>>= state.distancePostfixBits;
-              int n = (state.distanceCode >>> 1) + 1;
-              int offset = ((2 + (state.distanceCode & 1)) << n) - 4;
-              state.distanceCode = state.numDirectDistanceCodes + postfix
-                  + ((offset + BitReader.readBits(br, n)) << state.distancePostfixBits);
+            s.distanceBlockLength--;
+            BitReader.fillBitWindow(s);
+            s.distanceCode = readSymbol(s.hGroup2, s.hGroup2[
+                s.distContextMap[s.distContextMapSlice
+                    + (s.copyLength > 4 ? 3 : s.copyLength - 2)] & 0xFF], s);
+            if (s.distanceCode >= s.numDirectDistanceCodes) {
+              s.distanceCode -= s.numDirectDistanceCodes;
+              int postfix = s.distanceCode & s.distancePostfixMask;
+              s.distanceCode >>>= s.distancePostfixBits;
+              int n = (s.distanceCode >>> 1) + 1;
+              int offset = ((2 + (s.distanceCode & 1)) << n) - 4;
+              s.distanceCode = s.numDirectDistanceCodes + postfix
+                  + ((offset + BitReader.readBits(s, n)) << s.distancePostfixBits);
             }
           }
 
           // Convert the distance code to the actual distance by possibly looking up past distances
           // from the ringBuffer.
-          state.distance = translateShortCodes(state.distanceCode, state.distRb, state.distRbIdx);
-          if (state.distance < 0) {
+          s.distance = translateShortCodes(s.distanceCode, s.rings, s.distRbIdx);
+          if (s.distance < 0) {
             throw new BrotliRuntimeException("Negative distance"); // COV_NF_LINE
           }
 
-          if (state.maxDistance != state.maxBackwardDistance
-              && state.pos < state.maxBackwardDistance) {
-            state.maxDistance = state.pos;
+          if (s.maxDistance != s.maxBackwardDistance
+              && s.pos < s.maxBackwardDistance) {
+            s.maxDistance = s.pos;
           } else {
-            state.maxDistance = state.maxBackwardDistance;
+            s.maxDistance = s.maxBackwardDistance;
           }
 
-          state.copyDst = state.pos;
-          if (state.distance > state.maxDistance) {
-            state.runningState = TRANSFORM;
+          s.copyDst = s.pos;
+          if (s.distance > s.maxDistance) {
+            s.runningState = TRANSFORM;
             continue;
           }
 
-          if (state.distanceCode > 0) {
-            state.distRb[state.distRbIdx & 3] = state.distance;
-            state.distRbIdx++;
+          if (s.distanceCode > 0) {
+            s.rings[s.distRbIdx & 3] = s.distance;
+            s.distRbIdx++;
           }
 
-          if (state.copyLength > state.metaBlockLength) {
+          if (s.copyLength > s.metaBlockLength) {
             throw new BrotliRuntimeException("Invalid backward reference"); // COV_NF_LINE
           }
-          state.j = 0;
-          state.runningState = COPY_LOOP;
+          s.j = 0;
+          s.runningState = COPY_LOOP;
           // fall through
         case COPY_LOOP:
-          int src = (state.pos - state.distance) & ringBufferMask;
-          int dst = state.pos;
-          int copyLength = state.copyLength - state.j;
+          int src = (s.pos - s.distance) & ringBufferMask;
+          int dst = s.pos;
+          int copyLength = s.copyLength - s.j;
           if ((src + copyLength < ringBufferMask) && (dst + copyLength < ringBufferMask)) {
             for (int k = 0; k < copyLength; ++k) {
               ringBuffer[dst++] = ringBuffer[src++];
             }
-            state.j += copyLength;
-            state.metaBlockLength -= copyLength;
-            state.pos += copyLength;
+            s.j += copyLength;
+            s.metaBlockLength -= copyLength;
+            s.pos += copyLength;
           } else {
-            for (; state.j < state.copyLength;) {
-              ringBuffer[state.pos] =
-                  ringBuffer[(state.pos - state.distance) & ringBufferMask];
-              state.metaBlockLength--;
-              state.j++;
-              if (state.pos++ == ringBufferMask) {
-                state.nextRunningState = COPY_LOOP;
-                state.bytesToWrite = state.ringBufferSize;
-                state.bytesWritten = 0;
-                state.runningState = WRITE;
+            for (; s.j < s.copyLength;) {
+              ringBuffer[s.pos] =
+                  ringBuffer[(s.pos - s.distance) & ringBufferMask];
+              s.metaBlockLength--;
+              s.j++;
+              if (s.pos++ == ringBufferMask) {
+                s.nextRunningState = COPY_LOOP;
+                s.bytesToWrite = s.ringBufferSize;
+                s.bytesWritten = 0;
+                s.runningState = WRITE;
                 break;
               }
             }
           }
-          if (state.runningState == COPY_LOOP) {
-            state.runningState = MAIN_LOOP;
+          if (s.runningState == COPY_LOOP) {
+            s.runningState = MAIN_LOOP;
           }
           continue;
 
         case TRANSFORM:
-          if (state.copyLength >= Dictionary.MIN_WORD_LENGTH
-              && state.copyLength <= Dictionary.MAX_WORD_LENGTH) {
-            int offset = Dictionary.OFFSETS_BY_LENGTH[state.copyLength];
-            int wordId = state.distance - state.maxDistance - 1;
-            int shift = Dictionary.SIZE_BITS_BY_LENGTH[state.copyLength];
+          if (s.copyLength >= MIN_WORD_LENGTH
+              && s.copyLength <= MAX_WORD_LENGTH) {
+            int offset = DICTIONARY_OFFSETS_BY_LENGTH[s.copyLength];
+            int wordId = s.distance - s.maxDistance - 1;
+            int shift = DICTIONARY_SIZE_BITS_BY_LENGTH[s.copyLength];
             int mask = (1 << shift) - 1;
             int wordIdx = wordId & mask;
             int transformIdx = wordId >>> shift;
-            offset += wordIdx * state.copyLength;
-            if (transformIdx < Transform.TRANSFORMS.length) {
-              int len = Transform.transformDictionaryWord(ringBuffer, state.copyDst,
-                  Dictionary.getData(), offset, state.copyLength,
-                  Transform.TRANSFORMS[transformIdx]);
-              state.copyDst += len;
-              state.pos += len;
-              state.metaBlockLength -= len;
-              if (state.copyDst >= state.ringBufferSize) {
-                state.nextRunningState = COPY_WRAP_BUFFER;
-                state.bytesToWrite = state.ringBufferSize;
-                state.bytesWritten = 0;
-                state.runningState = WRITE;
+            offset += wordIdx * s.copyLength;
+            if (transformIdx < Transform.NUM_TRANSFORMS) {
+              int len = Transform.transformDictionaryWord(ringBuffer, s.copyDst,
+                  Dictionary.getData(), offset, s.copyLength, transformIdx);
+              s.copyDst += len;
+              s.pos += len;
+              s.metaBlockLength -= len;
+              if (s.copyDst >= s.ringBufferSize) {
+                s.nextRunningState = COPY_WRAP_BUFFER;
+                s.bytesToWrite = s.ringBufferSize;
+                s.bytesWritten = 0;
+                s.runningState = WRITE;
                 continue;
               }
             } else {
@@ -819,52 +929,51 @@ final class Decode {
           } else {
             throw new BrotliRuntimeException("Invalid backward reference"); // COV_NF_LINE
           }
-          state.runningState = MAIN_LOOP;
+          s.runningState = MAIN_LOOP;
           continue;
 
         case COPY_WRAP_BUFFER:
-          System.arraycopy(ringBuffer, state.ringBufferSize, ringBuffer, 0,
-              state.copyDst - state.ringBufferSize);
-          state.runningState = MAIN_LOOP;
+          Utils.copyBytesWithin(ringBuffer, 0, s.ringBufferSize, s.copyDst);
+          s.runningState = MAIN_LOOP;
           continue;
 
         case READ_METADATA:
-          while (state.metaBlockLength > 0) {
-            BitReader.readMoreInput(br);
+          while (s.metaBlockLength > 0) {
+            BitReader.readMoreInput(s);
             // Optimize
-            BitReader.readBits(br, 8);
-            state.metaBlockLength--;
+            BitReader.readFewBits(s, 8);
+            s.metaBlockLength--;
           }
-          state.runningState = BLOCK_START;
+          s.runningState = BLOCK_START;
           continue;
 
 
         case COPY_UNCOMPRESSED:
-          copyUncompressedData(state);
+          copyUncompressedData(s);
           continue;
 
         case WRITE:
-          if (!writeRingBuffer(state)) {
+          if (writeRingBuffer(s) == 0) {
             // Output buffer is full.
             return;
           }
-          if (state.pos >= state.maxBackwardDistance) {
-            state.maxDistance = state.maxBackwardDistance;
+          if (s.pos >= s.maxBackwardDistance) {
+            s.maxDistance = s.maxBackwardDistance;
           }
-          state.pos &= ringBufferMask;
-          state.runningState = state.nextRunningState;
+          s.pos &= ringBufferMask;
+          s.runningState = s.nextRunningState;
           continue;
 
         default:
-          throw new BrotliRuntimeException("Unexpected state " + state.runningState);
+          throw new BrotliRuntimeException("Unexpected state " + s.runningState);
       }
     }
-    if (state.runningState == FINISHED) {
-      if (state.metaBlockLength < 0) {
+    if (s.runningState == FINISHED) {
+      if (s.metaBlockLength < 0) {
         throw new BrotliRuntimeException("Invalid metablock length");
       }
-      BitReader.jumpToByteBoundary(br);
-      BitReader.checkHealth(state.br, true);
+      BitReader.jumpToByteBoundary(s);
+      BitReader.checkHealth(s, 1);
     }
   }
 }

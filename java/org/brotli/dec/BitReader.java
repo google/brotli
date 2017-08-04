@@ -6,52 +6,34 @@
 
 package org.brotli.dec;
 
-import java.io.IOException;
-import java.io.InputStream;
-
 /**
  * Bit reading helpers.
  */
 final class BitReader {
 
-  /**
-   * Input byte buffer, consist of a ring-buffer and a "slack" region where bytes from the start of
-   * the ring-buffer are copied.
-   */
-  private static final int CAPACITY = 1024;
-  private static final int SLACK = 16;
-  private static final int INT_BUFFER_SIZE = CAPACITY + SLACK;
-  private static final int BYTE_READ_SIZE = CAPACITY << 2;
-  private static final int BYTE_BUFFER_SIZE = INT_BUFFER_SIZE << 2;
+  // Possible values: {5, 6}.  5 corresponds to 32-bit build, 6 to 64-bit. This value is used for
+  // conditional compilation -> produced artifacts might be binary INCOMPATIBLE (JLS 13.2).
+  private static final int LOG_BITNESS = 6;
+  private static final int BITNESS = 1 << LOG_BITNESS;
 
-  private final byte[] byteBuffer = new byte[BYTE_BUFFER_SIZE];
-  private final int[] intBuffer = new int[INT_BUFFER_SIZE];
-  private final IntReader intReader = new IntReader();
+  private static final int BYTENESS = BITNESS / 8;
+  private static final int CAPACITY = 4096;
+  // After encountering the end of the input stream, this amount of zero bytes will be appended.
+  private static final int SLACK = 64;
+  private static final int BUFFER_SIZE = CAPACITY + SLACK;
+  // Don't bother to replenish the buffer while this number of bytes is available.
+  private static final int SAFEGUARD = 36;
+  private static final int WATERLINE = CAPACITY - SAFEGUARD;
 
-  private InputStream input;
+  // "Half" refers to "half of native integer type", i.e. on 64-bit machines it is 32-bit type,
+  // on 32-bit machines it is 16-bit.
+  private static final int HALF_BITNESS = BITNESS / 2;
+  private static final int HALF_SIZE = BYTENESS / 2;
+  private static final int HALVES_CAPACITY = CAPACITY / HALF_SIZE;
+  private static final int HALF_BUFFER_SIZE = BUFFER_SIZE / HALF_SIZE;
+  private static final int HALF_WATERLINE = WATERLINE / HALF_SIZE;
 
-  /**
-   * Input stream is finished.
-   */
-  private boolean endOfStreamReached;
-
-  /**
-   * Pre-fetched bits.
-   */
-  long accumulator;
-
-  /**
-   * Current bit-reading position in accumulator.
-   */
-  int bitOffset;
-
-  /**
-   * Offset of next item in intBuffer.
-   */
-  private int intOffset;
-
-  /* Number of bytes in unfinished "int" item. */
-  private int tailBytes = 0;
+  private static final int LOG_HALF_SIZE = LOG_BITNESS - 4;
 
   /**
    * Fills up the input buffer.
@@ -62,141 +44,148 @@ final class BitReader {
    * buffer.
    */
   // TODO: Split to check and read; move read outside of decoding loop.
-  static void readMoreInput(BitReader br) {
-    if (br.intOffset <= CAPACITY - 9) {
+  static void readMoreInput(State s) {
+    if (s.halfOffset <= HALF_WATERLINE) {
       return;
     }
-    if (br.endOfStreamReached) {
-      if (intAvailable(br) >= -2) {
+    if (s.endOfStreamReached != 0) {
+      if (halfAvailable(s) >= -2) {
         return;
       }
       throw new BrotliRuntimeException("No more input");
     }
-    int readOffset = br.intOffset << 2;
-    int bytesRead = BYTE_READ_SIZE - readOffset;
-    System.arraycopy(br.byteBuffer, readOffset, br.byteBuffer, 0, bytesRead);
-    br.intOffset = 0;
-    try {
-      while (bytesRead < BYTE_READ_SIZE) {
-        int len = br.input.read(br.byteBuffer, bytesRead, BYTE_READ_SIZE - bytesRead);
-        // EOF is -1 in Java, but 0 in C#.
-        if (len <= 0) {
-          br.endOfStreamReached = true;
-          br.tailBytes = bytesRead;
-          bytesRead += 3;
-          break;
-        }
-        bytesRead += len;
+    int readOffset = s.halfOffset << LOG_HALF_SIZE;
+    int bytesInBuffer = CAPACITY - readOffset;
+    // Move unused bytes to the head of the buffer.
+    Utils.copyBytesWithin(s.byteBuffer, 0, readOffset, CAPACITY);
+    s.halfOffset = 0;
+    while (bytesInBuffer < CAPACITY) {
+      int spaceLeft = CAPACITY - bytesInBuffer;
+      int len = Utils.readInput(s.input, s.byteBuffer, bytesInBuffer, spaceLeft);
+      // EOF is -1 in Java, but 0 in C#.
+      if (len <= 0) {
+        s.endOfStreamReached = 1;
+        s.tailBytes = bytesInBuffer;
+        bytesInBuffer += HALF_SIZE - 1;
+        break;
       }
-    } catch (IOException e) {
-      throw new BrotliRuntimeException("Failed to read input", e);
+      bytesInBuffer += len;
     }
-    IntReader.convert(br.intReader, bytesRead >> 2);
+    bytesToNibbles(s, bytesInBuffer);
   }
 
-  static void checkHealth(BitReader br, boolean endOfStream) {
-    if (!br.endOfStreamReached) {
+  static void checkHealth(State s, int endOfStream) {
+    if (s.endOfStreamReached == 0) {
       return;
     }
-    int byteOffset = (br.intOffset << 2) + ((br.bitOffset + 7) >> 3) - 8;
-    if (byteOffset > br.tailBytes) {
+    int byteOffset = (s.halfOffset << LOG_HALF_SIZE) + ((s.bitOffset + 7) >> 3) - BYTENESS;
+    if (byteOffset > s.tailBytes) {
       throw new BrotliRuntimeException("Read after end");
     }
-    if (endOfStream && (byteOffset != br.tailBytes)) {
+    if ((endOfStream != 0) && (byteOffset != s.tailBytes)) {
       throw new BrotliRuntimeException("Unused bytes after end");
     }
   }
 
-  /**
-   * Advances the Read buffer by 5 bytes to make room for reading next 24 bits.
-   */
-  static void fillBitWindow(BitReader br) {
-    if (br.bitOffset >= 32) {
-      br.accumulator = ((long) br.intBuffer[br.intOffset++] << 32) | (br.accumulator >>> 32);
-      br.bitOffset -= 32;
+  static void fillBitWindow(State s) {
+    if (s.bitOffset >= HALF_BITNESS) {
+      if (BITNESS == 64) {
+        s.accumulator64 = ((long) s.intBuffer[s.halfOffset++] << HALF_BITNESS)
+            | (s.accumulator64 >>> HALF_BITNESS);
+      } else {
+        s.accumulator32 = ((int) s.shortBuffer[s.halfOffset++] << HALF_BITNESS)
+            | (s.accumulator32 >>> HALF_BITNESS);
+      }
+      s.bitOffset -= HALF_BITNESS;
     }
   }
 
-  /**
-   * Reads the specified number of bits from Read Buffer.
-   */
-  static int readBits(BitReader br, int n) {
-    fillBitWindow(br);
-    int val = (int) (br.accumulator >>> br.bitOffset) & ((1 << n) - 1);
-    br.bitOffset += n;
+  static int peekBits(State s) {
+    if (BITNESS == 64) {
+      return (int) (s.accumulator64 >>> s.bitOffset);
+    } else {
+      return s.accumulator32 >>> s.bitOffset;
+    }
+  }
+
+  static int readFewBits(State s, int n) {
+    fillBitWindow(s);
+    int val = peekBits(s) & ((1 << n) - 1);
+    s.bitOffset += n;
     return val;
   }
 
-  /**
-   * Initialize bit reader.
-   *
-   * <p> Initialisation turns bit reader to a ready state. Also a number of bytes is prefetched to
-   * accumulator. Because of that this method may block until enough data could be read from input.
-   *
-   * @param br BitReader POJO
-   * @param input data source
-   */
-  static void init(BitReader br, InputStream input) {
-    if (br.input != null) {
-      throw new IllegalStateException("Bit reader already has associated input stream");
-    }
-    IntReader.init(br.intReader, br.byteBuffer, br.intBuffer);
-    br.input = input;
-    br.accumulator = 0;
-    br.bitOffset = 64;
-    br.intOffset = CAPACITY;
-    br.endOfStreamReached = false;
-    prepare(br);
-  }
-
-  private static void prepare(BitReader br) {
-    readMoreInput(br);
-    checkHealth(br, false);
-    fillBitWindow(br);
-    fillBitWindow(br);
-  }
-
-  static void reload(BitReader br) {
-    if (br.bitOffset == 64) {
-      prepare(br);
+  static int readBits(State s, int n) {
+    if (HALF_BITNESS >= 24) {
+      return readFewBits(s, n);
+    } else {
+      if (n <= 16) {
+        return readFewBits(s, n);
+      } else if (s.bitOffset + n <= BITNESS) {
+        return readFewBits(s, n);
+      } else {
+        int lo = readFewBits(s, 16);
+        int hi = readFewBits(s, n - 16);
+        return lo | (hi << 16);
+      }
     }
   }
 
-  static void close(BitReader br) throws IOException {
-    InputStream is = br.input;
-    br.input = null;
-    if (is != null) {
-      is.close();
+  static void initBitReader(State s) {
+    s.byteBuffer = new byte[BUFFER_SIZE];
+    if (BITNESS == 64) {
+      s.accumulator64 = 0;
+      s.intBuffer = new int[HALF_BUFFER_SIZE];
+    } else {
+      s.accumulator32 = 0;
+      s.shortBuffer = new short[HALF_BUFFER_SIZE];
+    }
+    s.bitOffset = BITNESS;
+    s.halfOffset = HALVES_CAPACITY;
+    s.endOfStreamReached = 0;
+    prepare(s);
+  }
+
+  static void prepare(State s) {
+    readMoreInput(s);
+    checkHealth(s, 0);
+    fillBitWindow(s);
+    fillBitWindow(s);
+  }
+
+  static void reload(State s) {
+    if (s.bitOffset == BITNESS) {
+      prepare(s);
     }
   }
 
-  static void jumpToByteBoundary(BitReader br) {
-    int padding = (64 - br.bitOffset) & 7;
+  static void jumpToByteBoundary(State s) {
+    int padding = (BITNESS - s.bitOffset) & 7;
     if (padding != 0) {
-      int paddingBits = BitReader.readBits(br, padding);
+      int paddingBits = readBits(s, padding);
       if (paddingBits != 0) {
         throw new BrotliRuntimeException("Corrupted padding bits");
       }
     }
   }
 
-  static int intAvailable(BitReader br) {
-    int limit = CAPACITY;
-    if (br.endOfStreamReached) {
-      limit = (br.tailBytes + 3) >> 2;
+  static int halfAvailable(State s) {
+    int limit = HALVES_CAPACITY;
+    if (s.endOfStreamReached != 0) {
+      limit = (s.tailBytes + (HALF_SIZE - 1)) >> LOG_HALF_SIZE;
     }
-    return limit - br.intOffset;
+    return limit - s.halfOffset;
   }
 
-  static void copyBytes(BitReader br, byte[] data, int offset, int length) {
-    if ((br.bitOffset & 7) != 0) {
+  static void copyBytes(State s, byte[] data, int offset, int length) {
+    if ((s.bitOffset & 7) != 0) {
       throw new BrotliRuntimeException("Unaligned copyBytes");
     }
 
     // Drain accumulator.
-    while ((br.bitOffset != 64) && (length != 0)) {
-      data[offset++] = (byte) (br.accumulator >>> br.bitOffset);
-      br.bitOffset += 8;
+    while ((s.bitOffset != BITNESS) && (length != 0)) {
+      data[offset++] = (byte) peekBits(s);
+      s.bitOffset += 8;
       length--;
     }
     if (length == 0) {
@@ -204,43 +193,63 @@ final class BitReader {
     }
 
     // Get data from shadow buffer with "sizeof(int)" granularity.
-    int copyInts = Math.min(intAvailable(br), length >> 2);
-    if (copyInts > 0) {
-      int readOffset = br.intOffset << 2;
-      System.arraycopy(br.byteBuffer, readOffset, data, offset, copyInts << 2);
-      offset += copyInts << 2;
-      length -= copyInts << 2;
-      br.intOffset += copyInts;
+    int copyNibbles = Math.min(halfAvailable(s), length >> LOG_HALF_SIZE);
+    if (copyNibbles > 0) {
+      int readOffset = s.halfOffset << LOG_HALF_SIZE;
+      int delta = copyNibbles << LOG_HALF_SIZE;
+      System.arraycopy(s.byteBuffer, readOffset, data, offset, delta);
+      offset += delta;
+      length -= delta;
+      s.halfOffset += copyNibbles;
     }
     if (length == 0) {
       return;
     }
 
     // Read tail bytes.
-    if (intAvailable(br) > 0) {
+    if (halfAvailable(s) > 0) {
       // length = 1..3
-      fillBitWindow(br);
+      fillBitWindow(s);
       while (length != 0) {
-        data[offset++] = (byte) (br.accumulator >>> br.bitOffset);
-        br.bitOffset += 8;
+        data[offset++] = (byte) peekBits(s);
+        s.bitOffset += 8;
         length--;
       }
-      checkHealth(br, false);
+      checkHealth(s, 0);
       return;
     }
 
     // Now it is possible to copy bytes directly.
-    try {
-      while (length > 0) {
-        int len = br.input.read(data, offset, length);
-        if (len == -1) {
-          throw new BrotliRuntimeException("Unexpected end of input");
-        }
-        offset += len;
-        length -= len;
+    while (length > 0) {
+      int len = Utils.readInput(s.input, data, offset, length);
+      if (len == -1) {
+        throw new BrotliRuntimeException("Unexpected end of input");
       }
-    } catch (IOException e) {
-      throw new BrotliRuntimeException("Failed to read input", e);
+      offset += len;
+      length -= len;
+    }
+  }
+
+  /**
+   * Translates bytes to halves (int/short).
+   */
+  static void bytesToNibbles(State s, int byteLen) {
+    byte[] byteBuffer = s.byteBuffer;
+    int halfLen = byteLen >> LOG_HALF_SIZE;
+    if (BITNESS == 64) {
+      int[] intBuffer = s.intBuffer;
+      for (int i = 0; i < halfLen; ++i) {
+        intBuffer[i] = ((byteBuffer[i * 4] & 0xFF))
+            | ((byteBuffer[(i * 4) + 1] & 0xFF) << 8)
+            | ((byteBuffer[(i * 4) + 2] & 0xFF) << 16)
+            | ((byteBuffer[(i * 4) + 3] & 0xFF) << 24);
+      }
+    } else {
+      short[] shortBuffer = s.shortBuffer;
+      for (int i = 0; i < halfLen; ++i) {
+        shortBuffer[i] = (short) ((byteBuffer[i * 2] & 0xFF)
+            | ((byteBuffer[(i * 2) + 1] & 0xFF) << 8));
+      }
     }
   }
 }

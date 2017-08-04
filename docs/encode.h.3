@@ -1,4 +1,4 @@
-.TH "encode.h" 3 "Tue Feb 28 2017" "Brotli" \" -*- nroff -*-
+.TH "encode.h" 3 "Wed Aug 2 2017" "Brotli" \" -*- nroff -*-
 .ad l
 .nh
 .SH NAME
@@ -99,10 +99,6 @@ encode.h \- API for Brotli compression\&.
 .RI "size_t \fBBrotliEncoderMaxCompressedSize\fP (size_t input_size)"
 .br
 .RI "\fICalculates the output size bound for the given \fCinput_size\fP\&. \fP"
-.ti -1c
-.RI "void \fBBrotliEncoderSetCustomDictionary\fP (\fBBrotliEncoderState\fP *state, size_t size, const uint8_t dict[size])"
-.br
-.RI "\fIPrepends imaginary LZ77 dictionary\&. \fP"
 .ti -1c
 .RI "\fBBROTLI_BOOL\fP \fBBrotliEncoderSetParameter\fP (\fBBrotliEncoderState\fP *state, \fBBrotliEncoderParameter\fP param, uint32_t value)"
 .br
@@ -479,39 +475,6 @@ Result is not applicable to \fBBrotliEncoderCompressStream\fP output, because ev
 \fBReturns:\fP
 .RS 4
 \fC0\fP if result does not fit \fCsize_t\fP 
-.RE
-.PP
-
-.SS "void BrotliEncoderSetCustomDictionary (\fBBrotliEncoderState\fP * state, size_t size, const uint8_t dict[size])"
-
-.PP
-Prepends imaginary LZ77 dictionary\&. Fills the fresh \fBBrotliEncoderState\fP with additional data corpus for LZ77 backward references\&.
-.PP
-\fBNote:\fP
-.RS 4
-Not to be confused with the static dictionary (see RFC7932 section 8)\&.
-.RE
-.PP
-Workflow:
-.IP "1." 4
-Allocate and initialize state with \fBBrotliEncoderCreateInstance\fP
-.IP "2." 4
-Set \fBBROTLI_PARAM_LGWIN\fP parameter
-.IP "3." 4
-Invoke \fBBrotliEncoderSetCustomDictionary\fP
-.IP "4." 4
-Use \fBBrotliEncoderCompressStream\fP
-.IP "5." 4
-Clean up and free state with \fBBrotliEncoderDestroyInstance\fP
-.PP
-.PP
-\fBParameters:\fP
-.RS 4
-\fIstate\fP encoder instance 
-.br
-\fIsize\fP length of \fCdict\fP; at most 'window size' bytes are used 
-.br
-\fIdict\fP 'dictionary'; \fBMUST\fP use same dictionary during decompression 
 .RE
 .PP
 

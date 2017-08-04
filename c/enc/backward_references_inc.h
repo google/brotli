@@ -5,11 +5,11 @@
    See file LICENSE for detail or copy at https://opensource.org/licenses/MIT
 */
 
-/* template parameters: FN */
+/* template parameters: EXPORT_FN, FN */
 
-static BROTLI_NOINLINE void FN(CreateBackwardReferences)(
-    const BrotliDictionary* dictionary, const uint16_t* dictionary_hash,
-    size_t num_bytes, size_t position,
+static BROTLI_NOINLINE void EXPORT_FN(CreateBackwardReferences)(
+    const BrotliDictionary* dictionary,
+    const uint16_t* dictionary_hash, size_t num_bytes, size_t position,
     const uint8_t* ringbuffer, size_t ringbuffer_mask,
     const BrotliEncoderParams* params, HasherHandle hasher, int* dist_cache,
     size_t* last_insert_len, Command* commands, size_t* num_commands,
@@ -27,6 +27,7 @@ static BROTLI_NOINLINE void FN(CreateBackwardReferences)(
   const size_t random_heuristics_window_size =
       LiteralSpreeLengthForSparseSearch(params);
   size_t apply_random_heuristics = position + random_heuristics_window_size;
+  const size_t gap = 0;
 
   /* Minimum score to accept a backward reference. */
   const score_t kMinScore = BROTLI_SCORE_BASE + 100;
@@ -43,7 +44,7 @@ static BROTLI_NOINLINE void FN(CreateBackwardReferences)(
     sr.score = kMinScore;
     FN(FindLongestMatch)(hasher, dictionary, dictionary_hash, ringbuffer,
                          ringbuffer_mask, dist_cache, position,
-                         max_length, max_distance, &sr);
+                         max_length, max_distance, gap, &sr);
     if (sr.score > kMinScore) {
       /* Found a match. Let's look for something even better ahead. */
       int delayed_backward_references_in_row = 0;
@@ -59,7 +60,7 @@ static BROTLI_NOINLINE void FN(CreateBackwardReferences)(
         max_distance = BROTLI_MIN(size_t, position + 1, max_backward_limit);
         FN(FindLongestMatch)(hasher, dictionary, dictionary_hash, ringbuffer,
                              ringbuffer_mask, dist_cache, position + 1,
-                             max_length, max_distance, &sr2);
+                             max_length, max_distance, gap, &sr2);
         if (sr2.score >= sr.score + cost_diff_lazy) {
           /* Ok, let's just write one byte for now and start a match from the
              next byte. */
@@ -80,8 +81,8 @@ static BROTLI_NOINLINE void FN(CreateBackwardReferences)(
         /* The first 16 codes are special short-codes,
            and the minimum offset is 1. */
         size_t distance_code =
-            ComputeDistanceCode(sr.distance, max_distance, dist_cache);
-        if (sr.distance <= max_distance && distance_code > 0) {
+            ComputeDistanceCode(sr.distance, max_distance + gap, dist_cache);
+        if ((sr.distance <= (max_distance + gap)) && distance_code > 0) {
           dist_cache[3] = dist_cache[2];
           dist_cache[2] = dist_cache[1];
           dist_cache[1] = dist_cache[0];

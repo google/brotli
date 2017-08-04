@@ -114,13 +114,6 @@ def main(args=None):
         help='Base 2 logarithm of the maximum input block size. '
         'Range is 16 to 24. If set to 0, the value will be set based '
         'on the quality. Defaults to 0.')
-    params.add_argument(
-        '--custom-dictionary',
-        metavar='FILE',
-        type=str,
-        dest='dictfile',
-        help='Custom dictionary file.',
-        default=None)
     # set default values using global DEFAULT_PARAMS dictionary
     parser.set_defaults(**DEFAULT_PARAMS)
 
@@ -145,25 +138,16 @@ def main(args=None):
     else:
         outfile = get_binary_stdio('stdout')
 
-    if options.dictfile:
-        if not os.path.isfile(options.dictfile):
-            parser.error('file "%s" not found' % options.dictfile)
-        with open(options.dictfile, 'rb') as dictfile:
-            custom_dictionary = dictfile.read()
-    else:
-        custom_dictionary = ''
-
     try:
         if options.decompress:
-            data = brotli.decompress(data, dictionary=custom_dictionary)
+            data = brotli.decompress(data)
         else:
             data = brotli.compress(
                 data,
                 mode=options.mode,
                 quality=options.quality,
                 lgwin=options.lgwin,
-                lgblock=options.lgblock,
-                dictionary=custom_dictionary)
+                lgblock=options.lgblock)
     except brotli.error as e:
         parser.exit(1,
                     'bro: error: %s: %s' % (e, options.infile or 'sys.stdin'))

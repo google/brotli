@@ -15,8 +15,6 @@ namespace {
 typedef struct DecoderHandle {
   BrotliDecoderState* state;
 
-  jobject custom_dictionary_ref;
-
   uint8_t* input_start;
   size_t input_offset;
   size_t input_length;
@@ -44,7 +42,7 @@ extern "C" {
  */
 JNIEXPORT jobject JNICALL
 Java_org_brotli_wrapper_dec_DecoderJNI_nativeCreate(
-    JNIEnv* env, jobject /*jobj*/, jlongArray ctx, jobject custom_dictionary) {
+    JNIEnv* env, jobject /*jobj*/, jlongArray ctx) {
   bool ok = true;
   DecoderHandle* handle = nullptr;
   jlong context[2];
@@ -55,7 +53,6 @@ Java_org_brotli_wrapper_dec_DecoderJNI_nativeCreate(
   ok = !!handle;
 
   if (ok) {
-    handle->custom_dictionary_ref = nullptr;
     handle->input_offset = 0;
     handle->input_length = 0;
     handle->input_start = nullptr;
@@ -73,36 +70,11 @@ Java_org_brotli_wrapper_dec_DecoderJNI_nativeCreate(
     ok = !!handle->state;
   }
 
-  if (ok && !!custom_dictionary) {
-    handle->custom_dictionary_ref = env->NewGlobalRef(custom_dictionary);
-    if (!!handle->custom_dictionary_ref) {
-      uint8_t* custom_dictionary_address = static_cast<uint8_t*>(
-          env->GetDirectBufferAddress(handle->custom_dictionary_ref));
-      if (!!custom_dictionary_address) {
-        jlong capacity =
-            env->GetDirectBufferCapacity(handle->custom_dictionary_ref);
-        ok = (capacity > 0) && (capacity < (1 << 24));
-        if (ok) {
-          size_t custom_dictionary_size = static_cast<size_t>(capacity);
-          BrotliDecoderSetCustomDictionary(
-              handle->state, custom_dictionary_size, custom_dictionary_address);
-        }
-      } else {
-        ok = false;
-      }
-    } else {
-      ok = false;
-    }
-  }
-
   if (ok) {
     /* TODO: future versions (e.g. when 128-bit architecture comes)
                      might require thread-safe cookie<->handle mapping. */
     context[0] = reinterpret_cast<jlong>(handle);
   } else if (!!handle) {
-    if (!!handle->custom_dictionary_ref) {
-      env->DeleteGlobalRef(handle->custom_dictionary_ref);
-    }
     if (!!handle->input_start) delete[] handle->input_start;
     delete handle;
   }
@@ -216,9 +188,6 @@ Java_org_brotli_wrapper_dec_DecoderJNI_nativeDestroy(
   env->GetLongArrayRegion(ctx, 0, 2, context);
   DecoderHandle* handle = getHandle(reinterpret_cast<void*>(context[0]));
   BrotliDecoderDestroyInstance(handle->state);
-  if (!!handle->custom_dictionary_ref) {
-    env->DeleteGlobalRef(handle->custom_dictionary_ref);
-  }
   delete[] handle->input_start;
   delete handle;
 }

@@ -22,6 +22,14 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class SynthTest {
 
+  static byte[] readUniBytes(String uniBytes) {
+    byte[] result = new byte[uniBytes.length()];
+    for (int i = 0; i < result.length; ++i) {
+      result[i] = (byte) uniBytes.charAt(i);
+    }
+    return result;
+  }
+
   private byte[] decompress(byte[] data) throws IOException {
     byte[] buffer = new byte[65536];
     ByteArrayInputStream input = new ByteArrayInputStream(data);
@@ -40,7 +48,7 @@ public class SynthTest {
 
   private void checkSynth(byte[] compressed, boolean expectSuccess,
       String expectedOutput) {
-    byte[] expected = Transform.readUniBytes(expectedOutput);
+    byte[] expected = readUniBytes(expectedOutput);
     try {
       byte[] actual = decompress(compressed);
       if (!expectSuccess) {

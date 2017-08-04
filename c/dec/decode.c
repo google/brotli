@@ -1226,7 +1226,9 @@ static BrotliDecoderErrorCode BROTLI_NOINLINE WriteRingBuffer(
   BROTLI_LOG_UINT(to_write);
   BROTLI_LOG_UINT(num_written);
   s->partial_pos_out += num_written;
-  if (total_out) *total_out = s->partial_pos_out - (size_t)s->custom_dict_size;
+  if (total_out) {
+    *total_out = s->partial_pos_out;
+  }
   if (num_written < to_write) {
     if (s->ringbuffer_size == (1 << s->window_bits) || force) {
       return BROTLI_DECODER_NEEDS_MORE_OUTPUT;
@@ -1278,13 +1280,7 @@ static BROTLI_BOOL BROTLI_NOINLINE BrotliEnsureRingBuffer(
   s->ringbuffer[s->new_ringbuffer_size - 2] = 0;
   s->ringbuffer[s->new_ringbuffer_size - 1] = 0;
 
-  if (!old_ringbuffer) {
-    if (s->custom_dict) {
-      memcpy(s->ringbuffer, s->custom_dict, (size_t)s->custom_dict_size);
-      s->partial_pos_out = (size_t)s->custom_dict_size;
-      s->pos = s->custom_dict_size;
-    }
-  } else {
+  if (!!old_ringbuffer) {
     memcpy(s->ringbuffer, old_ringbuffer, (size_t)s->pos);
     BROTLI_FREE(s, old_ringbuffer);
   }
@@ -1373,8 +1369,7 @@ static void BROTLI_NOINLINE BrotliCalculateRingBufferSize(
   }
 
   if (!s->ringbuffer) {
-    /* Custom dictionary counts as a "virtual" output. */
-    output_size = s->custom_dict_size;
+    output_size = 0;
   } else {
     output_size = s->pos;
   }
@@ -1752,14 +1747,14 @@ CommandPostDecodeLiterals:
   /* Apply copy of LZ77 back-reference, or static dictionary reference if
   the distance is larger than the max LZ77 distance */
   if (s->distance_code > s->max_distance) {
+    int address = s->distance_code - s->max_distance - 1;
     if (i >= BROTLI_MIN_DICTIONARY_WORD_LENGTH &&
         i <= BROTLI_MAX_DICTIONARY_WORD_LENGTH) {
       int offset = (int)s->dictionary->offsets_by_length[i];
-      int word_id = s->distance_code - s->max_distance - 1;
       uint32_t shift = s->dictionary->size_bits_by_length[i];
       int mask = (int)BitMask(shift);
-      int word_idx = word_id & mask;
-      int transform_idx = word_id >> shift;
+      int word_idx = address & mask;
+      int transform_idx = address >> shift;
       /* Compensate double distance-ring-buffer roll. */
       s->dist_rb_idx += s->distance_context;
       offset += word_idx * i;
@@ -2022,11 +2017,6 @@ BrotliDecoderResult BrotliDecoderDecompressStream(
         }
         /* Maximum distance, see section 9.1. of the spec. */
         s->max_backward_distance = (1 << s->window_bits) - BROTLI_WINDOW_GAP;
-        /* Limit custom dictionary size. */
-        if (s->custom_dict_size >= s->max_backward_distance) {
-          s->custom_dict += s->custom_dict_size - s->max_backward_distance;
-          s->custom_dict_size = s->max_backward_distance;
-        }
 
         /* Allocate memory for both block_type_trees and block_len_trees. */
         s->block_type_trees = (HuffmanCode*)BROTLI_ALLOC(s,
@@ -2321,15 +2311,6 @@ BrotliDecoderResult BrotliDecoderDecompressStream(
     }
   }
   return SaveErrorCode(s, result);
-}
-
-void BrotliDecoderSetCustomDictionary(
-    BrotliDecoderState* s, size_t size, const uint8_t* dict) {
-  if (size > (1u << 24)) {
-    return;
-  }
-  s->custom_dict = dict;
-  s->custom_dict_size = (int)size;
 }
 
 BROTLI_BOOL BrotliDecoderHasMoreOutput(const BrotliDecoderState* s) {
