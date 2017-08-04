@@ -79,8 +79,12 @@ from source, development, and testing.
 * [Lzturbo Benchmark](https://sites.google.com/site/powturbo/home/benchmark)
 
 ### Related projects
+> **Disclaimer:** Brotli authors take no responsibility for the third party projects mentioned in this section.
+
 Independent [decoder](https://github.com/madler/brotli) implementation by Mark Adler, based entirely on format specification.
 
 JavaScript port of brotli [decoder](https://github.com/devongovett/brotli.js). Could be used directly via `npm install brotli`
 
 Hand ported [decoder / encoder](https://github.com/dominikhlbg/BrotliHaxe) in haxe by Dominik Homberger. Output source code: JavaScript, PHP, Python, Java and C#
+
+7Zip [plugin](https://github.com/mcmilk/7-Zip-Zstd)
