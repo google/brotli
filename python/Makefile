@@ -8,10 +8,12 @@
 .PHONY: all
 # Build
 .PHONY: build
+# Develop
+.PHONY: develop
 # Install
 .PHONY: install
 # Test
-.PHONY: test tests
+.PHONY: test
 # Clean
 .PHONY: clean
 # Format
