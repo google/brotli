@@ -125,9 +125,22 @@ matrix:
       env: BUILD_SYSTEM=cmake C_COMPILER=pgcc CXX_COMPILER=pgc++
 
     ###
-    ## Python build on Linux
+    ## Python 2.7 and 3.6 builds on Linux
     ###
     - os: linux
+      language: python
+      python: 2.7
+      env: BUILD_SYSTEM=python C_COMPILER=gcc-6 CXX_COMPILER=g++-6
+      addons:
+        apt:
+          sources:
+          - ubuntu-toolchain-r-test
+          packages:
+          - gcc-6
+          - g++-6
+    - os: linux
+      language: python
+      python: 3.6
       env: BUILD_SYSTEM=python C_COMPILER=gcc-6 CXX_COMPILER=g++-6
       addons:
         apt:
@@ -163,14 +176,10 @@ matrix:
       env: BUILD_SYSTEM=cmake C_COMPILER=gcc-4.4 CXX_COMPILER=g++-4.4
 
     ###
-    ## Python OS X builds
+    ## Python 2.7 OS X build (using the system /usr/bin/python)
     ###
     - os: osx
-      env: BUILD_SYSTEM=python INSTALL_TYPE=macpython PYTHON_VERSION=2.7.12 C_COMPILER=gcc CXX_COMPILER=g++
-    - os: osx
-      env: BUILD_SYSTEM=python INSTALL_TYPE=macpython PYTHON_VERSION=3.4.4 C_COMPILER=gcc CXX_COMPILER=g++
-    - os: osx
-      env: BUILD_SYSTEM=python INSTALL_TYPE=macpython PYTHON_VERSION=3.5.2 C_COMPILER=gcc CXX_COMPILER=g++
+      env: BUILD_SYSTEM=python C_COMPILER=gcc CXX_COMPILER=g++
 
     ###
     ## Sanitizers
@@ -262,19 +271,9 @@ after_success:
 - scripts/.travis.sh after_success
 
 before_deploy:
-- if [ "${BUILD_SYSTEM}" = "python" ] && [ "${TRAVIS_OS_NAME}" = "osx" ]; then export WHEELS=$(ls ./dist/*.whl); fi
 - scripts/.travis.sh before_deploy
 
 deploy:
-- provider: releases
-  api_key:
-    secure: YcCBi6W/w4dtKCa59Wfm8L5lGWvK7KxaFNDr3yh1Hz5aStXXf758pEMHGewnlbfbwuj5a3SjBb1nLp1M69OQJfxm442uXBaBKo52PM9PPbD7NjvbNIso73pqcSODXQXKuZxDFpEhfuDTVq3hUkUqiwhChWhrFucJsSL51i7qSss=
-  file: "${WHEELS}"
-  skip_cleanup: true
-  on:
-    repo: "google/brotli"
-    tags: true
-    condition: "${BUILD_SYSTEM} = python && ${TRAVIS_OS_NAME} = osx"
 - provider: bintray
   file: "scripts/.bintray.json"
   user: "eustas"

@@ -16,11 +16,6 @@ case "$1" in
 		esac
 
 		case "${BUILD_SYSTEM}" in
-		    "python")
-			source scripts/terryfy/travis_tools.sh
-			get_python_environment $INSTALL_TYPE $PYTHON_VERSION venv
-			pip install --upgrade wheel
-			;;
 		    "bazel")
 			brew install bazel
 			;;
@@ -50,9 +45,6 @@ case "$1" in
 		ctest -V
 		;;
 	    "python")
-		if [ "${TRAVIS_OS_NAME}" = "osx" ]; then
-			source venv/bin/activate
-		fi
 		python setup.py build test
 		;;
 	    "maven")
@@ -65,16 +57,6 @@ case "$1" in
 	esac
 	;;
     "after_success")
-	case "${BUILD_SYSTEM}" in
-	    "python")
-		case "${TRAVIS_OS_NAME}" in
-		    "osx")
-			source venv/bin/activate
-			pip wheel -w dist .
-			;;
-		esac
-		;;
-	esac
 	;;
     "before_deploy")
 	case "${BUILD_SYSTEM}" in
