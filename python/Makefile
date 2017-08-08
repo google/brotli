@@ -33,12 +33,13 @@ build: $(EXTENSIONS)
 $(EXTENSIONS): $(EXT_SOURCES)
 	@cd .. && $(PYTHON) setup.py build_ext --inplace
 
+develop:
+	@cd .. && $(PYTHON) setup.py develop
+
 install:
 	@cd .. && $(PYTHON) setup.py install
 
-test: tests
-
-tests:
+test:
 	@cd .. && $(PYTHON) setup.py test
 
 clean:
