@@ -15,6 +15,8 @@ except:
     from distutils.core import Extension
     from distutils.core import setup
 from distutils.command.build_ext import build_ext
+from distutils.dep_util import newer_group
+from distutils import log
 
 
 CURR_DIR = os.path.abspath(os.path.dirname(os.path.realpath(__file__)))
@@ -53,6 +55,21 @@ class BuildExt(build_ext):
         return filenames
 
     def build_extension(self, ext):
+        if ext.sources is None or not isinstance(ext.sources, (list, tuple)):
+            from distutils.errors import DistutilsSetupError
+            raise DistutilsSetupError(
+                "in 'ext_modules' option (extension '%s'), "
+                "'sources' must be present and must be "
+                "a list of source filenames" % ext.name)
+
+        ext_path = self.get_ext_fullpath(ext.name)
+        depends = ext.sources + ext.depends
+        if not (self.force or newer_group(depends, ext_path, 'newer')):
+            log.debug("skipping '%s' extension (up-to-date)", ext.name)
+            return
+        else:
+            log.info("building '%s' extension", ext.name)
+
         c_sources = []
         cxx_sources = []
         for source in ext.sources:
@@ -211,7 +228,7 @@ EXT_MODULES = [
             'c/enc/cluster_inc.h',
             'c/enc/command.h',
             'c/enc/compress_fragment.h',
-            'c/enc/compress_fragment_two_pass.h'
+            'c/enc/compress_fragment_two_pass.h',
             'c/enc/context.h',
             'c/enc/dictionary_hash.h',
             'c/enc/entropy_encode.h',
