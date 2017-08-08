@@ -24,7 +24,7 @@ able to edit the source files.
 
 For convenience, you may run the following commands from this directory:
 
-    $ make          # Deploy the module in "development mode"
+    $ make          # Build the module in-place
    
     $ make tests    # Test the module
 
