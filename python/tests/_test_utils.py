@@ -13,9 +13,9 @@ project_dir = os.path.abspath(os.path.join(__file__, '..', '..', '..'))
 src_dir = os.path.join(project_dir, 'python')
 test_dir = os.path.join(project_dir, 'tests')
 
-PYTHON = sys.executable or 'python'
-
-BRO = os.path.join(src_dir, 'bro.py')
+python_exe = sys.executable or 'python'
+bro_path = os.path.join(src_dir, 'bro.py')
+BRO_ARGS = [python_exe, bro_path]
 
 # Get the platform/version-specific build folder.
 # By default, the distutils build base is in the same location as setup.py.
