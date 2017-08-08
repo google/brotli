@@ -45,7 +45,7 @@ case "$1" in
 		ctest -V
 		;;
 	    "python")
-		python setup.py build test
+		python setup.py test
 		;;
 	    "maven")
 		cd java/org/brotli

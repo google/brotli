@@ -72,4 +72,4 @@ build_script:
 
 test_script:
   - if "%BUILD_SYSTEM%" == "CMake" ( ctest --output-on-failure --interactive-debug-mode 0 -C Debug )
-  - if "%BUILD_SYSTEM%" == "Python" ( python setup.py build test )
+  - if "%BUILD_SYSTEM%" == "Python" ( python setup.py test )
