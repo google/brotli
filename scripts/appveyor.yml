@@ -25,13 +25,8 @@ environment:
       PYTHON_ARCH: "32"
 
     - BUILD_SYSTEM: Python
-      PYTHON: "C:\\Python34"
-      PYTHON_VERSION: "3.4.x"
-      PYTHON_ARCH: "32"
-
-    - BUILD_SYSTEM: Python
-      PYTHON: "C:\\Python35"
-      PYTHON_VERSION: "3.5.0"
+      PYTHON: "C:\\Python36"
+      PYTHON_VERSION: "3.6.x"
       PYTHON_ARCH: "32"
 
     - BUILD_SYSTEM: Python
@@ -40,13 +35,8 @@ environment:
       PYTHON_ARCH: "64"
 
     - BUILD_SYSTEM: Python
-      PYTHON: "C:\\Python34-x64"
-      PYTHON_VERSION: "3.4.x"
-      PYTHON_ARCH: "64"
-
-    - BUILD_SYSTEM: Python
-      PYTHON: "C:\\Python35-x64"
-      PYTHON_VERSION: "3.5.0"
+      PYTHON: "C:\\Python36-x64"
+      PYTHON_VERSION: "3.6.x"
       PYTHON_ARCH: "64"
 
 install:
@@ -61,8 +51,8 @@ install:
         # upgrade pip to avoid out-of-date warnings
         pip install --disable-pip-version-check --user --upgrade pip
 
-        # install/upgrade setuptools and wheel to build packages
-        pip install --upgrade setuptools six wheel
+        # install/upgrade setuptools to build packages
+        pip install --upgrade setuptools
       }
 
 before_build:
@@ -83,25 +73,3 @@ build_script:
 test_script:
   - if "%BUILD_SYSTEM%" == "CMake" ( ctest --output-on-failure --interactive-debug-mode 0 -C Debug )
   - if "%BUILD_SYSTEM%" == "Python" ( python setup.py build test )
-
-after_test:
-  - if "%BUILD_SYSTEM%" == "Python" ( pip wheel -w dist . )
-  - if "%BUILD_SYSTEM%" == "Python" ( python setup.py sdist --formats=gztar,zip )
-
-artifacts:
-  # archive the generated packages in the ci.appveyor.com build report
-  - path: dist\*.whl
-  - path: dist\*.zip
-  - path: dist\*.tar.gz
-
-# For info, see: http://www.appveyor.com/docs/deployment/github
-
-deploy:
-  - provider: GitHub
-    auth_token:
-      secure: dfL56DgbwuGJNNE5GzKi/pAgBQnJ37Du+AnCtnsTnIYxpis8ah3fPmA/G+bn4NJ3
-    artifact:
-    draft: false
-    prerelease: false
-    on:
-      appveyor_repo_tag: true
