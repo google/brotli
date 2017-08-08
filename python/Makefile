@@ -39,8 +39,9 @@ develop:
 install:
 	@cd .. && $(PYTHON) setup.py install
 
-test:
-	@cd .. && $(PYTHON) setup.py test
+test: build
+	@echo 'running tests'
+	@$(PYTHON) -m unittest discover -v -p '*_test.py'
 
 clean:
 	@cd .. && $(PYTHON) setup.py clean
