@@ -92,6 +92,15 @@ matrix:
     ## clang on Linux
     ###
     - os: linux
+      env: BUILD_SYSTEM=cmake C_COMPILER=clang-4.0 CXX_COMPILER=clang++-4.0
+      addons:
+        apt:
+          sources:
+          - llvm-toolchain-trusty-4.0
+          - ubuntu-toolchain-r-test
+          packages:
+          - clang-4.0
+    - os: linux
       env: BUILD_SYSTEM=cmake C_COMPILER=clang-3.8 CXX_COMPILER=clang++-3.8
       addons:
         apt:
