@@ -68,7 +68,6 @@ final class State {
   int maxRingBufferSize;
   int ringBufferSize;
   int expectedTotalSize;
-  int bytesToIgnore;
   int outputOffset;
   int outputLength;
   int outputUsed;

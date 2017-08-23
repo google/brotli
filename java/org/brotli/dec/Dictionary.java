@@ -35,6 +35,9 @@ public final class Dictionary {
   }
 
   public static void setData(ByteBuffer data) {
+    if (!data.isDirect() || !data.isReadOnly()) {
+      throw new BrotliRuntimeException("data must be a direct read-only byte buffer");
+    }
     Dictionary.data = data;
   }
 
