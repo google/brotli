@@ -1260,8 +1260,6 @@ static void BROTLI_NOINLINE WrapRingBuffer(BrotliDecoderState* s) {
 
    Last two bytes of ring-buffer are initialized to 0, so context calculation
    could be done uniformly for the first two and all other positions.
-
-   Custom dictionary, if any, is copied to the end of ring-buffer.
 */
 static BROTLI_BOOL BROTLI_NOINLINE BrotliEnsureRingBuffer(
     BrotliDecoderState* s) {

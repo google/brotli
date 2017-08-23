@@ -146,7 +146,7 @@ static Command ParseAlias(const char* name) {
   size_t unbrotli_len = strlen(unbrotli);
   name = FileName(name);
   /* Partial comparison. On Windows there could be ".exe" suffix. */
-  if (strncmp(name, unbrotli, unbrotli_len)) {
+  if (strncmp(name, unbrotli, unbrotli_len) == 0) {
     char terminator = name[unbrotli_len];
     if (terminator == 0 || terminator == '.') return COMMAND_DECOMPRESS;
   }

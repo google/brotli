@@ -124,6 +124,7 @@ final class Decode {
   };
 
   private static int decodeWindowBits(State s) {
+    BitReader.fillBitWindow(s);
     if (BitReader.readFewBits(s, 1) == 0) {
       return 16;
     }
@@ -178,6 +179,7 @@ final class Decode {
    * Decodes a number in the range [0..255], by reading 1 - 11 bits.
    */
   private static int decodeVarLenUnsignedByte(State s) {
+    BitReader.fillBitWindow(s);
     if (BitReader.readFewBits(s, 1) != 0) {
       int n = BitReader.readFewBits(s, 3);
       if (n == 0) {
@@ -190,6 +192,7 @@ final class Decode {
   }
 
   private static void decodeMetaBlockLength(State s) {
+    BitReader.fillBitWindow(s);
     s.inputEnd = BitReader.readFewBits(s, 1);
     s.metaBlockLength = 0;
     s.isUncompressed = 0;
@@ -208,6 +211,7 @@ final class Decode {
         return;
       }
       for (int i = 0; i < sizeBytes; i++) {
+        BitReader.fillBitWindow(s);
         int bits = BitReader.readFewBits(s, 8);
         if (bits == 0 && i + 1 == sizeBytes && sizeBytes > 1) {
           throw new BrotliRuntimeException("Exuberant nibble");
@@ -216,6 +220,7 @@ final class Decode {
       }
     } else {
       for (int i = 0; i < sizeNibbles; i++) {
+        BitReader.fillBitWindow(s);
         int bits = BitReader.readFewBits(s, 4);
         if (bits == 0 && i + 1 == sizeNibbles && sizeNibbles > 4) {
           throw new BrotliRuntimeException("Exuberant nibble");
@@ -252,6 +257,7 @@ final class Decode {
     BitReader.fillBitWindow(s);
     int code = readSymbol(table, offset, s);
     int n = BLOCK_LENGTH_N_BITS[code];
+    BitReader.fillBitWindow(s);
     return BLOCK_LENGTH_OFFSET[code] + BitReader.readBits(s, n);
   }
 
@@ -325,6 +331,7 @@ final class Decode {
           repeat -= 2;
           repeat <<= extraBits;
         }
+        BitReader.fillBitWindow(s);
         repeat += BitReader.readFewBits(s, extraBits) + 3;
         int repeatDelta = repeat - oldRepeat;
         if (symbol + repeatDelta > numSymbols) {
@@ -363,6 +370,7 @@ final class Decode {
     BitReader.readMoreInput(s);
     // TODO: Avoid allocation.
     int[] codeLengths = new int[alphabetSize];
+    BitReader.fillBitWindow(s);
     simpleCodeOrSkip = BitReader.readFewBits(s, 2);
     if (simpleCodeOrSkip == 1) { // Read symbols, codes & code lengths directly.
       int maxBitsCounter = alphabetSize - 1;
@@ -376,6 +384,7 @@ final class Decode {
       // TODO: uncomment when codeLengths is reused.
       // Utils.fillWithZeroes(codeLengths, 0, alphabetSize);
       for (int i = 0; i < numSymbols; i++) {
+        BitReader.fillBitWindow(s);
         symbols[i] = BitReader.readFewBits(s, maxBits) % alphabetSize;
         codeLengths[symbols[i]] = 2;
       }
@@ -433,6 +442,7 @@ final class Decode {
       return numTrees;
     }
 
+    BitReader.fillBitWindow(s);
     int useRleForZeros = BitReader.readFewBits(s, 1);
     int maxRunLengthPrefix = 0;
     if (useRleForZeros != 0) {
@@ -448,6 +458,7 @@ final class Decode {
         contextMap[i] = 0;
         i++;
       } else if (code <= maxRunLengthPrefix) {
+        BitReader.fillBitWindow(s);
         int reps = (1 << code) + BitReader.readFewBits(s, code);
         while (reps != 0) {
           if (i >= contextMapSize) {
@@ -462,6 +473,7 @@ final class Decode {
         i++;
       }
     }
+    BitReader.fillBitWindow(s);
     if (BitReader.readFewBits(s, 1) == 1) {
       inverseMoveToFrontTransform(contextMap, contextMapSize);
     }
@@ -590,6 +602,7 @@ final class Decode {
     s.distanceBlockLength = readMetablockPartition(s, 2, s.numDistanceBlockTypes);
 
     BitReader.readMoreInput(s);
+    BitReader.fillBitWindow(s);
     s.distancePostfixBits = BitReader.readFewBits(s, 2);
     s.numDirectDistanceCodes =
         NUM_DISTANCE_SHORT_CODES + (BitReader.readFewBits(s, 4) << s.distancePostfixBits);
@@ -601,6 +614,7 @@ final class Decode {
       /* Ensure that less than 256 bits read between readMoreInput. */
       int limit = Math.min(i + 96, s.numLiteralBlockTypes);
       for (; i < limit; ++i) {
+        BitReader.fillBitWindow(s);
         s.contextModes[i] = (byte) (BitReader.readFewBits(s, 2));
       }
       BitReader.readMoreInput(s);
@@ -671,10 +685,6 @@ final class Decode {
   }
 
   private static int writeRingBuffer(State s) {
-    if (s.bytesToIgnore != 0) {
-      s.bytesWritten += s.bytesToIgnore;
-      s.bytesToIgnore = 0;
-    }
     int toWrite = Math.min(s.outputLength - s.outputUsed,
         s.bytesToWrite - s.bytesWritten);
     if (toWrite != 0) {
@@ -752,11 +762,15 @@ final class Decode {
             s.distanceCode = -1;
           }
           int insertCode = INSERT_RANGE_LUT[rangeIdx] + ((cmdCode >>> 3) & 7);
+          BitReader.fillBitWindow(s);
+          int insertBits = INSERT_LENGTH_N_BITS[insertCode];
+          int insertExtra = BitReader.readBits(s, insertBits);
+          s.insertLength = INSERT_LENGTH_OFFSET[insertCode] + insertExtra;
           int copyCode = COPY_RANGE_LUT[rangeIdx] + (cmdCode & 7);
-          s.insertLength = INSERT_LENGTH_OFFSET[insertCode] + BitReader
-              .readBits(s, INSERT_LENGTH_N_BITS[insertCode]);
-          s.copyLength = COPY_LENGTH_OFFSET[copyCode] + BitReader
-              .readBits(s, COPY_LENGTH_N_BITS[copyCode]);
+          BitReader.fillBitWindow(s);
+          int copyBits = COPY_LENGTH_N_BITS[copyCode];
+          int copyExtra = BitReader.readBits(s, copyBits);
+          s.copyLength = COPY_LENGTH_OFFSET[copyCode] + copyExtra;
 
           s.j = 0;
           s.runningState = INSERT_LOOP;
@@ -833,8 +847,10 @@ final class Decode {
               s.distanceCode >>>= s.distancePostfixBits;
               int n = (s.distanceCode >>> 1) + 1;
               int offset = ((2 + (s.distanceCode & 1)) << n) - 4;
+              BitReader.fillBitWindow(s);
+              int distanceExtra = BitReader.readBits(s, n);
               s.distanceCode = s.numDirectDistanceCodes + postfix
-                  + ((offset + BitReader.readBits(s, n)) << s.distancePostfixBits);
+                  + ((offset + distanceExtra) << s.distancePostfixBits);
             }
           }
 
@@ -873,9 +889,15 @@ final class Decode {
           int src = (s.pos - s.distance) & ringBufferMask;
           int dst = s.pos;
           int copyLength = s.copyLength - s.j;
-          if ((src + copyLength < ringBufferMask) && (dst + copyLength < ringBufferMask)) {
-            for (int k = 0; k < copyLength; ++k) {
-              ringBuffer[dst++] = ringBuffer[src++];
+          int srcEnd = src + copyLength;
+          int dstEnd = dst + copyLength;
+          if ((srcEnd < ringBufferMask) && (dstEnd < ringBufferMask)) {
+            if (copyLength < 12 || (srcEnd > dst && dstEnd > src)) {
+              for (int k = 0; k < copyLength; ++k) {
+                ringBuffer[dst++] = ringBuffer[src++];
+              }
+            } else {
+              Utils.copyBytesWithin(ringBuffer, dst, src, srcEnd);
             }
             s.j += copyLength;
             s.metaBlockLength -= copyLength;
@@ -941,6 +963,7 @@ final class Decode {
           while (s.metaBlockLength > 0) {
             BitReader.readMoreInput(s);
             // Optimize
+            BitReader.fillBitWindow(s);
             BitReader.readFewBits(s, 8);
             s.metaBlockLength--;
           }
