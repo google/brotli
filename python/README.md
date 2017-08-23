@@ -17,18 +17,19 @@ following command from this directory:
 
 ### Development
 
-For development, reinstalling the module with every change is time
-consuming.  Instead, we recommend using the `setuptools`
-"[development mode][]" to make the module available while still being
-able to edit the source files.
+You may run the following commands from this directory:
 
-For convenience, you may run the following commands from this directory:
-
-    $ make          # Deploy the module in "development mode"
+    $ make          # Build the module in-place
    
-    $ make tests    # Test the module
+    $ make test     # Test the module
 
     $ make clean    # Remove all temporary files and build output
+
+If you wish to make the module available while still being
+able to edit the source files, you can use the `setuptools`
+"[development mode][]":
+
+    $ make develop  # Install the module in "development mode"
 
 ### Code Style
 
