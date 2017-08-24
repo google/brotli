@@ -19,18 +19,20 @@ final class DictionaryData {
   private static final String SKIP_FLIP = "\u06F7%\u018C'T%\u0085'W%\u00D7%O%g%\u00A6&\u0193%\u01E5&>&*&'&^&\u0088\u0178\u0C3E&\u01AD&\u0192&)&^&%&'&\u0082&P&1&\u00B1&3&]&m&u&E&t&C&\u00CF&V&V&/&>&6&\u0F76\u177Co&p&@&E&M&P&x&@&F&e&\u00CC&7&:&(&D&0&C&)&.&F&-&1&(&L&F&1\u025E*\u03EA\u21F3&\u1372&K&;&)&E&H&P&0&?&9&V&\u0081&-&v&a&,&E&)&?&=&'&'&B&\u0D2E&\u0503&\u0316*&*8&%&%&&&%,)&\u009A&>&\u0086&7&]&F&2&>&J&6&n&2&%&?&\u008E&2&6&J&g&-&0&,&*&J&*&O&)&6&(&<&B&N&.&P&@&2&.&W&M&%\u053C\u0084(,(<&,&\u03DA&\u18C7&-&,(%&(&%&(\u013B0&X&D&\u0081&j&'&J&(&.&B&3&Z&R&h&3&E&E&<\u00C6-\u0360\u1EF3&%8?&@&,&Z&@&0&J&,&^&x&_&6&C&6&C\u072C\u2A25&f&-&-&-&-&,&J&2&8&z&8&C&Y&8&-&d&\u1E78\u00CC-&7&1&F&7&t&W&7&I&.&.&^&=\u0F9C\u19D3&8(>&/&/&\u077B')'\u1065')'%@/&0&%\u043E\u09C0*&*@&C\u053D\u05D4\u0274\u05EB4\u0DD7\u071A\u04D16\u0D84&/\u0178\u0303Z&*%\u0246\u03FF&\u0134&1\u00A8\u04B4\u0174";
 
   private static void unpackDictionaryData(
-      byte[] dictionary, String data0, String data1, String skipFlip) {
+      ByteBuffer dictionary, String data0, String data1, String skipFlip) {
     int n0 = data0.length();
     int n1 = data1.length();
-    if (n0 + n1 != dictionary.length) {
+    if (n0 + n1 != dictionary.capacity()) {
       throw new RuntimeException("Corrupted brotli dictionary");
     }
     int offset = 0;
     for (int i = 0; i < n0; ++i) {
-      dictionary[offset++] = (byte) data0.charAt(i);
+      dictionary.put(offset, (byte) data0.charAt(i));
+      offset++;
     }
     for (int i = 0; i < n1; ++i) {
-      dictionary[offset++] = (byte) data1.charAt(i);
+      dictionary.put(offset, (byte) data1.charAt(i));
+      offset++;
     }
     offset = 0;
     int n = skipFlip.length();
@@ -39,15 +41,15 @@ final class DictionaryData {
       int flip = skipFlip.charAt(i + 1) - 36;
       offset += skip;
       for (int j = 0; j < flip; ++j) {
-        dictionary[offset] = (byte) (dictionary[offset] | 0x80);
+        dictionary.put(offset, (byte) (dictionary.get(offset) | 0x80));
         offset++;
       }
     }
   }
 
   static {
-    byte[] dictionary = new byte[122784];
+    ByteBuffer dictionary = ByteBuffer.allocateDirect(122784);
     unpackDictionaryData(dictionary, DATA0, DATA1, SKIP_FLIP);
-    Dictionary.setData(ByteBuffer.wrap(dictionary).asReadOnlyBuffer());
+    Dictionary.setData(dictionary.asReadOnlyBuffer());
   }
 }
