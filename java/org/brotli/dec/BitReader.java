@@ -43,11 +43,13 @@ final class BitReader {
    * <p> After encountering the end of the input stream, 64 additional zero bytes are copied to the
    * buffer.
    */
-  // TODO: Split to check and read; move read outside of decoding loop.
   static void readMoreInput(State s) {
-    if (s.halfOffset <= HALF_WATERLINE) {
-      return;
+    if (s.halfOffset > HALF_WATERLINE) {
+      doReadMoreInput(s);
     }
+  }
+
+  static void doReadMoreInput(State s) {
     if (s.endOfStreamReached != 0) {
       if (halfAvailable(s) >= -2) {
         return;
@@ -89,6 +91,7 @@ final class BitReader {
 
   static void fillBitWindow(State s) {
     if (s.bitOffset >= HALF_BITNESS) {
+      // Same as doFillBitWindow. JVM fails to inline it.
       if (BITNESS == 64) {
         s.accumulator64 = ((long) s.intBuffer[s.halfOffset++] << HALF_BITNESS)
             | (s.accumulator64 >>> HALF_BITNESS);
@@ -100,6 +103,17 @@ final class BitReader {
     }
   }
 
+  private static void doFillBitWindow(State s) {
+    if (BITNESS == 64) {
+      s.accumulator64 = ((long) s.intBuffer[s.halfOffset++] << HALF_BITNESS)
+          | (s.accumulator64 >>> HALF_BITNESS);
+    } else {
+      s.accumulator32 = ((int) s.shortBuffer[s.halfOffset++] << HALF_BITNESS)
+          | (s.accumulator32 >>> HALF_BITNESS);
+    }
+    s.bitOffset -= HALF_BITNESS;
+  }
+
   static int peekBits(State s) {
     if (BITNESS == 64) {
       return (int) (s.accumulator64 >>> s.bitOffset);
@@ -109,7 +123,6 @@ final class BitReader {
   }
 
   static int readFewBits(State s, int n) {
-    fillBitWindow(s);
     int val = peekBits(s) & ((1 << n) - 1);
     s.bitOffset += n;
     return val;
@@ -119,16 +132,14 @@ final class BitReader {
     if (HALF_BITNESS >= 24) {
       return readFewBits(s, n);
     } else {
-      if (n <= 16) {
-        return readFewBits(s, n);
-      } else if (s.bitOffset + n <= BITNESS) {
-        return readFewBits(s, n);
-      } else {
-        int lo = readFewBits(s, 16);
-        int hi = readFewBits(s, n - 16);
-        return lo | (hi << 16);
-      }
+      return (n <= 16) ? readFewBits(s, n) : readManyBits(s, n);
     }
+  }
+
+  private static int readManyBits(State s, int n) {
+    int low = readFewBits(s, 16);
+    doFillBitWindow(s);
+    return low | (readFewBits(s, n - 16) << 16);
   }
 
   static void initBitReader(State s) {
@@ -146,11 +157,11 @@ final class BitReader {
     prepare(s);
   }
 
-  static void prepare(State s) {
+  private static void prepare(State s) {
     readMoreInput(s);
     checkHealth(s, 0);
-    fillBitWindow(s);
-    fillBitWindow(s);
+    doFillBitWindow(s);
+    doFillBitWindow(s);
   }
 
   static void reload(State s) {
@@ -162,7 +173,7 @@ final class BitReader {
   static void jumpToByteBoundary(State s) {
     int padding = (BITNESS - s.bitOffset) & 7;
     if (padding != 0) {
-      int paddingBits = readBits(s, padding);
+      int paddingBits = readFewBits(s, padding);
       if (paddingBits != 0) {
         throw new BrotliRuntimeException("Corrupted padding bits");
       }

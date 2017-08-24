@@ -20,7 +20,9 @@
 #define BUCKET_SIZE (1 << BUCKET_BITS)
 
 static BROTLI_INLINE size_t FN(HashTypeLength)(void) { return 4; }
-static BROTLI_INLINE size_t FN(StoreLookahead)(void) { return MAX_TREE_COMP_LENGTH; }
+static BROTLI_INLINE size_t FN(StoreLookahead)(void) {
+  return MAX_TREE_COMP_LENGTH;
+}
 
 static uint32_t FN(HashBytes)(const uint8_t *data) {
   uint32_t h = BROTLI_UNALIGNED_LOAD32(data) * kHashMul32;
