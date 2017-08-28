@@ -88,7 +88,8 @@ static int lgblock_convertor(PyObject *o, int *lgblock) {
 }
 
 static BROTLI_BOOL compress_stream(BrotliEncoderState* enc, BrotliEncoderOperation op,
-                                   std::vector<uint8_t>* output, uint8_t* input, size_t input_length) {
+                                   std::vector<uint8_t>* output,
+                                   uint8_t* input, size_t input_length) {
   BROTLI_BOOL ok = BROTLI_TRUE;
   Py_BEGIN_ALLOW_THREADS
 
@@ -222,11 +223,15 @@ PyDoc_STRVAR(brotli_Compressor_process_doc,
 static PyObject* brotli_Compressor_process(brotli_Compressor *self, PyObject *args) {
   PyObject* ret = NULL;
   std::vector<uint8_t> output;
-  uint8_t* input;
-  size_t input_length;
+  Py_buffer input;
   BROTLI_BOOL ok = BROTLI_TRUE;
 
-  ok = (BROTLI_BOOL)PyArg_ParseTuple(args, "s#:process", &input, &input_length);
+#if PY_MAJOR_VERSION >= 3
+  ok = (BROTLI_BOOL)PyArg_ParseTuple(args, "y*:process", &input);
+#else
+  ok = (BROTLI_BOOL)PyArg_ParseTuple(args, "s*:process", &input);
+#endif
+
   if (!ok)
     return NULL;
 
@@ -236,9 +241,10 @@ static PyObject* brotli_Compressor_process(brotli_Compressor *self, PyObject *ar
   }
 
   ok = compress_stream(self->enc, BROTLI_OPERATION_PROCESS,
-                       &output, input, input_length);
+                       &output, static_cast<uint8_t*>(input.buf), input.len);
 
 end:
+  PyBuffer_Release(&input);
   if (ok) {
     ret = PyBytes_FromStringAndSize((char*)(output.size() ? &output[0] : NULL), output.size());
   } else {
@@ -387,7 +393,8 @@ static PyTypeObject brotli_CompressorType = {
 };
 
 static BROTLI_BOOL decompress_stream(BrotliDecoderState* dec,
-                                     std::vector<uint8_t>* output, uint8_t* input, size_t input_length) {
+                                     std::vector<uint8_t>* output,
+                                     uint8_t* input, size_t input_length) {
   BROTLI_BOOL ok = BROTLI_TRUE;
   Py_BEGIN_ALLOW_THREADS
 
@@ -485,11 +492,15 @@ PyDoc_STRVAR(brotli_Decompressor_process_doc,
 static PyObject* brotli_Decompressor_process(brotli_Decompressor *self, PyObject *args) {
   PyObject* ret = NULL;
   std::vector<uint8_t> output;
-  uint8_t* input;
-  size_t input_length;
+  Py_buffer input;
   BROTLI_BOOL ok = BROTLI_TRUE;
 
-  ok = (BROTLI_BOOL)PyArg_ParseTuple(args, "s#:process", &input, &input_length);
+#if PY_MAJOR_VERSION >= 3
+  ok = (BROTLI_BOOL)PyArg_ParseTuple(args, "y*:process", &input);
+#else
+  ok = (BROTLI_BOOL)PyArg_ParseTuple(args, "s*:process", &input);
+#endif
+
   if (!ok)
     return NULL;
 
@@ -498,10 +509,10 @@ static PyObject* brotli_Decompressor_process(brotli_Decompressor *self, PyObject
     goto end;
   }
 
-  ok = decompress_stream(self->dec,
-                         &output, input, input_length);
+  ok = decompress_stream(self->dec, &output, static_cast<uint8_t*>(input.buf), input.len);
 
 end:
+  PyBuffer_Release(&input);
   if (ok) {
     ret = PyBytes_FromStringAndSize((char*)(output.empty() ? NULL : &output[0]), output.size());
   } else {
@@ -625,15 +636,21 @@ PyDoc_STRVAR(brotli_decompress__doc__,
 
 static PyObject* brotli_decompress(PyObject *self, PyObject *args, PyObject *keywds) {
   PyObject *ret = NULL;
-  const uint8_t *input;
-  size_t length;
+  Py_buffer input;
+  const uint8_t* next_in;
+  size_t available_in;
   int ok;
 
   static const char *kwlist[] = {"string", NULL};
 
-  ok = PyArg_ParseTupleAndKeywords(args, keywds, "s#|:decompress",
-                        const_cast<char **>(kwlist),
-                        &input, &length);
+#if PY_MAJOR_VERSION >= 3
+  ok = PyArg_ParseTupleAndKeywords(args, keywds, "y*|:decompress",
+                                   const_cast<char **>(kwlist), &input);
+#else
+  ok = PyArg_ParseTupleAndKeywords(args, keywds, "s*|:decompress",
+                                   const_cast<char **>(kwlist), &input);
+#endif
+
   if (!ok)
     return NULL;
 
@@ -645,9 +662,11 @@ static PyObject* brotli_decompress(PyObject *self, PyObject *args, PyObject *key
   BrotliDecoderState* state = BrotliDecoderCreateInstance(0, 0, 0);
 
   BrotliDecoderResult result = BROTLI_DECODER_RESULT_NEEDS_MORE_OUTPUT;
+  next_in = static_cast<uint8_t*>(input.buf);
+  available_in = input.len;
   while (result == BROTLI_DECODER_RESULT_NEEDS_MORE_OUTPUT) {
     size_t available_out = 0;
-    result = BrotliDecoderDecompressStream(state, &length, &input,
+    result = BrotliDecoderDecompressStream(state, &available_in, &next_in,
                                            &available_out, 0, 0);
     const uint8_t* next_out = BrotliDecoderTakeOutput(state, &available_out);
     if (available_out != 0)
@@ -659,6 +678,7 @@ static PyObject* brotli_decompress(PyObject *self, PyObject *args, PyObject *key
   Py_END_ALLOW_THREADS
   /* <<< Pure C block end. Python GIL reacquired. */
 
+  PyBuffer_Release(&input);
   if (ok) {
     ret = PyBytes_FromStringAndSize((char*)(output.size() ? &output[0] : NULL), output.size());
   } else {
