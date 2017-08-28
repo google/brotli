@@ -1,0 +1,37 @@
+package(
+    default_visibility = ["//visibility:public"],
+)
+
+licenses(["notice"])  # MIT
+
+load("@io_bazel_rules_closure//closure:defs.bzl", "closure_js_library")
+
+# Not a real polyfill. Do NOT use for anything, but tests.
+closure_js_library(
+    name = "polyfill",
+    srcs = ["polyfill.js"],
+    language = "ECMASCRIPT6_STRICT",
+    suppress = ["JSC_MISSING_JSDOC"],
+)
+
+# Do NOT use this artifact; it is for test purposes only.
+closure_js_library(
+    name = "decode",
+    srcs = ["decode.js"],
+    language = "ECMASCRIPT6_STRICT",
+    suppress = ["JSC_USELESS_BLOCK"],
+    deps = [":polyfill"],
+)
+
+load("@io_bazel_rules_closure//closure:defs.bzl", "closure_js_test")
+
+closure_js_test(
+    name = "all_tests",
+    srcs = ["decode_test.js"],
+    language = "ECMASCRIPT6_STRICT",
+    deps = [
+        ":decode",
+        ":polyfill",
+        "@io_bazel_rules_closure//closure/library:testing",
+    ],
+)

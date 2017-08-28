@@ -96,9 +96,18 @@ static BROTLI_NOINLINE void EXPORT_FN(CreateBackwardReferences)(
       insert_length = 0;
       /* Put the hash keys into the table, if there are enough bytes left.
          Depending on the hasher implementation, it can push all positions
-         in the given range or only a subset of them. */
-      FN(StoreRange)(hasher, ringbuffer, ringbuffer_mask, position + 2,
-                     BROTLI_MIN(size_t, position + sr.len, store_end));
+         in the given range or only a subset of them.
+         Avoid hash poisoning with RLE data. */
+      {
+        size_t range_start = position + 2;
+        size_t range_end = BROTLI_MIN(size_t, position + sr.len, store_end);
+        if (sr.distance < (sr.len >> 2)) {
+          range_start = BROTLI_MIN(size_t, range_end, BROTLI_MAX(size_t,
+              range_start, position + sr.len - (sr.distance << 2)));
+        }
+        FN(StoreRange)(hasher, ringbuffer, ringbuffer_mask, range_start,
+                       range_end);
+      }
       position += sr.len;
     } else {
       ++insert_length;

@@ -252,6 +252,7 @@ retry:
     if (best_cost == 0 || best_isle.lcp < MIN_MATCH) {
       if (min_count >= 8) {
         min_count = (min_count * 7) / 8;
+        fprintf(stderr, "Retry: min_count=%d\n", min_count);
         goto retry;
       }
       break;
@@ -261,8 +262,10 @@ retry:
     fprintf(stderr,
       "Savings: %zu+%zu, dictionary: %zu+%d\n",
       total_cost, best_cost, total, best_isle.lcp);
-    memcpy(
-        dictionary + total, full_text.data() + sa[best_isle.l], best_isle.lcp);
+    for (size_t i = 0; i < best_isle.lcp; ++i) {
+      dictionary[total + i] =
+          static_cast<uint8_t>(full_text[sa[best_isle.l] + i]);
+    }
     total += best_isle.lcp;
     total_cost += best_cost;
     cutMatch(&data, best_isle.l, best_isle.lcp, &sa, &lcp,
