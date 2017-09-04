@@ -45,13 +45,11 @@ See [Bazel](http://www.bazel.build/)
 
 #### CMake
 
-The basic commands to build, test and install brotli are:
+The basic commands to build and install brotli are:
 
     $ mkdir out && cd out
-    $ cmake ..
-    $ make
-    $ make test
-    $ make install
+    $ cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=./installed ..
+    $ cmake --build . --config Release --target install
 
 You can use other [CMake](https://cmake.org/) configuration. For example, to
 build static libraries:
