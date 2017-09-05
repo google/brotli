@@ -15,8 +15,5 @@ for file in tests/testdata/*.compressed*; do
   echo $uncompressed
   $BROTLI $file -fdo $uncompressed
   diff -q $uncompressed $expected
-  # Test the streaming version
-  cat $file | $BROTLI -dc > $uncompressed
-  diff -q $uncompressed $expected
   rm -f $uncompressed
 done
