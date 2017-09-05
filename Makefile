@@ -21,7 +21,7 @@ all: test
 .PHONY: all clean test
 
 $(DIRS):
-	mkdir -p $@
+	mkdir -p "$@"
 
 $(EXECUTABLE): $(OBJECTS)
 	$(CC) $(LDFLAGS) $(OBJECTS) -lm -o $(BINDIR)/$(EXECUTABLE)
