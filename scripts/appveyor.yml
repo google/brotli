@@ -1,31 +1,8 @@
 environment:
   matrix:
-    - BUILD_SYSTEM: CMake
-      GENERATOR: Visual Studio 14 2015 Win64
-
     - BUILD_SYSTEM: other
-
-before_build:
-  - ps: |
-      if ($env:BUILD_SYSTEM -eq "CMake") {
-        mkdir builddir
-        cd builddir
-
-        cmake -G "$env:GENERATOR" ..
-      }
-      if ($env:BUILD_SYSTEM -eq "other") {
-        mkdir builddir
-        cd builddir
-
-        cmake --help
-      }
 
 build_script:
   - ps: |
-      if ($env:BUILD_SYSTEM -eq "CMake") {
-        cmake --build . --config Debug
-      }
-
-test_script:
-  - if "%BUILD_SYSTEM%" == "CMake" ( ctest --output-on-failure --interactive-debug-mode 0 -C Debug )
-  - if "%BUILD_SYSTEM%" == "Python" ( python setup.py test )
+      dir C:\MinGW\msys\1.0
+      dir C:\msys64
