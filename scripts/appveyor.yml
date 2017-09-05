@@ -4,4 +4,4 @@ environment:
 
 build_script:
   - ps: |
-      dir C:\mingw-w64
+      dir C:\mingw-w64\x86_64-6.3.0-posix-seh-rt_v5-rev1\mingw64\bin
