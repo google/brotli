@@ -3,47 +3,7 @@ environment:
     - BUILD_SYSTEM: CMake
       GENERATOR: Visual Studio 14 2015 Win64
 
-    - BUILD_SYSTEM: CMake
-      GENERATOR: Visual Studio 14 2015
-
-    - BUILD_SYSTEM: CMake
-      GENERATOR: Visual Studio 12 2013 Win64
-
-    - BUILD_SYSTEM: CMake
-      GENERATOR: Visual Studio 12 2013
-
-    - BUILD_SYSTEM: Python
-      PYTHON: "C:\\Python27"
-      PYTHON_VERSION: "2.7.x"
-      PYTHON_ARCH: "32"
-
-    - BUILD_SYSTEM: Python
-      PYTHON: "C:\\Python36"
-      PYTHON_VERSION: "3.6.x"
-      PYTHON_ARCH: "32"
-
-    - BUILD_SYSTEM: Python
-      PYTHON: "C:\\Python27-x64"
-      PYTHON_VERSION: "2.7.x"
-      PYTHON_ARCH: "64"
-
-    - BUILD_SYSTEM: Python
-      PYTHON: "C:\\Python36-x64"
-      PYTHON_VERSION: "3.6.x"
-      PYTHON_ARCH: "64"
-
-install:
-  - ps: |
-      if ($env:BUILD_SYSTEM -eq "Python") {
-        # prepend Python to the PATH
-        $env:Path = $env:PYTHON + ';' + $env:PYTHON + '\\Scripts;' + $env:PATH
-
-        # upgrade pip to avoid out-of-date warnings
-        pip install --disable-pip-version-check --user --upgrade pip
-
-        # install/upgrade setuptools to build packages
-        pip install --upgrade setuptools
-      }
+    - BUILD_SYSTEM: other
 
 before_build:
   - ps: |
@@ -52,6 +12,12 @@ before_build:
         cd builddir
 
         cmake -G "$env:GENERATOR" ..
+      }
+      if ($env:BUILD_SYSTEM -eq "other") {
+        mkdir builddir
+        cd builddir
+
+        cmake --help
       }
 
 build_script:
