@@ -25,8 +25,5 @@ for file in $INPUTS; do
     $BROTLI -fq $quality $file -o $compressed
     $BROTLI $compressed -fdo $uncompressed
     diff -q $file $uncompressed
-    # Test the streaming version
-    cat $file | $BROTLI -cq $quality | $BROTLI -cd >$uncompressed
-    diff -q $file $uncompressed
   done
 done
