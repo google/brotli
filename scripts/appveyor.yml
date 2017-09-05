@@ -7,5 +7,5 @@ build_script:
 - SET "PATH=C:\mingw-w64\x86_64-6.3.0-posix-seh-rt_v5-rev1\mingw64\bin;%PATH%"
 - COPY C:\msys64\usr\bin\make.exe C:\mingw-w64\x86_64-6.3.0-posix-seh-rt_v5-rev1\mingw64\bin\make.exe
 - IF [true]==[true] (
-    sh -c "mkdir --help"
+    sh -c "make"
   )
