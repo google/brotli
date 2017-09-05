@@ -3,6 +3,7 @@ environment:
     - BUILD_SYSTEM: other
 
 build_script:
-  - ps: |
+  - if [%BUILD_SYSTEM%]==[other] (
       SET "PATH=C:\mingw-w64\x86_64-6.3.0-posix-seh-rt_v5-rev1\mingw64\bin;%PATH%"
-      C:\mingw-w64\x86_64-6.3.0-posix-seh-rt_v5-rev1\mingw64\bin\mingw32-make.exe
+      C:\mingw-w64\x86_64-6.3.0-posix-seh-rt_v5-rev1\mingw64\bin\mingw32-make
+    )
