@@ -3,8 +3,8 @@ environment:
     - BUILD_SYSTEM: other
 
 build_script:
-  - ECHO Building %BUILD_SYSTEM%
-  - if [%BUILD_SYSTEM%]==[other] (
-      SET "PATH=C:\mingw-w64\x86_64-6.3.0-posix-seh-rt_v5-rev1\mingw64\bin;%PATH%"
-      mingw32-make
-    )
+- ECHO Building %BUILD_SYSTEM%
+- if [%BUILD_SYSTEM%]==[other] (
+    SET "PATH=C:\mingw-w64\x86_64-6.3.0-posix-seh-rt_v5-rev1\mingw64\bin;%PATH%"
+    mingw32-make
+  )
