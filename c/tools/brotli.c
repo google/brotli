@@ -22,6 +22,7 @@
 #if !defined(_WIN32)
 #include <unistd.h>
 #include <utime.h>
+#define MAKE_BINARY(FILENO) (FILENO)
 #else
 #include <io.h>
 #include <share.h>
@@ -30,8 +31,8 @@
 #define MAKE_BINARY(FILENO) (_setmode((FILENO), _O_BINARY), (FILENO))
 
 #if !defined(__MINGW32__)
-#define STDIN_FILENO MAKE_BINARY(_fileno(stdin))
-#define STDOUT_FILENO MAKE_BINARY(_fileno(stdout))
+#define STDIN_FILENO (_fileno(stdin))
+#define STDOUT_FILENO (_fileno(stdout))
 #define S_IRUSR S_IREAD
 #define S_IWUSR S_IWRITE
 #endif
@@ -437,7 +438,7 @@ static const char* PrintablePath(const char* path) {
 static BROTLI_BOOL OpenInputFile(const char* input_path, FILE** f) {
   *f = NULL;
   if (!input_path) {
-    *f = fdopen(STDIN_FILENO, "rb");
+    *f = fdopen(MAKE_BINARY(STDIN_FILENO), "rb");
     return BROTLI_TRUE;
   }
   *f = fopen(input_path, "rb");
@@ -454,7 +455,7 @@ static BROTLI_BOOL OpenOutputFile(const char* output_path, FILE** f,
   int fd;
   *f = NULL;
   if (!output_path) {
-    *f = fdopen(STDOUT_FILENO, "wb");
+    *f = fdopen(MAKE_BINARY(STDOUT_FILENO), "wb");
     return BROTLI_TRUE;
   }
   fd = open(output_path, O_CREAT | (force ? 0 : O_EXCL) | O_WRONLY | O_TRUNC,
