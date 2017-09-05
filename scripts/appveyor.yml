@@ -4,5 +4,4 @@ environment:
 
 build_script:
   - ps: |
-      dir C:\MinGW\msys\1.0
-      dir C:\msys64
+      dir C:\mingw-w64
