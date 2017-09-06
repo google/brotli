@@ -1178,7 +1178,8 @@ static BROTLI_BOOL BrotliCompressBufferQuality10(
       }
       BrotliZopfliCreateCommands(block_size, block_start, max_backward_limit,
                                  &nodes[0], dist_cache, &last_insert_len,
-                                 &commands[num_commands], &num_literals);
+                                 &params, &commands[num_commands],
+                                 &num_literals);
       num_commands += path_size;
       block_start += block_size;
       metablock_size += block_size;

@@ -83,14 +83,11 @@ BROTLI_INTERNAL size_t BrotliZopfliComputeShortestPath(
     const BrotliEncoderParams* params, const size_t max_backward_limit,
     const int* dist_cache, HasherHandle hasher, ZopfliNode* nodes);
 
-BROTLI_INTERNAL void BrotliZopfliCreateCommands(const size_t num_bytes,
-                                                const size_t block_start,
-                                                const size_t max_backward_limit,
-                                                const ZopfliNode* nodes,
-                                                int* dist_cache,
-                                                size_t* last_insert_len,
-                                                Command* commands,
-                                                size_t* num_literals);
+BROTLI_INTERNAL void BrotliZopfliCreateCommands(
+    const size_t num_bytes, const size_t block_start,
+    const size_t max_backward_limit, const ZopfliNode* nodes,
+    int* dist_cache, size_t* last_insert_len, const BrotliEncoderParams* params,
+    Command* commands, size_t* num_literals);
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }  /* extern "C" */
