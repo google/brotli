@@ -542,6 +542,7 @@ void BrotliZopfliCreateCommands(const size_t num_bytes,
   uint32_t offset = nodes[0].u.next;
   size_t i;
   size_t gap = 0;
+  BROTLI_UNUSED(params);
   for (i = 0; offset != BROTLI_UINT32_MAX; i++) {
     const ZopfliNode* next = &nodes[pos + offset];
     size_t copy_length = ZopfliNodeCopyLength(next);
