@@ -22,6 +22,7 @@
 #if !defined(_WIN32)
 #include <unistd.h>
 #include <utime.h>
+#define MAKE_BINARY(FILENO) (FILENO)
 #else
 #include <io.h>
 #include <share.h>
@@ -30,8 +31,8 @@
 #define MAKE_BINARY(FILENO) (_setmode((FILENO), _O_BINARY), (FILENO))
 
 #if !defined(__MINGW32__)
-#define STDIN_FILENO MAKE_BINARY(_fileno(stdin))
-#define STDOUT_FILENO MAKE_BINARY(_fileno(stdout))
+#define STDIN_FILENO _fileno(stdin)
+#define STDOUT_FILENO _fileno(stdout)
 #define S_IRUSR S_IREAD
 #define S_IWUSR S_IWRITE
 #endif
@@ -384,50 +385,47 @@ static void PrintVersion(void) {
   int major = BROTLI_VERSION >> 24;
   int minor = (BROTLI_VERSION >> 12) & 0xFFF;
   int patch = BROTLI_VERSION & 0xFFF;
-  fprintf(stdout, "\
-brotli %d.%d.%d\n",
-          major, minor, patch);
+  fprintf(stdout, "brotli %d.%d.%d\n", major, minor, patch);
 }
 
 static void PrintHelp(const char* name) {
   /* String is cut to pieces with length less than 509, to conform C90 spec. */
-  fprintf(stdout, "\
-Usage: %s [OPTION]... [FILE]...\n",
+  fprintf(stdout,
+"Usage: %s [OPTION]... [FILE]...\n",
           name);
-  fprintf(stdout, "\
-Options:\n\
-  -#                          compression level (0-9)\n\
-  -c, --stdout                write on standard output\n\
-  -d, --decompress            decompress\n\
-  -f, --force                 force output file overwrite\n\
-  -h, --help                  display this help and exit\n");
-  fprintf(stdout, "\
-  -j, --rm                    remove source file(s)\n\
-  -k, --keep                  keep source file(s) (default)\n\
-  -n, --no-copy-stat          do not copy source file(s) attributes\n\
-  -o FILE, --output=FILE      output file (only if 1 input file)\n");
-  fprintf(stdout, "\
-  -q NUM, --quality=NUM       compression level (%d-%d)\n",
+  fprintf(stdout,
+"Options:\n"
+"  -#                          compression level (0-9)\n"
+"  -c, --stdout                write on standard output\n"
+"  -d, --decompress            decompress\n"
+"  -f, --force                 force output file overwrite\n"
+"  -h, --help                  display this help and exit\n");
+  fprintf(stdout,
+"  -j, --rm                    remove source file(s)\n"
+"  -k, --keep                  keep source file(s) (default)\n"
+"  -n, --no-copy-stat          do not copy source file(s) attributes\n"
+"  -o FILE, --output=FILE      output file (only if 1 input file)\n");
+  fprintf(stdout,
+"  -q NUM, --quality=NUM       compression level (%d-%d)\n",
           BROTLI_MIN_QUALITY, BROTLI_MAX_QUALITY);
-  fprintf(stdout, "\
-  -t, --test                  test compressed file integrity\n\
-  -v, --verbose               verbose mode\n");
-  fprintf(stdout, "\
-  -w NUM, --lgwin=NUM         set LZ77 window size (0, %d-%d) (default:%d)\n",
+  fprintf(stdout,
+"  -t, --test                  test compressed file integrity\n"
+"  -v, --verbose               verbose mode\n");
+  fprintf(stdout,
+"  -w NUM, --lgwin=NUM         set LZ77 window size (0, %d-%d) (default:%d)\n",
           BROTLI_MIN_WINDOW_BITS, BROTLI_MAX_WINDOW_BITS, DEFAULT_LGWIN);
-  fprintf(stdout, "\
-                              window size = 2**NUM - 16\n\
-                              0 lets compressor decide over the optimal value\n\
-");
-  fprintf(stdout, "\
-  -S SUF, --suffix=SUF        output file suffix (default:'%s')\n",
+  fprintf(stdout,
+"                              window size = 2**NUM - 16\n"
+"                              0 lets compressor choose the optimal value\n");
+  fprintf(stdout,
+"  -S SUF, --suffix=SUF        output file suffix (default:'%s')\n",
           DEFAULT_SUFFIX);
-  fprintf(stdout, "\
-  -V, --version               display version and exit\n\
-  -Z, --best                  use best compression level (11) (default)\n\
-Simple options could be coalesced, i.e. '-9kf' is equivalent to '-9 -k -f'.\n\
-With no FILE, or when FILE is -, read standard input.\n\
-All arguments after '--' are treated as files.\n");
+  fprintf(stdout,
+"  -V, --version               display version and exit\n"
+"  -Z, --best                  use best compression level (11) (default)\n"
+"Simple options could be coalesced, i.e. '-9kf' is equivalent to '-9 -k -f'.\n"
+"With no FILE, or when FILE is -, read standard input.\n"
+"All arguments after '--' are treated as files.\n");
 }
 
 static const char* PrintablePath(const char* path) {
@@ -437,7 +435,7 @@ static const char* PrintablePath(const char* path) {
 static BROTLI_BOOL OpenInputFile(const char* input_path, FILE** f) {
   *f = NULL;
   if (!input_path) {
-    *f = fdopen(STDIN_FILENO, "rb");
+    *f = fdopen(MAKE_BINARY(STDIN_FILENO), "rb");
     return BROTLI_TRUE;
   }
   *f = fopen(input_path, "rb");
@@ -454,7 +452,7 @@ static BROTLI_BOOL OpenOutputFile(const char* output_path, FILE** f,
   int fd;
   *f = NULL;
   if (!output_path) {
-    *f = fdopen(STDOUT_FILENO, "wb");
+    *f = fdopen(MAKE_BINARY(STDOUT_FILENO), "wb");
     return BROTLI_TRUE;
   }
   fd = open(output_path, O_CREAT | (force ? 0 : O_EXCL) | O_WRONLY | O_TRUNC,
@@ -474,7 +472,7 @@ static BROTLI_BOOL OpenOutputFile(const char* output_path, FILE** f,
 }
 
 /* Copy file times and permissions.
-   TODO(eustas): this is a "best effort" implementation; honest cross-platform
+   TODO: this is a "best effort" implementation; honest cross-platform
    fully featured implementation is way too hacky; add more hacks by request. */
 static void CopyStat(const char* input_path, const char* output_path) {
   struct stat statbuf;
@@ -648,7 +646,7 @@ static BROTLI_BOOL DecompressFile(Context* context, BrotliDecoderState* s) {
     if (result == BROTLI_DECODER_RESULT_NEEDS_MORE_INPUT) {
       if (feof(context->fin)) {
         fprintf(stderr, "corrupt input [%s]\n",
-                PrintablePath(context->current_output_path));
+                PrintablePath(context->current_input_path));
         return BROTLI_FALSE;
       }
       available_in = fread(context->input, 1, kFileBufferSize, context->fin);
@@ -663,13 +661,13 @@ static BROTLI_BOOL DecompressFile(Context* context, BrotliDecoderState* s) {
     } else if (result == BROTLI_DECODER_RESULT_SUCCESS) {
       if (available_in != 0 || !feof(context->fin)) {
         fprintf(stderr, "corrupt input [%s]\n",
-                PrintablePath(context->current_output_path));
+                PrintablePath(context->current_input_path));
         return BROTLI_FALSE;
       }
       return BROTLI_TRUE;
     } else {
       fprintf(stderr, "corrupt input [%s]\n",
-              PrintablePath(context->current_output_path));
+              PrintablePath(context->current_input_path));
       return BROTLI_FALSE;
     }
 
