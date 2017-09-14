@@ -1,21 +1,5 @@
 environment:
   matrix:
-  - BUILD_SYSTEM: CMake
-    GENERATOR: Visual Studio 14 2015 Win64
-
-  - BUILD_SYSTEM: CMake
-    GENERATOR: Visual Studio 14 2015
-
-  - BUILD_SYSTEM: Python
-    PYTHON: "C:\\Python27"
-    PYTHON_VERSION: "2.7.x"
-    PYTHON_ARCH: "32"
-
-  - BUILD_SYSTEM: Python
-    PYTHON: "C:\\Python36-x64"
-    PYTHON_VERSION: "3.6.x"
-    PYTHON_ARCH: "64"
-
   - BUILD_SYSTEM: make
     ARCH: "i686"
 
@@ -39,7 +23,8 @@ install:
         SET "PATH=%MINGW64_PATH%;%PATH%" &&
         COPY C:\msys64\usr\bin\make.exe %MINGW64_PATH%\make.exe
       )
-    )
+    ) &&
+    ECHO %PATH%
   )
 
 before_build:
