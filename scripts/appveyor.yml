@@ -13,26 +13,20 @@ install:
     pip install --upgrade setuptools
   )
 - IF "%BUILD_SYSTEM%"=="make" (
-    SET "CC=gcc" &&
-    SET "ORIGINAL_PATH=%PATH%" &&
-    ( IF "%ARCH%"=="i686" (
-        SET "TOOLCHAIN=i686-6.3.0-posix-dwarf-rt_v5-rev1\mingw32"
-      ) ELSE (
-        SET "TOOLCHAIN=x86_64-6.3.0-posix-seh-rt_v5-rev1\mingw64"
-      )
+    IF "%ARCH%"=="i686" (
+      SET "TOOLCHAIN=i686-6.3.0-posix-dwarf-rt_v5-rev1\mingw32"
+    ) ELSE (
+      SET "TOOLCHAIN=x86_64-6.3.0-posix-seh-rt_v5-rev1\mingw64"
     )
-  )
-
-- IF "%BUILD_SYSTEM%"=="make" (
-    ECHO "%TOOLCHAIN%" &&
-    ECHO "%ORIGINAL_PATH%" &&
-    SET "PATH=C:\mingw-w64\%TOOLCHAIN%\bin;%ORIGINAL_PATH%" &&
-    ECHO "%PATH%" &&
-    COPY C:\msys64\usr\bin\make.exe C:\mingw-w64\%TOOLCHAIN%\bin\make.exe
   )
 
 before_build:
 - IF "%BUILD_SYSTEM%"=="CMake" ( mkdir builddir && cd builddir && cmake -G "%GENERATOR%" .. )
+- IF "%BUILD_SYSTEM%"=="make" (
+    SET "CC=gcc" &&
+    SET "PATH=C:\mingw-w64\%TOOLCHAIN%\bin;%PATH%" &&
+    COPY C:\msys64\usr\bin\make.exe C:\mingw-w64\%TOOLCHAIN%\bin\make.exe
+  )
 
 build_script:
 - IF "%BUILD_SYSTEM%"=="CMake" ( cmake --build . --config Debug )
