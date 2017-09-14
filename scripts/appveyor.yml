@@ -16,15 +16,15 @@ install:
     SET "CC=gcc" &&
     SET "ORIGINAL_PATH=%PATH%" &&
     ( IF "%ARCH%"=="i686" (
-        SET "MINGW32_PATH=C:\mingw-w64\i686-6.3.0-posix-dwarf-rt_v5-rev1\mingw32\bin" &&
+        SET "TOOLCHAIN=i686-6.3.0-posix-dwarf-rt_v5-rev1\mingw32"
       ) ELSE (
-        SET "MINGW_PATH=C:\mingw-w64\x86_64-6.3.0-posix-seh-rt_v5-rev1\mingw64\bin"
+        SET "TOOLCHAIN=x86_64-6.3.0-posix-seh-rt_v5-rev1\mingw64"
       )
     ) &&
-    COPY C:\msys64\usr\bin\make.exe %MINGW_PATH%\make.exe &&
+    COPY C:\msys64\usr\bin\make.exe C:\mingw-w64\%TOOLCHAIN%\bin\make.exe &&
     ECHO "%MINGW_PATH%" &&
     ECHO "%ORIGINAL_PATH%" &&
-    SET "PATH=%MINGW_PATH%;%ORIGINAL_PATH%" &&
+    SET "PATH=C:\mingw-w64\%TOOLCHAIN%\bin;%ORIGINAL_PATH%" &&
     ECHO "%PATH%"
   )
 
