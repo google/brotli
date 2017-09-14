@@ -43,7 +43,7 @@ install:
   )
 
 before_build:
-- IF "%BUILD_SYSTEM%"=="CMake" ( mkdir builddir && cd builddir && cmake -G %GENERATOR% .. )
+- IF "%BUILD_SYSTEM%"=="CMake" ( mkdir builddir && cd builddir && cmake -G "%GENERATOR%" .. )
 
 build_script:
 - IF "%BUILD_SYSTEM%"=="CMake" ( cmake --build . --config Debug )
