@@ -14,17 +14,17 @@ install:
   )
 - IF "%BUILD_SYSTEM%"=="make" (
     SET "CC=gcc" &&
-    SET "MINGW32_PATH=C:\mingw-w64\i686-6.3.0-posix-dwarf-rt_v5-rev1\mingw32\bin" &&
-    SET "MINGW64_PATH=C:\mingw-w64\x86_64-6.3.0-posix-seh-rt_v5-rev1\mingw64\bin" &&
     SET "ORIGINAL_PATH=%PATH%" &&
     ( IF "%ARCH%"=="i686" (
-        SET "PATH=%MINGW32_PATH%;%ORIGINAL_PATH%" &&
-        COPY C:\msys64\usr\bin\make.exe %MINGW32_PATH%\make.exe
+        SET "MINGW32_PATH=C:\mingw-w64\i686-6.3.0-posix-dwarf-rt_v5-rev1\mingw32\bin" &&
       ) ELSE (
-        SET "PATH=%MINGW64_PATH%;%ORIGINAL_PATH%" &&
-        COPY C:\msys64\usr\bin\make.exe %MINGW64_PATH%\make.exe
+        SET "MINGW_PATH=C:\mingw-w64\x86_64-6.3.0-posix-seh-rt_v5-rev1\mingw64\bin"
       )
     ) &&
+    COPY C:\msys64\usr\bin\make.exe %MINGW_PATH%\make.exe &&
+    ECHO "%MINGW_PATH%" &&
+    ECHO "%ORIGINAL_PATH%" &&
+    SET "PATH=%MINGW_PATH%;%ORIGINAL_PATH%" &&
     ECHO "%PATH%"
   )
 
