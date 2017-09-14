@@ -34,7 +34,7 @@ build_script:
 - IF "%BUILD_SYSTEM%"=="make" (
     sh -c "make brotli" &&
     cd bin && 7z a -tzip -mx9 brotli-win-%ARCH%.zip brotli.exe &&
-    appveyor PushArtifact brotli-win-%ARCH%.zip
+    appveyor PushArtifact brotli-win-%ARCH%.zip && cd ..
   )
 
 test_script:
