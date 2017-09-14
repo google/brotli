@@ -24,7 +24,7 @@ install:
         COPY C:\msys64\usr\bin\make.exe %MINGW64_PATH%\make.exe
       )
     ) &&
-    ECHO %PATH%
+    ECHO "%PATH%"
   )
 
 before_build:
