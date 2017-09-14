@@ -23,19 +23,19 @@ environment:
     ARCH: "x86_64"
 
 install:
-- if "%BUILD_SYSTEM%" == "Python" (
+- IF "%BUILD_SYSTEM%"=="Python" (
     SET "PATH=%PYTHON%;%PYTHON%\Scripts;%PATH%" &&
     pip install --disable-pip-version-check --user --upgrade pip &&
     pip install --upgrade setuptools
   )
-- if "%BUILD_SYSTEM%" == "make" (
+- IF "%BUILD_SYSTEM%"=="make" (
     SET "CC=gcc" &&
     SET "MINGW32_PATH=C:\mingw-w64\i686-6.3.0-posix-dwarf-rt_v5-rev1\mingw32\bin" &&
     SET "MINGW64_PATH=C:\mingw-w64\x86_64-6.3.0-posix-seh-rt_v5-rev1\mingw64\bin" &&
-    ( if "%ARCH" == "i686" (
+    ( IF "%ARCH"=="i686" (
         SET "PATH=%MINGW32_PATH%;%PATH%" &&
         COPY C:\msys64\usr\bin\make.exe %MINGW32_PATH%\make.exe
-      ) else (
+      ) ELSE (
         SET "PATH=%MINGW64_PATH%;%PATH%" &&
         COPY C:\msys64\usr\bin\make.exe %MINGW64_PATH%\make.exe
       )
@@ -43,14 +43,14 @@ install:
   )
 
 before_build:
-- if "%BUILD_SYSTEM%" == "CMake" ( mkdir builddir && cd builddir && cmake -G %GENERATOR% .. )
+- IF "%BUILD_SYSTEM%"=="CMake" ( mkdir builddir && cd builddir && cmake -G %GENERATOR% .. )
 
 build_script:
-- if "%BUILD_SYSTEM%" == "CMake" ( cmake --build . --config Debug )
-- if "%BUILD_SYSTEM%" == "Python" ( python setup.py build_ext )
-- if "%BUILD_SYSTEM%" == "make" ( sh -c "make brotli" )
+- IF "%BUILD_SYSTEM%"=="CMake" ( cmake --build . --config Debug )
+- IF "%BUILD_SYSTEM%"=="Python" ( python setup.py build_ext )
+- IF "%BUILD_SYSTEM%"=="make" ( sh -c "make brotli" )
 
 test_script:
-- if "%BUILD_SYSTEM%" == "CMake" ( ctest --output-on-failure --interactive-debug-mode 0 -C Debug )
-- if "%BUILD_SYSTEM%" == "Python" ( python setup.py test )
-- if "%BUILD_SYSTEM%" == "make" ( sh -c "make test" )
+- IF "%BUILD_SYSTEM%"=="CMake" ( ctest --output-on-failure --interactive-debug-mode 0 -C Debug )
+- IF "%BUILD_SYSTEM%"=="Python" ( python setup.py test )
+- IF "%BUILD_SYSTEM%"=="make" ( sh -c "make test" )
