@@ -14,7 +14,6 @@ tests/testdata/plrabn12.txt
 c/enc/encode.c
 c/common/dictionary.h
 c/dec/decode.c
-$BROTLI
 """
 
 for file in $INPUTS; do
