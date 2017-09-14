@@ -32,7 +32,7 @@ install:
     SET "CC=gcc" &&
     SET "MINGW32_PATH=C:\mingw-w64\i686-6.3.0-posix-dwarf-rt_v5-rev1\mingw32\bin" &&
     SET "MINGW64_PATH=C:\mingw-w64\x86_64-6.3.0-posix-seh-rt_v5-rev1\mingw64\bin" &&
-    ( IF "%ARCH"=="i686" (
+    ( IF "%ARCH%"=="i686" (
         SET "PATH=%MINGW32_PATH%;%PATH%" &&
         COPY C:\msys64\usr\bin\make.exe %MINGW32_PATH%\make.exe
       ) ELSE (
