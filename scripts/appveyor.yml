@@ -21,11 +21,11 @@ install:
         SET "TOOLCHAIN=x86_64-6.3.0-posix-seh-rt_v5-rev1\mingw64"
       )
     ) &&
-    COPY C:\msys64\usr\bin\make.exe C:\mingw-w64\%TOOLCHAIN%\bin\make.exe &&
-    ECHO "%MINGW_PATH%" &&
+    ECHO "%TOOLCHAIN%" &&
     ECHO "%ORIGINAL_PATH%" &&
     SET "PATH=C:\mingw-w64\%TOOLCHAIN%\bin;%ORIGINAL_PATH%" &&
-    ECHO "%PATH%"
+    ECHO "%PATH%" &&
+    COPY C:\msys64\usr\bin\make.exe C:\mingw-w64\%TOOLCHAIN%\bin\make.exe
   )
 
 before_build:
