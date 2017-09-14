@@ -20,7 +20,10 @@ install:
       ) ELSE (
         SET "TOOLCHAIN=x86_64-6.3.0-posix-seh-rt_v5-rev1\mingw64"
       )
-    ) &&
+    )
+  )
+
+- IF "%BUILD_SYSTEM%"=="make" (
     ECHO "%TOOLCHAIN%" &&
     ECHO "%ORIGINAL_PATH%" &&
     SET "PATH=C:\mingw-w64\%TOOLCHAIN%\bin;%ORIGINAL_PATH%" &&
