@@ -43,6 +43,7 @@ before_build:
     SET "PATH=C:\mingw-w64\%TOOLCHAIN%\bin;%PATH%" &&
     COPY C:\msys64\usr\bin\make.exe C:\mingw-w64\%TOOLCHAIN%\bin\make.exe
   )
+- SET "RELEASE_DATE=TODAY"
 - ps: $env.RELEASE_DATE = get-date -Format yyyy-MM-dd
 
 build_script:
