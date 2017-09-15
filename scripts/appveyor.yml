@@ -22,8 +22,6 @@ environment:
   - BUILD_SYSTEM: make
     ARCH: "x86_64"
 
-  releaseDate: "yyyy-MM-dd"
-
 install:
 - IF "%BUILD_SYSTEM%"=="Python" (
     SET "PATH=%PYTHON%;%PYTHON%\Scripts;%PATH%" &&
@@ -43,16 +41,16 @@ before_build:
 - IF "%BUILD_SYSTEM%"=="make" (
     SET "CC=gcc" &&
     SET "PATH=C:\mingw-w64\%TOOLCHAIN%\bin;%PATH%" &&
-    COPY C:\msys64\usr\bin\make.exe C:\mingw-w64\%TOOLCHAIN%\bin\make.exe
+    COPY C:\msys64\usr\bin\make.exe C:\mingw-w64\%TOOLCHAIN%\bin\make.exe &&
+    FOR /f %%i in ('C:\cygwin64\bin\date.exe +%%Y-%%m-%%d') DO SET RELEASE_DATE=%%i
   )
-- ps: $env.releaseDate = get-date -Format $env.releaseDate
 
 build_script:
 - IF "%BUILD_SYSTEM%"=="CMake" ( cmake --build . --config Debug )
 - IF "%BUILD_SYSTEM%"=="Python" ( python setup.py build_ext )
 - IF "%BUILD_SYSTEM%"=="make" (
     sh -c "make brotli" &&
-    cd bin && 7z a -tzip -mx9 brotli-win-%ARCH%-%releaseDate%.zip brotli.exe &&
+    cd bin && 7z a -tzip -mx9 brotli-win-%ARCH%-%RELEASE_DATE%.zip brotli.exe &&
     appveyor PushArtifact brotli-win-%ARCH%.zip && cd ..
   )
 
