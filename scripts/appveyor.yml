@@ -43,13 +43,14 @@ before_build:
     SET "PATH=C:\mingw-w64\%TOOLCHAIN%\bin;%PATH%" &&
     COPY C:\msys64\usr\bin\make.exe C:\mingw-w64\%TOOLCHAIN%\bin\make.exe
   )
+- ps: $env.RELEASE_DATE = get-date -Format yyyy-MM-dd
 
 build_script:
 - IF "%BUILD_SYSTEM%"=="CMake" ( cmake --build . --config Debug )
 - IF "%BUILD_SYSTEM%"=="Python" ( python setup.py build_ext )
 - IF "%BUILD_SYSTEM%"=="make" (
     sh -c "make brotli" &&
-    cd bin && 7z a -tzip -mx9 brotli-win-%ARCH%.zip brotli.exe &&
+    cd bin && 7z a -tzip -mx9 brotli-win-%ARCH%-%RELEASE_DATE%.zip brotli.exe &&
     appveyor PushArtifact brotli-win-%ARCH%.zip && cd ..
   )
 
@@ -57,3 +58,15 @@ test_script:
 - IF "%BUILD_SYSTEM%"=="CMake" ( ctest --output-on-failure --interactive-debug-mode 0 -C Debug )
 - IF "%BUILD_SYSTEM%"=="Python" ( python setup.py test )
 - IF "%BUILD_SYSTEM%"=="make" ( sh -c "make test" )
+
+deploy:
+- provider: BinTray
+  username: eustas
+  api_key:
+    secure: B3rM8JYeIHIw6BfOjHggAeyTmxEf8ZDYmyF9gCwqyWaxyxECD9BuN50SiV2KE/RI
+  subject: eustas
+  repo: brotli
+  package: bin
+  version: snapshot
+  publish: true
+  override: true
