@@ -42,7 +42,7 @@ before_build:
     SET "CC=gcc" &&
     SET "PATH=C:\mingw-w64\%TOOLCHAIN%\bin;%PATH%" &&
     COPY C:\msys64\usr\bin\make.exe C:\mingw-w64\%TOOLCHAIN%\bin\make.exe &&
-    FOR /f %%i in ('C:\cygwin64\bin\date.exe +%%Y-%%m-%%d') DO SET RELEASE_DATE=%%i
+    FOR /f %%i in ('C:\cygwin64\bin\date.exe +%%Y-%%m-%%d') DO SET "RELEASE_DATE=%%i"
   )
 
 build_script:
