@@ -163,7 +163,7 @@ add_library(brotlienc-static STATIC ${BROTLIENC_SOURCES})
 include_directories(${BROTLI_INCLUDE_DIRS})
 
 foreach(lib brotlicommon brotlidec brotlienc)
-  target_compile_definitions(${lib} PRIVATE "BROTLI_SHARED_COMPILATION" )
+  target_compile_definitions(${lib} PUBLIC "BROTLI_SHARED_COMPILATION" )
   string(TOUPPER "${lib}" LIB)
   set_target_properties (${lib} PROPERTIES DEFINE_SYMBOL "${LIB}_SHARED_COMPILATION" )
 endforeach()
