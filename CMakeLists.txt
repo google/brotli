@@ -22,22 +22,17 @@ if(BROTLI_BUNDLED_MODE STREQUAL "")
 endif()
 mark_as_advanced(BROTLI_BUNDLED_MODE)
 
-include(CMakeDependentOption)
-CMAKE_DEPENDENT_OPTION(BUILD_SHARED_LIBS "Build shared libraries" ON "NOT BROTLI_BUNDLED_MODE" OFF)
-
 include(GNUInstallDirs)
 
 # When building shared libraries it is important to set the correct rpath.
 # See https://cmake.org/Wiki/CMake_RPATH_handling#Always_full_RPATH
-if (BUILD_SHARED_LIBS)
-  add_definitions(-DBROTLI_SHARED_COMPILATION)
-  set(CMAKE_SKIP_BUILD_RPATH FALSE)
-  set(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)
-  set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
-  list(FIND CMAKE_PLATFORM_IMPLICIT_LINK_DIRECTORIES "${CMAKE_INSTALL_LIBDIR}" isSystemDir)
-  if ("${isSystemDir}" STREQUAL "-1")
-    set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_LIBDIR}")
-  endif()
+add_definitions(-DBROTLI_SHARED_COMPILATION)
+set(CMAKE_SKIP_BUILD_RPATH FALSE)
+set(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)
+set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
+list(FIND CMAKE_PLATFORM_IMPLICIT_LINK_DIRECTORIES "${CMAKE_INSTALL_LIBDIR}" isSystemDir)
+if ("${isSystemDir}" STREQUAL "-1")
+  set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_LIBDIR}")
 endif()
 
 # Parse version information from common/version.h. Normally we would
@@ -113,9 +108,15 @@ endif()
 unset(LOG2_RES)
 
 set(BROTLI_INCLUDE_DIRS "${CMAKE_CURRENT_SOURCE_DIR}/c/include")
+mark_as_advanced(BROTLI_INCLUDE_DIRS)
+
 set(BROTLI_LIBRARIES_CORE brotlienc brotlidec brotlicommon)
 set(BROTLI_LIBRARIES ${BROTLI_LIBRARIES_CORE} ${LIBM_LIBRARY})
-mark_as_advanced(BROTLI_INCLUDE_DIRS BROTLI_LIBRARIES)
+mark_as_advanced(BROTLI_LIBRARIES)
+
+set(BROTLI_LIBRARIES_CORE_STATIC brotlienc-static brotlidec-static brotlicommon-static)
+set(BROTLI_LIBRARIES_STATIC ${BROTLI_LIBRARIES_CORE_STATIC} ${LIBM_LIBRARY})
+mark_as_advanced(BROTLI_LIBRARIES_STATIC)
 
 if(${CMAKE_SYSTEM_NAME} MATCHES "Linux")
   add_definitions(-DOS_LINUX)
@@ -125,14 +126,14 @@ elseif(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
   add_definitions(-DOS_MACOSX)
 endif()
 
-add_library(brotlicommon
+set(BROTLICOMMON_SOURCES
   c/common/dictionary.c)
-add_library(brotlidec
+set(BROTLIDEC_SOURCES
   c/dec/bit_reader.c
   c/dec/decode.c
   c/dec/huffman.c
   c/dec/state.c)
-add_library(brotlienc
+set(BROTLIENC_SOURCES
   c/enc/backward_references.c
   c/enc/backward_references_hq.c
   c/enc/bit_cost.c
@@ -151,10 +152,18 @@ add_library(brotlienc
   c/enc/static_dict.c
   c/enc/utf8_util.c)
 
+add_library(brotlicommon SHARED ${BROTLICOMMON_SOURCES})
+add_library(brotlidec SHARED ${BROTLIDEC_SOURCES})
+add_library(brotlienc SHARED ${BROTLIENC_SOURCES})
+
+add_library(brotlicommon-static STATIC ${BROTLICOMMON_SOURCES})
+add_library(brotlidec-static STATIC ${BROTLIDEC_SOURCES})
+add_library(brotlienc-static STATIC ${BROTLIENC_SOURCES})
+
 # Older CMake versions does not understand INCLUDE_DIRECTORIES property.
 include_directories(${BROTLI_INCLUDE_DIRS})
 
-foreach(lib brotlicommon brotlidec brotlienc)
+foreach(lib brotlicommon brotlidec brotlienc brotlicommon-static brotlidec-static brotlienc-static)
   target_link_libraries(${lib} ${LIBM_LIBRARY})
   set_property(TARGET ${lib} APPEND PROPERTY INCLUDE_DIRECTORIES ${BROTLI_INCLUDE_DIRS})
   set_target_properties(${lib} PROPERTIES
@@ -170,6 +179,9 @@ endforeach()
 target_link_libraries(brotlidec brotlicommon)
 target_link_libraries(brotlienc brotlicommon)
 
+target_link_libraries(brotlidec-static brotlicommon-static)
+target_link_libraries(brotlienc-static brotlicommon-static)
+
 # For projects stuck on older versions of CMake, this will set the
 # BROTLI_INCLUDE_DIRS and BROTLI_LIBRARIES variables so they still
 # have a relatively easy way to use Brotli:
@@ -183,7 +195,7 @@ endif()
 
 # Build the brotli executable
 add_executable(brotli c/tools/brotli.c)
-target_link_libraries(brotli ${BROTLI_LIBRARIES})
+target_link_libraries(brotli ${BROTLI_LIBRARIES_STATIC})
 
 # Installation
 if(NOT BROTLI_BUNDLED_MODE)
