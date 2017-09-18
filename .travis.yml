@@ -1,5 +1,8 @@
 language: c
 sudo: false
+branches:
+  only:
+  - master
 matrix:
   include:
     ###
