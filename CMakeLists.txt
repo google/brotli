@@ -170,12 +170,11 @@ foreach(lib brotlicommon brotlidec brotlienc brotlicommon-static brotlidec-stati
     SOVERSION "${BROTLI_VERSION_MAJOR}.${BROTLI_VERSION_MINOR}.${BROTLI_VERSION_REVISION}"
     VERSION "${BROTLI_VERSION_MAJOR}.${BROTLI_VERSION_MINOR}.${BROTLI_VERSION_REVISION}"
     POSITION_INDEPENDENT_CODE TRUE)
-  set_property(TARGET ${lib} APPEND PROPERTY INTERFACE_INCLUDE_DIRECTORIES "${BROTLI_INCLUDE_DIRS}")
-endforeach()
-
-foreach(lib brotlicommon brotlidec brotlienc)
   string(TOUPPER "${lib}" LIB)
+  string(REGEX REPLACE "-STATIC$" "" "${LIB}" LIB)
   set_target_properties (${lib} PROPERTIES DEFINE_SYMBOL "${LIB}_SHARED_COMPILATION" )
+
+  set_property(TARGET ${lib} APPEND PROPERTY INTERFACE_INCLUDE_DIRECTORIES "${BROTLI_INCLUDE_DIRS}")
 endforeach()
 
 target_link_libraries(brotlidec brotlicommon)
