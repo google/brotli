@@ -26,7 +26,6 @@ include(GNUInstallDirs)
 
 # When building shared libraries it is important to set the correct rpath.
 # See https://cmake.org/Wiki/CMake_RPATH_handling#Always_full_RPATH
-add_definitions(-DBROTLI_SHARED_COMPILATION)
 set(CMAKE_SKIP_BUILD_RPATH FALSE)
 set(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)
 set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
@@ -163,6 +162,10 @@ add_library(brotlienc-static STATIC ${BROTLIENC_SOURCES})
 # Older CMake versions does not understand INCLUDE_DIRECTORIES property.
 include_directories(${BROTLI_INCLUDE_DIRS})
 
+foreach(lib brotlicommon brotlidec brotlienc)
+  add_definitions(-DBROTLI_SHARED_COMPILATION)
+endforeach()
+
 foreach(lib brotlicommon brotlidec brotlienc brotlicommon-static brotlidec-static brotlienc-static)
   target_link_libraries(${lib} ${LIBM_LIBRARY})
   set_property(TARGET ${lib} APPEND PROPERTY INCLUDE_DIRECTORIES ${BROTLI_INCLUDE_DIRS})
@@ -171,7 +174,6 @@ foreach(lib brotlicommon brotlidec brotlienc brotlicommon-static brotlidec-stati
     VERSION "${BROTLI_VERSION_MAJOR}.${BROTLI_VERSION_MINOR}.${BROTLI_VERSION_REVISION}"
     POSITION_INDEPENDENT_CODE TRUE)
   string(TOUPPER "${lib}" LIB)
-  string(REGEX REPLACE "-STATIC$" "" LIB "${LIB}")
   set_target_properties (${lib} PROPERTIES DEFINE_SYMBOL "${LIB}_SHARED_COMPILATION" )
 
   set_property(TARGET ${lib} APPEND PROPERTY INTERFACE_INCLUDE_DIRECTORIES "${BROTLI_INCLUDE_DIRS}")
