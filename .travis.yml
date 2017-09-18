@@ -9,6 +9,16 @@ matrix:
     ## Linux builds using various versions of GCC.
     ###
     - os: linux
+      env: BUILD_SYSTEM=cmake C_COMPILER=gcc-7 CXX_COMPILER=g++-7
+      dist: trusty
+      addons:
+        apt:
+          sources:
+          - ubuntu-toolchain-r-test
+          packages:
+          - gcc-7
+          - g++-7
+    - os: linux
       env: BUILD_SYSTEM=cmake C_COMPILER=gcc-6 CXX_COMPILER=g++-6
       addons:
         apt:
@@ -84,6 +94,15 @@ matrix:
     ###
     ## clang on Linux
     ###
+    - os: linux
+      env: BUILD_SYSTEM=cmake C_COMPILER=clang-4.0 CXX_COMPILER=clang++-4.0
+      addons:
+        apt:
+          sources:
+          - llvm-toolchain-trusty-4.0
+          - ubuntu-toolchain-r-test
+          packages:
+          - clang-4.0
     - os: linux
       env: BUILD_SYSTEM=cmake C_COMPILER=clang-3.8 CXX_COMPILER=clang++-3.8
       addons:
