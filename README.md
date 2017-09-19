@@ -23,7 +23,7 @@ https://groups.google.com/forum/#!forum/brotli
 #### Autotools-style CMake
 
 [configure-cmake](https://github.com/nemequ/configure-cmake) is an
-autotools-style configure script for CMake-based projects.
+autotools-style configure script for CMake-based projects (not supported on Windows).
 
 The basic commands to build, test and install brotli are:
 
@@ -31,12 +31,6 @@ The basic commands to build, test and install brotli are:
     $ ../configure-cmake
     $ make
     $ make test
-    $ make install
-
-To build static libraries use `--disable-shared-libs` argument:
-
-    $ mkdir out-static && cd out-static
-    $ ../configure-cmake --disable-shared-libs
     $ make install
 
 #### Bazel
@@ -51,12 +45,7 @@ The basic commands to build and install brotli are:
     $ cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=./installed ..
     $ cmake --build . --config Release --target install
 
-You can use other [CMake](https://cmake.org/) configuration. For example, to
-build static libraries:
-
-    $ mkdir out-static && cd out-static
-    $ cmake .. -DBUILD_SHARED_LIBS=OFF
-    $ make
+You can use other [CMake](https://cmake.org/) configuration.
 
 #### Premake5
 
