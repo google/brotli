@@ -214,6 +214,13 @@ if(NOT BROTLI_BUNDLED_MODE)
   )
 
   install(
+    TARGETS ${BROTLI_LIBRARIES_CORE_STATIC}
+    ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}"
+    LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}"
+    RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}"
+  )
+
+  install(
     DIRECTORY ${BROTLI_INCLUDE_DIRS}/brotli
     DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
   )
@@ -260,7 +267,7 @@ if(NOT BROTLI_DISABLE_TESTS)
           -DBROTLI_CLI=$<TARGET_FILE:brotli>
           -DQUALITY=${quality}
           -DINPUT=${INPUT_FILE}
-  	  -DOUTPUT=${OUTPUT_FILE}.${quality}
+          -DOUTPUT=${OUTPUT_FILE}.${quality}
           -P ${CMAKE_CURRENT_SOURCE_DIR}/tests/run-roundtrip-test.cmake)
     endforeach()
   endforeach()
