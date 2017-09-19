@@ -57,6 +57,10 @@ To install the latest release of the Python module, run the following:
 
     $ pip install brotli
 
+To install the tip-of-the-tree version, run:
+
+    $ pip install --upgrade git+https://github.com/google/brotli
+
 See the [Python readme](python/README.md) for more details on installing
 from source, development, and testing.
 
