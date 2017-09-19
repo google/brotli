@@ -15,6 +15,7 @@
 #include <sys/types.h>
 #include <time.h>
 
+#include "../common/constants.h"
 #include "../common/version.h"
 #include <brotli/decode.h>
 #include <brotli/encode.h>
@@ -38,6 +39,7 @@
 #endif
 
 #define fdopen _fdopen
+#define isatty _isatty
 #define unlink _unlink
 #define utimbuf _utimbuf
 #define utime _utime
@@ -685,6 +687,11 @@ static BROTLI_BOOL DecompressFiles(Context* context) {
       return BROTLI_FALSE;
     }
     is_ok = OpenFiles(context);
+    if (is_ok && !context->current_input_path &&
+        !context->force_overwrite && isatty(STDIN_FILENO)) {
+      fprintf(stderr, "Use -h help. Use -f to force input from a terminal.\n");
+      is_ok = BROTLI_FALSE;
+    }
     if (is_ok) is_ok = DecompressFile(context, s);
     BrotliDecoderDestroyInstance(s);
     if (!CloseFiles(context, is_ok)) is_ok = BROTLI_FALSE;
@@ -750,6 +757,11 @@ static BROTLI_BOOL CompressFiles(Context* context) {
     BrotliEncoderSetParameter(s,
         BROTLI_PARAM_LGWIN, (uint32_t)context->lgwin);
     is_ok = OpenFiles(context);
+    if (is_ok && !context->current_output_path &&
+        !context->force_overwrite && isatty(STDOUT_FILENO)) {
+      fprintf(stderr, "Use -h help. Use -f to force output to a terminal.\n");
+      is_ok = BROTLI_FALSE;
+    }
     if (is_ok) is_ok = CompressFile(context, s);
     BrotliEncoderDestroyInstance(s);
     if (!CloseFiles(context, is_ok)) is_ok = BROTLI_FALSE;

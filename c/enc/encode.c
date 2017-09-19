@@ -385,8 +385,7 @@ static void ChooseContextMap(int quality,
    context values, based on the entropy reduction of histograms over the
    first 5 bits of literals. */
 static BROTLI_BOOL ShouldUseComplexStaticContextMap(const uint8_t* input,
-    size_t start_pos, size_t length, size_t mask, int quality,
-    size_t size_hint, ContextType* literal_context_mode,
+    size_t start_pos, size_t length, size_t mask, int quality, size_t size_hint,
     size_t* num_literal_contexts, const uint32_t** literal_context_map) {
   static const uint32_t kStaticContextMapComplexUTF8[64] = {
     11, 11, 12, 12, /* 0 special */
@@ -457,7 +456,6 @@ static BROTLI_BOOL ShouldUseComplexStaticContextMap(const uint8_t* input,
     if (entropy[2] > 3.0 || entropy[1] - entropy[2] < 0.2) {
       return BROTLI_FALSE;
     } else {
-      *literal_context_mode = CONTEXT_UTF8;
       *num_literal_contexts = 13;
       *literal_context_map = kStaticContextMapComplexUTF8;
       return BROTLI_TRUE;
@@ -466,13 +464,12 @@ static BROTLI_BOOL ShouldUseComplexStaticContextMap(const uint8_t* input,
 }
 
 static void DecideOverLiteralContextModeling(const uint8_t* input,
-    size_t start_pos, size_t length, size_t mask, int quality,
-    size_t size_hint, ContextType* literal_context_mode,
+    size_t start_pos, size_t length, size_t mask, int quality, size_t size_hint,
     size_t* num_literal_contexts, const uint32_t** literal_context_map) {
   if (quality < MIN_QUALITY_FOR_CONTEXT_MODELING || length < 64) {
     return;
   } else if (ShouldUseComplexStaticContextMap(
-      input, start_pos, length, mask, quality, size_hint, literal_context_mode,
+      input, start_pos, length, mask, quality, size_hint,
       num_literal_contexts, literal_context_map)) {
     /* Context map was already set, nothing else to do. */
   } else {
@@ -492,7 +489,6 @@ static void DecideOverLiteralContextModeling(const uint8_t* input,
         prev = lut[literal >> 6] * 3;
       }
     }
-    *literal_context_mode = CONTEXT_UTF8;
     ChooseContextMap(quality, &bigram_prefix_histo[0], num_literal_contexts,
                      literal_context_map);
   }
@@ -596,7 +592,7 @@ static void WriteMetaBlockInternal(MemoryManager* m,
       if (!params->disable_literal_context_modeling) {
         DecideOverLiteralContextModeling(
             data, wrapped_last_flush_pos, bytes, mask, params->quality,
-            params->size_hint, &literal_context_mode, &num_literal_contexts,
+            params->size_hint, &num_literal_contexts,
             &literal_context_map);
       }
       BrotliBuildMetaBlockGreedy(m, data, wrapped_last_flush_pos, mask,

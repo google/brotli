@@ -171,7 +171,7 @@ public class Encoder {
           buffer.get(chunk);
           output.add(chunk);
           totalOutputSize += chunk.length;
-        } else if (encoder.hasRemainingInput()) {
+        } else if (!encoder.isFinished()) {
           encoder.push(EncoderJNI.Operation.FINISH, 0);
         } else {
           break;

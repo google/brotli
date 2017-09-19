@@ -69,15 +69,18 @@ public class EncoderTest {
       throw new RuntimeException("Can't read bundle entry: " + entryName);
     }
 
-    byte[] compressed = Encoder.compress(original, new Encoder.Parameters().setQuality(6));
+    for (int window = 10; window <= 22; window++) {
+      byte[] compressed =
+          Encoder.compress(original, new Encoder.Parameters().setQuality(6).setWindow(window));
 
-    InputStream decoder = new BrotliInputStream(new ByteArrayInputStream(compressed));
-    try {
-      long originalCrc = BundleHelper.fingerprintStream(new ByteArrayInputStream(original));
-      long crc = BundleHelper.fingerprintStream(decoder);
-      assertEquals(originalCrc, crc);
-    } finally {
-      decoder.close();
+      InputStream decoder = new BrotliInputStream(new ByteArrayInputStream(compressed));
+      try {
+        long originalCrc = BundleHelper.fingerprintStream(new ByteArrayInputStream(original));
+        long crc = BundleHelper.fingerprintStream(decoder);
+        assertEquals(originalCrc, crc);
+      } finally {
+        decoder.close();
+      }
     }
   }
 }
