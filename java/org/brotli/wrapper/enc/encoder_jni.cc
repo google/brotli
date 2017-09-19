@@ -45,8 +45,8 @@ Java_org_brotli_wrapper_enc_EncoderJNI_nativeCreate(
     JNIEnv* env, jobject /*jobj*/, jlongArray ctx) {
   bool ok = true;
   EncoderHandle* handle = nullptr;
-  jlong context[4];
-  env->GetLongArrayRegion(ctx, 0, 4, context);
+  jlong context[5];
+  env->GetLongArrayRegion(ctx, 0, 5, context);
   size_t input_size = context[1];
   context[0] = 0;
   handle = new (std::nothrow) EncoderHandle();
@@ -110,12 +110,12 @@ Java_org_brotli_wrapper_enc_EncoderJNI_nativeCreate(
 JNIEXPORT void JNICALL
 Java_org_brotli_wrapper_enc_EncoderJNI_nativePush(
     JNIEnv* env, jobject /*jobj*/, jlongArray ctx, jint input_length) {
-  jlong context[4];
-  env->GetLongArrayRegion(ctx, 0, 4, context);
+  jlong context[5];
+  env->GetLongArrayRegion(ctx, 0, 5, context);
   EncoderHandle* handle = getHandle(reinterpret_cast<void*>(context[0]));
   int operation = context[1];
   context[1] = 0;  /* ERROR */
-  env->SetLongArrayRegion(ctx, 0, 4, context);
+  env->SetLongArrayRegion(ctx, 0, 5, context);
 
   BrotliEncoderOperation op;
   switch (operation) {
@@ -145,8 +145,9 @@ Java_org_brotli_wrapper_enc_EncoderJNI_nativePush(
     context[1] = 1;
     context[2] = BrotliEncoderHasMoreOutput(handle->state) ? 1 : 0;
     context[3] = (handle->input_offset != handle->input_last) ? 1 : 0;
+    context[4] = BrotliEncoderIsFinished(handle->state) ? 1 : 0;
   }
-  env->SetLongArrayRegion(ctx, 0, 4, context);
+  env->SetLongArrayRegion(ctx, 0, 5, context);
 }
 
 /**
@@ -160,15 +161,16 @@ Java_org_brotli_wrapper_enc_EncoderJNI_nativePush(
 JNIEXPORT jobject JNICALL
 Java_org_brotli_wrapper_enc_EncoderJNI_nativePull(
     JNIEnv* env, jobject /*jobj*/, jlongArray ctx) {
-  jlong context[4];
-  env->GetLongArrayRegion(ctx, 0, 4, context);
+  jlong context[5];
+  env->GetLongArrayRegion(ctx, 0, 5, context);
   EncoderHandle* handle = getHandle(reinterpret_cast<void*>(context[0]));
   size_t data_length = 0;
   const uint8_t* data = BrotliEncoderTakeOutput(handle->state, &data_length);
   context[1] = 1;
   context[2] = BrotliEncoderHasMoreOutput(handle->state) ? 1 : 0;
   context[3] = (handle->input_offset != handle->input_last) ? 1 : 0;
-  env->SetLongArrayRegion(ctx, 0, 4, context);
+  context[4] = BrotliEncoderIsFinished(handle->state) ? 1 : 0;
+  env->SetLongArrayRegion(ctx, 0, 5, context);
   return env->NewDirectByteBuffer(const_cast<uint8_t*>(data), data_length);
 }
 

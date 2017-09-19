@@ -73,16 +73,17 @@ public class SynthTest {
       (byte) 0x1b, (byte) 0x41, (byte) 0x02
     };
     checkSynth(
-/*
-      // The stream consists of a base dictionary word.
-      main_header
-      metablock_header_easy: 4, 1
-      command_inscopy_easy: 0, 4
-      command_dist_easy: 1
-      */
+    /*
+     * // The stream consists of a base dictionary word.
+     * main_header
+     * metablock_header_easy: 4, 1
+     * command_inscopy_easy: 0, 4
+     * command_dist_easy: 1
+     */
       compressed,
-      true, ""
-    +       "time");
+      true,
+      "time"
+    );
   }
 
   @Test
@@ -98,14 +99,15 @@ public class SynthTest {
       (byte) 0x34, (byte) 0x34, (byte) 0xd4, (byte) 0x00
     };
     checkSynth(
-/*
-      main_header
-      metablock_header_easy: 32, 1 // 32 = minimal ringbuffer size
-      command_easy: 4, "aaaaaaaaaaaaaaaaaaaaaaaaaaaa", 29
-      */
+    /*
+     * main_header
+     * metablock_header_easy: 32, 1 // 32 = minimal ringbuffer size
+     * command_easy: 4, "aaaaaaaaaaaaaaaaaaaaaaaaaaaa", 29
+     */
       compressed,
-      true, ""
-    +       "aaaaaaaaaaaaaaaaaaaaaaaaaaaatime");
+      true,
+      "aaaaaaaaaaaaaaaaaaaaaaaaaaaatime"
+    );
   }
 
   @Test
@@ -117,16 +119,18 @@ public class SynthTest {
       (byte) 0x1b, (byte) 0x41, (byte) 0x02
     };
     checkSynth(
-/*
-      // Has an unmodified dictionary word that goes over the end of the
-      // meta-block. Same as BaseDictWord, but with a shorter meta-block length.
-      main_header
-      metablock_header_easy: 1, 1
-      command_inscopy_easy: 0, 4
-      command_dist_easy: 1
-      */
+    /*
+     * // Has an unmodified dictionary word that goes over the end of the
+     * // meta-block. Same as BaseDictWord, but with a shorter meta-block length.
+     * main_header
+     * metablock_header_easy: 1, 1
+     * command_inscopy_easy: 0, 4
+     * command_dist_easy: 1
+     */
       compressed,
-      false, "");
+      false,
+      ""
+    );
   }
 
   @Test
@@ -140,46 +144,47 @@ public class SynthTest {
       (byte) 0x00, (byte) 0x00
     };
     checkSynth(
-/*
-      // Same as BlockSwitchMessage but also uses 0-bit block-type commands.
-      main_header
-      metablock_header_begin: 1, 0, 12, 0
-      // two literal block types
-      vlq_blocktypes: 2
-      huffman_simple: 1,1,4, 1  // literal blocktype prefix code
-      huffman_fixed: 26  // literal blockcount prefix code
-      blockcount_easy: 2  // 2 a's
-      // one ins/copy and dist block type
-      vlq_blocktypes: 1
-      vlq_blocktypes: 1
-      ndirect: 0 0
-      // two MSB6 literal context modes
-      bits: "00", "00"
-      // two literal prefix codes
-      vlq_blocktypes: 2
-      // literal context map
-      vlq_rlemax: 5
-      huffman_simple: 0,3,7, 5,0,6  // context map rle huffman code
-      // context map rle: repeat 0 64 times, 1+5 64 times
-      bits: "01", "0", "11111", "11", "0", "11111"
-      bit: 1  // MTF enabled
-      // one distance prefix code
-      vlq_blocktypes: 1
-      huffman_simple: 0,1,256, 97  // only a's
-      huffman_simple: 0,1,256, 98  // only b's
-      huffman_fixed: 704
-      huffman_fixed: 64
-      // now comes the data
-      command_inscopy_easy: 12, 0
-      blockcount_easy: 2  // switch to other block type; 2 b's
-      blockcount_easy: 5  // switch to other block type; 5 a's
-      blockcount_easy: 1  // switch to other block type; 1 b
-      blockcount_easy: 1  // switch to other block type; 1 a
-      blockcount_easy: 1  // switch to other block type; 1 b
-      */
+    /*
+     * // Same as BlockSwitchMessage but also uses 0-bit block-type commands.
+     * main_header
+     * metablock_header_begin: 1, 0, 12, 0
+     * // two literal block types
+     * vlq_blocktypes: 2
+     * huffman_simple: 1,1,4, 1  // literal blocktype prefix code
+     * huffman_fixed: 26  // literal blockcount prefix code
+     * blockcount_easy: 2  // 2 a's
+     * // one ins/copy and dist block type
+     * vlq_blocktypes: 1
+     * vlq_blocktypes: 1
+     * ndirect: 0 0
+     * // two MSB6 literal context modes
+     * bits: "00", "00"
+     * // two literal prefix codes
+     * vlq_blocktypes: 2
+     * // literal context map
+     * vlq_rlemax: 5
+     * huffman_simple: 0,3,7, 5,0,6  // context map RLE Huffman code
+     * // context map RLE: repeat 0 64 times, 1+5 64 times
+     * bits: "01", "0", "11111", "11", "0", "11111"
+     * bit: 1  // MTF enabled
+     * // one distance prefix code
+     * vlq_blocktypes: 1
+     * huffman_simple: 0,1,256, 97  // only a's
+     * huffman_simple: 0,1,256, 98  // only b's
+     * huffman_fixed: 704
+     * huffman_fixed: 64
+     * // now comes the data
+     * command_inscopy_easy: 12, 0
+     * blockcount_easy: 2  // switch to other block type; 2 b's
+     * blockcount_easy: 5  // switch to other block type; 5 a's
+     * blockcount_easy: 1  // switch to other block type; 1 b
+     * blockcount_easy: 1  // switch to other block type; 1 a
+     * blockcount_easy: 1  // switch to other block type; 1 b
+     */
       compressed,
-      true, ""
-    +       "aabbaaaaabab");
+      true,
+      "aabbaaaaabab"
+    );
   }
 
   @Test
@@ -193,48 +198,49 @@ public class SynthTest {
       (byte) 0x00, (byte) 0x00, (byte) 0x00
     };
     checkSynth(
-/*
-      // Uses blocks with 1-symbol huffman codes that take 0 bits, so that it
-      // is the blockswitch commands that encode the message rather than actual
-      // literals.
-      main_header
-      metablock_header_begin: 1, 0, 12, 0
-      // two literal block types
-      vlq_blocktypes: 2
-      huffman_simple: 1,4,4, 1,0,2,3  // literal blocktype prefix code
-      huffman_fixed: 26  // literal blockcount prefix code
-      blockcount_easy: 2  // 2 a's
-      // one ins/copy and dist block type
-      vlq_blocktypes: 1
-      vlq_blocktypes: 1
-      ndirect: 0 0
-      // two MSB6 literal context modes
-      bits: "00", "00"
-      // two literal prefix codes
-      vlq_blocktypes: 2
-      // literal context map
-      vlq_rlemax: 5
-      huffman_simple: 0,3,7, 5,0,6  // context map rle huffman code
-      // context map rle: repeat 0 64 times, 1+5 64 times
-      bits: "01", "0", "11111", "11", "0", "11111"
-      bit: 1  // MTF enabled
-      // one distance prefix code
-      vlq_blocktypes: 1
-      huffman_simple: 0,1,256, 97  // only a's
-      huffman_simple: 0,1,256, 98  // only b's
-      huffman_fixed: 704
-      huffman_fixed: 64
-      // now comes the data
-      command_inscopy_easy: 12, 0
-      bits: "0"; blockcount_easy: 2  // switch to other block type; 2 b's
-      bits: "0"; blockcount_easy: 5  // switch to other block type; 5 a's
-      bits: "0"; blockcount_easy: 1  // switch to other block type; 1 b
-      bits: "0"; blockcount_easy: 1  // switch to other block type; 1 a
-      bits: "0"; blockcount_easy: 1  // switch to other block type; 1 b
-      */
+    /*
+     * // Uses blocks with 1-symbol Huffman codes that take 0 bits, so that it
+     * // is the block-switch commands that encode the message rather than actual
+     * // literals.
+     * main_header
+     * metablock_header_begin: 1, 0, 12, 0
+     * // two literal block types
+     * vlq_blocktypes: 2
+     * huffman_simple: 1,4,4, 1,0,2,3  // literal blocktype prefix code
+     * huffman_fixed: 26  // literal blockcount prefix code
+     * blockcount_easy: 2  // 2 a's
+     * // one ins/copy and dist block type
+     * vlq_blocktypes: 1
+     * vlq_blocktypes: 1
+     * ndirect: 0 0
+     * // two MSB6 literal context modes
+     * bits: "00", "00"
+     * // two literal prefix codes
+     * vlq_blocktypes: 2
+     * // literal context map
+     * vlq_rlemax: 5
+     * huffman_simple: 0,3,7, 5,0,6  // context map RLE Huffman code
+     * // context map RLE: repeat 0 64 times, 1+5 64 times
+     * bits: "01", "0", "11111", "11", "0", "11111"
+     * bit: 1  // MTF enabled
+     * // one distance prefix code
+     * vlq_blocktypes: 1
+     * huffman_simple: 0,1,256, 97  // only a's
+     * huffman_simple: 0,1,256, 98  // only b's
+     * huffman_fixed: 704
+     * huffman_fixed: 64
+     * // now comes the data
+     * command_inscopy_easy: 12, 0
+     * bits: "0"; blockcount_easy: 2  // switch to other block type; 2 b's
+     * bits: "0"; blockcount_easy: 5  // switch to other block type; 5 a's
+     * bits: "0"; blockcount_easy: 1  // switch to other block type; 1 b
+     * bits: "0"; blockcount_easy: 1  // switch to other block type; 1 a
+     * bits: "0"; blockcount_easy: 1  // switch to other block type; 1 b
+     */
       compressed,
-      true, ""
-    +       "aabbaaaaabab");
+      true,
+      "aabbaaaaabab"
+    );
   }
 
   @Test
@@ -247,27 +253,28 @@ public class SynthTest {
       (byte) 0x23
     };
     checkSynth(
-/*
-      // This test is a copy of TooManySymbolsRepeated, with changed clcl table.
-      main_header
-      metablock_header_begin: 1, 0, 4, 0
-      metablock_header_trivial_context
-      hskip: 0
-      clcl_ordered: 0,3,0,0,0,0,0,0,3,3,0,0,0,0,0,0,1,0
-      set_prefix_cl_rle: "", "110", "", "", "", "", "", "", "111", "101",\
-                         "", "", "", "", "", "", "0", ""
-      cl_rle: 8
-      cl_rle_rep: 9, 96
-      cl_rle: 1
-      cl_rle_rep: 9, 159 // 1 + 96 + 1 + 159 = 257 > 256 = alphabet size
-      huffman_fixed: 704
-      huffman_fixed: 64
-      command_inscopy_easy: 4, 0
-      command_literal_bits: 0, 0, 0, 101100010
-      */
+    /*
+     * // This test is a copy of TooManySymbolsRepeated, with changed clcl table.
+     * main_header
+     * metablock_header_begin: 1, 0, 4, 0
+     * metablock_header_trivial_context
+     * hskip: 0
+     * clcl_ordered: 0,3,0,0,0,0,0,0,3,3,0,0,0,0,0,0,1,0
+     * set_prefix_cl_rle: "", "110", "", "", "", "", "", "", "111", "101",\
+     *                    "", "", "", "", "", "", "0", ""
+     * cl_rle: 8
+     * cl_rle_rep: 9, 96
+     * cl_rle: 1
+     * cl_rle_rep: 9, 159 // 1 + 96 + 1 + 159 = 257 > 256 = alphabet size
+     * huffman_fixed: 704
+     * huffman_fixed: 64
+     * command_inscopy_easy: 4, 0
+     * command_literal_bits: 0, 0, 0, 101100010
+     */
       compressed,
-      false, ""
-    +       "aaab");
+      false,
+      "aaab"
+    );
   }
 
   @Test
@@ -279,27 +286,28 @@ public class SynthTest {
       (byte) 0x00, (byte) 0xdc, (byte) 0x69, (byte) 0xa3, (byte) 0x00, (byte) 0x8d, (byte) 0x00
     };
     checkSynth(
-/*
-      // This test is a copy of ClClTreeDeficiency, with changed clcl table.
-      main_header
-      metablock_header_begin: 1, 0, 4, 0
-      metablock_header_trivial_context
-      hskip: 0
-      clcl_ordered: 0,3,0,0,0,0,0,0,3,1,0,0,0,0,0,0,1,0
-      set_prefix_cl_rle: "", "110", "", "", "", "", "", "", "111", "1",\
-                         "", "", "", "", "", "", "0", ""
-      cl_rle: 8
-      cl_rle_rep: 9, 96
-      cl_rle: 1
-      cl_rle_rep: 9, 159 // 1 + 96 + 1 + 159 = 257 > 256 = alphabet size
-      huffman_fixed: 704
-      huffman_fixed: 64
-      command_inscopy_easy: 4, 0
-      command_literal_bits: 0, 0, 0, 101100010
-      */
+    /*
+     * // This test is a copy of ClClTreeDeficiency, with changed clcl table.
+     * main_header
+     * metablock_header_begin: 1, 0, 4, 0
+     * metablock_header_trivial_context
+     * hskip: 0
+     * clcl_ordered: 0,3,0,0,0,0,0,0,3,1,0,0,0,0,0,0,1,0
+     * set_prefix_cl_rle: "", "110", "", "", "", "", "", "", "111", "1",\
+     *                    "", "", "", "", "", "", "0", ""
+     * cl_rle: 8
+     * cl_rle_rep: 9, 96
+     * cl_rle: 1
+     * cl_rle_rep: 9, 159 // 1 + 96 + 1 + 159 = 257 > 256 = alphabet size
+     * huffman_fixed: 704
+     * huffman_fixed: 64
+     * command_inscopy_easy: 4, 0
+     * command_literal_bits: 0, 0, 0, 101100010
+     */
       compressed,
-      false, ""
-    +       "aaab");
+      false,
+      "aaab"
+    );
   }
 
   @Test
@@ -311,30 +319,31 @@ public class SynthTest {
       (byte) 0x12, (byte) 0x04
     };
     checkSynth(
-/*
-      // This tests a complex huffman code with only two symbols followed by a
-      // tiny amount of content.
-      main_header
-      metablock_header_begin: 1, 0, 2, 0
-      metablock_header_trivial_context
-      // begin of literal huffman tree. The tree has symbol length 1 for "a",
-      // symbol length 1 for "b" and symbol length 0 for all others.
-      hskip: 0
-      clcl_ordered: 0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1
-      set_prefix_cl_rle: "", "0", "", "", "", "", "", "", "", "",\
-                         "", "", "", "", "", "", "", "1"
-      cl_rle_rep_0: 97
-      cl_rle: 1  // literal number 97, that is, the letter 'a'
-      cl_rle: 1  // literal number 98, that is, the letter 'b'
-      // end of literal huffman tree
-      huffman_fixed: 704
-      huffman_fixed: 64
-      command_inscopy_easy: 2, 0
-      command_literal_bits: 0, 1  // a followed by b
-      */
+    /*
+     * // This tests a complex Huffman code with only two symbols followed by a
+     * // tiny amount of content.
+     * main_header
+     * metablock_header_begin: 1, 0, 2, 0
+     * metablock_header_trivial_context
+     * // begin of literal Huffman tree. The tree has symbol length 1 for "a",
+     * // symbol length 1 for "b" and symbol length 0 for all others.
+     * hskip: 0
+     * clcl_ordered: 0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1
+     * set_prefix_cl_rle: "", "0", "", "", "", "", "", "", "", "",\
+     *                    "", "", "", "", "", "", "", "1"
+     * cl_rle_rep_0: 97
+     * cl_rle: 1  // literal number 97, that is, the letter 'a'
+     * cl_rle: 1  // literal number 98, that is, the letter 'b'
+     * // end of literal Huffman tree
+     * huffman_fixed: 704
+     * huffman_fixed: 64
+     * command_inscopy_easy: 2, 0
+     * command_literal_bits: 0, 1  // a followed by b
+     */
       compressed,
-      true, ""
-    +       "ab");
+      true,
+      "ab"
+    );
   }
 
   @Test
@@ -351,31 +360,29 @@ public class SynthTest {
       (byte) 0x11, (byte) 0x24, (byte) 0x00
     };
     checkSynth(
-/*
-      main_header: 22
-      metablock_header_easy: 1022, 0
-      command_easy: 1021, "a", 1 // 1022 x "a"
-      metablock_uncompressed: "bbbbbb"
-      metablock_header_easy: 4, 1
-      command_easy: 4, "", 1 // 6 + 4 = 10 x "b"
-      */
+    /*
+     * main_header: 22
+     * metablock_header_easy: 1022, 0
+     * command_easy: 1021, "a", 1 // 1022 x "a"
+     * metablock_uncompressed: "bbbbbb"
+     * metablock_header_easy: 4, 1
+     * command_easy: 4, "", 1 // 6 + 4 = 10 x "b"
+     */
       compressed,
-      true, ""
-    +       "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-    +       "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-    +       "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-    +       "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-    +       "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-    +       "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-    +       "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-    +       "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-    +       "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-    +       "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-    +       "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-    +       "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-    +       "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-    +       "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-    +       "aaaaaaaaaaaaaabbbbbbbbbb");
+      true,
+      "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      + "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      + "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      + "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      + "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      + "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      + "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      + "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      + "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      + "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      + "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      + "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaabbbbbbbbbb"
+    );
   }
 
   @Test
@@ -392,31 +399,29 @@ public class SynthTest {
       (byte) 0x11, (byte) 0x24, (byte) 0x00
     };
     checkSynth(
-/*
-      main_header: 10
-      metablock_header_easy: 1022, 0
-      command_easy: 1021, "a", 1 // 1022 x "a"
-      metablock_uncompressed: "bbbbbb"
-      metablock_header_easy: 4, 1
-      command_easy: 4, "", 1 // 6 + 4 = 10 x "b"
-      */
+    /*
+     * main_header: 10
+     * metablock_header_easy: 1022, 0
+     * command_easy: 1021, "a", 1 // 1022 x "a"
+     * metablock_uncompressed: "bbbbbb"
+     * metablock_header_easy: 4, 1
+     * command_easy: 4, "", 1 // 6 + 4 = 10 x "b"
+     */
       compressed,
-      true, ""
-    +       "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-    +       "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-    +       "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-    +       "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-    +       "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-    +       "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-    +       "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-    +       "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-    +       "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-    +       "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-    +       "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-    +       "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-    +       "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-    +       "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-    +       "aaaaaaaaaaaaaabbbbbbbbbb");
+      true,
+      "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      + "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      + "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      + "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      + "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      + "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      + "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      + "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      + "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      + "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      + "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      + "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaabbbbbbbbbb"
+    );
   }
 
   @Test
@@ -428,15 +433,17 @@ public class SynthTest {
       (byte) 0x1b, (byte) 0x11, (byte) 0x86, (byte) 0x02
     };
     checkSynth(
-/*
-      // Has a copy length that goes over the end of the meta-block.
-      // Same as OneCommand, but with a shorter meta-block length.
-      main_header
-      metablock_header_easy: 2, 1
-      command_easy: 2, "a", 1
-      */
+    /*
+     * // Has a copy length that goes over the end of the meta-block.
+     * // Same as OneCommand, but with a shorter meta-block length.
+     * main_header
+     * metablock_header_easy: 2, 1
+     * command_easy: 2, "a", 1
+     */
       compressed,
-      false, "");
+      false,
+      ""
+    );
   }
 
   @Test
@@ -448,41 +455,42 @@ public class SynthTest {
       (byte) 0x00, (byte) 0xb8, (byte) 0xd3, (byte) 0x46, (byte) 0x01, (byte) 0x1a, (byte) 0x01
     };
     checkSynth(
-/*
-      // This tests a small hand crafted huffman code followed by a tiny amount
-      // of content. This tests if the bit reader detects the end correctly even
-      // with tiny content after a larger huffman tree encoding.
-      main_header
-      metablock_header_begin: 1, 0, 4, 0
-      metablock_header_trivial_context
-      // begin of literal huffman tree. The tree has symbol length 1 for "a",
-      // symbol length 8 for null, symbol length 9 for all others. The length 1
-      // for a is chosen on purpose here, the others must be like that to
-      // fulfill the requirement that sum of 32>>length is 32768.
-      hskip: 0
-      clcl_ordered: 0,3,0,0,0,0,0,0,3,2,0,0,0,0,0,0,1,0
-      set_prefix_cl_rle: "", "110", "", "", "", "", "", "", "111", "10",\
-                         "", "", "", "", "", "", "0", ""
-      cl_rle: 8
-      cl_rle_rep: 9, 96
-      cl_rle: 1  // literal number 97, that is, the letter 'a'
-      cl_rle_rep: 9, 158
-      // end of literal huffman tree
-      huffman_fixed: 704
-      huffman_fixed: 64
-      command_inscopy_easy: 4, 0
-      // Here is how the code "101100010" for b is derived: remember that a has
-      // symbol length 1, null has symbol length 8, the rest 9. So in the
-      // canonical huffman code, the code for "a" is "0", for null is
-      // "10000000". The next value has "100000010" (cfr. the rules of canonical
-      // prefix code). Counting upwards +95 from there, the value "@" (ascii 96,
-      // before "a") has "101100001", and so b, the next 9-bit symbol, has the
-      // next binary value "101100010".
-      command_literal_bits: 0, 0, 0, 101100010  // 3 a's followed by a b
-      */
+    /*
+     * // This tests a small hand crafted Huffman code followed by a tiny amount
+     * // of content. This tests if the bit reader detects the end correctly even
+     * // with tiny content after a larger Huffman tree encoding.
+     * main_header
+     * metablock_header_begin: 1, 0, 4, 0
+     * metablock_header_trivial_context
+     * // begin of literal Huffman tree. The tree has symbol length 1 for "a",
+     * // symbol length 8 for null, symbol length 9 for all others. The length 1
+     * // for a is chosen on purpose here, the others must be like that to
+     * // fulfill the requirement that sum of 32>>length is 32768.
+     * hskip: 0
+     * clcl_ordered: 0,3,0,0,0,0,0,0,3,2,0,0,0,0,0,0,1,0
+     * set_prefix_cl_rle: "", "110", "", "", "", "", "", "", "111", "10",\
+     *                    "", "", "", "", "", "", "0", ""
+     * cl_rle: 8
+     * cl_rle_rep: 9, 96
+     * cl_rle: 1  // literal number 97, that is, the letter 'a'
+     * cl_rle_rep: 9, 158
+     * // end of literal Huffman tree
+     * huffman_fixed: 704
+     * huffman_fixed: 64
+     * command_inscopy_easy: 4, 0
+     * // Here is how the code "101100010" for b is derived: remember that a has
+     * // symbol length 1, null has symbol length 8, the rest 9. So in the
+     * // canonical Huffman code, the code for "a" is "0", for null is
+     * // "10000000". The next value has "100000010" (cfr. the rules of canonical
+     * // prefix code). Counting upwards +95 from there, the value "@" (ASCII 96,
+     * // before "a") has "101100001", and so b, the next 9-bit symbol, has the
+     * // next binary value "101100010".
+     * command_literal_bits: 0, 0, 0, 101100010  // 3 a's followed by a b
+     */
       compressed,
-      true, ""
-    +       "aaab");
+      true,
+      "aaab"
+    );
   }
 
   @Test
@@ -491,12 +499,14 @@ public class SynthTest {
       (byte) 0x3b
     };
     checkSynth(
-/*
-      main_header
-      metablock_lastempty
-      */
+    /*
+     * main_header
+     * metablock_lastempty
+     */
       compressed,
-      true, "");
+      true,
+      ""
+    );
   }
 
   @Test
@@ -509,13 +519,14 @@ public class SynthTest {
       (byte) 0x13, (byte) 0xb8, (byte) 0xdb, (byte) 0x3b, (byte) 0xd9, (byte) 0x98, (byte) 0x00
     };
     checkSynth(
-/*
-      main_header
-      metablock_fixed: "hello world", 1
-      */
+    /*
+     * main_header
+     * metablock_fixed: "hello world", 1
+     */
       compressed,
-      true, ""
-    +       "hello world");
+      true,
+      "hello world"
+    );
   }
 
   @Test
@@ -527,15 +538,157 @@ public class SynthTest {
       (byte) 0x1b, (byte) 0x09, (byte) 0x86, (byte) 0x46
     };
     checkSynth(
-/*
-      // Has an insert length that goes over the end of the meta-block.
-      // Same as OneInsert, but with a shorter meta-block length.
-      main_header
-      metablock_header_easy: 1, 1
-      command_easy: 0, "ab"
-      */
+    /*
+     * // Has an insert length that goes over the end of the meta-block.
+     * // Same as OneInsert, but with a shorter meta-block length.
+     * main_header
+     * metablock_header_easy: 1, 1
+     * command_easy: 0, "ab"
+     */
       compressed,
-      false, "");
+      false,
+      ""
+    );
+  }
+
+  @Test
+  public void testIntactDistanceRingBuffer0() {
+    byte[] compressed = {
+      (byte) 0x1b, (byte) 0x0a, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x80,
+      (byte) 0xe3, (byte) 0xb4, (byte) 0x0d, (byte) 0x00, (byte) 0x00, (byte) 0x07, (byte) 0x5b,
+      (byte) 0x26, (byte) 0x31, (byte) 0x40, (byte) 0x02, (byte) 0x00, (byte) 0xe0, (byte) 0x4e,
+      (byte) 0x1b, (byte) 0xa1, (byte) 0x80, (byte) 0x20, (byte) 0x00
+    };
+    checkSynth(
+    /*
+     * main_header
+     * metablock_header_easy: 11, 1
+     * command_inscopy_easy: 0, 7 // "himself" from dictionary
+     * bits: "000000" // distance = 4 from RB; RB remains intact
+     * command_inscopy_easy: 0, 4 // copy "self"
+     * bits: "000000" // distance = 4 from RB; RB remains intact
+     */
+      compressed,
+      true,
+      "himselfself"
+    );
+  }
+
+  @Test
+  public void testIntactDistanceRingBuffer1() {
+    byte[] compressed = {
+      (byte) 0x1b, (byte) 0x09, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x80,
+      (byte) 0xe3, (byte) 0xb4, (byte) 0x0d, (byte) 0x00, (byte) 0x00, (byte) 0x07, (byte) 0x5b,
+      (byte) 0x26, (byte) 0x31, (byte) 0x40, (byte) 0x02, (byte) 0x00, (byte) 0xe0, (byte) 0x4e,
+      (byte) 0x1b, (byte) 0x21, (byte) 0xa0, (byte) 0x20, (byte) 0x00
+    };
+    checkSynth(
+    /*
+     * main_header
+     * metablock_header_easy: 10, 1
+     * command_inscopy_easy: 0, 6 // "scroll" from dictionary
+     * bits: "100000" // distance = 11 from RB; RB remains intact
+     * command_inscopy_easy: 0, 4 // copy "roll"
+     * bits: "000000" // distance = 4 from RB; RB remains intact
+     */
+      compressed,
+      true,
+      "scrollroll"
+    );
+  }
+
+  @Test
+  public void testIntactDistanceRingBuffer2() {
+    byte[] compressed = {
+      (byte) 0x1b, (byte) 0x0f, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x80,
+      (byte) 0xe3, (byte) 0xb4, (byte) 0x0d, (byte) 0x00, (byte) 0x00, (byte) 0x07, (byte) 0x5b,
+      (byte) 0x26, (byte) 0x31, (byte) 0x40, (byte) 0x02, (byte) 0x00, (byte) 0xe0, (byte) 0x4e,
+      (byte) 0x1b, (byte) 0x41, (byte) 0x80, (byte) 0x20, (byte) 0x50, (byte) 0x10, (byte) 0x24,
+      (byte) 0x08, (byte) 0x06
+    };
+    checkSynth(
+    /*
+     * main_header
+     * metablock_header_easy: 16, 1
+     * command_inscopy_easy: 0, 4 // "left" from dictionary (index = 3 = 4 - 1)
+     * bits: "000000" // distance = 4 from RB; RB remains intact
+     * command_inscopy_easy: 0, 4 // "data" from dictionary (index = 6 = 11 - 5)
+     * bits: "100000" // distance = 11 from RB; RB remains intact
+     * command_inscopy_easy: 0, 4 // "data" from dictionary (index = 6 = 15 - 9)
+     * bits: "010000" // distance = 15 from RB; RB remains intact
+     * command_inscopy_easy: 0, 4 // "left" from dictionary (index = 3 = 16 - 13)
+     * bits: "110000" // distance = 16 from RB; RB remains intact
+     */
+      compressed,
+      true,
+      "leftdatadataleft"
+    );
+  }
+
+  @Test
+  public void testIntactDistanceRingBufferNoDistanceValue0() {
+    byte[] compressed = {
+      (byte) 0x1b, (byte) 0x17, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x80,
+      (byte) 0xe3, (byte) 0xb4, (byte) 0x0d, (byte) 0x00, (byte) 0x00, (byte) 0x07, (byte) 0x5b,
+      (byte) 0x26, (byte) 0x31, (byte) 0x40, (byte) 0x02, (byte) 0x00, (byte) 0xe0, (byte) 0x4e,
+      (byte) 0x1b, (byte) 0x40, (byte) 0x82, (byte) 0x40, (byte) 0x41, (byte) 0x90, (byte) 0x20,
+      (byte) 0x58, (byte) 0x18, (byte) 0x00
+    };
+    checkSynth(
+    /*
+     * main_header
+     * metablock_header_easy: 24, 1
+     * // cmd is {ins_extra, copy_extra, distance_code, ctx, ins_off, copy_off}
+     * // cmd.2 = {0x00, 0x00, 0, 0x02, 0x0000, 0x0004}
+     * // cmd.2 = no insert, copy length = 4, distance_code = 0 (last distance)
+     * command_short: 2 // "left" from dictionary (index = 3 = 4 - 1)
+     * // Check that RB is untouched after the first command...
+     * command_inscopy_easy: 0, 4 // "data" from dictionary (index = 6 = 11 - 5)
+     * bits: "100000" // distance = 11 from RB; RB remains intact
+     * command_inscopy_easy: 0, 4 // "data" from dictionary (index = 6 = 15 - 9)
+     * bits: "010000" // distance = 15 from RB; RB remains intact
+     * command_inscopy_easy: 0, 4 // "left" from dictionary (index = 3 = 16 - 13)
+     * bits: "110000" // distance = 16 from RB; RB remains intact
+     * command_inscopy_easy: 0, 8 // copy "leftleft"
+     * bits: "000000" // distance = 4 from RB; RB remains intact
+     */
+      compressed,
+      true,
+      "leftdatadataleftleftleft"
+    );
+  }
+
+  @Test
+  public void testIntactDistanceRingBufferNoDistanceValue1() {
+    byte[] compressed = {
+      (byte) 0x1b, (byte) 0x19, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x80,
+      (byte) 0xe3, (byte) 0xb4, (byte) 0x0d, (byte) 0x00, (byte) 0x00, (byte) 0x07, (byte) 0x5b,
+      (byte) 0x26, (byte) 0x31, (byte) 0x40, (byte) 0x02, (byte) 0x00, (byte) 0xe0, (byte) 0x4e,
+      (byte) 0x1b, (byte) 0xc0, (byte) 0x82, (byte) 0x41, (byte) 0x41, (byte) 0x90, (byte) 0x20,
+      (byte) 0x58, (byte) 0x18, (byte) 0x00
+    };
+    checkSynth(
+    /*
+     * main_header
+     * metablock_header_easy: 26, 1
+     * // cmd is {ins_extra, copy_extra, distance_code, ctx, ins_off, copy_off}
+     * // cmd.3 = {0x00, 0x00, 0, 0x03, 0x0000, 0x0005}
+     * // cmd.3 = no insert, copy length = 5, distance_code = 0 (last distance)
+     * command_short: 3 // "world" from dictionary (index = 3 = 4 - 1)
+     * // Check that RB is untouched after the first command...
+     * command_inscopy_easy: 0, 5 // "white" from dictionary (index = 5 = 11 - 6)
+     * bits: "100000" // distance = 11 from RB; RB remains intact
+     * command_inscopy_easy: 0, 4 // "back" from dictionary (index = 4 = 15 - 11)
+     * bits: "010000" // distance = 15 from RB; RB remains intact
+     * command_inscopy_easy: 0, 4 // "down" from dictionary (index = 1 = 16 - 15)
+     * bits: "110000" // distance = 16 from RB; RB remains intact
+     * command_inscopy_easy: 0, 8 // copy "downdown"
+     * bits: "000000" // distance = 4 from RB; RB remains intact
+     */
+      compressed,
+      true,
+      "worldwhitebackdowndowndown"
+    );
   }
 
   @Test
@@ -549,13 +702,14 @@ public class SynthTest {
       (byte) 0xe8, (byte) 0x00
     };
     checkSynth(
-/*
-      main_header
-      metablock_fixed: \"hello world\", 0
-      */
+    /*
+     * main_header
+     * metablock_fixed: \"hello world\", 0
+     */
       compressed,
-      false, ""
-    +       "hello world");
+      false,
+      "hello world"
+    );
   }
 
   @Test
@@ -564,11 +718,13 @@ public class SynthTest {
       (byte) 0x0b
     };
     checkSynth(
-/*
-      main_header
-      */
+    /*
+     * main_header
+     */
       compressed,
-      false, "");
+      false,
+      ""
+    );
   }
 
   @Test
@@ -581,17 +737,19 @@ public class SynthTest {
       (byte) 0x66, (byte) 0xe8, (byte) 0x44, (byte) 0x38, (byte) 0x0f, (byte) 0x09, (byte) 0x0d
     };
     checkSynth(
-/*
-      main_header: 10
-      metablock_header_begin: 1, 0, 10, 0
-      metablock_header_trivial_context
-      huffman_fixed: 256
-      huffman_fixed: 704
-      huffman_fixed: 64
-      command_easy: 2, "too far!", 1000000  // distance too far for 10 wbits
-      */
+    /*
+     * main_header: 10
+     * metablock_header_begin: 1, 0, 10, 0
+     * metablock_header_trivial_context
+     * huffman_fixed: 256
+     * huffman_fixed: 704
+     * huffman_fixed: 64
+     * command_easy: 2, "too far!", 1000000  // distance too far for 10 wbits
+     */
       compressed,
-      false, "");
+      false,
+      ""
+    );
   }
 
   @Test
@@ -604,42 +762,43 @@ public class SynthTest {
       (byte) 0x00, (byte) 0x00, (byte) 0xee, (byte) 0xb4, (byte) 0x11, (byte) 0x01
     };
     checkSynth(
-/*
-      // Has a repeat code a context map that makes the size too big -> invalid.
-      main_header
-      metablock_header_begin: 1, 0, 1, 0
-      // two literal block types
-      vlq_blocktypes: 2
-      huffman_simple: 1,4,4, 1,0,2,3  // literal blocktype prefix code
-      huffman_fixed: 26  // literal blockcount prefix code
-      blockcount_easy: 1
-      // one ins/copy and dist block type
-      vlq_blocktypes: 1
-      vlq_blocktypes: 1
-      ndirect: 0 0
-      // two MSB6 literal context modes
-      bits: "00", "00"
-      // two literal prefix codes
-      vlq_blocktypes: 2
-      // literal context map
-      vlq_rlemax: 5
-      huffman_simple: 0,3,7, 5,0,6  // context map rle huffman code
-      // Too long context map rle: repeat 0 64 times, 1+5 65 times, that is 129
-      // values which is 1 too much.
-      bits: "01", "0", "11111", "11", "11", "0", "11111"
-      bit: 1  // MTF enabled
-      // one distance prefix code
-      vlq_blocktypes: 1
-      huffman_simple: 0,1,256, 97  // only a's
-      huffman_simple: 0,1,256, 98  // only b's
-      huffman_fixed: 704
-      huffman_fixed: 64
-      // now comes the data
-      command_inscopy_easy: 1, 0
-      */
+    /*
+     * // Has a repeat code a context map that makes the size too big -> invalid.
+     * main_header
+     * metablock_header_begin: 1, 0, 1, 0
+     * // two literal block types
+     * vlq_blocktypes: 2
+     * huffman_simple: 1,4,4, 1,0,2,3  // literal blocktype prefix code
+     * huffman_fixed: 26  // literal blockcount prefix code
+     * blockcount_easy: 1
+     * // one ins/copy and dist block type
+     * vlq_blocktypes: 1
+     * vlq_blocktypes: 1
+     * ndirect: 0 0
+     * // two MSB6 literal context modes
+     * bits: "00", "00"
+     * // two literal prefix codes
+     * vlq_blocktypes: 2
+     * // literal context map
+     * vlq_rlemax: 5
+     * huffman_simple: 0,3,7, 5,0,6  // context map RLE Huffman code
+     * // Too long context map RLE: repeat 0 64 times, 1+5 65 times, that is 129
+     * // values which is 1 too much.
+     * bits: "01", "0", "11111", "11", "11", "0", "11111"
+     * bit: 1  // MTF enabled
+     * // one distance prefix code
+     * vlq_blocktypes: 1
+     * huffman_simple: 0,1,256, 97  // only a's
+     * huffman_simple: 0,1,256, 98  // only b's
+     * huffman_fixed: 704
+     * huffman_fixed: 64
+     * // now comes the data
+     * command_inscopy_easy: 1, 0
+     */
       compressed,
-      false, ""
-    +       "a");
+      false,
+      "a"
+    );
   }
 
   @Test
@@ -651,14 +810,16 @@ public class SynthTest {
       (byte) 0x1b, (byte) 0x41, (byte) 0x2d, (byte) 0x01, (byte) 0x19
     };
     checkSynth(
-/*
-      main_header
-      metablock_header_easy: 4, 1
-      command_inscopy_easy: 0, 4
-      command_dist_easy: 123905 // = 121 << 10 + 1
-      */
+    /*
+     * main_header
+     * metablock_header_easy: 4, 1
+     * command_inscopy_easy: 0, 4
+     * command_dist_easy: 123905 // = 121 << 10 + 1
+     */
       compressed,
-      false, "");
+      false,
+      ""
+    );
   }
 
   @Test
@@ -670,13 +831,14 @@ public class SynthTest {
       (byte) 0xda, (byte) 0xc8, (byte) 0x20, (byte) 0x32, (byte) 0xd4, (byte) 0x01
     };
     checkSynth(
-/*
-      main_header: 9
-      metablock_fixed: \"a\", 1
-      */
+    /*
+     * main_header: 9
+     * metablock_fixed: \"a\", 1
+     */
       compressed,
-      false, ""
-    +       "a");
+      false,
+      "a"
+    );
   }
 
   @Test
@@ -1842,25 +2004,24 @@ public class SynthTest {
       (byte) 0x61, (byte) 0x34
     };
     checkSynth(
-/*
-      main_header
-      repeat: 300
-        metablock_uncompressed: "a"
-        metablock_fixed: "b"
-      end_repeat
-      metablock_lastempty
-      */
+    /*
+     * main_header
+     * repeat: 300
+     *   metablock_uncompressed: "a"
+     *   metablock_fixed: "b"
+     * end_repeat
+     * metablock_lastempty
+     */
       compressed,
-      true, ""
-    +       "abababababababababababababababababababababababababababababababababababab"
-    +       "abababababababababababababababababababababababababababababababababababab"
-    +       "abababababababababababababababababababababababababababababababababababab"
-    +       "abababababababababababababababababababababababababababababababababababab"
-    +       "abababababababababababababababababababababababababababababababababababab"
-    +       "abababababababababababababababababababababababababababababababababababab"
-    +       "abababababababababababababababababababababababababababababababababababab"
-    +       "abababababababababababababababababababababababababababababababababababab"
-    +       "abababababababababababab");
+      true,
+      "abababababababababababababababababababababababababababababababababababababababababababababab"
+      + "ababababababababababababababababababababababababababababababababababababababababababababab"
+      + "ababababababababababababababababababababababababababababababababababababababababababababab"
+      + "ababababababababababababababababababababababababababababababababababababababababababababab"
+      + "ababababababababababababababababababababababababababababababababababababababababababababab"
+      + "ababababababababababababababababababababababababababababababababababababababababababababab"
+      + "ababababababababababababababababababababababababababababab"
+    );
   }
 
   @Test
@@ -1874,27 +2035,28 @@ public class SynthTest {
       (byte) 0x1c
     };
     checkSynth(
-/*
-      main_header
-      metablock_header_easy: 16, 1
-      command_inscopy_easy: 0, 4 // time
-      command_dist_easy: 1
-      command_inscopy_easy: 0, 2 // me
-      command_dist_easy: 2
-      command_inscopy_easy: 0, 2 // me
-      command_dist_easy: 2
-      command_inscopy_easy: 0, 2 // me
-      command_dist_easy: 2
-      command_inscopy_easy: 0, 2 // me
-      command_dist_easy: 2
-      command_inscopy_easy: 0, 2 // me
-      command_dist_easy: 2 // All rb items are 2 now
-      command_inscopy_easy: 0, 2
-      bits: "011100" // 15 -> distance = rb[idx + 2] - 3
-      */
+    /*
+     * main_header
+     * metablock_header_easy: 16, 1
+     * command_inscopy_easy: 0, 4 // time
+     * command_dist_easy: 1
+     * command_inscopy_easy: 0, 2 // me
+     * command_dist_easy: 2
+     * command_inscopy_easy: 0, 2 // me
+     * command_dist_easy: 2
+     * command_inscopy_easy: 0, 2 // me
+     * command_dist_easy: 2
+     * command_inscopy_easy: 0, 2 // me
+     * command_dist_easy: 2
+     * command_inscopy_easy: 0, 2 // me
+     * command_dist_easy: 2 // All rb items are 2 now
+     * command_inscopy_easy: 0, 2
+     * bits: "011100" // 15 -> distance = rb[idx + 2] - 3
+     */
       compressed,
-      false, ""
-    +       "timemememememeXX");
+      false,
+      "timemememememeXX"
+    );
   }
 
   @Test
@@ -1910,16 +2072,17 @@ public class SynthTest {
       (byte) 0x04
     };
     checkSynth(
-/*
-      main_header
-      metablock_header_easy: 1, 0
-      command_easy: 0, "ab"  // remaining length == -1 -> invalid stream
-      metablock_header_easy: 2, 1
-      command_easy: 0, "ab"
-      */
+    /*
+     * main_header
+     * metablock_header_easy: 1, 0
+     * command_easy: 0, "ab"  // remaining length == -1 -> invalid stream
+     * metablock_header_easy: 2, 1
+     * command_easy: 0, "ab"
+     */
       compressed,
-      false, ""
-    +       "abab");
+      false,
+      "abab"
+    );
   }
 
   @Test
@@ -1931,15 +2094,16 @@ public class SynthTest {
       (byte) 0x1b, (byte) 0x11, (byte) 0x86, (byte) 0x02
     };
     checkSynth(
-/*
-      // The stream consists of one command with insert and copy.
-      main_header
-      metablock_header_easy: 3, 1
-      command_easy: 2, "a", 1
-      */
+    /*
+     * // The stream consists of one command with insert and copy.
+     * main_header
+     * metablock_header_easy: 3, 1
+     * command_easy: 2, "a", 1
+     */
       compressed,
-      true, ""
-    +       "aaa");
+      true,
+      "aaa"
+    );
   }
 
   @Test
@@ -1951,15 +2115,16 @@ public class SynthTest {
       (byte) 0x1b, (byte) 0x09, (byte) 0x86, (byte) 0x46
     };
     checkSynth(
-/*
-      // The stream consists of one half command with insert only.
-      main_header
-      metablock_header_easy: 2, 1
-      command_easy: 0, "ab"
-      */
+    /*
+     * // The stream consists of one half command with insert only.
+     * main_header
+     * metablock_header_easy: 2, 1
+     * command_easy: 0, "ab"
+     */
       compressed,
-      true, ""
-    +       "ab");
+      true,
+      "ab"
+    );
   }
 
   @Test
@@ -1971,19 +2136,20 @@ public class SynthTest {
       (byte) 0x51, (byte) 0xa0, (byte) 0x1d
     };
     checkSynth(
-/*
-      main_header
-      metablock_header_begin: 1, 0, 4, 0
-      metablock_header_trivial_context
-      huffman_simple: 1,4,256, 97,98,99,100  // ascii codes for a, b, c, d
-      huffman_fixed: 704
-      huffman_fixed: 64
-      command_inscopy_easy: 4, 0
-      command_literal_bits: 0, 10, 110, 111  // a, b, c, d
-      */
+    /*
+     * main_header
+     * metablock_header_begin: 1, 0, 4, 0
+     * metablock_header_trivial_context
+     * huffman_simple: 1,4,256, 97,98,99,100  // ASCII codes for a, b, c, d
+     * huffman_fixed: 704
+     * huffman_fixed: 64
+     * command_inscopy_easy: 4, 0
+     * command_literal_bits: 0, 10, 110, 111  // a, b, c, d
+     */
       compressed,
-      true, ""
-    +       "abcd");
+      true,
+      "abcd"
+    );
   }
 
   @Test
@@ -1995,19 +2161,20 @@ public class SynthTest {
       (byte) 0x51, (byte) 0xa0, (byte) 0x1d
     };
     checkSynth(
-/*
-      main_header
-      metablock_header_begin: 1, 0, 4, 0
-      metablock_header_trivial_context
-      huffman_simple: 1,4,256, 97,98,97,98  // ascii codes for a, b, a, b
-      huffman_fixed: 704
-      huffman_fixed: 64
-      command_inscopy_easy: 4, 0
-      command_literal_bits: 0, 10, 110, 111  // a, b, a, b
-      */
+    /*
+     * main_header
+     * metablock_header_begin: 1, 0, 4, 0
+     * metablock_header_trivial_context
+     * huffman_simple: 1,4,256, 97,98,97,98  // ASCII codes for a, b, a, b
+     * huffman_fixed: 704
+     * huffman_fixed: 64
+     * command_inscopy_easy: 4, 0
+     * command_literal_bits: 0, 10, 110, 111  // a, b, a, b
+     */
       compressed,
-      false, ""
-    +       "abab");
+      false,
+      "abab"
+    );
   }
 
   @Test
@@ -2018,16 +2185,18 @@ public class SynthTest {
       (byte) 0xfc, (byte) 0x07, (byte) 0x00, (byte) 0xb8, (byte) 0xd3, (byte) 0x06
     };
     checkSynth(
-/*
-      main_header
-      metablock_header_begin: 1, 0, 4, 0
-      metablock_header_trivial_context
-      huffman_fixed: 256
-      huffman_simple: 1,4,704, 1023,1022,1021,1020
-      huffman_fixed: 64
-      */
+    /*
+     * main_header
+     * metablock_header_begin: 1, 0, 4, 0
+     * metablock_header_trivial_context
+     * huffman_fixed: 256
+     * huffman_simple: 1,4,704, 1023,1022,1021,1020
+     * huffman_fixed: 64
+     */
       compressed,
-      false, "");
+      false,
+      ""
+    );
   }
 
   @Test
@@ -2039,27 +2208,28 @@ public class SynthTest {
       (byte) 0x00, (byte) 0xb8, (byte) 0xd3, (byte) 0x46, (byte) 0x01, (byte) 0x1a, (byte) 0x01
     };
     checkSynth(
-/*
-      // This test is a copy of CustomHuffmanCode, with changed repeat count.
-      main_header
-      metablock_header_begin: 1, 0, 4, 0
-      metablock_header_trivial_context
-      hskip: 0
-      clcl_ordered: 0,3,0,0,0,0,0,0,3,2,0,0,0,0,0,0,1,0
-      set_prefix_cl_rle: "", "110", "", "", "", "", "", "", "111", "10",\
-                         "", "", "", "", "", "", "0", ""
-      cl_rle: 8
-      cl_rle_rep: 9, 96
-      cl_rle: 1
-      cl_rle_rep: 9, 159 // 1 + 96 + 1 + 159 = 257 > 256 = alphabet size
-      huffman_fixed: 704
-      huffman_fixed: 64
-      command_inscopy_easy: 4, 0
-      command_literal_bits: 0, 0, 0, 101100010
-      */
+    /*
+     * // This test is a copy of CustomHuffmanCode, with changed repeat count.
+     * main_header
+     * metablock_header_begin: 1, 0, 4, 0
+     * metablock_header_trivial_context
+     * hskip: 0
+     * clcl_ordered: 0,3,0,0,0,0,0,0,3,2,0,0,0,0,0,0,1,0
+     * set_prefix_cl_rle: "", "110", "", "", "", "", "", "", "111", "10",\
+     *                    "", "", "", "", "", "", "0", ""
+     * cl_rle: 8
+     * cl_rle_rep: 9, 96
+     * cl_rle: 1
+     * cl_rle_rep: 9, 159 // 1 + 96 + 1 + 159 = 257 > 256 = alphabet size
+     * huffman_fixed: 704
+     * huffman_fixed: 64
+     * command_inscopy_easy: 4, 0
+     * command_literal_bits: 0, 0, 0, 101100010
+     */
       compressed,
-      false, ""
-    +       "aaab");
+      false,
+      "aaab"
+    );
   }
 
   @Test
@@ -2071,16 +2241,17 @@ public class SynthTest {
       (byte) 0x1b, (byte) 0x41, (byte) 0x09, (byte) 0x01, (byte) 0x01
     };
     checkSynth(
-/*
-      // The stream consists of a transformed dictionary word.
-      main_header
-      metablock_header_easy: 9, 1
-      command_inscopy_easy: 0, 4
-      command_dist_easy: 5121
-      */
+    /*
+     * // The stream consists of a transformed dictionary word.
+     * main_header
+     * metablock_header_easy: 9, 1
+     * command_inscopy_easy: 0, 4
+     * command_dist_easy: 5121
+     */
       compressed,
-      true, ""
-    +       "time the ");
+      true,
+      "time the "
+    );
   }
 
   @Test
@@ -2092,17 +2263,19 @@ public class SynthTest {
       (byte) 0x1b, (byte) 0x41, (byte) 0x09, (byte) 0x01, (byte) 0x01
     };
     checkSynth(
-/*
-      // Has a transformed dictionary word that goes over the end of the
-      // meta-block, but the base dictionary word fits in the meta-block.
-      // Same as TransformedDictWord, but with a shorter meta-block length.
-      main_header
-      metablock_header_easy: 4, 1
-      command_inscopy_easy: 0, 4
-      command_dist_easy: 5121
-      */
+    /*
+     * // Has a transformed dictionary word that goes over the end of the
+     * // meta-block, but the base dictionary word fits in the meta-block.
+     * // Same as TransformedDictWord, but with a shorter meta-block length.
+     * main_header
+     * metablock_header_easy: 4, 1
+     * command_inscopy_easy: 0, 4
+     * command_dist_easy: 5121
+     */
       compressed,
-      false, "");
+      false,
+      ""
+    );
   }
 
 /* GENERATED CODE END */

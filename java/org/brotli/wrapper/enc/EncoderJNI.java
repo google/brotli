@@ -25,7 +25,7 @@ class EncoderJNI {
   }
 
   static class Wrapper {
-    protected final long[] context = new long[4];
+    protected final long[] context = new long[5];
     private final ByteBuffer inputBuffer;
 
     Wrapper(int inputBufferSize, int quality, int lgwin)
@@ -69,6 +69,10 @@ class EncoderJNI {
 
     boolean hasRemainingInput() {
       return context[3] != 0;
+    }
+
+    boolean isFinished() {
+      return context[4] != 0;
     }
 
     ByteBuffer getInputBuffer() {

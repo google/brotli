@@ -745,10 +745,8 @@ void BrotliCreateHqZopfliBackwardReferences(
         &matches[cur_match_pos]);
     cur_match_end = cur_match_pos + num_found_matches;
     for (j = cur_match_pos; j + 1 < cur_match_end; ++j) {
-      assert(BackwardMatchLength(&matches[j]) <
+      assert(BackwardMatchLength(&matches[j]) <=
           BackwardMatchLength(&matches[j + 1]));
-      assert(matches[j].distance > max_distance ||
-             matches[j].distance <= matches[j + 1].distance);
     }
     num_matches[i] = (uint32_t)num_found_matches;
     if (num_found_matches > 0) {
