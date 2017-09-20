@@ -1,4 +1,4 @@
-.TH "encode.h" 3 "Wed Aug 2 2017" "Brotli" \" -*- nroff -*-
+.TH "encode.h" 3 "Wed Sep 20 2017" "Brotli" \" -*- nroff -*-
 .ad l
 .nh
 .SH NAME
@@ -210,7 +210,7 @@ Operations that can be performed by streaming encoder\&.
 Process input\&. Encoder may postpone producing output, until it has processed enough input\&. 
 .TP
 \fB\fIBROTLI_OPERATION_FLUSH \fP\fP
-Produce output for all processed input\&. Actual flush is performed when input stream is depleted and there is enough space in output stream\&. This means that client should repeat \fBBROTLI_OPERATION_FLUSH\fP operation until \fCavailable_in\fP becomes \fC0\fP, and \fBBrotliEncoderHasMoreOutput\fP returns \fBBROTLI_FALSE\fP\&.
+Produce output for all processed input\&. Actual flush is performed when input stream is depleted and there is enough space in output stream\&. This means that client should repeat \fBBROTLI_OPERATION_FLUSH\fP operation until \fCavailable_in\fP becomes \fC0\fP, and \fBBrotliEncoderHasMoreOutput\fP returns \fBBROTLI_FALSE\fP\&. If output is acquired via \fBBrotliEncoderTakeOutput\fP, then operation should be repeated after output buffer is drained\&.
 .PP
 \fBWarning:\fP
 .RS 4
@@ -220,7 +220,7 @@ Until flush is complete, client \fBSHOULD\fP \fBNOT\fP swap, reduce or extend in
 When flush is complete, output data will be sufficient for decoder to reproduce all the given input\&. 
 .TP
 \fB\fIBROTLI_OPERATION_FINISH \fP\fP
-Finalize the stream\&. Actual finalization is performed when input stream is depleted and there is enough space in output stream\&. This means that client should repeat \fBBROTLI_OPERATION_FLUSH\fP operation until \fCavailable_in\fP becomes \fC0\fP, and \fBBrotliEncoderHasMoreOutput\fP returns \fBBROTLI_FALSE\fP\&.
+Finalize the stream\&. Actual finalization is performed when input stream is depleted and there is enough space in output stream\&. This means that client should repeat \fBBROTLI_OPERATION_FINISH\fP operation until \fCavailable_in\fP becomes \fC0\fP, and \fBBrotliEncoderHasMoreOutput\fP returns \fBBROTLI_FALSE\fP\&. If output is acquired via \fBBrotliEncoderTakeOutput\fP, then operation should be repeated after output buffer is drained\&.
 .PP
 \fBWarning:\fP
 .RS 4

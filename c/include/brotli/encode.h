@@ -72,7 +72,9 @@ typedef enum BrotliEncoderOperation {
    * Actual flush is performed when input stream is depleted and there is enough
    * space in output stream. This means that client should repeat
    * ::BROTLI_OPERATION_FLUSH operation until @p available_in becomes @c 0, and
-   * ::BrotliEncoderHasMoreOutput returns ::BROTLI_FALSE.
+   * ::BrotliEncoderHasMoreOutput returns ::BROTLI_FALSE. If output is acquired
+   * via ::BrotliEncoderTakeOutput, then operation should be repeated after
+   * output buffer is drained.
    *
    * @warning Until flush is complete, client @b SHOULD @b NOT swap,
    *          reduce or extend input stream.
@@ -86,8 +88,10 @@ typedef enum BrotliEncoderOperation {
    *
    * Actual finalization is performed when input stream is depleted and there is
    * enough space in output stream. This means that client should repeat
-   * ::BROTLI_OPERATION_FLUSH operation until @p available_in becomes @c 0, and
-   * ::BrotliEncoderHasMoreOutput returns ::BROTLI_FALSE.
+   * ::BROTLI_OPERATION_FINISH operation until @p available_in becomes @c 0, and
+   * ::BrotliEncoderHasMoreOutput returns ::BROTLI_FALSE. If output is acquired
+   * via ::BrotliEncoderTakeOutput, then operation should be repeated after
+   * output buffer is drained.
    *
    * @warning Until finalization is complete, client @b SHOULD @b NOT swap,
    *          reduce or extend input stream.
