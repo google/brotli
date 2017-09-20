@@ -174,11 +174,11 @@ static Command ParseParams(Context* params) {
 
   for (i = 1; i < argc; ++i) {
     const char* arg = argv[i];
-    size_t arg_len = strlen(arg);
-
     /* C99 5.1.2.2.1: "members argv[0] through argv[argc-1] inclusive shall
        contain pointers to strings"; NULL and 0-length are not forbidden. */
-    if (!arg || arg_len == 0) {
+    size_t arg_len = arg ? strlen(arg) : 0;
+
+    if (arg_len == 0) {
       params->not_input_indices[next_option_index++] = i;
       continue;
     }
@@ -588,7 +588,9 @@ static BROTLI_BOOL OpenFiles(Context* context) {
 static BROTLI_BOOL CloseFiles(Context* context, BROTLI_BOOL success) {
   BROTLI_BOOL is_ok = BROTLI_TRUE;
   if (!context->test_integrity && context->fout) {
-    if (!success) unlink(context->current_output_path);
+    if (!success && context->current_output_path) {
+      unlink(context->current_output_path);
+    }
     if (fclose(context->fout) != 0) {
       if (success) {
         fprintf(stderr, "fclose failed [%s]: %s\n",
@@ -612,7 +614,7 @@ static BROTLI_BOOL CloseFiles(Context* context, BROTLI_BOOL success) {
       is_ok = BROTLI_FALSE;
     }
   }
-  if (success && context->junk_source) {
+  if (success && context->junk_source && context->current_input_path) {
     unlink(context->current_input_path);
   }
 
