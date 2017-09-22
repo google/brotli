@@ -1,5 +1,6 @@
 string(REGEX REPLACE "([a-zA-Z0-9\\.]+)\\.compressed(\\.[0-9]+)?$" "\\1" REFERENCE_DATA "${INPUT}")
-get_filename_component(OUTPUT_NAME "${REFERENCE_DATA}" NAME)
+string(REGEX REPLACE "\\.compressed" "" OUTPUT_FILE "${INPUT}")
+get_filename_component(OUTPUT_NAME "${OUTPUT_FILE}" NAME)
 
 execute_process(
   WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
