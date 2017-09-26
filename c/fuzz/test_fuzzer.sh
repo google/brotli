@@ -17,7 +17,7 @@ cmake $BROTLI -DCMAKE_C_COMPILER="$CC" -DCMAKE_CXX_COMPILER="$CXX" \
     -DBUILD_TESTING=OFF -DENABLE_SANITIZER=address
 make -j$(nproc) brotlidec-static
 
-${CXX} -c -std=c++11 $SRC/fuzz/decode_fuzzer.cc -I$SRC/include
+${CXX} -c -std=c++11 $SRC/fuzz/decode_fuzzer.cc -I$SRC/include -fsanitize=address
 ar rvs decode_fuzzer.a decode_fuzzer.o
 ${CXX} $SRC/fuzz/run_decode_fuzzer.cc -o run_decode_fuzzer \
     -lasan decode_fuzzer.a ./libbrotlidec-static.a ./libbrotlicommon-static.a
