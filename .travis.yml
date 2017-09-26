@@ -49,14 +49,14 @@ matrix:
     ## Test that fuzzer is compiling / working.
     ###
     - os: linux
-      env: BUILD_SYSTEM=fuzz C_COMPILER=gcc-6 CXX_COMPILER=g++-6
+      env: BUILD_SYSTEM=fuzz C_COMPILER=clang-4.0 CXX_COMPILER=clang++-4.0
       addons:
         apt:
           sources:
           - ubuntu-toolchain-r-test
+          - llvm-toolchain-trusty-4.0
           packages:
-          - gcc-6
-          - g++-6
+          - clang-4.0
 
     ###
     ## clang on Linux

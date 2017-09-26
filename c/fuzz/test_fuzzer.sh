@@ -13,9 +13,8 @@ rm -rf bin
 mkdir bin
 cd bin
 
-cmake $BROTLI -B./ -DCMAKE_C_COMPILER="$CC" -DCMAKE_CXX_COMPILER="$CXX" \
+cmake $BROTLI -DCMAKE_C_COMPILER="$CC" -DCMAKE_CXX_COMPILER="$CXX" \
     -DBUILD_TESTING=OFF -DENABLE_SANITIZER=address
-make clean
 make -j$(nproc) brotlidec-static
 
 ${CXX} -c -std=c++11 $SRC/fuzz/decode_fuzzer.cc -I$SRC/include
