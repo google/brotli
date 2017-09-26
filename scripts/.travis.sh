@@ -51,6 +51,9 @@ case "$1" in
 		cd java/org/brotli
 		mvn install && cd integration && mvn verify
 		;;
+	    "fuzz")
+		./c/fuzz/test_fuzzer.sh
+		;;
 	    "bazel")
 		bazel test -c opt ...:all
 		;;
