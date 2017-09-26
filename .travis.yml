@@ -46,6 +46,19 @@ matrix:
           - g++-4.4
 
     ###
+    ## Test that fuzzer is compiling / working.
+    ###
+    - os: linux
+      env: BUILD_SYSTEM=fuzz C_COMPILER=clang-4.0 CXX_COMPILER=clang++-4.0
+      addons:
+        apt:
+          sources:
+          - ubuntu-toolchain-r-test
+          - llvm-toolchain-trusty-4.0
+          packages:
+          - clang-4.0
+
+    ###
     ## clang on Linux
     ###
     - os: linux
