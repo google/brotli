@@ -19,7 +19,10 @@ closure_js_library(
     name = "decode",
     srcs = ["decode.js"],
     language = "ECMASCRIPT6_STRICT",
-    suppress = ["JSC_USELESS_BLOCK"],
+    suppress = [
+        "JSC_DUP_VAR_DECLARATION",
+        "JSC_USELESS_BLOCK",
+    ],
     deps = [":polyfill"],
 )
 
