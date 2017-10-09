@@ -4,27 +4,7 @@ branches:
 
 environment:
   matrix:
-  - BUILD_SYSTEM: CMake
-    GENERATOR: Visual Studio 14 2015 Win64
-
-  - BUILD_SYSTEM: CMake
-    GENERATOR: Visual Studio 14 2015
-
-  - BUILD_SYSTEM: Python
-    PYTHON: "C:\\Python27"
-    PYTHON_VERSION: "2.7.x"
-    PYTHON_ARCH: "32"
-
-  - BUILD_SYSTEM: Python
-    PYTHON: "C:\\Python36-x64"
-    PYTHON_VERSION: "3.6.x"
-    PYTHON_ARCH: "64"
-
-  - BUILD_SYSTEM: make
-    ARCH: "i686"
-
-  - BUILD_SYSTEM: make
-    ARCH: "x86_64"
+  - BUILD_SYSTEM: bazel
 
 install:
 - IF "%BUILD_SYSTEM%"=="Python" (
@@ -38,6 +18,9 @@ install:
     ) ELSE (
       SET "TOOLCHAIN=x86_64-6.3.0-posix-seh-rt_v5-rev1\mingw64"
     )
+  )
+- IF "%BUILD_SYSTEM%"=="bazel" (
+    appveyor DownloadFile https://github.com/bazelbuild/bazel/releases/download/0.6.1/bazel-0.6.1-windows-x86_64.exe -FileName bazel.exe
   )
 
 before_build:
@@ -57,11 +40,15 @@ build_script:
     cd bin && 7z a -tzip -mx9 brotli-win-%ARCH%-%RELEASE_DATE%.zip brotli.exe &&
     appveyor PushArtifact brotli-win-%ARCH%-%RELEASE_DATE%.zip && cd ..
   )
+- IF "%BUILD_SYSTEM%"=="bazel" (
+    bazel --batch build -c opt java/org/brotli/wrapper/...:all
+  )
 
 test_script:
 - IF "%BUILD_SYSTEM%"=="CMake" ( ctest --output-on-failure --interactive-debug-mode 0 -C Debug )
 - IF "%BUILD_SYSTEM%"=="Python" ( python setup.py test )
 - IF "%BUILD_SYSTEM%"=="make" ( sh -c "make test" )
+- IF "%BUILD_SYSTEM%"=="bazel" ( bazel --batch test -c opt --test_output streamed java/org/brotli/wrapper/...:all )
 
 deploy:
 - provider: BinTray
