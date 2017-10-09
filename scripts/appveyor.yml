@@ -40,7 +40,7 @@ build_script:
     cd bin && 7z a -tzip -mx9 brotli-win-%ARCH%-%RELEASE_DATE%.zip brotli.exe &&
     appveyor PushArtifact brotli-win-%ARCH%-%RELEASE_DATE%.zip && cd ..
   )
-- IF "%BUILD_SYSTEM%"=="bazel" ( bazel version )
+- IF "%BUILD_SYSTEM%"=="bazel" ( bazel build -c opt java/org/brotli/wrapper/...:all )
 
 test_script:
 - IF "%BUILD_SYSTEM%"=="CMake" ( ctest --output-on-failure --interactive-debug-mode 0 -C Debug )
