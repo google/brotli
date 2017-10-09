@@ -66,12 +66,12 @@ java_test(
     srcs = ["EncoderTest.java"],
     data = [
         ":test_bundle",
-        "//:jni",  # Bazel JNI workaround
     ],
     jvm_flags = ["-DTEST_BUNDLE=$(location :test_bundle)"],
     shard_count = 15,
     deps = [
         ":enc",
+        "//:jni",
         "//java/org/brotli/integration:bundle_helper",
         "//java/org/brotli/wrapper/dec",
         "@junit_junit//jar",
