@@ -2,6 +2,7 @@ package org.brotli.wrapper.enc;
 
 import static org.junit.Assert.assertEquals;
 
+import org.brotli.integration.BrotliJniTestBase;
 import org.brotli.integration.BundleHelper;
 import org.brotli.wrapper.dec.BrotliInputStream;
 import java.io.ByteArrayInputStream;
@@ -16,14 +17,7 @@ import org.junit.runners.AllTests;
 
 /** Tests for {@link org.brotli.wrapper.enc.Encoder}. */
 @RunWith(AllTests.class)
-public class EncoderTest {
-
-  // TODO: remove when Bazel get JNI support.
-  static {
-    System.load(new java.io.File(new java.io.File(System.getProperty("java.library.path")),
-        "liblibjni.so").getAbsolutePath());
-  }
-
+public class EncoderTest extends BrotliJniTestBase {
   static InputStream getBundle() throws IOException {
     return new FileInputStream(System.getProperty("TEST_BUNDLE"));
   }

@@ -9,6 +9,7 @@ package org.brotli.wrapper.common;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 
+import org.brotli.integration.BrotliJniTestBase;
 import org.brotli.wrapper.dec.BrotliInputStream;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -20,13 +21,7 @@ import org.junit.runners.JUnit4;
  * Tests for {@link BrotliCommon}.
  */
 @RunWith(JUnit4.class)
-public class SetZeroDictionaryTest {
-
-  // TODO: remove when Bazel get JNI support.
-  static {
-    System.load(new java.io.File(new java.io.File(System.getProperty("java.library.path")),
-        "liblibjni_Uno_Udictionary_Udata.so").getAbsolutePath());
-  }
+public class SetZeroDictionaryTest extends BrotliJniTestBase {
 
   @Test
   public void testZeroDictionary() throws IOException {

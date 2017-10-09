@@ -10,16 +10,21 @@ load("@io_bazel_rules_closure//closure:defs.bzl", "closure_js_library")
 closure_js_library(
     name = "polyfill",
     srcs = ["polyfill.js"],
-    language = "ECMASCRIPT6_STRICT",
-    suppress = ["JSC_MISSING_JSDOC"],
+    suppress = [
+        "JSC_MISSING_JSDOC",
+        "JSC_TYPE_MISMATCH",
+        "JSC_UNKNOWN_EXPR_TYPE",
+    ],
 )
 
 # Do NOT use this artifact; it is for test purposes only.
 closure_js_library(
     name = "decode",
     srcs = ["decode.js"],
-    language = "ECMASCRIPT6_STRICT",
-    suppress = ["JSC_USELESS_BLOCK"],
+    suppress = [
+        "JSC_DUP_VAR_DECLARATION",
+        "JSC_USELESS_BLOCK",
+    ],
     deps = [":polyfill"],
 )
 
@@ -28,7 +33,6 @@ load("@io_bazel_rules_closure//closure:defs.bzl", "closure_js_test")
 closure_js_test(
     name = "all_tests",
     srcs = ["decode_test.js"],
-    language = "ECMASCRIPT6_STRICT",
     deps = [
         ":decode",
         ":polyfill",

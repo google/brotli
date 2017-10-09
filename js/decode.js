@@ -4,8 +4,8 @@
    See file LICENSE for detail or copy at https://opensource.org/licenses/MIT
 */
 
-/** @export */
-var BrotliDecode = (function() {
+/** @return {function(!Int8Array):!Int8Array} */
+function BrotliDecodeClosure() {
   "use strict";
 
   /** @type {!Int8Array} */
@@ -61,7 +61,7 @@ var BrotliDecode = (function() {
   /**
    * @param {!State} s
    * @param {!InputStream} input
-   * @return {!void}
+   * @return {void}
    */
   function initState(s, input) {
     if (s.runningState != 0) {
@@ -80,7 +80,7 @@ var BrotliDecode = (function() {
   }
   /**
    * @param {!State} s
-   * @return {!void}
+   * @return {void}
    */
   function close(s) {
     if (s.runningState == 0) {
@@ -116,7 +116,7 @@ var BrotliDecode = (function() {
   }
   /**
    * @param {!State} s
-   * @return {!void}
+   * @return {void}
    */
   function decodeMetaBlockLength(s) {
     if (s.bitOffset >= 16) {
@@ -226,7 +226,7 @@ var BrotliDecode = (function() {
   /**
    * @param {!Int32Array} v
    * @param {!number} index
-   * @return {!void}
+   * @return {void}
    */
   function moveToFront(v, index) {
     var /** !number */ value = v[index];
@@ -238,7 +238,7 @@ var BrotliDecode = (function() {
   /**
    * @param {!Int8Array} v
    * @param {!number} vLen
-   * @return {!void}
+   * @return {void}
    */
   function inverseMoveToFrontTransform(v, vLen) {
     var /** !Int32Array */ mtf = new Int32Array(256);
@@ -258,7 +258,7 @@ var BrotliDecode = (function() {
    * @param {!number} numSymbols
    * @param {!Int32Array} codeLengths
    * @param {!State} s
-   * @return {!void}
+   * @return {void}
    */
   function readHuffmanCodeLengths(codeLengthCodeLengths, numSymbols, codeLengths, s) {
     var /** !number */ symbol = 0;
@@ -343,7 +343,7 @@ var BrotliDecode = (function() {
    * @param {!Int32Array} table
    * @param {!number} offset
    * @param {!State} s
-   * @return {!void}
+   * @return {void}
    */
   function readHuffmanCode(alphabetSize, table, offset, s) {
     var /** !number */ ok = 1;
@@ -517,7 +517,7 @@ var BrotliDecode = (function() {
   }
   /**
    * @param {!State} s
-   * @return {!void}
+   * @return {void}
    */
   function decodeLiteralBlockSwitch(s) {
     s.literalBlockLength = decodeBlockTypeAndLength(s, 0, s.numLiteralBlockTypes);
@@ -531,7 +531,7 @@ var BrotliDecode = (function() {
   }
   /**
    * @param {!State} s
-   * @return {!void}
+   * @return {void}
    */
   function decodeCommandBlockSwitch(s) {
     s.commandBlockLength = decodeBlockTypeAndLength(s, 1, s.numCommandBlockTypes);
@@ -539,7 +539,7 @@ var BrotliDecode = (function() {
   }
   /**
    * @param {!State} s
-   * @return {!void}
+   * @return {void}
    */
   function decodeDistanceBlockSwitch(s) {
     s.distanceBlockLength = decodeBlockTypeAndLength(s, 2, s.numDistanceBlockTypes);
@@ -547,7 +547,7 @@ var BrotliDecode = (function() {
   }
   /**
    * @param {!State} s
-   * @return {!void}
+   * @return {void}
    */
   function maybeReallocateRingBuffer(s) {
     var /** !number */ newSize = s.maxRingBufferSize;
@@ -573,7 +573,7 @@ var BrotliDecode = (function() {
   }
   /**
    * @param {!State} s
-   * @return {!void}
+   * @return {void}
    */
   function readNextMetablockHeader(s) {
     if (s.inputEnd != 0) {
@@ -626,7 +626,7 @@ var BrotliDecode = (function() {
   }
   /**
    * @param {!State} s
-   * @return {!void}
+   * @return {void}
    */
   function readMetablockHuffmanCodesAndContextMaps(s) {
     s.numLiteralBlockTypes = decodeVarLenUnsignedByte(s) + 1;
@@ -690,7 +690,7 @@ var BrotliDecode = (function() {
   }
   /**
    * @param {!State} s
-   * @return {!void}
+   * @return {void}
    */
   function copyUncompressedData(s) {
     var /** !Int8Array */ ringBuffer = s.ringBuffer;
@@ -748,7 +748,7 @@ var BrotliDecode = (function() {
   }
   /**
    * @param {!State} s
-   * @return {!void}
+   * @return {void}
    */
   function decompress(s) {
     if (s.runningState == 0) {
@@ -1044,7 +1044,7 @@ var BrotliDecode = (function() {
    * @param {!Int32Array} transforms
    * @param {!string} prefixSuffixSrc
    * @param {!string} transformsSrc
-   * @return {!void}
+   * @return {void}
    */
   function unpackTransforms(prefixSuffix, prefixSuffixHeads, transforms, prefixSuffixSrc, transformsSrc) {
     var /** !number */ n = prefixSuffixSrc.length;
@@ -1142,7 +1142,7 @@ var BrotliDecode = (function() {
    * @param {!number} step
    * @param {!number} end
    * @param {!number} item
-   * @return {!void}
+   * @return {void}
    */
   function replicateValue(table, offset, step, end, item) {
     do {
@@ -1174,7 +1174,7 @@ var BrotliDecode = (function() {
    * @param {!number} rootBits
    * @param {!Int32Array} codeLengths
    * @param {!number} codeLengthsSize
-   * @return {!void}
+   * @return {void}
    */
   function buildHuffmanTable(rootTable, tableOffset, rootBits, codeLengths, codeLengthsSize) {
     var /** !number */ key;
@@ -1232,7 +1232,7 @@ var BrotliDecode = (function() {
 
   /**
    * @param {!State} s
-   * @return {!void}
+   * @return {void}
    */
   function doReadMoreInput(s) {
     if (s.endOfStreamReached != 0) {
@@ -1261,7 +1261,7 @@ var BrotliDecode = (function() {
   /**
    * @param {!State} s
    * @param {!number} endOfStream
-   * @return {!void}
+   * @return {void}
    */
   function checkHealth(s, endOfStream) {
     if (s.endOfStreamReached == 0) {
@@ -1298,7 +1298,7 @@ var BrotliDecode = (function() {
   }
   /**
    * @param {!State} s
-   * @return {!void}
+   * @return {void}
    */
   function initBitReader(s) {
     s.byteBuffer = new Int8Array(4160);
@@ -1311,7 +1311,7 @@ var BrotliDecode = (function() {
   }
   /**
    * @param {!State} s
-   * @return {!void}
+   * @return {void}
    */
   function prepare(s) {
     if (s.halfOffset > 2030) {
@@ -1325,7 +1325,7 @@ var BrotliDecode = (function() {
   }
   /**
    * @param {!State} s
-   * @return {!void}
+   * @return {void}
    */
   function reload(s) {
     if (s.bitOffset == 32) {
@@ -1334,7 +1334,7 @@ var BrotliDecode = (function() {
   }
   /**
    * @param {!State} s
-   * @return {!void}
+   * @return {void}
    */
   function jumpToByteBoundary(s) {
     var /** !number */ padding = (32 - s.bitOffset) & 7;
@@ -1361,7 +1361,7 @@ var BrotliDecode = (function() {
    * @param {!Int8Array} data
    * @param {!number} offset
    * @param {!number} length
-   * @return {!void}
+   * @return {void}
    */
   function copyBytes(s, data, offset, length) {
     if ((s.bitOffset & 7) != 0) {
@@ -1412,7 +1412,7 @@ var BrotliDecode = (function() {
   /**
    * @param {!State} s
    * @param {!number} byteLen
-   * @return {!void}
+   * @return {void}
    */
   function bytesToNibbles(s, byteLen) {
     var /** !Int8Array */ byteBuffer = s.byteBuffer;
@@ -1428,7 +1428,7 @@ var BrotliDecode = (function() {
    * @param {!Int32Array} lookup
    * @param {!string} map
    * @param {!string} rle
-   * @return {!void}
+   * @return {void}
    */
   function unpackLookupTable(lookup, map, rle) {
     for (var /** !number */ i = 0; i < 256; ++i) {
@@ -1603,7 +1603,7 @@ var BrotliDecode = (function() {
    * @param {!string} data0
    * @param {!string} data1
    * @param {!string} skipFlip
-   * @return {!void}
+   * @return {void}
    */
   function unpackDictionaryData(dictionary, data0, data1, skipFlip) {
     var /** !number */ n0 = data0.length;
@@ -1708,6 +1708,9 @@ var BrotliDecode = (function() {
   }
 
   return decode;
-})();
+}
+
+/** @export */
+var BrotliDecode = BrotliDecodeClosure();
 
 window["BrotliDecode"] = BrotliDecode;

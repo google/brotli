@@ -147,45 +147,41 @@ cc_binary(
 ########################################################
 # WARNING: do not (transitively) depend on this target!
 ########################################################
-cc_library(
-    name = "jni",
+cc_binary(
+    name = "brotli_jni.dll",
     srcs = [
+        ":common_headers",
         ":common_sources",
+        ":dec_headers",
         ":dec_sources",
+        ":enc_headers",
         ":enc_sources",
         "//java/org/brotli/wrapper/common:jni_src",
         "//java/org/brotli/wrapper/dec:jni_src",
         "//java/org/brotli/wrapper/enc:jni_src",
-    ],
-    hdrs = [
-        ":common_headers",
-        ":dec_headers",
-        ":enc_headers",
     ],
     deps = [
         ":brotli_inc",
         ":jni_inc",
     ],
-    alwayslink = 1,
+    linkshared = 1,
 )
 
 ########################################################
 # WARNING: do not (transitively) depend on this target!
 ########################################################
-cc_library(
-    name = "jni_no_dictionary_data",
+cc_binary(
+    name = "brotli_jni_no_dictionary_data.dll",
     srcs = [
+        ":common_headers",
         ":common_sources",
+        ":dec_headers",
         ":dec_sources",
+        ":enc_headers",
         ":enc_sources",
         "//java/org/brotli/wrapper/common:jni_src",
         "//java/org/brotli/wrapper/dec:jni_src",
         "//java/org/brotli/wrapper/enc:jni_src",
-    ],
-    hdrs = [
-        ":common_headers",
-        ":dec_headers",
-        ":enc_headers",
     ],
     defines = [
         "BROTLI_EXTERNAL_DICTIONARY_DATA=",
@@ -194,7 +190,7 @@ cc_library(
         ":brotli_inc",
         ":jni_inc",
     ],
-    alwayslink = 1,
+    linkshared = 1,
 )
 
 filegroup(

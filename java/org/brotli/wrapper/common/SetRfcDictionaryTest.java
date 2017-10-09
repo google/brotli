@@ -11,6 +11,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+import org.brotli.integration.BrotliJniTestBase;
 import org.brotli.wrapper.dec.BrotliInputStream;
 import java.io.ByteArrayInputStream;
 import java.io.FileInputStream;
@@ -25,13 +26,7 @@ import org.junit.runners.JUnit4;
  * Tests for {@link BrotliCommon}.
  */
 @RunWith(JUnit4.class)
-public class SetRfcDictionaryTest {
-
-  // TODO: remove when Bazel get JNI support.
-  static {
-    System.load(new java.io.File(new java.io.File(System.getProperty("java.library.path")),
-        "liblibjni_Uno_Udictionary_Udata.so").getAbsolutePath());
-  }
+public class SetRfcDictionaryTest extends BrotliJniTestBase {
 
   @Test
   public void testRfcDictionaryChecksums() throws IOException, NoSuchAlgorithmException {
