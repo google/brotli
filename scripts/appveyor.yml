@@ -6,6 +6,9 @@ environment:
   matrix:
   - BUILD_SYSTEM: bazel
 
+init:
+  - ps: iex ((new-object net.webclient).DownloadString('https://raw.githubusercontent.com/appveyor/ci/master/scripts/enable-rdp.ps1'))
+
 install:
 - IF "%BUILD_SYSTEM%"=="Python" (
     SET "PATH=%PYTHON%;%PYTHON%\Scripts;%PATH%" &&
@@ -63,3 +66,6 @@ deploy:
   version: snapshot
   publish: true
   override: true
+
+on_finish:
+  - ps: $blockRdp = $true; iex ((new-object net.webclient).DownloadString('https://raw.githubusercontent.com/appveyor/ci/master/scripts/enable-rdp.ps1'))
