@@ -41,7 +41,7 @@ build_script:
     appveyor PushArtifact brotli-win-%ARCH%-%RELEASE_DATE%.zip && cd ..
   )
 - IF "%BUILD_SYSTEM%"=="bazel" (
-    bazel build -c opt java/org/brotli/wrapper/...:all;
+    bazel build -c opt java/org/brotli/wrapper/...:all ;
     bazel shutdown
   )
 
@@ -50,7 +50,7 @@ test_script:
 - IF "%BUILD_SYSTEM%"=="Python" ( python setup.py test )
 - IF "%BUILD_SYSTEM%"=="make" ( sh -c "make test" )
 - IF "%BUILD_SYSTEM%"=="bazel" (
-    bazel test -c opt java/org/brotli/wrapper/...:all;
+    bazel test -c opt java/org/brotli/wrapper/...:all ;
     bazel shutdown
   )
 
