@@ -42,7 +42,7 @@ build_script:
   )
 - IF "%BUILD_SYSTEM%"=="bazel" (
     bazel --batch build -c opt java/org/brotli/wrapper/...:all &&
-    dir
+    cd bazel-bin && dir && cd ..
   )
 
 test_script:
