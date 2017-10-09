@@ -20,8 +20,7 @@ public class EncoderTest {
 
   // TODO: remove when Bazel get JNI support.
   static {
-    System.load(new java.io.File(new java.io.File(System.getProperty("java.library.path")),
-        "liblibjni.so").getAbsolutePath());
+    System.load(new java.io.File("libjni.lo").getAbsolutePath());
   }
 
   static InputStream getBundle() throws IOException {
