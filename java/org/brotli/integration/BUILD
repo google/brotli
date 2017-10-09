@@ -2,6 +2,16 @@
 #   Integration test runner + corpus for Java port of Brotli decoder.
 
 java_library(
+    name = "brotli_jni_test_base",
+    srcs = ["BrotliJniTestBase.java"],
+    visibility = [
+        "//java/org/brotli/wrapper/common:__pkg__",
+        "//java/org/brotli/wrapper/dec:__pkg__",
+        "//java/org/brotli/wrapper/enc:__pkg__",
+    ],
+)
+
+java_library(
     name = "bundle_helper",
     srcs = ["BundleHelper.java"],
     visibility = [

@@ -2,6 +2,7 @@ package org.brotli.wrapper.enc;
 
 import static org.junit.Assert.assertEquals;
 
+import org.brotli.integration.BrotliJniTestBase;
 import org.brotli.integration.BundleHelper;
 import org.brotli.wrapper.dec.BrotliInputStream;
 import java.io.ByteArrayInputStream;
@@ -18,18 +19,12 @@ import org.junit.runners.AllTests;
 
 /** Tests for {@link org.brotli.wrapper.enc.BrotliOutputStream}. */
 @RunWith(AllTests.class)
-public class BrotliOutputStreamTest {
+public class BrotliOutputStreamTest extends BrotliJniTestBase {
 
   private enum TestMode {
     WRITE_ALL,
     WRITE_CHUNKS,
     WRITE_BYTE
-  }
-
-  // TODO: remove when Bazel get JNI support.
-  static {
-    System.load(new java.io.File(new java.io.File(System.getProperty("java.library.path")),
-        "liblibjni.so").getAbsolutePath());
   }
 
   private static final int CHUNK_SIZE = 256;

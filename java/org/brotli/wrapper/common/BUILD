@@ -7,37 +7,32 @@ filegroup(
     srcs = ["common_jni.cc"],
 )
 
-#########################################
-# WARNING: do not depend on this target!
-#########################################
-java_library(
-    name = "common_no_dictionary_data",
-    srcs = glob(
-        ["*.java"],
-        exclude = ["*Test*.java"],
-    ),
-    deps = ["//:jni_no_dictionary_data"],
+filegroup(
+    name = "brotli_jni_no_dictionary_data",
+    srcs = ["//:brotli_jni_no_dictionary_data.dll"],
 )
 
-#########################################
-# WARNING: do not depend on this target!
-#########################################
 java_library(
     name = "common",
     srcs = glob(
         ["*.java"],
         exclude = ["*Test*.java"],
     ),
-    deps = ["//:jni"],
 )
 
 java_test(
     name = "SetZeroDictionaryTest",
     size = "small",
     srcs = ["SetZeroDictionaryTest.java"],
-    data = ["//:jni_no_dictionary_data"],  # Bazel JNI workaround
+    data = [
+        ":brotli_jni_no_dictionary_data",  # Bazel JNI workaround
+    ],
+    jvm_flags = [
+        "-DBROTLI_JNI_LIBRARY=$(location :brotli_jni_no_dictionary_data)",
+    ],
     deps = [
-        ":common_no_dictionary_data",
+        ":common",
+        "//java/org/brotli/integration:brotli_jni_test_base",
         "//java/org/brotli/wrapper/dec",
         "@junit_junit//jar",
     ],
@@ -54,11 +49,15 @@ java_test(
     srcs = ["SetRfcDictionaryTest.java"],
     data = [
         ":rfc_dictionary",
-        "//:jni_no_dictionary_data",  # Bazel JNI workaround
+        ":brotli_jni_no_dictionary_data",  # Bazel JNI workaround
     ],
-    jvm_flags = ["-DRFC_DICTIONARY=$(location :rfc_dictionary)"],
+    jvm_flags = [
+        "-DRFC_DICTIONARY=$(location :rfc_dictionary)",
+        "-DBROTLI_JNI_LIBRARY=$(location :brotli_jni_no_dictionary_data)",
+    ],
     deps = [
-        ":common_no_dictionary_data",
+        ":common",
+        "//java/org/brotli/integration:brotli_jni_test_base",
         "//java/org/brotli/wrapper/dec",
         "@junit_junit//jar",
     ],

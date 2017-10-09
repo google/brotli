@@ -7,16 +7,17 @@ filegroup(
     srcs = ["decoder_jni.cc"],
 )
 
-#########################################
-# WARNING: do not depend on this target!
-#########################################
 java_library(
     name = "dec",
     srcs = glob(
         ["*.java"],
         exclude = ["*Test*.java"],
     ),
-    deps = ["//:jni"],
+)
+
+filegroup(
+    name = "brotli_jni",
+    srcs = ["//:brotli_jni.dll"],
 )
 
 filegroup(
@@ -29,12 +30,16 @@ java_test(
     size = "large",
     srcs = ["BrotliDecoderChannelTest.java"],
     data = [
+        ":brotli_jni",  # Bazel JNI workaround
         ":test_bundle",
-        "//:jni",  # Bazel JNI workaround
     ],
-    jvm_flags = ["-DTEST_BUNDLE=$(location :test_bundle)"],
+    jvm_flags = [
+        "-DBROTLI_JNI_LIBRARY=$(location :brotli_jni)",
+        "-DTEST_BUNDLE=$(location :test_bundle)",
+    ],
     deps = [
         ":dec",
+        "//java/org/brotli/integration:brotli_jni_test_base",
         "//java/org/brotli/integration:bundle_helper",
         "@junit_junit//jar",
     ],
@@ -45,12 +50,16 @@ java_test(
     size = "large",
     srcs = ["BrotliInputStreamTest.java"],
     data = [
+        ":brotli_jni",  # Bazel JNI workaround
         ":test_bundle",
-        "//:jni",  # Bazel JNI workaround
     ],
-    jvm_flags = ["-DTEST_BUNDLE=$(location :test_bundle)"],
+    jvm_flags = [
+        "-DBROTLI_JNI_LIBRARY=$(location :brotli_jni)",
+        "-DTEST_BUNDLE=$(location :test_bundle)",
+    ],
     deps = [
         ":dec",
+        "//java/org/brotli/integration:brotli_jni_test_base",
         "//java/org/brotli/integration:bundle_helper",
         "@junit_junit//jar",
     ],
@@ -61,12 +70,16 @@ java_test(
     size = "large",
     srcs = ["DecoderTest.java"],
     data = [
+        ":brotli_jni",  # Bazel JNI workaround
         ":test_bundle",
-        "//:jni",  # Bazel JNI workaround
     ],
-    jvm_flags = ["-DTEST_BUNDLE=$(location :test_bundle)"],
+    jvm_flags = [
+        "-DBROTLI_JNI_LIBRARY=$(location :brotli_jni)",
+        "-DTEST_BUNDLE=$(location :test_bundle)",
+    ],
     deps = [
         ":dec",
+        "//java/org/brotli/integration:brotli_jni_test_base",
         "//java/org/brotli/integration:bundle_helper",
         "@junit_junit//jar",
     ],
