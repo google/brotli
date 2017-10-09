@@ -41,8 +41,10 @@ build_script:
     appveyor PushArtifact brotli-win-%ARCH%-%RELEASE_DATE%.zip && cd ..
   )
 - IF "%BUILD_SYSTEM%"=="bazel" (
-    bazel --batch build -c opt ...:all &&
-    cd bazel-bin && dir && cd ..
+    bazel --batch build -c opt :jni &&
+    bazel --batch build -c opt java/org/brotli/wrapper/...:all &&
+    cd bazel-bin && dir && cd .. &&
+    cd bazel-out && dir && cd .. &&
   )
 
 test_script:
