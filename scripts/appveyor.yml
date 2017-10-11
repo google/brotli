@@ -26,6 +26,8 @@ environment:
   - BUILD_SYSTEM: make
     ARCH: "x86_64"
 
+  - BUILD_SYSTEM: bazel
+
 install:
 - IF "%BUILD_SYSTEM%"=="Python" (
     SET "PATH=%PYTHON%;%PYTHON%\Scripts;%PATH%" &&
@@ -39,14 +41,17 @@ install:
       SET "TOOLCHAIN=x86_64-6.3.0-posix-seh-rt_v5-rev1\mingw64"
     )
   )
+- IF "%BUILD_SYSTEM%"=="bazel" (
+    appveyor DownloadFile https://github.com/bazelbuild/bazel/releases/download/0.6.1/bazel-0.6.1-windows-x86_64.exe -FileName bazel.exe
+  )
 
 before_build:
+- FOR /f %%i in ('C:\cygwin64\bin\date.exe +%%Y-%%m-%%d') DO SET "RELEASE_DATE=%%i"
 - IF "%BUILD_SYSTEM%"=="CMake" ( mkdir builddir && cd builddir && cmake -G "%GENERATOR%" .. )
 - IF "%BUILD_SYSTEM%"=="make" (
     SET "CC=gcc" &&
     SET "PATH=C:\mingw-w64\%TOOLCHAIN%\bin;%PATH%" &&
-    COPY C:\msys64\usr\bin\make.exe C:\mingw-w64\%TOOLCHAIN%\bin\make.exe &&
-    FOR /f %%i in ('C:\cygwin64\bin\date.exe +%%Y-%%m-%%d') DO SET "RELEASE_DATE=%%i"
+    COPY C:\msys64\usr\bin\make.exe C:\mingw-w64\%TOOLCHAIN%\bin\make.exe
   )
 
 build_script:
@@ -57,11 +62,18 @@ build_script:
     cd bin && 7z a -tzip -mx9 brotli-win-%ARCH%-%RELEASE_DATE%.zip brotli.exe &&
     appveyor PushArtifact brotli-win-%ARCH%-%RELEASE_DATE%.zip && cd ..
   )
+- IF "%BUILD_SYSTEM%"=="bazel" (
+    bazel --batch build -c opt java/org/brotli/wrapper/...:all &&
+    python scripts/fix-win-bazel-build.py &&
+    cd bazel-bin && 7z a -tzip -mx9 brotli-win-bazel-jni-%RELEASE_DATE%.zip brotli_jni.dll &&
+    appveyor PushArtifact brotli-win-bazel-jni-%RELEASE_DATE%.zip && cd ..
+  )
 
 test_script:
 - IF "%BUILD_SYSTEM%"=="CMake" ( ctest --output-on-failure --interactive-debug-mode 0 -C Debug )
 - IF "%BUILD_SYSTEM%"=="Python" ( python setup.py test )
 - IF "%BUILD_SYSTEM%"=="make" ( sh -c "make test" )
+- IF "%BUILD_SYSTEM%"=="bazel" ( bazel --batch test -c opt --test_output streamed java/org/brotli/wrapper/...:all )
 
 deploy:
 - provider: BinTray

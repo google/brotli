@@ -26,33 +26,59 @@ http_archive(
 
 new_http_archive(
     name = "openjdk_linux",
-    url = "https://bazel-mirror.storage.googleapis.com/openjdk/azul-zulu-8.20.0.5-jdk8.0.121/zulu8.20.0.5-jdk8.0.121-linux_x64.tar.gz",
-    sha256 = "7fdfb17d890406470b2303d749d3138e7f353749e67a0a22f542e1ab3e482745",
+    urls = [
+        "https://mirror.bazel.build/openjdk/azul-zulu-8.23.0.3-jdk8.0.144/zulu8.23.0.3-jdk8.0.144-linux_x64.tar.gz",
+        "https://bazel-mirror.storage.googleapis.com/openjdk/azul-zulu-8.23.0.3-jdk8.0.144/zulu8.23.0.3-jdk8.0.144-linux_x64.tar.gz",
+        "https://cdn.azul.com/zulu/bin/zulu8.23.0.3-jdk8.0.144-linux_x64.tar.gz",
+    ],
+    sha256 = "7e6284739c0e5b7142bc7a9adc61ced70dc5bb26b130b582b18e809013bcb251",
     build_file_content = """
 package(
     default_visibility = ["//visibility:public"],
 )
 filegroup(
     name = "jni_h",
-    srcs = ["zulu8.20.0.5-jdk8.0.121-linux_x64/include/jni.h"],
+    srcs = ["zulu8.23.0.3-jdk8.0.144-linux_x64/include/jni.h"],
 )
 filegroup(
     name = "jni_md_h",
-    srcs = ["zulu8.20.0.5-jdk8.0.121-linux_x64/include/linux/jni_md.h"],
+    srcs = ["zulu8.23.0.3-jdk8.0.144-linux_x64/include/linux/jni_md.h"],
 )""",
 )
 
 new_http_archive(
     name = "openjdk_macos",
-    url = "https://bazel-mirror.storage.googleapis.com/openjdk/azul-zulu-8.20.0.5-jdk8.0.121/zulu8.20.0.5-jdk8.0.121-macosx_x64.zip",
-    sha256 = "2a58bd1d9b0cbf0b3d8d1bcdd117c407e3d5a0ec01e2f53565c9bec5cf9ea78b",
+    urls = [
+        "https://mirror.bazel.build/openjdk/azul-zulu-8.23.0.3-jdk8.0.144/zulu8.23.0.3-jdk8.0.144-macosx_x64.zip",
+        "https://bazel-mirror.storage.googleapis.com/openjdk/azul-zulu-8.23.0.3-jdk8.0.144/zulu8.23.0.3-jdk8.0.144-macosx_x64.zip",
+        "https://cdn.azul.com/zulu/bin/zulu8.23.0.3-jdk8.0.144-macosx_x64.zip",
+    ],
+    sha256 = "ff533364c9cbd3b271ab5328efe28e2dd6d7bae5b630098a5683f742ecf0709d",
     build_file_content = """
 package(
     default_visibility = ["//visibility:public"],
 )
 filegroup(
     name = "jni_md_h",
-    srcs = ["zulu8.20.0.5-jdk8.0.121-macosx_x64/include/darwin/jni_md.h"],
+    srcs = ["zulu8.23.0.3-jdk8.0.144-macosx_x64/include/darwin/jni_md.h"],
+)""",
+)
+
+new_http_archive(
+    name = "openjdk_win",
+    urls = [
+        "https://mirror.bazel.build/openjdk/azul-zulu-8.23.0.3-jdk8.0.144/zulu8.23.0.3-jdk8.0.144-win_x64.zip",
+        "https://bazel-mirror.storage.googleapis.com/openjdk/azul-zulu-8.23.0.3-jdk8.0.144/zulu8.23.0.3-jdk8.0.144-win_x64.zip",
+        "https://cdn.azul.com/zulu/bin/zulu8.23.0.3-jdk8.0.144-win_x64.zip",
+    ],
+    sha256 = "f1d9d3341ef7c8c9baff3597953e99a6a7c64f8608ee62c03fdd7574b7655c02",
+    build_file_content = """
+package(
+    default_visibility = ["//visibility:public"],
+)
+filegroup(
+    name = "jni_md_h",
+    srcs = ["zulu8.23.0.3-jdk8.0.144-win_x64/include/win32/jni_md.h"],
 )""",
 )
 
