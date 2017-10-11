@@ -23,6 +23,24 @@ config_setting(
     visibility = ["//visibility:public"],
 )
 
+config_setting(
+    name = "windows",
+    values = {"cpu": "x64_windows"},
+    visibility = ["//visibility:public"],
+)
+
+config_setting(
+    name = "windows_msvc",
+    values = {"cpu": "x64_windows_msvc"},
+    visibility = ["//visibility:public"],
+)
+
+config_setting(
+    name = "windows_msys",
+    values = {"cpu": "x64_windows_msys"},
+    visibility = ["//visibility:public"],
+)
+
 genrule(
     name = "copy_link_jni_header",
     srcs = ["@openjdk_linux//:jni_h"],
