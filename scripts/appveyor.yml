@@ -26,7 +26,6 @@ environment:
   - BUILD_SYSTEM: make
     ARCH: "x86_64"
 
-  matrix:
   - BUILD_SYSTEM: bazel
 
 install:
