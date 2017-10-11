@@ -78,7 +78,7 @@ package(
 )
 filegroup(
     name = "jni_md_h",
-    srcs = ["zulu8.23.0.3-jdk8.0.144-win_x64/include/darwin/jni_md.h"],
+    srcs = ["zulu8.23.0.3-jdk8.0.144-win_x64/include/win32/jni_md.h"],
 )""",
 )
 
