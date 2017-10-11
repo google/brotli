@@ -35,6 +35,9 @@ genrule(
     srcs = select({
         ":darwin": ["@openjdk_macos//:jni_md_h"],
         ":darwin_x86_64": ["@openjdk_macos//:jni_md_h"],
+        ":windows_msys": ["@openjdk_win//:jni_md_h"],
+        ":windows_msvc": ["@openjdk_win//:jni_md_h"],
+        ":windows": ["@openjdk_win//:jni_md_h"],
         "//conditions:default": ["@openjdk_linux//:jni_md_h"],
     }),
     outs = ["jni/jni_md.h"],
