@@ -11,6 +11,7 @@
 #define BROTLI_ENC_QUALITY_H_
 
 #include <brotli/encode.h>
+#include "./port.h"
 
 #define FAST_ONE_PASS_COMPRESSION_QUALITY 0
 #define FAST_TWO_PASS_COMPRESSION_QUALITY 1
