@@ -335,7 +335,7 @@ Compresses input stream to output stream\&. The values \fC*available_in\fP and \
 .PP
 After each call, \fC*available_in\fP will be decremented by the amount of input bytes consumed, and the \fC*next_in\fP pointer will be incremented by that amount\&. Similarly, \fC*available_out\fP will be decremented by the amount of output bytes written, and the \fC*next_out\fP pointer will be incremented by that amount\&.
 .PP
-\fCtotal_out\fP, if it is not a null-pointer, will be set to the number of bytes decompressed since the last \fCstate\fP initialization\&.
+\fCtotal_out\fP, if it is not a null-pointer, will be set to the number of bytes compressed since the last \fCstate\fP initialization\&.
 .PP
 Internally workflow consists of 3 tasks:
 .IP "1." 4

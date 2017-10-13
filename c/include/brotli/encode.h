@@ -283,7 +283,7 @@ BROTLI_ENC_API BROTLI_BOOL BrotliEncoderCompress(
  * that amount.
  *
  * @p total_out, if it is not a null-pointer, will be set to the number
- * of bytes decompressed since the last @p state initialization.
+ * of bytes compressed since the last @p state initialization.
  *
  *
  *
