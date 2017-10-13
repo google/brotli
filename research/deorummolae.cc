@@ -1,7 +1,7 @@
 #include "./deorummolae.h"
 
 #include <array>
-#include <vector>
+#include <cstdio>
 
 #include "./esaxx/sais.hxx"
 
@@ -20,9 +20,7 @@
 /* File coverage: every bit set to 1 denotes a file covered by an isle. */
 typedef std::array<uint64_t, COVERAGE_SIZE> Coverage;
 
-static int popcount(uint64_t u) {
-  return __builtin_popcountll(u);
-}
+static int popcount(uint64_t u) { return __builtin_popcountll(u); }
 
 /* Condense terminators and pad file entries. */
 static void rewriteText(std::vector<int>* text) {
@@ -155,9 +153,8 @@ static void cutMatch(std::vector<std::vector<int>>* data, int index, int length,
   }
 }
 
-size_t DM_generate(uint8_t* dictionary, size_t dictionary_size_limit,
-    size_t num_samples, const size_t* sample_sizes,
-    const uint8_t* sample_data) {
+std::string DM_generate(size_t dictionary_size_limit,
+    const std::vector<size_t>& sample_sizes, const uint8_t* sample_data) {
   {
     uint64_t tmp = 0;
     if (popcount(tmp - 1u) != 64) {
@@ -169,9 +166,11 @@ size_t DM_generate(uint8_t* dictionary, size_t dictionary_size_limit,
   /* Could use 256 + '0' for easier debugging. */
   int next_terminator = 256;
 
+  std::string output;
   std::vector<std::vector<int>> data;
 
   size_t offset = 0;
+  size_t num_samples = sample_sizes.size();
   if (num_samples > MAX_FILES) num_samples = MAX_FILES;
   for (size_t n = 0; n < num_samples; ++n) {
     size_t next_offset = offset + sample_sizes[n];
@@ -208,7 +207,7 @@ size_t DM_generate(uint8_t* dictionary, size_t dictionary_size_limit,
     buildLcp(&full_text, &sa, &lcp, &invese_sa);
 
     /* Do not rebuild SA/LCP, just use different selection. */
-retry:
+  retry:
     best_cost = 0;
     best_isle = {0, 0, 0, {{0}}};
     isles.resize(0);
@@ -259,18 +258,16 @@ retry:
     }
 
     /* Save the entry. */
-    fprintf(stderr,
-      "Savings: %zu+%zu, dictionary: %zu+%d\n",
-      total_cost, best_cost, total, best_isle.lcp);
-    for (size_t i = 0; i < best_isle.lcp; ++i) {
-      dictionary[total + i] =
-          static_cast<uint8_t>(full_text[sa[best_isle.l] + i]);
-    }
+    fprintf(stderr, "Savings: %zu+%zu, dictionary: %zu+%d\n",
+        total_cost, best_cost, total, best_isle.lcp);
+    int* piece = &full_text[sa[best_isle.l]];
+    output.insert(output.end(), piece, piece + best_isle.lcp);
     total += best_isle.lcp;
     total_cost += best_cost;
-    cutMatch(&data, best_isle.l, best_isle.lcp, &sa, &lcp,
-        &invese_sa, &next_terminator, &file_map, &file_offset);
+    cutMatch(&data, best_isle.l, best_isle.lcp, &sa, &lcp, &invese_sa,
+        &next_terminator, &file_map, &file_offset);
     if (total >= dictionary_size_limit) break;
   }
-  return total;
+
+  return output;
 }

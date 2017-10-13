@@ -1,17 +1,11 @@
-#ifndef BROTLI_RESEARCH_DEORUMMOLAE_H_
-#define BROTLI_RESEARCH_DEORUMMOLAE_H_
+#ifndef BROTLI_RESEARCH_SIEVE_H_
+#define BROTLI_RESEARCH_SIEVE_H_
 
 #include <stddef.h>
 #include <stdint.h>
 
 #include <string>
 #include <vector>
-
-/* log2(maximal number of files). Value 6 provides some speedups. */
-#define LOG_MAX_FILES 6
-
-/* Non tunable definitions. */
-#define MAX_FILES (1 << LOG_MAX_FILES)
 
 /**
  * Generate a dictionary for given samples.
@@ -21,7 +15,7 @@
  * @param sample_data concatenated samples
  * @return generated dictionary
  */
-std::string DM_generate(size_t dictionary_size_limit,
+std::string sieve_generate(size_t dictionary_size_limit, size_t slice_len,
     const std::vector<size_t>& sample_sizes, const uint8_t* sample_data);
 
-#endif  // BROTLI_RESEARCH_DEORUMMOLAE_H_
+#endif  // BROTLI_RESEARCH_SIEVE_H_
