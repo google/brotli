@@ -11,6 +11,10 @@
 
 #include <math.h>
 
+#if defined(_MSC_VER)
+#include <intrin.h>
+#endif // defined(_MSC_VER)
+
 #include <brotli/types.h>
 #include <brotli/port.h>
 
@@ -21,6 +25,10 @@ extern "C" {
 static BROTLI_INLINE uint32_t Log2FloorNonZero(size_t n) {
 #if BROTLI_MODERN_COMPILER || __has_builtin(__builtin_clz)
   return 31u ^ (uint32_t)__builtin_clz((uint32_t)n);
+#elif defined(_MSC_VER)
+  unsigned long where;
+  _BitScanReverse(&where, (uint32_t)n);
+  return where;
 #else
   uint32_t result = 0;
   while (n >>= 1) result++;
