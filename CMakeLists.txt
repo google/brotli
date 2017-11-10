@@ -75,6 +75,16 @@ math(EXPR BROTLI_VERSION_MINOR "(${_brotli_version} >> 12) & 4095")
 math(EXPR BROTLI_VERSION_REVISION "${_brotli_version} & 4095")
 mark_as_advanced(BROTLI_VERSION_MAJOR BROTLI_VERSION_MINOR BROTLI_VERSION_REVISION)
 
+# ABI Version information
+file(STRINGS "c/common/version.h" _brotli_abi_info_line REGEX "^#define BROTLI_ABI_VERSION (0x[0-9a-fA-F]+)$")
+string(REGEX REPLACE "^#define BROTLI_ABI_VERSION 0x([0-9a-fA-F]+)$" "\\1" _brotli_abi_info_hex "${_brotli_abi_info_line}")
+hex_to_dec("${_brotli_abi_info_hex}" _brotli_abi_info)
+math(EXPR BROTLI_ABI_CURRENT "${_brotli_abi_info} >> 24")
+math(EXPR BROTLI_ABI_REVISION "(${_brotli_abi_info} >> 12) & 4095")
+math(EXPR BROTLI_ABI_AGE "${_brotli_abi_info} & 4095")
+math(EXPR BROTLI_ABI_COMPATIBILITY "${BROTLI_ABI_CURRENT} - ${BROTLI_ABI_AGE}")
+mark_as_advanced(BROTLI_ABI_CURRENT BROTLI_ABI_REVISION BROTLI_ABI_AGE BROTLI_ABI_COMPATIBILITY)
+
 if (ENABLE_SANITIZER)
   set(CMAKE_C_FLAGS " ${CMAKE_C_FLAGS} -fsanitize=${ENABLE_SANITIZER}")
   set(CMAKE_CXX_FLAGS " ${CMAKE_CXX_FLAGS} -fsanitize=${ENABLE_SANITIZER}")
@@ -172,8 +182,8 @@ foreach(lib brotlicommon brotlidec brotlienc brotlicommon-static brotlidec-stati
   target_link_libraries(${lib} ${LIBM_LIBRARY})
   set_property(TARGET ${lib} APPEND PROPERTY INCLUDE_DIRECTORIES ${BROTLI_INCLUDE_DIRS})
   set_target_properties(${lib} PROPERTIES
-    SOVERSION "${BROTLI_VERSION_MAJOR}.${BROTLI_VERSION_MINOR}.${BROTLI_VERSION_REVISION}"
-    VERSION "${BROTLI_VERSION_MAJOR}.${BROTLI_VERSION_MINOR}.${BROTLI_VERSION_REVISION}"
+    VERSION "${BROTLI_ABI_COMPATIBILITY}.${BROTLI_ABI_AGE}.${BROTLI_ABI_REVISION}"
+    SOVERSION "${BROTLI_ABI_COMPATIBILITY}"
     POSITION_INDEPENDENT_CODE TRUE)
   set_property(TARGET ${lib} APPEND PROPERTY INTERFACE_INCLUDE_DIRECTORIES "${BROTLI_INCLUDE_DIRS}")
 endforeach()
