@@ -1,3 +1,5 @@
+[DRAFT]
+
 Changes for Shared Brotli dictionaries to https://fetch.spec.whatwg.org/:
 
 Additions to `4.5. HTTP-network-or-cache fetch`
