@@ -1,6 +1,25 @@
 [DRAFT]
 
-Changes for Shared Brotli dictionaries to https://fetch.spec.whatwg.org/:
+Introduction:
+
+This document is a draft proposal for Shard Brotli dictionaries in the fetch spec
+(https://fetch.spec.whatwg.org/).
+
+The goal is to add support for custom dictionaries for Brotli. A dictionary is used
+to improve compression. A client can download a dictionary from a server and then
+use it to decompress resources compressed with this dictionary.
+
+This document specifies how the client and server negotiate the dictionary over HTTP.
+A high level overview is as follows: The server adds an HTTP header to the response
+with a URL of the dictionary. The browser downloads the dictionary from the URL and
+then caches it so it can be reused. The server also adds a checksum to an HTTP header
+which the client uses to verify the dictionary. Caching, CORS, and other existing
+mechanisms are used. A dictionary can be a pre-made static dictionary, but does not
+have to be, for example a previous page loaded from this server, or an old version
+of a page, can be used as well.
+
+Below are changes and additions to add Shared Brotli dictionaries to the fetch spec
+at https://fetch.spec.whatwg.org/:
 
 Additions to `4.5. HTTP-network-or-cache fetch`
 
