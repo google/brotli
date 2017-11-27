@@ -1,10 +1,6 @@
 # !/bin/sh -e
 
 mkdir m4 2>/dev/null
-cp LICENSE COPYING
-cp scripts/gnu/AUTHORS ./
-cp scripts/gnu/ChangeLog ./
-cp scripts/gnu/NEWS ./
 
 BROTLI_ABI_HEX=`sed -n 's/#define BROTLI_ABI_VERSION 0x//p' c/common/version.h`
 BROTLI_ABI_INT=`echo $((16#$BROTLI_ABI_HEX))`

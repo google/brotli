@@ -1,4 +1,4 @@
-AUTOMAKE_OPTIONS = gnu nostdinc subdir-objects
+AUTOMAKE_OPTIONS = foreign nostdinc subdir-objects
 
 ACLOCAL_AMFLAGS = -I m4
 
