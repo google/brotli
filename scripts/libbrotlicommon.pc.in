@@ -3,9 +3,9 @@ exec_prefix=@exec_prefix@
 libdir=@libdir@
 includedir=@includedir@
 
-Name: @PACKAGE_NAME@dec
+Name: libbrotlicommon
+URL: https://github.com/google/brotli
 Description: Brotli common dictionary library
 Version: @PACKAGE_VERSION@
-URL: @PACKAGE_URL@
 Libs: -L${libdir} -lbrotlicommon
 Cflags: -I${includedir}
