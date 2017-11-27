@@ -1,7 +1,7 @@
 AC_PREREQ(2.57)
 
 dnl Actual version is substituted by bootstrap
-AC_INIT([brotli], [1.0.2], [https://groups.google.com/forum/#!forum/brotli])
+AC_INIT([brotli], [0.0.0], [https://groups.google.com/forum/#!forum/brotli])
 
 AM_INIT_AUTOMAKE()
 AC_CONFIG_MACRO_DIR([m4])
