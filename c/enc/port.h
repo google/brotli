@@ -167,13 +167,21 @@ TEMPLATE_(size_t) TEMPLATE_(uint32_t) TEMPLATE_(uint8_t)
   (A)[(J)] = __brotli_swap_tmp;   \
 }
 
+/*
+Dynamically grows array capacity to at least the requested size
+M: MemoryManager
+T: data type
+A: array
+C: capacity
+R: requested size
+*/
 #define BROTLI_ENSURE_CAPACITY(M, T, A, C, R) {  \
   if (C < (R)) {                                 \
     size_t _new_size = (C == 0) ? (R) : C;       \
     T* new_array;                                \
     while (_new_size < (R)) _new_size *= 2;      \
     new_array = BROTLI_ALLOC((M), T, _new_size); \
-    if (!BROTLI_IS_OOM(m) && C != 0)             \
+    if (!BROTLI_IS_OOM(M) && C != 0)             \
       memcpy(new_array, A, C * sizeof(T));       \
     BROTLI_FREE((M), A);                         \
     A = new_array;                               \

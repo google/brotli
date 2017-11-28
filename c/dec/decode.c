@@ -1911,6 +1911,10 @@ BrotliDecoderResult BrotliDecoderDecompressStream(
     size_t* available_out, uint8_t** next_out, size_t* total_out) {
   BrotliDecoderErrorCode result = BROTLI_DECODER_SUCCESS;
   BrotliBitReader* br = &s->br;
+  /* Ensure that *total_out is set, even if no data will ever be pushed out. */
+  if (total_out) {
+    *total_out = s->partial_pos_out;
+  }
   /* Do not try to process further in a case of unrecoverable error. */
   if ((int)s->error_code < 0) {
     return BROTLI_DECODER_RESULT_ERROR;

@@ -9,10 +9,13 @@ function bytesToString(bytes) {
   return String.fromCharCode.apply(null, new Uint16Array(bytes));
 }
 
+function testMetadata() {
+  assertEquals("", bytesToString(BrotliDecode(Int8Array.from([1, 11, 0, 42, 3]))));
+}
+
 function testEmpty() {
   assertEquals("", bytesToString(BrotliDecode(Int8Array.from([6]))));
   assertEquals("", bytesToString(BrotliDecode(Int8Array.from([0x81, 1]))));
-  assertEquals("", bytesToString(BrotliDecode(Int8Array.from([1, 11, 0, 42, 3]))));
 }
 
 function testBaseDictWord() {

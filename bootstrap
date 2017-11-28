@@ -1,0 +1,22 @@
+# !/bin/sh -e
+
+mkdir m4 2>/dev/null
+
+BROTLI_ABI_HEX=`sed -n 's/#define BROTLI_ABI_VERSION 0x//p' c/common/version.h`
+BROTLI_ABI_INT=`echo $((16#$BROTLI_ABI_HEX))`
+BROTLI_ABI_CURRENT=$(($BROTLI_ABI_INT >> 24))
+BROTLI_ABI_REVISION=$((($BROTLI_ABI_INT >> 12) & 4095))
+BROTLI_ABI_AGE=$(($BROTLI_ABI_INT & 4095))
+BROTLI_ABI_INFO="$BROTLI_ABI_CURRENT:$BROTLI_ABI_REVISION:$BROTLI_ABI_AGE"
+
+BROTLI_VERSION_HEX=`sed -n 's/#define BROTLI_VERSION 0x//p' c/common/version.h`
+BROTLI_VERSION_INT=`echo $((16#$BROTLI_VERSION_HEX))`
+BROTLI_VERSION_MAJOR=$(($BROTLI_VERSION_INT >> 24))
+BROTLI_VERSION_MINOR=$((($BROTLI_VERSION_INT >> 12) & 4095))
+BROTLI_VERSION_PATCH=$(($BROTLI_VERSION_INT & 4095))
+BROTLI_VERSION="$BROTLI_VERSION_MAJOR.$BROTLI_VERSION_MINOR.$BROTLI_VERSION_PATCH"
+
+sed -r "s/[0-9]+:[0-9]+:[0-9]+/$BROTLI_ABI_INFO/" Makefile.am -i
+sed -r "s/\[[0-9]+\.[0-9]+\.[0-9]+\]/[$BROTLI_VERSION]/" configure.ac -i
+
+autoreconf --install --force --symlink || exit $
