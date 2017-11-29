@@ -23,8 +23,10 @@ libbrotlicommon_la_SOURCES = $(BROTLI_COMMON_C) $(BROTLI_COMMON_H)
 libbrotlicommon_la_LDFLAGS = $(AM_LDFLAGS) $(LIBBROTLI_VERSION_INFO) $(LDFLAGS)
 libbrotlidec_la_SOURCES = $(BROTLI_DEC_C) $(BROTLI_DEC_H)
 libbrotlidec_la_LDFLAGS = $(AM_LDFLAGS) $(LIBBROTLI_VERSION_INFO) $(LDFLAGS)
+libbrotlidec_la_LIBADD = libbrotlicommon.la -lm
 libbrotlienc_la_SOURCES = $(BROTLI_ENC_C) $(BROTLI_ENC_H)
 libbrotlienc_la_LDFLAGS = $(AM_LDFLAGS) $(LIBBROTLI_VERSION_INFO) $(LDFLAGS)
+libbrotlienc_la_LIBADD = libbrotlicommon.la -lm
 
 pkgconfigdir = $(libdir)/pkgconfig
 pkgconfig_DATA = \
