@@ -51,7 +51,7 @@ matrix:
           - llvm-toolchain-trusty-5.0
           - ubuntu-toolchain-r-test
           packages:
-          - clang-4.0
+          - clang-5.0
     - os: linux
       env: BUILD_SYSTEM=cmake C_COMPILER=clang-3.5 CXX_COMPILER=clang++-3.5
       addons:
