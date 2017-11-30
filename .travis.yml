@@ -49,14 +49,14 @@ matrix:
     ## Test that fuzzer is compiling / working.
     ###
     - os: linux
-      env: BUILD_SYSTEM=fuzz C_COMPILER=clang-4.0 CXX_COMPILER=clang++-4.0 LSAN_OPTIONS=verbosity=1:log_threads=1
+      env: BUILD_SYSTEM=fuzz C_COMPILER=clang-5.0 CXX_COMPILER=clang++-5.0 LSAN_OPTIONS=verbosity=1:log_threads=1
       addons:
         apt:
           sources:
           - ubuntu-toolchain-r-test
-          - llvm-toolchain-trusty-4.0
+          - llvm-toolchain-trusty-5.0
           packages:
-          - clang-4.0
+          - clang-5.0
 
     ###
     ## clang on Linux
@@ -137,14 +137,14 @@ matrix:
     ## Sanitizers
     ###
     - os: linux
-      env: BUILD_SYSTEM=cmake C_COMPILER=clang-4.0 CXX_COMPILER=clang++-4.0 SANITIZER=address  LSAN_OPTIONS=verbosity=1:log_threads=1
+      env: BUILD_SYSTEM=cmake C_COMPILER=clang-5.0 CXX_COMPILER=clang++-5.0 SANITIZER=address LSAN_OPTIONS=verbosity=1:log_threads=1
       addons:
         apt:
           sources:
           - ubuntu-toolchain-r-test
-          - llvm-toolchain-trusty-4.0
+          - llvm-toolchain-trusty-5.0
           packages:
-          - clang-4.0
+          - clang-5.0
     - os: linux
       env: BUILD_SYSTEM=cmake C_COMPILER=clang-4.0 CXX_COMPILER=clang++-4.0 SANITIZER=thread
       addons:
