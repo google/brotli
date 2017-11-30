@@ -49,7 +49,7 @@ matrix:
     ## Test that fuzzer is compiling / working.
     ###
     - os: linux
-      env: BUILD_SYSTEM=fuzz C_COMPILER=clang-4.0 CXX_COMPILER=clang++-4.0
+      env: BUILD_SYSTEM=fuzz C_COMPILER=clang-4.0 CXX_COMPILER=clang++-4.0 LSAN_OPTIONS=verbosity=1:log_threads=1
       addons:
         apt:
           sources:
@@ -137,7 +137,7 @@ matrix:
     ## Sanitizers
     ###
     - os: linux
-      env: BUILD_SYSTEM=cmake C_COMPILER=clang-4.0 CXX_COMPILER=clang++-4.0 SANITIZER=address
+      env: BUILD_SYSTEM=cmake C_COMPILER=clang-4.0 CXX_COMPILER=clang++-4.0 SANITIZER=address  LSAN_OPTIONS=verbosity=1:log_threads=1
       addons:
         apt:
           sources:
