@@ -28,6 +28,19 @@ matrix:
           - g++-4.4
 
     ###
+    ## Test that Autotools build works.
+    ###
+    - os: linux
+      env: BUILD_SYSTEM=autotools C_COMPILER=gcc-5 CXX_COMPILER=g++-5
+      addons:
+        apt:
+          sources:
+          - ubuntu-toolchain-r-test
+          packages:
+          - gcc-5
+          - g++-5
+
+    ###
     ## Test that fuzzer is compiling / working.
     ###
     - os: linux
@@ -74,7 +87,7 @@ matrix:
     - os: linux
       language: python
       python: 2.7
-      env: BUILD_SYSTEM=python C_COMPILER=gcc-7 CXX_COMPILER=g++-5
+      env: BUILD_SYSTEM=python C_COMPILER=gcc-5 CXX_COMPILER=g++-5
       addons:
         apt:
           sources:
