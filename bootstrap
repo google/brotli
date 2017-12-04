@@ -2,7 +2,9 @@
 
 REQUIRED='is required, but not installed.'
 bc -v >/dev/null 2>&1 || { echo >&2 "'bc' $REQUIRED"; exit 1; }
+if [ `uname -s` != "FreeBSD" ]; then
 sed --version >/dev/null 2>&1 || { echo >&2 "'sed' $REQUIRED"; exit 1; }
+fi
 autoreconf --version >/dev/null 2>&1 || { echo >&2 "'autoconf' $REQUIRED"; exit 1; }
 
 mkdir m4 2>/dev/null
@@ -21,7 +23,7 @@ BROTLI_VERSION_MINOR=`expr $BROTLI_VERSION_INT / 4096 % 4096`
 BROTLI_VERSION_PATCH=`expr $BROTLI_VERSION_INT % 4096`
 BROTLI_VERSION="$BROTLI_VERSION_MAJOR.$BROTLI_VERSION_MINOR.$BROTLI_VERSION_PATCH"
 
-sed -r "s/[0-9]+:[0-9]+:[0-9]+/$BROTLI_ABI_INFO/" Makefile.am -i
-sed -r "s/\[[0-9]+\.[0-9]+\.[0-9]+\]/[$BROTLI_VERSION]/" configure.ac -i
+sed -i.bak -r "s/[0-9]+:[0-9]+:[0-9]+/$BROTLI_ABI_INFO/" Makefile.am
+sed -i.bak -r "s/\[[0-9]+\.[0-9]+\.[0-9]+\]/[$BROTLI_VERSION]/" configure.ac
 
 autoreconf --install --force --symlink || exit $
