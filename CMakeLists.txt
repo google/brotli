@@ -24,16 +24,6 @@ mark_as_advanced(BROTLI_BUNDLED_MODE)
 
 include(GNUInstallDirs)
 
-# When building shared libraries it is important to set the correct rpath.
-# See https://cmake.org/Wiki/CMake_RPATH_handling#Always_full_RPATH
-set(CMAKE_SKIP_BUILD_RPATH FALSE)
-set(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)
-set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
-list(FIND CMAKE_PLATFORM_IMPLICIT_LINK_DIRECTORIES "${CMAKE_INSTALL_LIBDIR}" isSystemDir)
-if ("${isSystemDir}" STREQUAL "-1")
-  set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_LIBDIR}")
-endif()
-
 # Parse version information from common/version.h. Normally we would
 # define these values here and write them out to configuration file(s)
 # (i.e., config.h), but in this case we parse them from
