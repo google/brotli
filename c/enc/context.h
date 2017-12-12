@@ -9,7 +9,7 @@
 #ifndef BROTLI_ENC_CONTEXT_H_
 #define BROTLI_ENC_CONTEXT_H_
 
-#include <brotli/port.h>
+#include "../common/platform.h"
 #include <brotli/types.h>
 
 #if defined(__cplusplus) || defined(c_plusplus)

@@ -11,10 +11,10 @@
 
 #include "../common/constants.h"
 #include "../common/dictionary.h"
+#include "../common/platform.h"
 #include <brotli/types.h>
 #include "./bit_reader.h"
 #include "./huffman.h"
-#include "./port.h"
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
@@ -220,6 +220,7 @@ struct BrotliDecoderStateStruct {
   uint32_t num_literal_htrees;
   uint8_t* context_map;
   uint8_t* context_modes;
+
   const BrotliDictionary* dictionary;
 
   uint32_t trivial_literal_contexts[8];  /* 256 bits */
@@ -239,6 +240,13 @@ BROTLI_INTERNAL void BrotliDecoderStateCleanupAfterMetablock(
 BROTLI_INTERNAL BROTLI_BOOL BrotliDecoderHuffmanTreeGroupInit(
     BrotliDecoderState* s, HuffmanTreeGroup* group, uint32_t alphabet_size,
     uint32_t ntrees);
+
+#define BROTLI_DECODER_ALLOC(S, L) S->alloc_func(S->memory_manager_opaque, L)
+
+#define BROTLI_DECODER_FREE(S, X) {          \
+  S->free_func(S->memory_manager_opaque, X); \
+  X = NULL;                                  \
+}
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }  /* extern "C" */

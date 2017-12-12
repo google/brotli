@@ -17,15 +17,14 @@
 #include <string.h>  /* memcmp, memcpy, memset */
 
 #include "../common/constants.h"
+#include "../common/platform.h"
 #include <brotli/types.h>
 #include "./brotli_bit_stream.h"
 #include "./entropy_encode.h"
 #include "./fast_log.h"
 #include "./find_match_length.h"
 #include "./memory.h"
-#include "./port.h"
 #include "./write_bits.h"
-
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
@@ -48,8 +47,8 @@ static BROTLI_INLINE uint32_t Hash(const uint8_t* p, size_t shift) {
 
 static BROTLI_INLINE uint32_t HashBytesAtOffset(
     uint64_t v, int offset, size_t shift) {
-  assert(offset >= 0);
-  assert(offset <= 3);
+  BROTLI_DCHECK(offset >= 0);
+  BROTLI_DCHECK(offset <= 3);
   {
     const uint64_t h = ((v >> (8 * offset)) << 24) * kHashMul32;
     return (uint32_t)(h >> shift);
@@ -58,7 +57,7 @@ static BROTLI_INLINE uint32_t HashBytesAtOffset(
 
 static BROTLI_INLINE BROTLI_BOOL IsMatch(const uint8_t* p1, const uint8_t* p2) {
   return TO_BROTLI_BOOL(
-      BROTLI_UNALIGNED_LOAD32(p1) == BROTLI_UNALIGNED_LOAD32(p2) &&
+      BrotliUnalignedRead32(p1) == BrotliUnalignedRead32(p2) &&
       p1[4] == p2[4]);
 }
 
@@ -522,12 +521,12 @@ static BROTLI_INLINE void BrotliCompressFragmentFastImpl(
 
       const uint8_t* next_ip = ip;
       const uint8_t* candidate;
-      assert(next_emit < ip);
+      BROTLI_DCHECK(next_emit < ip);
 trawl:
       do {
         uint32_t hash = next_hash;
         uint32_t bytes_between_hash_lookups = skip++ >> 5;
-        assert(hash == Hash(next_ip, shift));
+        BROTLI_DCHECK(hash == Hash(next_ip, shift));
         ip = next_ip;
         next_ip = ip + bytes_between_hash_lookups;
         if (BROTLI_PREDICT_FALSE(next_ip > ip_limit)) {
@@ -542,8 +541,8 @@ trawl:
           }
         }
         candidate = base_ip + table[hash];
-        assert(candidate >= base_ip);
-        assert(candidate < ip);
+        BROTLI_DCHECK(candidate >= base_ip);
+        BROTLI_DCHECK(candidate < ip);
 
         table[hash] = (int)(ip - base_ip);
       } while (BROTLI_PREDICT_TRUE(!IsMatch(ip, candidate)));
@@ -566,7 +565,7 @@ trawl:
         int distance = (int)(base - candidate);  /* > 0 */
         size_t insert = (size_t)(base - next_emit);
         ip += matched;
-        assert(0 == memcmp(base, candidate, matched));
+        BROTLI_DCHECK(0 == memcmp(base, candidate, matched));
         if (BROTLI_PREDICT_TRUE(insert < 6210)) {
           EmitInsertLen(insert, cmd_depth, cmd_bits, cmd_histo,
                         storage_ix, storage);
@@ -626,7 +625,7 @@ trawl:
         if (ip - candidate > MAX_DISTANCE) break;
         ip += matched;
         last_distance = (int)(base - candidate);  /* > 0 */
-        assert(0 == memcmp(base, candidate, matched));
+        BROTLI_DCHECK(0 == memcmp(base, candidate, matched));
         EmitCopyLen(matched, cmd_depth, cmd_bits, cmd_histo,
                     storage_ix, storage);
         EmitDistance((size_t)last_distance, cmd_depth, cmd_bits,
@@ -659,7 +658,7 @@ trawl:
   }
 
  emit_remainder:
-  assert(next_emit <= ip_end);
+  BROTLI_DCHECK(next_emit <= ip_end);
   input += block_size;
   input_size -= block_size;
   block_size = BROTLI_MIN(size_t, input_size, kMergeBlockSize);
@@ -669,7 +668,7 @@ trawl:
   if (input_size > 0 &&
       total_block_size + block_size <= (1 << 20) &&
       ShouldMergeBlock(input, block_size, lit_depth)) {
-    assert(total_block_size > (1 << 16));
+    BROTLI_DCHECK(total_block_size > (1 << 16));
     /* Update the size of the current meta-block and continue emitting commands.
        We can do this because the current size and the new size both have 5
        nibbles. */
@@ -752,7 +751,7 @@ void BrotliCompressFragmentFast(
   const size_t table_bits = Log2FloorNonZero(table_size);
 
   if (input_size == 0) {
-    assert(is_last);
+    BROTLI_DCHECK(is_last);
     BrotliWriteBits(1, 1, storage_ix, storage);  /* islast */
     BrotliWriteBits(1, 1, storage_ix, storage);  /* isempty */
     *storage_ix = (*storage_ix + 7u) & ~7u;
@@ -768,7 +767,7 @@ void BrotliCompressFragmentFast(
       break;
     FOR_TABLE_BITS_(CASE_)
 #undef CASE_
-    default: assert(0); break;
+    default: BROTLI_DCHECK(0); break;
   }
 
   /* If output is larger than single uncompressed block, rewrite it. */

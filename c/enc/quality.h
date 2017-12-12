@@ -10,8 +10,9 @@
 #ifndef BROTLI_ENC_QUALITY_H_
 #define BROTLI_ENC_QUALITY_H_
 
+#include "../common/platform.h"
 #include <brotli/encode.h>
-#include "./port.h"
+#include "./params.h"
 
 #define FAST_ONE_PASS_COMPRESSION_QUALITY 0
 #define FAST_TWO_PASS_COMPRESSION_QUALITY 1
@@ -31,25 +32,6 @@
 /* For quality below MIN_QUALITY_FOR_BLOCK_SPLIT there is no block splitting,
    so we buffer at most this much literals and commands. */
 #define MAX_NUM_DELAYED_SYMBOLS 0x2fff
-
-typedef struct BrotliHasherParams {
-  int type;
-  int bucket_bits;
-  int block_bits;
-  int hash_len;
-  int num_last_distances_to_check;
-} BrotliHasherParams;
-
-/* Encoding parameters */
-typedef struct BrotliEncoderParams {
-  BrotliEncoderMode mode;
-  int quality;
-  int lgwin;
-  int lgblock;
-  size_t size_hint;
-  BROTLI_BOOL disable_literal_context_modeling;
-  BrotliHasherParams hasher;
-} BrotliEncoderParams;
 
 /* Returns hash-table size for quality levels 0 and 1. */
 static BROTLI_INLINE size_t MaxHashTableSize(int quality) {

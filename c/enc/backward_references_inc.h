@@ -9,7 +9,8 @@
 
 static BROTLI_NOINLINE void EXPORT_FN(CreateBackwardReferences)(
     const BrotliDictionary* dictionary,
-    const uint16_t* dictionary_hash, size_t num_bytes, size_t position,
+    const uint16_t* dictionary_hash,
+    size_t num_bytes, size_t position,
     const uint8_t* ringbuffer, size_t ringbuffer_mask,
     const BrotliEncoderParams* params, HasherHandle hasher, int* dist_cache,
     size_t* last_insert_len, Command* commands, size_t* num_commands,
@@ -58,9 +59,9 @@ static BROTLI_NOINLINE void EXPORT_FN(CreateBackwardReferences)(
         sr2.distance = 0;
         sr2.score = kMinScore;
         max_distance = BROTLI_MIN(size_t, position + 1, max_backward_limit);
-        FN(FindLongestMatch)(hasher, dictionary, dictionary_hash, ringbuffer,
-                             ringbuffer_mask, dist_cache, position + 1,
-                             max_length, max_distance, gap, &sr2);
+        FN(FindLongestMatch)(hasher, dictionary, dictionary_hash,
+            ringbuffer, ringbuffer_mask, dist_cache, position + 1, max_length,
+            max_distance, gap, &sr2);
         if (sr2.score >= sr.score + cost_diff_lazy) {
           /* Ok, let's just write one byte for now and start a match from the
              next byte. */

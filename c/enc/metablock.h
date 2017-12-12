@@ -10,13 +10,13 @@
 #ifndef BROTLI_ENC_METABLOCK_H_
 #define BROTLI_ENC_METABLOCK_H_
 
+#include "../common/platform.h"
 #include <brotli/types.h>
 #include "./block_splitter.h"
 #include "./command.h"
 #include "./context.h"
 #include "./histogram.h"
 #include "./memory.h"
-#include "./port.h"
 #include "./quality.h"
 
 #if defined(__cplusplus) || defined(c_plusplus)

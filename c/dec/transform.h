@@ -9,8 +9,8 @@
 #ifndef BROTLI_DEC_TRANSFORM_H_
 #define BROTLI_DEC_TRANSFORM_H_
 
+#include "../common/platform.h"
 #include <brotli/types.h>
-#include "./port.h"
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
@@ -257,7 +257,7 @@ static int ToUpperCase(uint8_t* p) {
   return 3;
 }
 
-static BROTLI_NOINLINE int TransformDictionaryWord(
+static BROTLI_NOINLINE int BrotliTransformDictionaryWord(
     uint8_t* dst, const uint8_t* word, int len, int transform) {
   int idx = 0;
   {
