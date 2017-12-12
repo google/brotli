@@ -15,6 +15,7 @@
 #include <string.h>  /* memcmp, memcpy, memset */
 
 #include "../common/constants.h"
+#include "../common/platform.h"
 #include <brotli/types.h>
 #include "./bit_cost.h"
 #include "./brotli_bit_stream.h"
@@ -22,9 +23,7 @@
 #include "./fast_log.h"
 #include "./find_match_length.h"
 #include "./memory.h"
-#include "./port.h"
 #include "./write_bits.h"
-
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
@@ -47,8 +46,8 @@ static BROTLI_INLINE uint32_t Hash(const uint8_t* p, size_t shift) {
 
 static BROTLI_INLINE uint32_t HashBytesAtOffset(
     uint64_t v, int offset, size_t shift) {
-  assert(offset >= 0);
-  assert(offset <= 2);
+  BROTLI_DCHECK(offset >= 0);
+  BROTLI_DCHECK(offset <= 2);
   {
     const uint64_t h = ((v >> (8 * offset)) << 16) * kHashMul32;
     return (uint32_t)(h >> shift);
@@ -57,7 +56,7 @@ static BROTLI_INLINE uint32_t HashBytesAtOffset(
 
 static BROTLI_INLINE BROTLI_BOOL IsMatch(const uint8_t* p1, const uint8_t* p2) {
   return TO_BROTLI_BOOL(
-      BROTLI_UNALIGNED_LOAD32(p1) == BROTLI_UNALIGNED_LOAD32(p2) &&
+      BrotliUnalignedRead32(p1) == BrotliUnalignedRead32(p2) &&
       p1[4] == p2[4] &&
       p1[5] == p2[5]);
 }
@@ -281,13 +280,13 @@ static BROTLI_INLINE void CreateCommands(const uint8_t* input,
       const uint8_t* next_ip = ip;
       const uint8_t* candidate;
 
-      assert(next_emit < ip);
+      BROTLI_DCHECK(next_emit < ip);
 trawl:
       do {
         uint32_t hash = next_hash;
         uint32_t bytes_between_hash_lookups = skip++ >> 5;
         ip = next_ip;
-        assert(hash == Hash(ip, shift));
+        BROTLI_DCHECK(hash == Hash(ip, shift));
         next_ip = ip + bytes_between_hash_lookups;
         if (BROTLI_PREDICT_FALSE(next_ip > ip_limit)) {
           goto emit_remainder;
@@ -301,8 +300,8 @@ trawl:
           }
         }
         candidate = base_ip + table[hash];
-        assert(candidate >= base_ip);
-        assert(candidate < ip);
+        BROTLI_DCHECK(candidate >= base_ip);
+        BROTLI_DCHECK(candidate < ip);
 
         table[hash] = (int)(ip - base_ip);
       } while (BROTLI_PREDICT_TRUE(!IsMatch(ip, candidate)));
@@ -325,7 +324,7 @@ trawl:
         int distance = (int)(base - candidate);  /* > 0 */
         int insert = (int)(base - next_emit);
         ip += matched;
-        assert(0 == memcmp(base, candidate, matched));
+        BROTLI_DCHECK(0 == memcmp(base, candidate, matched));
         EmitInsertLen((uint32_t)insert, commands);
         memcpy(*literals, next_emit, (size_t)insert);
         *literals += insert;
@@ -374,7 +373,7 @@ trawl:
             candidate + 6, ip + 6, (size_t)(ip_end - ip) - 6);
         ip += matched;
         last_distance = (int)(base - candidate);  /* > 0 */
-        assert(0 == memcmp(base, candidate, matched));
+        BROTLI_DCHECK(0 == memcmp(base, candidate, matched));
         EmitCopyLen(matched, commands);
         EmitDistance((uint32_t)last_distance, commands);
 
@@ -411,7 +410,7 @@ trawl:
   }
 
 emit_remainder:
-  assert(next_emit <= ip_end);
+  BROTLI_DCHECK(next_emit <= ip_end);
   /* Emit the remaining bytes as literals. */
   if (next_emit < ip_end) {
     const uint32_t insert = (uint32_t)(ip_end - next_emit);
@@ -457,7 +456,7 @@ static void StoreCommands(MemoryManager* m,
 
   for (i = 0; i < num_commands; ++i) {
     const uint32_t code = commands[i] & 0xFF;
-    assert(code < 128);
+    BROTLI_DCHECK(code < 128);
     ++cmd_histo[code];
   }
   cmd_histo[1] += 1;
@@ -471,7 +470,7 @@ static void StoreCommands(MemoryManager* m,
     const uint32_t cmd = commands[i];
     const uint32_t code = cmd & 0xFF;
     const uint32_t extra = cmd >> 8;
-    assert(code < 128);
+    BROTLI_DCHECK(code < 128);
     BrotliWriteBits(cmd_depths[code], cmd_bits[code], storage_ix, storage);
     BrotliWriteBits(kNumExtraBits[code], extra, storage_ix, storage);
     if (code < 24) {
@@ -589,7 +588,7 @@ void BrotliCompressFragmentTwoPass(
       break;
     FOR_TABLE_BITS_(CASE_)
 #undef CASE_
-    default: assert(0); break;
+    default: BROTLI_DCHECK(0); break;
   }
 
   /* If output is larger than single uncompressed block, rewrite it. */

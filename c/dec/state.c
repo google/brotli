@@ -53,8 +53,6 @@ void BrotliDecoderStateInitWithCustomAllocators(BrotliDecoderState* s,
   s->substate_decode_uint8 = BROTLI_STATE_DECODE_UINT8_NONE;
   s->substate_read_block_length = BROTLI_STATE_READ_BLOCK_LENGTH_NONE;
 
-  s->dictionary = BrotliGetDictionary();
-
   s->buffer_length = 0;
   s->loop_counter = 0;
   s->pos = 0;
@@ -103,6 +101,8 @@ void BrotliDecoderStateInitWithCustomAllocators(BrotliDecoderState* s,
   s->symbol_lists = &s->symbols_lists_array[BROTLI_HUFFMAN_MAX_CODE_LENGTH + 1];
 
   s->mtf_upper_bound = 63;
+
+  s->dictionary = BrotliGetDictionary();
 }
 
 void BrotliDecoderStateMetablockBegin(BrotliDecoderState* s) {
@@ -137,19 +137,19 @@ void BrotliDecoderStateMetablockBegin(BrotliDecoderState* s) {
 }
 
 void BrotliDecoderStateCleanupAfterMetablock(BrotliDecoderState* s) {
-  BROTLI_FREE(s, s->context_modes);
-  BROTLI_FREE(s, s->context_map);
-  BROTLI_FREE(s, s->dist_context_map);
-  BROTLI_FREE(s, s->literal_hgroup.htrees);
-  BROTLI_FREE(s, s->insert_copy_hgroup.htrees);
-  BROTLI_FREE(s, s->distance_hgroup.htrees);
+  BROTLI_DECODER_FREE(s, s->context_modes);
+  BROTLI_DECODER_FREE(s, s->context_map);
+  BROTLI_DECODER_FREE(s, s->dist_context_map);
+  BROTLI_DECODER_FREE(s, s->literal_hgroup.htrees);
+  BROTLI_DECODER_FREE(s, s->insert_copy_hgroup.htrees);
+  BROTLI_DECODER_FREE(s, s->distance_hgroup.htrees);
 }
 
 void BrotliDecoderStateCleanup(BrotliDecoderState* s) {
   BrotliDecoderStateCleanupAfterMetablock(s);
 
-  BROTLI_FREE(s, s->ringbuffer);
-  BROTLI_FREE(s, s->block_type_trees);
+  BROTLI_DECODER_FREE(s, s->ringbuffer);
+  BROTLI_DECODER_FREE(s, s->block_type_trees);
 }
 
 BROTLI_BOOL BrotliDecoderHuffmanTreeGroupInit(BrotliDecoderState* s,
@@ -159,7 +159,8 @@ BROTLI_BOOL BrotliDecoderHuffmanTreeGroupInit(BrotliDecoderState* s,
   const size_t code_size = sizeof(HuffmanCode) * ntrees * max_table_size;
   const size_t htree_size = sizeof(HuffmanCode*) * ntrees;
   /* Pointer alignment is, hopefully, wider than sizeof(HuffmanCode). */
-  HuffmanCode** p = (HuffmanCode**)BROTLI_ALLOC(s, code_size + htree_size);
+  HuffmanCode** p = (HuffmanCode**)BROTLI_DECODER_ALLOC(s,
+      code_size + htree_size);
   group->alphabet_size = (uint16_t)alphabet_size;
   group->num_htrees = (uint16_t)ntrees;
   group->htrees = p;

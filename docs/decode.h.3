@@ -1,4 +1,4 @@
-.TH "decode.h" 3 "Wed Aug 2 2017" "Brotli" \" -*- nroff -*-
+.TH "decode.h" 3 "Fri Dec 8 2017" "Brotli" \" -*- nroff -*-
 .ad l
 .nh
 .SH NAME
@@ -169,13 +169,13 @@ Partially done; should be called again with more output\&.
 .PP
 Creates an instance of \fBBrotliDecoderState\fP and initializes it\&. The instance can be used once for decoding and should then be destroyed with \fBBrotliDecoderDestroyInstance\fP, it cannot be reused for a new decoding session\&.
 .PP
-\fCalloc_func\fP and \fCfree_func\fP \fBMUST\fP be both zero or both non-zero\&. In the case they are both zero, default memory allocators are used\&. \fCopaque\fP is passed to \fCalloc_func\fP and \fCfree_func\fP when they are called\&.
+\fCalloc_func\fP and \fCfree_func\fP \fBMUST\fP be both zero or both non-zero\&. In the case they are both zero, default memory allocators are used\&. \fCopaque\fP is passed to \fCalloc_func\fP and \fCfree_func\fP when they are called\&. \fCfree_func\fP has to return without doing anything when asked to free a NULL pointer\&.
 .PP
 \fBParameters:\fP
 .RS 4
 \fIalloc_func\fP custom memory allocation function 
 .br
-\fIfree_func\fP custom memory fee function 
+\fIfree_func\fP custom memory free function 
 .br
 \fIopaque\fP custom memory manager handle 
 .RE

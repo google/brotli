@@ -25,7 +25,7 @@ static BROTLI_INLINE size_t FN(StoreLookahead)(void) {
 }
 
 static uint32_t FN(HashBytes)(const uint8_t *data) {
-  uint32_t h = BROTLI_UNALIGNED_LOAD32(data) * kHashMul32;
+  uint32_t h = BROTLI_UNALIGNED_LOAD32LE(data) * kHashMul32;
   /* The higher bits contain more mixture from the multiplication,
      so we take our results from there. */
   return h >> (32 - BUCKET_BITS);
@@ -154,12 +154,13 @@ static BROTLI_INLINE BackwardMatch* FN(StoreAndFindMatches)(
     {
       const size_t cur_len = BROTLI_MIN(size_t, best_len_left, best_len_right);
       size_t len;
-      assert(cur_len <= MAX_TREE_COMP_LENGTH);
+      BROTLI_DCHECK(cur_len <= MAX_TREE_COMP_LENGTH);
       len = cur_len +
           FindMatchLengthWithLimit(&data[cur_ix_masked + cur_len],
                                    &data[prev_ix_masked + cur_len],
                                    max_length - cur_len);
-      assert(0 == memcmp(&data[cur_ix_masked], &data[prev_ix_masked], len));
+      BROTLI_DCHECK(
+          0 == memcmp(&data[cur_ix_masked], &data[prev_ix_masked], len));
       if (matches && len > *best_len) {
         *best_len = len;
         InitBackwardMatch(matches++, backward, len);

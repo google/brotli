@@ -11,9 +11,9 @@
 
 #include <string.h>  /* memcpy */
 
+#include "../common/platform.h"
 #include <brotli/types.h>
 #include "./memory.h"
-#include "./port.h"
 #include "./quality.h"
 
 #if defined(__cplusplus) || defined(c_plusplus)

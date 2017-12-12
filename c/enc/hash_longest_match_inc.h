@@ -21,7 +21,7 @@ static BROTLI_INLINE size_t FN(StoreLookahead)(void) { return 4; }
 
 /* HashBytes is the function that chooses the bucket to place the address in. */
 static uint32_t FN(HashBytes)(const uint8_t *data, const int shift) {
-  uint32_t h = BROTLI_UNALIGNED_LOAD32(data) * kHashMul32;
+  uint32_t h = BROTLI_UNALIGNED_LOAD32LE(data) * kHashMul32;
   /* The higher bits contain more mixture from the multiplication,
      so we take our results from there. */
   return (uint32_t)(h >> shift);

@@ -210,7 +210,7 @@ BROTLI_ENC_API BROTLI_BOOL BrotliEncoderSetParameter(
  * @p alloc_func and @p free_func @b MUST be both zero or both non-zero. In the
  * case they are both zero, default memory allocators are used. @p opaque is
  * passed to @p alloc_func and @p free_func when they are called. @p free_func
- * should return without doing anything when asked to free a NULL pointer.
+ * has to return without doing anything when asked to free a NULL pointer.
  *
  * @param alloc_func custom memory allocation function
  * @param free_func custom memory free function
@@ -231,10 +231,9 @@ BROTLI_ENC_API void BrotliEncoderDestroyInstance(BrotliEncoderState* state);
 /**
  * Calculates the output size bound for the given @p input_size.
  *
- * @warning Result is not applicable to ::BrotliEncoderCompressStream output,
- *          because every "flush" adds extra overhead bytes, and some encoder
- *          settings (e.g. quality @c 0 and @c 1) might imply a "soft flush"
- *          after every chunk of input.
+ * @warning Result is only valid if quality is at least @c 2 and, in
+ *          case ::BrotliEncoderCompressStream was used, no flushes
+ *          (::BROTLI_OPERATION_FLUSH) were performed.
  *
  * @param input_size size of projected input
  * @returns @c 0 if result does not fit @c size_t

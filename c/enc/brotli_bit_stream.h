@@ -16,13 +16,13 @@
 #ifndef BROTLI_ENC_BROTLI_BIT_STREAM_H_
 #define BROTLI_ENC_BROTLI_BIT_STREAM_H_
 
+#include "../common/platform.h"
 #include <brotli/types.h>
 #include "./command.h"
 #include "./context.h"
 #include "./entropy_encode.h"
 #include "./memory.h"
 #include "./metablock.h"
-#include "./port.h"
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {

@@ -1,4 +1,4 @@
-.TH "encode.h" 3 "Wed Sep 20 2017" "Brotli" \" -*- nroff -*-
+.TH "encode.h" 3 "Fri Dec 8 2017" "Brotli" \" -*- nroff -*-
 .ad l
 .nh
 .SH NAME
@@ -391,13 +391,13 @@ When flushing and finishing, \fCop\fP should not change until operation is compl
 .SS "\fBBrotliEncoderState\fP* BrotliEncoderCreateInstance (\fBbrotli_alloc_func\fP alloc_func, \fBbrotli_free_func\fP free_func, void * opaque)"
 
 .PP
-Creates an instance of \fBBrotliEncoderState\fP and initializes it\&. \fCalloc_func\fP and \fCfree_func\fP \fBMUST\fP be both zero or both non-zero\&. In the case they are both zero, default memory allocators are used\&. \fCopaque\fP is passed to \fCalloc_func\fP and \fCfree_func\fP when they are called\&.
+Creates an instance of \fBBrotliEncoderState\fP and initializes it\&. \fCalloc_func\fP and \fCfree_func\fP \fBMUST\fP be both zero or both non-zero\&. In the case they are both zero, default memory allocators are used\&. \fCopaque\fP is passed to \fCalloc_func\fP and \fCfree_func\fP when they are called\&. \fCfree_func\fP has to return without doing anything when asked to free a NULL pointer\&.
 .PP
 \fBParameters:\fP
 .RS 4
 \fIalloc_func\fP custom memory allocation function 
 .br
-\fIfree_func\fP custom memory fee function 
+\fIfree_func\fP custom memory free function 
 .br
 \fIopaque\fP custom memory manager handle 
 .RE
@@ -464,7 +464,7 @@ Calculates the output size bound for the given \fCinput_size\fP\&.
 .PP
 \fBWarning:\fP
 .RS 4
-Result is not applicable to \fBBrotliEncoderCompressStream\fP output, because every 'flush' adds extra overhead bytes, and some encoder settings (e\&.g\&. quality \fC0\fP and \fC1\fP) might imply a 'soft flush' after every chunk of input\&.
+Result is only valid if quality is at least \fC2\fP and, in case \fBBrotliEncoderCompressStream\fP was used, no flushes (\fBBROTLI_OPERATION_FLUSH\fP) were performed\&.
 .RE
 .PP
 \fBParameters:\fP
