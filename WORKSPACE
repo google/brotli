@@ -82,9 +82,9 @@ filegroup(
 )""",
 )
 
+load("@io_bazel_rules_closure//closure:defs.bzl", "closure_repositories")
+closure_repositories()
+
 load("@io_bazel_rules_go//go:def.bzl", "go_rules_dependencies", "go_register_toolchains")
 go_rules_dependencies()
 go_register_toolchains()
-
-load("@io_bazel_rules_closure//closure:defs.bzl", "closure_repositories")
-closure_repositories()
