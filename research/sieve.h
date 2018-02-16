@@ -11,6 +11,7 @@
  * Generate a dictionary for given samples.
  *
  * @param dictionary_size_limit maximal dictionary size
+ * @param slice_len text slice size
  * @param sample_sizes vector with sample sizes
  * @param sample_data concatenated samples
  * @return generated dictionary

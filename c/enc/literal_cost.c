@@ -9,9 +9,9 @@
 
 #include "./literal_cost.h"
 
+#include "../common/platform.h"
 #include <brotli/types.h>
 #include "./fast_log.h"
-#include "./port.h"
 #include "./utf8_util.h"
 
 #if defined(__cplusplus) || defined(c_plusplus)

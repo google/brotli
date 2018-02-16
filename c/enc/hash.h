@@ -14,11 +14,11 @@
 
 #include "../common/constants.h"
 #include "../common/dictionary.h"
+#include "../common/platform.h"
 #include <brotli/types.h>
 #include "./fast_log.h"
 #include "./find_match_length.h"
 #include "./memory.h"
-#include "./port.h"
 #include "./quality.h"
 #include "./static_dict.h"
 
@@ -79,7 +79,7 @@ static const uint64_t kHashMul64Long =
     BROTLI_MAKE_UINT64_T(0x1fe35a7bU, 0xd3579bd3U);
 
 static BROTLI_INLINE uint32_t Hash14(const uint8_t* data) {
-  uint32_t h = BROTLI_UNALIGNED_LOAD32(data) * kHashMul32;
+  uint32_t h = BROTLI_UNALIGNED_LOAD32LE(data) * kHashMul32;
   /* The higher bits contain more mixture from the multiplication,
      so we take our results from there. */
   return h >> (32 - 14);

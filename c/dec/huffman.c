@@ -11,8 +11,8 @@
 #include <string.h>  /* memcpy, memset */
 
 #include "../common/constants.h"
+#include "../common/platform.h"
 #include <brotli/types.h>
-#include "./port.h"
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
@@ -22,7 +22,7 @@ extern "C" {
 
 #ifdef BROTLI_RBIT
 #define BROTLI_REVERSE_BITS_BASE \
-  ((sizeof(reg_t) << 3) - BROTLI_REVERSE_BITS_MAX)
+  ((sizeof(brotli_reg_t) << 3) - BROTLI_REVERSE_BITS_MAX)
 #else
 #define BROTLI_REVERSE_BITS_BASE 0
 static uint8_t kReverseBits[1 << BROTLI_REVERSE_BITS_MAX] = {
@@ -62,12 +62,12 @@ static uint8_t kReverseBits[1 << BROTLI_REVERSE_BITS_MAX] = {
 #endif  /* BROTLI_RBIT */
 
 #define BROTLI_REVERSE_BITS_LOWEST \
-  ((reg_t)1 << (BROTLI_REVERSE_BITS_MAX - 1 + BROTLI_REVERSE_BITS_BASE))
+  ((brotli_reg_t)1 << (BROTLI_REVERSE_BITS_MAX - 1 + BROTLI_REVERSE_BITS_BASE))
 
 /* Returns reverse(num >> BROTLI_REVERSE_BITS_BASE, BROTLI_REVERSE_BITS_MAX),
    where reverse(value, len) is the bit-wise reversal of the len least
    significant bits of value. */
-static BROTLI_INLINE reg_t BrotliReverseBits(reg_t num) {
+static BROTLI_INLINE brotli_reg_t BrotliReverseBits(brotli_reg_t num) {
 #ifdef BROTLI_RBIT
   return BROTLI_RBIT(num);
 #else
@@ -104,12 +104,12 @@ static BROTLI_INLINE int NextTableBitSize(const uint16_t* const count,
 void BrotliBuildCodeLengthsHuffmanTable(HuffmanCode* table,
                                         const uint8_t* const code_lengths,
                                         uint16_t* count) {
-  HuffmanCode code; /* current table entry */
-  int symbol;       /* symbol index in original or sorted table */
-  reg_t key;        /* prefix code */
-  reg_t key_step;   /* prefix code addend */
-  int step;         /* step size to replicate values in current table */
-  int table_size;   /* size of current table */
+  HuffmanCode code;       /* current table entry */
+  int symbol;             /* symbol index in original or sorted table */
+  brotli_reg_t key;       /* prefix code */
+  brotli_reg_t key_step;  /* prefix code addend */
+  int step;               /* step size to replicate values in current table */
+  int table_size;         /* size of current table */
   int sorted[BROTLI_CODE_LENGTH_CODES];  /* symbols sorted by code length */
   /* offsets in sorted table for each length */
   int offset[BROTLI_HUFFMAN_MAX_CODE_LENGTH_CODE_LENGTH + 1];
@@ -144,7 +144,7 @@ void BrotliBuildCodeLengthsHuffmanTable(HuffmanCode* table,
   if (offset[0] == 0) {
     code.bits = 0;
     code.value = (uint16_t)sorted[0];
-    for (key = 0; key < (reg_t)table_size; ++key) {
+    for (key = 0; key < (brotli_reg_t)table_size; ++key) {
       table[key] = code;
     }
     return;
@@ -172,18 +172,18 @@ uint32_t BrotliBuildHuffmanTable(HuffmanCode* root_table,
                                  int root_bits,
                                  const uint16_t* const symbol_lists,
                                  uint16_t* count) {
-  HuffmanCode code;    /* current table entry */
-  HuffmanCode* table;  /* next available space in table */
-  int len;             /* current code length */
-  int symbol;          /* symbol index in original or sorted table */
-  reg_t key;           /* prefix code */
-  reg_t key_step;      /* prefix code addend */
-  reg_t sub_key;       /* 2nd level table prefix code */
-  reg_t sub_key_step;  /* 2nd level table prefix code addend */
-  int step;            /* step size to replicate values in current table */
-  int table_bits;      /* key length of current table */
-  int table_size;      /* size of current table */
-  int total_size;      /* sum of root table size and 2nd level table sizes */
+  HuffmanCode code;       /* current table entry */
+  HuffmanCode* table;     /* next available space in table */
+  int len;                /* current code length */
+  int symbol;             /* symbol index in original or sorted table */
+  brotli_reg_t key;       /* prefix code */
+  brotli_reg_t key_step;  /* prefix code addend */
+  brotli_reg_t sub_key;   /* 2nd level table prefix code */
+  brotli_reg_t sub_key_step;  /* 2nd level table prefix code addend */
+  int step;               /* step size to replicate values in current table */
+  int table_bits;         /* key length of current table */
+  int table_size;         /* size of current table */
+  int total_size;         /* sum of root table size and 2nd level table sizes */
   int max_length = -1;
   int bits;
   int bits_count;

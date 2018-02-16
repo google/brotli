@@ -11,8 +11,8 @@
 #include <string.h>  /* memset */
 
 #include "../common/constants.h"
+#include "../common/platform.h"
 #include <brotli/types.h>
-#include "./port.h"
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
@@ -23,7 +23,7 @@ BROTLI_BOOL BrotliSetDepth(
   int stack[16];
   int level = 0;
   int p = p0;
-  assert(max_depth <= 15);
+  BROTLI_DCHECK(max_depth <= 15);
   stack[0] = -1;
   while (BROTLI_TRUE) {
     if (pool[p].index_left_ >= 0) {
@@ -165,7 +165,7 @@ static void BrotliWriteHuffmanTreeRepetitions(
     size_t* tree_size,
     uint8_t* tree,
     uint8_t* extra_bits_data) {
-  assert(repetitions > 0);
+  BROTLI_DCHECK(repetitions > 0);
   if (previous_value != value) {
     tree[*tree_size] = value;
     extra_bits_data[*tree_size] = 0;

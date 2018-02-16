@@ -7,8 +7,8 @@
 #include "./static_dict.h"
 
 #include "../common/dictionary.h"
+#include "../common/platform.h"
 #include "./find_match_length.h"
-#include "./port.h"
 #include "./static_dict_lut.h"
 
 #if defined(__cplusplus) || defined(c_plusplus)
@@ -21,7 +21,7 @@ static const uint8_t kOmitLastNTransforms[10] = {
 };
 
 static BROTLI_INLINE uint32_t Hash(const uint8_t *data) {
-  uint32_t h = BROTLI_UNALIGNED_LOAD32(data) * kDictHashMul32;
+  uint32_t h = BROTLI_UNALIGNED_LOAD32LE(data) * kDictHashMul32;
   /* The higher bits contain more mixture from the multiplication,
      so we take our results from there. */
   return h >> (32 - kDictNumBits);
@@ -79,8 +79,8 @@ static BROTLI_INLINE BROTLI_BOOL IsMatch(const BrotliDictionary* dictionary,
 }
 
 BROTLI_BOOL BrotliFindAllStaticDictionaryMatches(
-    const BrotliDictionary* dictionary, const uint8_t* data, size_t min_length,
-    size_t max_length, uint32_t* matches) {
+    const BrotliDictionary* dictionary, const uint8_t* data,
+    size_t min_length, size_t max_length, uint32_t* matches) {
   BROTLI_BOOL has_found_match = BROTLI_FALSE;
   {
     size_t offset = kStaticDictionaryBuckets[Hash(data)];

@@ -10,7 +10,7 @@
 #define BROTLI_ENC_COMMAND_H_
 
 #include "../common/constants.h"
-#include <brotli/port.h>
+#include "../common/platform.h"
 #include <brotli/types.h>
 #include "./fast_log.h"
 #include "./prefix.h"

@@ -12,11 +12,11 @@
 #include <string.h>  /* memset */
 
 #include "../common/constants.h"
+#include "../common/platform.h"
 #include <brotli/types.h>
 #include "./block_splitter.h"
 #include "./command.h"
 #include "./context.h"
-#include "./port.h"
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {

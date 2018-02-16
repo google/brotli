@@ -11,12 +11,12 @@
 
 #include <math.h>
 
+#include "../common/platform.h"
+#include <brotli/types.h>
+
 #if defined(_MSC_VER)
 #include <intrin.h>
-#endif // defined(_MSC_VER)
-
-#include <brotli/types.h>
-#include <brotli/port.h>
+#endif
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {

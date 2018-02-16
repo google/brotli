@@ -15,11 +15,11 @@
 
 #include "../common/constants.h"
 #include "../common/dictionary.h"
+#include "../common/platform.h"
 #include "../common/version.h"
 #include "./bit_reader.h"
 #include "./context.h"
 #include "./huffman.h"
-#include "./port.h"
 #include "./prefix.h"
 #include "./state.h"
 #include "./transform.h"
@@ -953,7 +953,8 @@ static BrotliDecoderErrorCode DecodeContextMap(uint32_t context_map_size,
       s->context_index = 0;
       BROTLI_LOG_UINT(context_map_size);
       BROTLI_LOG_UINT(*num_htrees);
-      *context_map_arg = (uint8_t*)BROTLI_ALLOC(s, (size_t)context_map_size);
+      *context_map_arg =
+          (uint8_t*)BROTLI_DECODER_ALLOC(s, (size_t)context_map_size);
       if (*context_map_arg == 0) {
         return BROTLI_FAILURE(BROTLI_DECODER_ERROR_ALLOC_CONTEXT_MAP);
       }
@@ -1268,8 +1269,8 @@ static BROTLI_BOOL BROTLI_NOINLINE BrotliEnsureRingBuffer(
     return BROTLI_TRUE;
   }
 
-  s->ringbuffer = (uint8_t*)BROTLI_ALLOC(s, (size_t)(s->new_ringbuffer_size) +
-      kRingBufferWriteAheadSlack);
+  s->ringbuffer = (uint8_t*)BROTLI_DECODER_ALLOC(s,
+      (size_t)(s->new_ringbuffer_size) + kRingBufferWriteAheadSlack);
   if (s->ringbuffer == 0) {
     /* Restore previous value. */
     s->ringbuffer = old_ringbuffer;
@@ -1280,7 +1281,7 @@ static BROTLI_BOOL BROTLI_NOINLINE BrotliEnsureRingBuffer(
 
   if (!!old_ringbuffer) {
     memcpy(s->ringbuffer, old_ringbuffer, (size_t)s->pos);
-    BROTLI_FREE(s, old_ringbuffer);
+    BROTLI_DECODER_FREE(s, old_ringbuffer);
   }
 
   s->ringbuffer_size = s->new_ringbuffer_size;
@@ -1748,6 +1749,7 @@ CommandPostDecodeLiterals:
     int address = s->distance_code - s->max_distance - 1;
     if (i >= BROTLI_MIN_DICTIONARY_WORD_LENGTH &&
         i <= BROTLI_MAX_DICTIONARY_WORD_LENGTH) {
+      const BrotliDictionary* words = s->dictionary;
       int offset = (int)s->dictionary->offsets_by_length[i];
       uint32_t shift = s->dictionary->size_bits_by_length[i];
       int mask = (int)BitMask(shift);
@@ -1756,19 +1758,19 @@ CommandPostDecodeLiterals:
       /* Compensate double distance-ring-buffer roll. */
       s->dist_rb_idx += s->distance_context;
       offset += word_idx * i;
-      if (BROTLI_PREDICT_FALSE(!s->dictionary->data)) {
+      if (BROTLI_PREDICT_FALSE(!words->data)) {
         return BROTLI_FAILURE(BROTLI_DECODER_ERROR_DICTIONARY_NOT_SET);
       }
       if (transform_idx < kNumTransforms) {
-        const uint8_t* word = &s->dictionary->data[offset];
+        const uint8_t* word = &words->data[offset];
         int len = i;
         if (transform_idx == 0) {
           memcpy(&s->ringbuffer[pos], word, (size_t)len);
           BROTLI_LOG(("[ProcessCommandsInternal] dictionary word: [%.*s]\n",
                       len, word));
         } else {
-          len = TransformDictionaryWord(
-              &s->ringbuffer[pos], word, len, transform_idx);
+          len = BrotliTransformDictionaryWord(&s->ringbuffer[pos], word, len,
+              transform_idx);
           BROTLI_LOG(("[ProcessCommandsInternal] dictionary word: [%.*s],"
                       " transform_idx = %d, transformed: [%.*s]\n",
                       i, word, transform_idx, len, &s->ringbuffer[pos]));
@@ -1911,6 +1913,10 @@ BrotliDecoderResult BrotliDecoderDecompressStream(
     size_t* available_out, uint8_t** next_out, size_t* total_out) {
   BrotliDecoderErrorCode result = BROTLI_DECODER_SUCCESS;
   BrotliBitReader* br = &s->br;
+  /* Ensure that *total_out is set, even if no data will ever be pushed out. */
+  if (total_out) {
+    *total_out = s->partial_pos_out;
+  }
   /* Do not try to process further in a case of unrecoverable error. */
   if ((int)s->error_code < 0) {
     return BROTLI_DECODER_RESULT_ERROR;
@@ -2017,7 +2023,7 @@ BrotliDecoderResult BrotliDecoderDecompressStream(
         s->max_backward_distance = (1 << s->window_bits) - BROTLI_WINDOW_GAP;
 
         /* Allocate memory for both block_type_trees and block_len_trees. */
-        s->block_type_trees = (HuffmanCode*)BROTLI_ALLOC(s,
+        s->block_type_trees = (HuffmanCode*)BROTLI_DECODER_ALLOC(s,
             sizeof(HuffmanCode) * 3 *
                 (BROTLI_HUFFMAN_MAX_SIZE_258 + BROTLI_HUFFMAN_MAX_SIZE_26));
         if (s->block_type_trees == 0) {
@@ -2147,7 +2153,7 @@ BrotliDecoderResult BrotliDecoderDecompressStream(
         BROTLI_LOG_UINT(s->distance_postfix_bits);
         s->distance_postfix_mask = (int)BitMask(s->distance_postfix_bits);
         s->context_modes =
-            (uint8_t*)BROTLI_ALLOC(s, (size_t)s->num_block_types[0]);
+            (uint8_t*)BROTLI_DECODER_ALLOC(s, (size_t)s->num_block_types[0]);
         if (s->context_modes == 0) {
           result = BROTLI_FAILURE(BROTLI_DECODER_ERROR_ALLOC_CONTEXT_MODES);
           break;

@@ -18,24 +18,6 @@ matrix:
           - gcc-7
           - g++-7
     - os: linux
-      env: BUILD_SYSTEM=cmake C_COMPILER=gcc-6 CXX_COMPILER=g++-6
-      addons:
-        apt:
-          sources:
-          - ubuntu-toolchain-r-test
-          packages:
-          - gcc-6
-          - g++-6
-    - os: linux
-      env: BUILD_SYSTEM=cmake C_COMPILER=gcc-5 CXX_COMPILER=g++-5
-      addons:
-        apt:
-          sources:
-          - ubuntu-toolchain-r-test
-          packages:
-          - gcc-5
-          - g++-5
-    - os: linux
       env: BUILD_SYSTEM=cmake C_COMPILER=gcc-4.4 CXX_COMPILER=g++-4.4
       addons:
         apt:
@@ -46,30 +28,43 @@ matrix:
           - g++-4.4
 
     ###
-    ## Test that fuzzer is compiling / working.
+    ## Test that Autotools build works.
     ###
     - os: linux
-      env: BUILD_SYSTEM=fuzz C_COMPILER=clang-4.0 CXX_COMPILER=clang++-4.0
+      env: BUILD_SYSTEM=autotools C_COMPILER=gcc-5 CXX_COMPILER=g++-5
       addons:
         apt:
           sources:
           - ubuntu-toolchain-r-test
-          - llvm-toolchain-trusty-4.0
           packages:
-          - clang-4.0
+          - gcc-5
+          - g++-5
+
+    ###
+    ## Test that fuzzer is compiling / working.
+    ###
+    - os: linux
+      env: BUILD_SYSTEM=fuzz C_COMPILER=clang-5.0 CXX_COMPILER=clang++-5.0 ASAN_OPTIONS=detect_leaks=0
+      addons:
+        apt:
+          sources:
+          - ubuntu-toolchain-r-test
+          - llvm-toolchain-trusty-5.0
+          packages:
+          - clang-5.0
 
     ###
     ## clang on Linux
     ###
     - os: linux
-      env: BUILD_SYSTEM=cmake C_COMPILER=clang-4.0 CXX_COMPILER=clang++-4.0
+      env: BUILD_SYSTEM=cmake C_COMPILER=clang-5.0 CXX_COMPILER=clang++-5.0
       addons:
         apt:
           sources:
-          - llvm-toolchain-trusty-4.0
+          - llvm-toolchain-trusty-5.0
           - ubuntu-toolchain-r-test
           packages:
-          - clang-4.0
+          - clang-5.0
     - os: linux
       env: BUILD_SYSTEM=cmake C_COMPILER=clang-3.5 CXX_COMPILER=clang++-3.5
       addons:
@@ -92,25 +87,25 @@ matrix:
     - os: linux
       language: python
       python: 2.7
-      env: BUILD_SYSTEM=python C_COMPILER=gcc-6 CXX_COMPILER=g++-6
+      env: BUILD_SYSTEM=python C_COMPILER=gcc-5 CXX_COMPILER=g++-5
       addons:
         apt:
           sources:
           - ubuntu-toolchain-r-test
           packages:
-          - gcc-6
-          - g++-6
+          - gcc-5
+          - g++-5
     - os: linux
       language: python
       python: 3.6
-      env: BUILD_SYSTEM=python C_COMPILER=gcc-6 CXX_COMPILER=g++-6
+      env: BUILD_SYSTEM=python C_COMPILER=gcc-5 CXX_COMPILER=g++-5
       addons:
         apt:
           sources:
           - ubuntu-toolchain-r-test
           packages:
-          - gcc-6
-          - g++-6
+          - gcc-5
+          - g++-5
 
     ###
     ## CMake on OS X
@@ -121,8 +116,6 @@ matrix:
     ###
     - os: osx
       env: BUILD_SYSTEM=cmake C_COMPILER=gcc-6 CXX_COMPILER=g++-6
-    - os: osx
-      env: BUILD_SYSTEM=cmake C_COMPILER=gcc-5 CXX_COMPILER=g++-5
     - os: osx
       osx_image: beta-xcode6.2
       env: BUILD_SYSTEM=cmake C_COMPILER=gcc-4.4 CXX_COMPILER=g++-4.4
@@ -137,32 +130,32 @@ matrix:
     ## Sanitizers
     ###
     - os: linux
-      env: BUILD_SYSTEM=cmake C_COMPILER=clang-4.0 CXX_COMPILER=clang++-4.0 SANITIZER=address
+      env: BUILD_SYSTEM=cmake C_COMPILER=clang-5.0 CXX_COMPILER=clang++-5.0 SANITIZER=address ASAN_OPTIONS=detect_leaks=0
       addons:
         apt:
           sources:
           - ubuntu-toolchain-r-test
-          - llvm-toolchain-trusty-4.0
+          - llvm-toolchain-trusty-5.0
           packages:
-          - clang-4.0
+          - clang-5.0
     - os: linux
-      env: BUILD_SYSTEM=cmake C_COMPILER=clang-4.0 CXX_COMPILER=clang++-4.0 SANITIZER=thread
+      env: BUILD_SYSTEM=cmake C_COMPILER=clang-5.0 CXX_COMPILER=clang++-5.0 SANITIZER=thread
       addons:
         apt:
           sources:
           - ubuntu-toolchain-r-test
-          - llvm-toolchain-trusty-4.0
+          - llvm-toolchain-trusty-5.0
           packages:
-          - clang-4.0
+          - clang-5.0
     - os: linux
-      env: BUILD_SYSTEM=cmake C_COMPILER=clang-4.0 CXX_COMPILER=clang++-4.0 SANITIZER=undefined CFLAGS="-fno-sanitize-recover=undefined,integer"
+      env: BUILD_SYSTEM=cmake C_COMPILER=clang-5.0 CXX_COMPILER=clang++-5.0 SANITIZER=undefined CFLAGS="-fno-sanitize-recover=undefined,integer"
       addons:
         apt:
           sources:
           - ubuntu-toolchain-r-test
-          - llvm-toolchain-trusty-4.0
+          - llvm-toolchain-trusty-5.0
           packages:
-          - clang-4.0
+          - clang-5.0
 
     - os: linux
       env: BUILD_SYSTEM=maven

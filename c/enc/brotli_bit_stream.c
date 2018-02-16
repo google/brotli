@@ -13,13 +13,13 @@
 #include <string.h>  /* memcpy, memset */
 
 #include "../common/constants.h"
+#include "../common/platform.h"
 #include <brotli/types.h>
 #include "./context.h"
 #include "./entropy_encode.h"
 #include "./entropy_encode_static.h"
 #include "./fast_log.h"
 #include "./memory.h"
-#include "./port.h"
 #include "./write_bits.h"
 
 #if defined(__cplusplus) || defined(c_plusplus)
@@ -89,9 +89,9 @@ static void BrotliEncodeMlen(size_t length, uint64_t* bits,
                              size_t* numbits, uint64_t* nibblesbits) {
   size_t lg = (length == 1) ? 1 : Log2FloorNonZero((uint32_t)(length - 1)) + 1;
   size_t mnibbles = (lg < 16 ? 16 : (lg + 3)) / 4;
-  assert(length > 0);
-  assert(length <= (1 << 24));
-  assert(lg <= 24);
+  BROTLI_DCHECK(length > 0);
+  BROTLI_DCHECK(length <= (1 << 24));
+  BROTLI_DCHECK(lg <= 24);
   *nibblesbits = mnibbles - 4;
   *numbits = mnibbles * 4;
   *bits = length - 1;
@@ -311,7 +311,7 @@ void BrotliStoreHuffmanTree(const uint8_t* depths, size_t num,
   int num_codes = 0;
   size_t code = 0;
 
-  assert(num <= BROTLI_NUM_COMMAND_SYMBOLS);
+  BROTLI_DCHECK(num <= BROTLI_NUM_COMMAND_SYMBOLS);
 
   BrotliWriteHuffmanTree(depths, num, &huffman_tree_size, huffman_tree,
                          huffman_tree_extra_bits);
@@ -619,7 +619,7 @@ static void MoveToFrontTransform(const uint32_t* BROTLI_RESTRICT v_in,
   for (i = 1; i < v_size; ++i) {
     if (v_in[i] > max_value) max_value = v_in[i];
   }
-  assert(max_value < 256u);
+  BROTLI_DCHECK(max_value < 256u);
   for (i = 0; i <= max_value; ++i) {
     mtf[i] = (uint8_t)i;
   }
@@ -627,7 +627,7 @@ static void MoveToFrontTransform(const uint32_t* BROTLI_RESTRICT v_in,
     size_t mtf_size = max_value + 1;
     for (i = 0; i < v_size; ++i) {
       size_t index = IndexOf(mtf, mtf_size, (uint8_t)v_in[i]);
-      assert(index < mtf_size);
+      BROTLI_DCHECK(index < mtf_size);
       v_out[i] = (uint32_t)index;
       MoveToFront(mtf, index);
     }
@@ -659,7 +659,7 @@ static void RunLengthCodeZeros(const size_t in_size,
   *max_run_length_prefix = max_prefix;
   *out_size = 0;
   for (i = 0; i < in_size;) {
-    assert(*out_size <= i);
+    BROTLI_DCHECK(*out_size <= i);
     if (v[i] != 0) {
       v[*out_size] = v[i] + *max_run_length_prefix;
       ++i;

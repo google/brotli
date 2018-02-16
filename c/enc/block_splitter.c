@@ -8,16 +8,15 @@
 
 #include "./block_splitter.h"
 
-#include <assert.h>
 #include <string.h>  /* memcpy, memset */
 
+#include "../common/platform.h"
 #include "./bit_cost.h"
 #include "./cluster.h"
 #include "./command.h"
 #include "./fast_log.h"
 #include "./histogram.h"
 #include "./memory.h"
-#include "./port.h"
 #include "./quality.h"
 
 #if defined(__cplusplus) || defined(c_plusplus)
