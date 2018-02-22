@@ -45,10 +45,11 @@ Java_org_brotli_wrapper_dec_DecoderJNI_nativeCreate(
     JNIEnv* env, jobject /*jobj*/, jlongArray ctx) {
   bool ok = true;
   DecoderHandle* handle = nullptr;
-  jlong context[2];
-  env->GetLongArrayRegion(ctx, 0, 2, context);
+  jlong context[3];
+  env->GetLongArrayRegion(ctx, 0, 3, context);
   size_t input_size = context[1];
   context[0] = 0;
+  context[2] = 0;
   handle = new (std::nothrow) DecoderHandle();
   ok = !!handle;
 
@@ -79,7 +80,7 @@ Java_org_brotli_wrapper_dec_DecoderJNI_nativeCreate(
     delete handle;
   }
 
-  env->SetLongArrayRegion(ctx, 0, 2, context);
+  env->SetLongArrayRegion(ctx, 0, 3, context);
 
   if (!ok) {
     return nullptr;
@@ -105,11 +106,12 @@ Java_org_brotli_wrapper_dec_DecoderJNI_nativeCreate(
 JNIEXPORT void JNICALL
 Java_org_brotli_wrapper_dec_DecoderJNI_nativePush(
     JNIEnv* env, jobject /*jobj*/, jlongArray ctx, jint input_length) {
-  jlong context[2];
-  env->GetLongArrayRegion(ctx, 0, 2, context);
+  jlong context[3];
+  env->GetLongArrayRegion(ctx, 0, 3, context);
   DecoderHandle* handle = getHandle(reinterpret_cast<void*>(context[0]));
   context[1] = 0;  /* ERROR */
-  env->SetLongArrayRegion(ctx, 0, 2, context);
+  context[2] = 0;
+  env->SetLongArrayRegion(ctx, 0, 3, context);
 
   if (input_length != 0) {
     /* Still have unconsumed data. Workflow is broken. */
@@ -145,7 +147,8 @@ Java_org_brotli_wrapper_dec_DecoderJNI_nativePush(
       context[1] = 0;
       break;
   }
-  env->SetLongArrayRegion(ctx, 0, 2, context);
+  context[2] = BrotliDecoderHasMoreOutput(handle->state) ? 1 : 0;
+  env->SetLongArrayRegion(ctx, 0, 3, context);
 }
 
 /**
@@ -158,12 +161,13 @@ Java_org_brotli_wrapper_dec_DecoderJNI_nativePush(
 JNIEXPORT jobject JNICALL
 Java_org_brotli_wrapper_dec_DecoderJNI_nativePull(
     JNIEnv* env, jobject /*jobj*/, jlongArray ctx) {
-  jlong context[2];
-  env->GetLongArrayRegion(ctx, 0, 2, context);
+  jlong context[3];
+  env->GetLongArrayRegion(ctx, 0, 3, context);
   DecoderHandle* handle = getHandle(reinterpret_cast<void*>(context[0]));
   size_t data_length = 0;
   const uint8_t* data = BrotliDecoderTakeOutput(handle->state, &data_length);
-  if (BrotliDecoderHasMoreOutput(handle->state)) {
+  bool hasMoreOutput = !!BrotliDecoderHasMoreOutput(handle->state);
+  if (hasMoreOutput) {
     context[1] = 3;
   } else if (BrotliDecoderIsFinished(handle->state)) {
     /* Bytes after stream end are not allowed. */
@@ -172,7 +176,8 @@ Java_org_brotli_wrapper_dec_DecoderJNI_nativePull(
     /* Can proceed, or more data is required? */
     context[1] = (handle->input_offset == handle->input_length) ? 2 : 4;
   }
-  env->SetLongArrayRegion(ctx, 0, 2, context);
+  context[2] = hasMoreOutput ? 1 : 0;
+  env->SetLongArrayRegion(ctx, 0, 3, context);
   return env->NewDirectByteBuffer(const_cast<uint8_t*>(data), data_length);
 }
 
@@ -184,8 +189,8 @@ Java_org_brotli_wrapper_dec_DecoderJNI_nativePull(
 JNIEXPORT void JNICALL
 Java_org_brotli_wrapper_dec_DecoderJNI_nativeDestroy(
     JNIEnv* env, jobject /*jobj*/, jlongArray ctx) {
-  jlong context[2];
-  env->GetLongArrayRegion(ctx, 0, 2, context);
+  jlong context[3];
+  env->GetLongArrayRegion(ctx, 0, 3, context);
   DecoderHandle* handle = getHandle(reinterpret_cast<void*>(context[0]));
   BrotliDecoderDestroyInstance(handle->state);
   delete[] handle->input_start;

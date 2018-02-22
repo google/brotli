@@ -15,25 +15,11 @@
 extern "C" {
 #endif
 
-static void* DefaultAllocFunc(void* opaque, size_t size) {
-  BROTLI_UNUSED(opaque);
-  return malloc(size);
-}
-
-static void DefaultFreeFunc(void* opaque, void* address) {
-  BROTLI_UNUSED(opaque);
-  free(address);
-}
-
-void BrotliDecoderStateInit(BrotliDecoderState* s) {
-  BrotliDecoderStateInitWithCustomAllocators(s, 0, 0, 0);
-}
-
-void BrotliDecoderStateInitWithCustomAllocators(BrotliDecoderState* s,
+BROTLI_BOOL BrotliDecoderStateInit(BrotliDecoderState* s,
     brotli_alloc_func alloc_func, brotli_free_func free_func, void* opaque) {
   if (!alloc_func) {
-    s->alloc_func = DefaultAllocFunc;
-    s->free_func = DefaultFreeFunc;
+    s->alloc_func = BrotliDefaultAllocFunc;
+    s->free_func = BrotliDefaultFreeFunc;
     s->memory_manager_opaque = 0;
   } else {
     s->alloc_func = alloc_func;
@@ -45,6 +31,7 @@ void BrotliDecoderStateInitWithCustomAllocators(BrotliDecoderState* s,
 
   BrotliInitBitReader(&s->br);
   s->state = BROTLI_STATE_UNINITED;
+  s->large_window = 0;
   s->substate_metablock_header = BROTLI_STATE_METABLOCK_HEADER_NONE;
   s->substate_tree_group = BROTLI_STATE_TREE_GROUP_NONE;
   s->substate_context_map = BROTLI_STATE_CONTEXT_MAP_NONE;
@@ -103,13 +90,16 @@ void BrotliDecoderStateInitWithCustomAllocators(BrotliDecoderState* s,
   s->mtf_upper_bound = 63;
 
   s->dictionary = BrotliGetDictionary();
+  s->transforms = BrotliGetTransforms();
+
+  return BROTLI_TRUE;
 }
 
 void BrotliDecoderStateMetablockBegin(BrotliDecoderState* s) {
   s->meta_block_remaining_len = 0;
-  s->block_length[0] = 1U << 28;
-  s->block_length[1] = 1U << 28;
-  s->block_length[2] = 1U << 28;
+  s->block_length[0] = 1U << 24;
+  s->block_length[1] = 1U << 24;
+  s->block_length[2] = 1U << 24;
   s->num_block_types[0] = 1;
   s->num_block_types[1] = 1;
   s->num_block_types[2] = 1;
@@ -126,8 +116,7 @@ void BrotliDecoderStateMetablockBegin(BrotliDecoderState* s) {
   s->literal_htree = NULL;
   s->dist_context_map_slice = NULL;
   s->dist_htree_index = 0;
-  s->context_lookup1 = NULL;
-  s->context_lookup2 = NULL;
+  s->context_lookup = NULL;
   s->literal_hgroup.codes = NULL;
   s->literal_hgroup.htrees = NULL;
   s->insert_copy_hgroup.codes = NULL;
@@ -153,7 +142,8 @@ void BrotliDecoderStateCleanup(BrotliDecoderState* s) {
 }
 
 BROTLI_BOOL BrotliDecoderHuffmanTreeGroupInit(BrotliDecoderState* s,
-    HuffmanTreeGroup* group, uint32_t alphabet_size, uint32_t ntrees) {
+    HuffmanTreeGroup* group, uint32_t alphabet_size, uint32_t max_symbol,
+    uint32_t ntrees) {
   /* Pack two allocations into one */
   const size_t max_table_size = kMaxHuffmanTableSize[(alphabet_size + 31) >> 5];
   const size_t code_size = sizeof(HuffmanCode) * ntrees * max_table_size;
@@ -162,6 +152,7 @@ BROTLI_BOOL BrotliDecoderHuffmanTreeGroupInit(BrotliDecoderState* s,
   HuffmanCode** p = (HuffmanCode**)BROTLI_DECODER_ALLOC(s,
       code_size + htree_size);
   group->alphabet_size = (uint16_t)alphabet_size;
+  group->max_symbol = (uint16_t)max_symbol;
   group->num_htrees = (uint16_t)ntrees;
   group->htrees = p;
   group->codes = (HuffmanCode*)(&p[ntrees]);

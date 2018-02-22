@@ -70,7 +70,7 @@ static size_t FN(FindBlocks)(const DataType* data, const size_t length,
                              double* insert_cost,
                              double* cost,
                              uint8_t* switch_signal,
-                             uint8_t *block_id) {
+                             uint8_t* block_id) {
   const size_t data_size = FN(HistogramDataSize)();
   const size_t bitmaplen = (num_histograms + 7) >> 3;
   size_t num_blocks = 1;

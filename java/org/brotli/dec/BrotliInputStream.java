@@ -16,7 +16,7 @@ import java.io.InputStream;
  */
 public class BrotliInputStream extends InputStream {
 
-  public static final int DEFAULT_INTERNAL_BUFFER_SIZE = 16384;
+  public static final int DEFAULT_INTERNAL_BUFFER_SIZE = 256;
 
   /**
    * Internal buffer used for efficient byte-by-byte reading.
@@ -44,7 +44,8 @@ public class BrotliInputStream extends InputStream {
    * <p> For byte-by-byte reading ({@link #read()}) internal buffer with
    * {@link #DEFAULT_INTERNAL_BUFFER_SIZE} size is allocated and used.
    *
-   * <p> Will block the thread until first kilobyte of data of source is available.
+   * <p> Will block the thread until first {@link BitReader#CAPACITY} bytes of data of source
+   * are available.
    *
    * @param source underlying data source
    * @throws IOException in case of corrupted data or source stream problems
@@ -59,7 +60,8 @@ public class BrotliInputStream extends InputStream {
    * <p> For byte-by-byte reading ({@link #read()}) internal buffer of specified size is
    * allocated and used.
    *
-   * <p> Will block the thread until first kilobyte of data of source is available.
+   * <p> Will block the thread until first {@link BitReader#CAPACITY} bytes of data of source
+   * are available.
    *
    * @param source compressed data source
    * @param byteReadBufferSize size of internal buffer used in case of
@@ -80,6 +82,10 @@ public class BrotliInputStream extends InputStream {
     } catch (BrotliRuntimeException ex) {
       throw new IOException("Brotli decoder initialization failed", ex);
     }
+  }
+
+  public void setEager(boolean eager) {
+    state.isEager = eager ? 1 : 0;
   }
 
   /**

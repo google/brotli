@@ -63,16 +63,17 @@ final class State {
   int distancePostfixBits;
   int distance;
   int copyLength;
-  int copyDst;
   int maxBackwardDistance;
   int maxRingBufferSize;
   int ringBufferSize;
+  int ringBufferFence;
   int expectedTotalSize;
   int outputOffset;
   int outputLength;
   int outputUsed;
-  int bytesWritten;
-  int bytesToWrite;
+  int ringBufferBytesWritten;
+  int ringBufferBytesReady;
+  int isEager;
 
   InputStream input; // BitReader
 

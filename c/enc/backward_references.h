@@ -26,7 +26,6 @@ extern "C" {
    CreateBackwardReferences calls, and must be incremented by the amount written
    by this call. */
 BROTLI_INTERNAL void BrotliCreateBackwardReferences(
-    const BrotliDictionary* dictionary,
     size_t num_bytes, size_t position, const uint8_t* ringbuffer,
     size_t ringbuffer_mask, const BrotliEncoderParams* params,
     HasherHandle hasher, int* dist_cache, size_t* last_insert_len,

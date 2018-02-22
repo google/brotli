@@ -27,22 +27,12 @@ extern "C" {
 #define NEW_ALLOCATED_OFFSET MAX_PERM_ALLOCATED
 #define NEW_FREED_OFFSET (MAX_PERM_ALLOCATED + MAX_NEW_ALLOCATED)
 
-static void* DefaultAllocFunc(void* opaque, size_t size) {
-  BROTLI_UNUSED(opaque);
-  return malloc(size);
-}
-
-static void DefaultFreeFunc(void* opaque, void* address) {
-  BROTLI_UNUSED(opaque);
-  free(address);
-}
-
 void BrotliInitMemoryManager(
     MemoryManager* m, brotli_alloc_func alloc_func, brotli_free_func free_func,
     void* opaque) {
   if (!alloc_func) {
-    m->alloc_func = DefaultAllocFunc;
-    m->free_func = DefaultFreeFunc;
+    m->alloc_func = BrotliDefaultAllocFunc;
+    m->free_func = BrotliDefaultFreeFunc;
     m->opaque = 0;
   } else {
     m->alloc_func = alloc_func;

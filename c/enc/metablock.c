@@ -10,12 +10,12 @@
 #include "./metablock.h"
 
 #include "../common/constants.h"
+#include "../common/context.h"
 #include "../common/platform.h"
 #include <brotli/types.h>
 #include "./bit_cost.h"
 #include "./block_splitter.h"
 #include "./cluster.h"
-#include "./context.h"
 #include "./entropy_encode.h"
 #include "./histogram.h"
 #include "./memory.h"
@@ -398,9 +398,9 @@ static void MapStaticContexts(MemoryManager* m,
 
 static BROTLI_INLINE void BrotliBuildMetaBlockGreedyInternal(
     MemoryManager* m, const uint8_t* ringbuffer, size_t pos, size_t mask,
-    uint8_t prev_byte, uint8_t prev_byte2, ContextType literal_context_mode,
+    uint8_t prev_byte, uint8_t prev_byte2, ContextLut literal_context_lut,
     const size_t num_contexts, const uint32_t* static_context_map,
-    const Command *commands, size_t n_commands, MetaBlockSplit* mb) {
+    const Command* commands, size_t n_commands, MetaBlockSplit* mb) {
   union {
     BlockSplitterLiteral plain;
     ContextBlockSplitter ctx;
@@ -441,7 +441,8 @@ static BROTLI_INLINE void BrotliBuildMetaBlockGreedyInternal(
       if (num_contexts == 1) {
         BlockSplitterAddSymbolLiteral(&lit_blocks.plain, literal);
       } else {
-        size_t context = Context(prev_byte, prev_byte2, literal_context_mode);
+        size_t context =
+            BROTLI_CONTEXT(prev_byte, prev_byte2, literal_context_lut);
         ContextBlockSplitterAddSymbol(&lit_blocks.ctx, m, literal,
                                       static_context_map[context]);
         if (BROTLI_IS_OOM(m)) return;
@@ -455,7 +456,7 @@ static BROTLI_INLINE void BrotliBuildMetaBlockGreedyInternal(
       prev_byte2 = ringbuffer[(pos - 2) & mask];
       prev_byte = ringbuffer[(pos - 1) & mask];
       if (cmd.cmd_prefix_ >= 128) {
-        BlockSplitterAddSymbolDistance(&dist_blocks, cmd.dist_prefix_);
+        BlockSplitterAddSymbolDistance(&dist_blocks, cmd.dist_prefix_ & 0x3FF);
       }
     }
   }
@@ -482,7 +483,7 @@ void BrotliBuildMetaBlockGreedy(MemoryManager* m,
                                 size_t mask,
                                 uint8_t prev_byte,
                                 uint8_t prev_byte2,
-                                ContextType literal_context_mode,
+                                ContextLut literal_context_lut,
                                 size_t num_contexts,
                                 const uint32_t* static_context_map,
                                 const Command* commands,
@@ -490,19 +491,17 @@ void BrotliBuildMetaBlockGreedy(MemoryManager* m,
                                 MetaBlockSplit* mb) {
   if (num_contexts == 1) {
     BrotliBuildMetaBlockGreedyInternal(m, ringbuffer, pos, mask, prev_byte,
-        prev_byte2, literal_context_mode, 1, NULL, commands, n_commands, mb);
+        prev_byte2, literal_context_lut, 1, NULL, commands, n_commands, mb);
   } else {
     BrotliBuildMetaBlockGreedyInternal(m, ringbuffer, pos, mask, prev_byte,
-        prev_byte2, literal_context_mode, num_contexts, static_context_map,
+        prev_byte2, literal_context_lut, num_contexts, static_context_map,
         commands, n_commands, mb);
   }
 }
 
-void BrotliOptimizeHistograms(size_t num_direct_distance_codes,
-                              size_t distance_postfix_bits,
+void BrotliOptimizeHistograms(uint32_t num_distance_codes,
                               MetaBlockSplit* mb) {
   uint8_t good_for_rle[BROTLI_NUM_COMMAND_SYMBOLS];
-  size_t num_distance_codes;
   size_t i;
   for (i = 0; i < mb->literal_histograms_size; ++i) {
     BrotliOptimizeHuffmanCountsForRle(256, mb->literal_histograms[i].data_,
@@ -513,9 +512,6 @@ void BrotliOptimizeHistograms(size_t num_direct_distance_codes,
                                       mb->command_histograms[i].data_,
                                       good_for_rle);
   }
-  num_distance_codes = BROTLI_NUM_DISTANCE_SHORT_CODES +
-      num_direct_distance_codes +
-      ((2 * BROTLI_MAX_DISTANCE_BITS) << distance_postfix_bits);
   for (i = 0; i < mb->distance_histograms_size; ++i) {
     BrotliOptimizeHuffmanCountsForRle(num_distance_codes,
                                       mb->distance_histograms[i].data_,

@@ -111,8 +111,15 @@ typedef struct {
   uint8_t* output;
   const char* current_input_path;
   const char* current_output_path;
+  int64_t input_file_length;  /* -1, if impossible to calculate */
   FILE* fin;
   FILE* fout;
+
+  /* I/O buffers */
+  size_t available_in;
+  const uint8_t* next_in;
+  size_t available_out;
+  uint8_t* next_out;
 } Context;
 
 /* Parse up to 5 decimal digits. */
@@ -185,8 +192,8 @@ static Command ParseParams(Context* params) {
 
     /* Too many options. The expected longest option list is:
        "-q 0 -w 10 -o f -D d -S b -d -f -k -n -v --", i.e. 16 items in total.
-       This check is an additinal guard that is never triggered, but provides an
-       additional guard for future changes. */
+       This check is an additional guard that is never triggered, but provides
+       a guard for future changes. */
     if (next_option_index > (MAX_OPTIONS - 2)) {
       return COMMAND_INVALID;
     }
@@ -414,8 +421,8 @@ static void PrintHelp(const char* name) {
 "  -t, --test                  test compressed file integrity\n"
 "  -v, --verbose               verbose mode\n");
   fprintf(stdout,
-"  -w NUM, --lgwin=NUM         set LZ77 window size (0, %d-%d) (default:%d)\n",
-          BROTLI_MIN_WINDOW_BITS, BROTLI_MAX_WINDOW_BITS, DEFAULT_LGWIN);
+"  -w NUM, --lgwin=NUM         set LZ77 window size (0, %d-%d)\n",
+          BROTLI_MIN_WINDOW_BITS, BROTLI_MAX_WINDOW_BITS);
   fprintf(stdout,
 "                              window size = 2**NUM - 16\n"
 "                              0 lets compressor choose the optimal value\n");
@@ -473,6 +480,23 @@ static BROTLI_BOOL OpenOutputFile(const char* output_path, FILE** f,
   return BROTLI_TRUE;
 }
 
+static int64_t FileSize(const char* path) {
+  FILE* f = fopen(path, "rb");
+  int64_t retval;
+  if (f == NULL) {
+    return -1;
+  }
+  if (fseek(f, 0L, SEEK_END) != 0) {
+    fclose(f);
+    return -1;
+  }
+  retval = ftell(f);
+  if (fclose(f) != 0) {
+    return -1;
+  }
+  return retval;
+}
+
 /* Copy file times and permissions.
    TODO: this is a "best effort" implementation; honest cross-platform
    fully featured implementation is way too hacky; add more hacks by request. */
@@ -513,6 +537,8 @@ static BROTLI_BOOL NextFile(Context* context) {
   /* Iterator points to last used arg; increment to search for the next one. */
   context->iterator++;
 
+  context->input_file_length = -1;
+
   /* No input path; read from console. */
   if (context->input_count == 0) {
     if (context->iterator > 1) return BROTLI_FALSE;
@@ -542,6 +568,7 @@ static BROTLI_BOOL NextFile(Context* context) {
   }
 
   context->current_input_path = arg;
+  context->input_file_length = FileSize(arg);
   context->current_output_path = context->output_path;
 
   if (context->output_path) return BROTLI_TRUE;
@@ -626,44 +653,73 @@ static BROTLI_BOOL CloseFiles(Context* context, BROTLI_BOOL success) {
 
 static const size_t kFileBufferSize = 1 << 16;
 
-static BROTLI_BOOL DecompressFile(Context* context, BrotliDecoderState* s) {
-  size_t available_in = 0;
-  const uint8_t* next_in = NULL;
-  size_t available_out = kFileBufferSize;
-  uint8_t* next_out = context->output;
-  BrotliDecoderResult result = BROTLI_DECODER_RESULT_NEEDS_MORE_INPUT;
-  for (;;) {
-    if (next_out != context->output) {
-      if (!context->test_integrity) {
-        size_t out_size = (size_t)(next_out - context->output);
-        fwrite(context->output, 1, out_size, context->fout);
-        if (ferror(context->fout)) {
-          fprintf(stderr, "failed to write output [%s]: %s\n",
-                  PrintablePath(context->current_output_path), strerror(errno));
-          return BROTLI_FALSE;
-        }
-      }
-      available_out = kFileBufferSize;
-      next_out = context->output;
-    }
+static void InitializeBuffers(Context* context) {
+  context->available_in = 0;
+  context->next_in = NULL;
+  context->available_out = kFileBufferSize;
+  context->next_out = context->output;
+}
 
+static BROTLI_BOOL HasMoreInput(Context* context) {
+  return feof(context->fin) ? BROTLI_FALSE : BROTLI_TRUE;
+}
+
+static BROTLI_BOOL ProvideInput(Context* context) {
+  context->available_in =
+      fread(context->input, 1, kFileBufferSize, context->fin);
+  context->next_in = context->input;
+  if (ferror(context->fin)) {
+    fprintf(stderr, "failed to read input [%s]: %s\n",
+            PrintablePath(context->current_input_path), strerror(errno));
+    return BROTLI_FALSE;
+  }
+  return BROTLI_TRUE;
+}
+
+/* Internal: should be used only in Provide-/Flush-Output. */
+static BROTLI_BOOL WriteOutput(Context* context) {
+  size_t out_size = (size_t)(context->next_out - context->output);
+  if (out_size == 0) return BROTLI_TRUE;
+  if (context->test_integrity) return BROTLI_TRUE;
+
+  fwrite(context->output, 1, out_size, context->fout);
+  if (ferror(context->fout)) {
+    fprintf(stderr, "failed to write output [%s]: %s\n",
+            PrintablePath(context->current_output_path), strerror(errno));
+    return BROTLI_FALSE;
+  }
+  return BROTLI_TRUE;
+}
+
+static BROTLI_BOOL ProvideOutput(Context* context) {
+  if (!WriteOutput(context)) return BROTLI_FALSE;
+  context->available_out = kFileBufferSize;
+  context->next_out = context->output;
+  return BROTLI_TRUE;
+}
+
+static BROTLI_BOOL FlushOutput(Context* context) {
+  if (!WriteOutput(context)) return BROTLI_FALSE;
+  context->available_out = 0;
+  return BROTLI_TRUE;
+}
+
+static BROTLI_BOOL DecompressFile(Context* context, BrotliDecoderState* s) {
+  BrotliDecoderResult result = BROTLI_DECODER_RESULT_NEEDS_MORE_INPUT;
+  InitializeBuffers(context);
+  for (;;) {
     if (result == BROTLI_DECODER_RESULT_NEEDS_MORE_INPUT) {
-      if (feof(context->fin)) {
+      if (!HasMoreInput(context)) {
         fprintf(stderr, "corrupt input [%s]\n",
                 PrintablePath(context->current_input_path));
         return BROTLI_FALSE;
       }
-      available_in = fread(context->input, 1, kFileBufferSize, context->fin);
-      next_in = context->input;
-      if (ferror(context->fin)) {
-        fprintf(stderr, "failed to read input [%s]: %s\n",
-                PrintablePath(context->current_input_path), strerror(errno));
-      return BROTLI_FALSE;
-      }
+      if (!ProvideInput(context)) return BROTLI_FALSE;
     } else if (result == BROTLI_DECODER_RESULT_NEEDS_MORE_OUTPUT) {
-      /* Nothing to do - output is already written. */
+      if (!ProvideOutput(context)) return BROTLI_FALSE;
     } else if (result == BROTLI_DECODER_RESULT_SUCCESS) {
-      if (available_in != 0 || !feof(context->fin)) {
+      if (!FlushOutput(context)) return BROTLI_FALSE;
+      if (context->available_in != 0 || HasMoreInput(context)) {
         fprintf(stderr, "corrupt input [%s]\n",
                 PrintablePath(context->current_input_path));
         return BROTLI_FALSE;
@@ -675,8 +731,8 @@ static BROTLI_BOOL DecompressFile(Context* context, BrotliDecoderState* s) {
       return BROTLI_FALSE;
     }
 
-    result = BrotliDecoderDecompressStream(
-        s, &available_in, &next_in, &available_out, &next_out, 0);
+    result = BrotliDecoderDecompressStream(s, &context->available_in,
+        &context->next_in, &context->available_out, &context->next_out, 0);
   }
 }
 
@@ -703,46 +759,31 @@ static BROTLI_BOOL DecompressFiles(Context* context) {
 }
 
 static BROTLI_BOOL CompressFile(Context* context, BrotliEncoderState* s) {
-  size_t available_in = 0;
-  const uint8_t* next_in = NULL;
-  size_t available_out = kFileBufferSize;
-  uint8_t* next_out = context->output;
   BROTLI_BOOL is_eof = BROTLI_FALSE;
-
+  InitializeBuffers(context);
   for (;;) {
-    if (available_in == 0 && !is_eof) {
-      available_in = fread(context->input, 1, kFileBufferSize, context->fin);
-      next_in = context->input;
-      if (ferror(context->fin)) {
-        fprintf(stderr, "failed to read input [%s]: %s\n",
-                PrintablePath(context->current_input_path), strerror(errno));
-        return BROTLI_FALSE;
-      }
-      is_eof = feof(context->fin) ? BROTLI_TRUE : BROTLI_FALSE;
+    if (context->available_in == 0 && !is_eof) {
+      if (!ProvideInput(context)) return BROTLI_FALSE;
+      is_eof = !HasMoreInput(context);
     }
 
     if (!BrotliEncoderCompressStream(s,
         is_eof ? BROTLI_OPERATION_FINISH : BROTLI_OPERATION_PROCESS,
-        &available_in, &next_in, &available_out, &next_out, NULL)) {
+        &context->available_in, &context->next_in,
+        &context->available_out, &context->next_out, NULL)) {
       /* Should detect OOM? */
       fprintf(stderr, "failed to compress data [%s]\n",
               PrintablePath(context->current_input_path));
       return BROTLI_FALSE;
     }
 
-    if (available_out != kFileBufferSize) {
-      size_t out_size = kFileBufferSize - available_out;
-      fwrite(context->output, 1, out_size, context->fout);
-      if (ferror(context->fout)) {
-        fprintf(stderr, "failed to write output [%s]: %s\n",
-                PrintablePath(context->current_output_path), strerror(errno));
-        return BROTLI_FALSE;
-      }
-      available_out = kFileBufferSize;
-      next_out = context->output;
+    if (context->available_out == 0) {
+      if (!ProvideOutput(context)) return BROTLI_FALSE;
     }
 
-    if (BrotliEncoderIsFinished(s)) return BROTLI_TRUE;
+    if (BrotliEncoderIsFinished(s)) {
+      return FlushOutput(context);
+    }
   }
 }
 
@@ -756,8 +797,30 @@ static BROTLI_BOOL CompressFiles(Context* context) {
     }
     BrotliEncoderSetParameter(s,
         BROTLI_PARAM_QUALITY, (uint32_t)context->quality);
-    BrotliEncoderSetParameter(s,
-        BROTLI_PARAM_LGWIN, (uint32_t)context->lgwin);
+    if (context->lgwin > 0) {
+      /* Specified by user. */
+      BrotliEncoderSetParameter(s,
+          BROTLI_PARAM_LGWIN, (uint32_t)context->lgwin);
+    } else {
+      /* 0, or not specified by user; could be chosen by compressor. */
+      uint32_t lgwin = DEFAULT_LGWIN;
+      /* Use file size to limit lgwin. */
+      if (context->input_file_length >= 0) {
+        int32_t size = 1 << BROTLI_MIN_WINDOW_BITS;
+        lgwin = BROTLI_MIN_WINDOW_BITS;
+        while (size < context->input_file_length) {
+          size <<= 1;
+          lgwin++;
+          if (lgwin == BROTLI_MAX_WINDOW_BITS) break;
+        }
+      }
+      BrotliEncoderSetParameter(s, BROTLI_PARAM_LGWIN, lgwin);
+    }
+    if (context->input_file_length > 0) {
+      uint32_t size_hint = context->input_file_length < (1 << 30) ?
+          (uint32_t)context->input_file_length : (1u << 30);
+      BrotliEncoderSetParameter(s, BROTLI_PARAM_SIZE_HINT, size_hint);
+    }
     is_ok = OpenFiles(context);
     if (is_ok && !context->current_output_path &&
         !context->force_overwrite && isatty(STDOUT_FILENO)) {
@@ -779,7 +842,7 @@ int main(int argc, char** argv) {
   int i;
 
   context.quality = 11;
-  context.lgwin = DEFAULT_LGWIN;
+  context.lgwin = -1;
   context.force_overwrite = BROTLI_FALSE;
   context.junk_source = BROTLI_FALSE;
   context.copy_stat = BROTLI_TRUE;

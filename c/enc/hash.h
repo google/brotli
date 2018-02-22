@@ -16,6 +16,7 @@
 #include "../common/dictionary.h"
 #include "../common/platform.h"
 #include <brotli/types.h>
+#include "./encoder_dict.h"
 #include "./fast_log.h"
 #include "./find_match_length.h"
 #include "./memory.h"
@@ -73,10 +74,10 @@ typedef struct HasherSearchResult {
    * There is no effort to ensure that it is a prime, the oddity is enough
      for this use.
    * The number has been tuned heuristically against compression benchmarks. */
-static const uint32_t kHashMul32 = 0x1e35a7bd;
-static const uint64_t kHashMul64 = BROTLI_MAKE_UINT64_T(0x1e35a7bd, 0x1e35a7bd);
+static const uint32_t kHashMul32 = 0x1E35A7BD;
+static const uint64_t kHashMul64 = BROTLI_MAKE_UINT64_T(0x1E35A7BD, 0x1E35A7BD);
 static const uint64_t kHashMul64Long =
-    BROTLI_MAKE_UINT64_T(0x1fe35a7bU, 0xd3579bd3U);
+    BROTLI_MAKE_UINT64_T(0x1FE35A7Bu, 0xD3579BD3u);
 
 static BROTLI_INLINE uint32_t Hash14(const uint8_t* data) {
   uint32_t h = BROTLI_UNALIGNED_LOAD32LE(data) * kHashMul32;
@@ -146,8 +147,9 @@ static BROTLI_INLINE score_t BackwardReferencePenaltyUsingLastDistance(
 }
 
 static BROTLI_INLINE BROTLI_BOOL TestStaticDictionaryItem(
-    const BrotliDictionary* dictionary, size_t item, const uint8_t* data,
-    size_t max_length, size_t max_backward, HasherSearchResult* out) {
+    const BrotliEncoderDictionary* dictionary, size_t item, const uint8_t* data,
+    size_t max_length, size_t max_backward, size_t max_distance,
+    HasherSearchResult* out) {
   size_t len;
   size_t dist;
   size_t offset;
@@ -156,24 +158,24 @@ static BROTLI_INLINE BROTLI_BOOL TestStaticDictionaryItem(
   score_t score;
   len = item & 0x1F;
   dist = item >> 5;
-  offset = dictionary->offsets_by_length[len] + len * dist;
+  offset = dictionary->words->offsets_by_length[len] + len * dist;
   if (len > max_length) {
     return BROTLI_FALSE;
   }
 
   matchlen =
-      FindMatchLengthWithLimit(data, &dictionary->data[offset], len);
-  if (matchlen + kCutoffTransformsCount <= len || matchlen == 0) {
+      FindMatchLengthWithLimit(data, &dictionary->words->data[offset], len);
+  if (matchlen + dictionary->cutoffTransformsCount <= len || matchlen == 0) {
     return BROTLI_FALSE;
   }
   {
     size_t cut = len - matchlen;
-    size_t transform_id =
-        (cut << 2) + (size_t)((kCutoffTransforms >> (cut * 6)) & 0x3F);
+    size_t transform_id = (cut << 2) +
+        (size_t)((dictionary->cutoffTransforms >> (cut * 6)) & 0x3F);
     backward = max_backward + dist + 1 +
-        (transform_id << dictionary->size_bits_by_length[len]);
+        (transform_id << dictionary->words->size_bits_by_length[len]);
   }
-  if (backward >= BROTLI_MAX_DISTANCE) {
+  if (backward > max_distance) {
     return BROTLI_FALSE;
   }
   score = BackwardReferenceScore(matchlen, backward);
@@ -188,9 +190,10 @@ static BROTLI_INLINE BROTLI_BOOL TestStaticDictionaryItem(
 }
 
 static BROTLI_INLINE void SearchInStaticDictionary(
-    const BrotliDictionary* dictionary, const uint16_t* dictionary_hash,
+    const BrotliEncoderDictionary* dictionary,
     HasherHandle handle, const uint8_t* data, size_t max_length,
-    size_t max_backward, HasherSearchResult* out, BROTLI_BOOL shallow) {
+    size_t max_backward, size_t max_distance,
+    HasherSearchResult* out, BROTLI_BOOL shallow) {
   size_t key;
   size_t i;
   HasherCommon* self = GetHasherCommon(handle);
@@ -199,11 +202,11 @@ static BROTLI_INLINE void SearchInStaticDictionary(
   }
   key = Hash14(data) << 1;
   for (i = 0; i < (shallow ? 1u : 2u); ++i, ++key) {
-    size_t item = dictionary_hash[key];
+    size_t item = dictionary->hash_table[key];
     self->dict_num_lookups++;
     if (item != 0) {
       BROTLI_BOOL item_matches = TestStaticDictionaryItem(
-          dictionary, item, data, max_length, max_backward, out);
+          dictionary, item, data, max_length, max_backward, max_distance, out);
       if (item_matches) {
         self->dict_num_matches++;
       }

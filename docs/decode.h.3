@@ -1,4 +1,4 @@
-.TH "decode.h" 3 "Fri Dec 8 2017" "Brotli" \" -*- nroff -*-
+.TH "decode.h" 3 "Thu Feb 22 2018" "Brotli" \" -*- nroff -*-
 .ad l
 .nh
 .SH NAME
@@ -143,6 +143,9 @@ Options to be used with \fBBrotliDecoderSetParameter\fP\&.
 .TP
 \fB\fIBROTLI_DECODER_PARAM_DISABLE_RING_BUFFER_REALLOCATION \fP\fP
 Disable 'canny' ring buffer allocation strategy\&. Ring buffer is allocated according to window size, despite the real size of the content\&. 
+.TP
+\fB\fIBROTLI_DECODER_PARAM_LARGE_WINDOW \fP\fP
+Flag that determines if 'Large Window Brotli' is used\&. 
 .SS "enum \fBBrotliDecoderResult\fP"
 
 .PP
