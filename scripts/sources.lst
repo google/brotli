@@ -26,7 +26,7 @@ BROTLI_DEC_H = \
   c/dec/bit_reader.h \
   c/dec/huffman.h \
   c/dec/prefix.h \
-  c/dec/state.h \
+  c/dec/state.h
 
 BROTLI_ENC_C = \
   c/enc/backward_references.c \

@@ -7,6 +7,8 @@ sed --version >/dev/null 2>&1 || { echo >&2 "'sed' $REQUIRED"; exit 1; }
 fi
 autoreconf --version >/dev/null 2>&1 || { echo >&2 "'autoconf' $REQUIRED"; exit 1; }
 
+# If libtool is not installed -> "error: Libtool library used but 'LIBTOOL' is undefined"
+
 mkdir m4 2>/dev/null
 
 BROTLI_ABI_HEX=`sed -n 's/#define BROTLI_ABI_VERSION 0x//p' c/common/version.h`
