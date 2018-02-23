@@ -44,7 +44,7 @@ java_test(
 
 java_test(
     name = "EagerStreamTest",
-    test_class = ["org.brotli.dec.EagerStreamTest"],
+    test_class = "org.brotli.dec.EagerStreamTest",
     runtime_deps = [":test_lib"],
 )
 
