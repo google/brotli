@@ -14,6 +14,13 @@ cc_library(
 )
 
 cc_library(
+    name = "durchschlag",
+    srcs = ["durchschlag.cc"],
+    hdrs = ["durchschlag.h"],
+    deps = ["@divsufsort//:libdivsufsort"],
+)
+
+cc_library(
     name = "sieve",
     srcs = ["sieve.cc"],
     hdrs = ["sieve.h"],
@@ -24,6 +31,7 @@ cc_binary(
     srcs = ["dictionary_generator.cc"],
     deps = [
         ":dm",
+        ":durchschlag",
         ":sieve",
     ],
 )

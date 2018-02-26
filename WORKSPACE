@@ -82,6 +82,12 @@ filegroup(
 )""",
 )
 
+new_local_repository(
+    name = "divsufsort",
+    build_file = "//research:BUILD.libdivsufsort",
+    path = "research/libdivsufsort",
+)
+
 load("@io_bazel_rules_closure//closure:defs.bzl", "closure_repositories")
 closure_repositories()
 

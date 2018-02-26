@@ -20,18 +20,23 @@
 #define CHECK(X) if (!(X)) exit(EXIT_FAILURE);
 #endif
 
-void ReadPGM(FILE* f, uint8_t*** image, size_t* height, size_t* width) {
+typedef uint8_t* ScanLine;
+typedef ScanLine* Image;
+
+void ReadPGM(FILE* f, Image* image, size_t* height, size_t* width) {
   int colors;
   CHECK(fscanf(f, "P5\n%lu %lu\n%d\n", width, height, &colors) == 3);
   assert(colors == 255);
-  *image = new uint8_t*[*height];
+  ScanLine* lines = new ScanLine[*height];
+  *image = lines;
   for (int i = *height - 1; i >= 0; --i) {
-    (*image)[i] = new uint8_t[*width];
-    CHECK(fread((*image)[i], 1, *width, f) == *width);
+    ScanLine line = new uint8_t[*width];
+    lines[i] = line;
+    CHECK(fread(line, 1, *width, f) == *width);
   }
 }
 
-void CalculateDiff(int** diff, uint8_t** image1, uint8_t** image2,
+void CalculateDiff(int** diff, Image image1, Image image2,
                    size_t height, size_t width) {
   for (size_t i = 0; i < height; ++i) {
     for (size_t j = 0; j < width; ++j) {
@@ -40,7 +45,7 @@ void CalculateDiff(int** diff, uint8_t** image1, uint8_t** image2,
   }
 }
 
-void DrawDiff(int** diff, uint8_t** image1, uint8_t** image2,
+void DrawDiff(int** diff, Image image1, Image image2,
               size_t height, size_t width, FILE* f) {
   int max = -1234;
   int min = +1234;
@@ -78,13 +83,13 @@ void DrawDiff(int** diff, uint8_t** image1, uint8_t** image2,
   delete[] row;
 }
 
-int main(int argc, char* argv[]) {
+int main(int argc, char** argv) {
   if (argc != 4) {
     printf("usage: %s pgm1 pgm2 diff_ppm_path\n", argv[0]);
     return 1;
   }
 
-  uint8_t **image1, **image2;
+  Image image1, image2;
   size_t h1, w1, h2, w2;
 
   FILE* fimage1 = fopen(argv[1], "rb");

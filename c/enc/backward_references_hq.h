@@ -23,29 +23,26 @@ extern "C" {
 #endif
 
 BROTLI_INTERNAL void BrotliCreateZopfliBackwardReferences(MemoryManager* m,
-    const BrotliDictionary* dictionary,
     size_t num_bytes, size_t position, const uint8_t* ringbuffer,
     size_t ringbuffer_mask, const BrotliEncoderParams* params,
     HasherHandle hasher, int* dist_cache, size_t* last_insert_len,
     Command* commands, size_t* num_commands, size_t* num_literals);
 
 BROTLI_INTERNAL void BrotliCreateHqZopfliBackwardReferences(MemoryManager* m,
-    const BrotliDictionary* dictionary,
     size_t num_bytes, size_t position, const uint8_t* ringbuffer,
     size_t ringbuffer_mask, const BrotliEncoderParams* params,
     HasherHandle hasher, int* dist_cache, size_t* last_insert_len,
     Command* commands, size_t* num_commands, size_t* num_literals);
 
 typedef struct ZopfliNode {
-  /* best length to get up to this byte (not including this byte itself)
-     highest 8 bit is used to reconstruct the length code */
+  /* Best length to get up to this byte (not including this byte itself)
+     highest 7 bit is used to reconstruct the length code. */
   uint32_t length;
-  /* distance associated with the length; highest 5 bits contain distance
-     short code + 1 (or zero if no short code); this way only distances shorter
-     than 128MiB are allowed here */
+  /* Distance associated with the length. */
   uint32_t distance;
-  /* number of literal inserts before this copy */
-  uint32_t insert_length;
+  /* Number of literal inserts before this copy; highest 5 bits contain
+     distance short code + 1 (or zero if no short code). */
+  uint32_t dcode_insert_length;
 
   /* This union holds information used by dynamic-programming. During forward
      pass |cost| it used to store the goal function. When node is processed its
@@ -78,7 +75,6 @@ BROTLI_INTERNAL void BrotliInitZopfliNodes(ZopfliNode* array, size_t length);
      (2) nodes[i].command_length() <= i and
      (3) nodes[i - nodes[i].command_length()].cost < kInfinity */
 BROTLI_INTERNAL size_t BrotliZopfliComputeShortestPath(MemoryManager* m,
-    const BrotliDictionary* dictionary,
     size_t num_bytes, size_t position, const uint8_t* ringbuffer,
     size_t ringbuffer_mask, const BrotliEncoderParams* params,
     const size_t max_backward_limit, const int* dist_cache, HasherHandle hasher,

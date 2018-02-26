@@ -86,9 +86,9 @@ static BROTLI_INLINE void ReplicateValue(HuffmanCode* table,
   } while (end > 0);
 }
 
-/* Returns the table width of the next 2nd level table. count is the histogram
-   of bit lengths for the remaining symbols, len is the code length of the next
-   processed symbol */
+/* Returns the table width of the next 2nd level table. |count| is the histogram
+   of bit lengths for the remaining symbols, |len| is the code length of the
+   next processed symbol. */
 static BROTLI_INLINE int NextTableBitSize(const uint16_t* const count,
                                           int len, int root_bits) {
   int left = 1 << (len - root_bits);
@@ -118,7 +118,7 @@ void BrotliBuildCodeLengthsHuffmanTable(HuffmanCode* table,
   BROTLI_DCHECK(BROTLI_HUFFMAN_MAX_CODE_LENGTH_CODE_LENGTH <=
                 BROTLI_REVERSE_BITS_MAX);
 
-  /* generate offsets into sorted symbol table by code length */
+  /* Generate offsets into sorted symbol table by code length. */
   symbol = -1;
   bits = 1;
   BROTLI_REPEAT(BROTLI_HUFFMAN_MAX_CODE_LENGTH_CODE_LENGTH, {
@@ -129,7 +129,7 @@ void BrotliBuildCodeLengthsHuffmanTable(HuffmanCode* table,
   /* Symbols with code length 0 are placed after all other symbols. */
   offset[0] = BROTLI_CODE_LENGTH_CODES - 1;
 
-  /* sort symbols by length, by symbol order within each length */
+  /* Sort symbols by length, by symbol order within each length. */
   symbol = BROTLI_CODE_LENGTH_CODES;
   do {
     BROTLI_REPEAT(6, {
@@ -150,7 +150,7 @@ void BrotliBuildCodeLengthsHuffmanTable(HuffmanCode* table,
     return;
   }
 
-  /* fill in table */
+  /* Fill in table. */
   key = 0;
   key_step = BROTLI_REVERSE_BITS_LOWEST;
   symbol = 0;
@@ -200,9 +200,8 @@ uint32_t BrotliBuildHuffmanTable(HuffmanCode* root_table,
   table_size = 1 << table_bits;
   total_size = table_size;
 
-  /* fill in root table */
-  /* let's reduce the table size to a smaller size if possible, and */
-  /* create the repetitions by memcpy if possible in the coming loop */
+  /* Fill in the root table. Reduce the table size to if possible,
+     and create the repetitions by memcpy. */
   if (table_bits > max_length) {
     table_bits = max_length;
     table_size = 1 << table_bits;
@@ -224,15 +223,14 @@ uint32_t BrotliBuildHuffmanTable(HuffmanCode* root_table,
     key_step >>= 1;
   } while (++bits <= table_bits);
 
-  /* if root_bits != table_bits we only created one fraction of the */
-  /* table, and we need to replicate it now. */
+  /* If root_bits != table_bits then replicate to fill the remaining slots. */
   while (total_size != table_size) {
     memcpy(&table[table_size], &table[0],
            (size_t)table_size * sizeof(table[0]));
     table_size <<= 1;
   }
 
-  /* fill in 2nd level tables and add pointers to root table */
+  /* Fill in 2nd level tables and add pointers to root table. */
   key_step = BROTLI_REVERSE_BITS_LOWEST >> (root_bits - 1);
   sub_key = (BROTLI_REVERSE_BITS_LOWEST << 1);
   sub_key_step = BROTLI_REVERSE_BITS_LOWEST;

@@ -1,19 +1,27 @@
 #include "./sieve.h"
 
+/* Pointer to position in (combined corpus) text. */
+typedef uint32_t TextIdx;
+
+/* Index of sample / generation. */
+typedef uint16_t SampleIdx;
+
 typedef struct Slot {
-  uint32_t next;
-  uint32_t offset;
-  uint16_t presence;
-  uint16_t mark;
+  TextIdx next;
+  TextIdx offset;
+  SampleIdx presence;
+  SampleIdx mark;
 } Slot;
 
-static size_t dryRun(size_t sliceLen, Slot* map, uint32_t* shortcut, size_t end,
-    size_t middle, uint16_t minPresence, uint16_t iteration) {
-  int from = -2;
-  int to = -1;
-  size_t result = 0;
-  uint16_t targetPresence = minPresence;
-  for (uint32_t i = 0; i < end; ++i) {
+static const TextIdx kNowhere = static_cast<TextIdx>(-1);
+
+static TextIdx dryRun(TextIdx sliceLen, Slot* map, TextIdx* shortcut,
+    TextIdx end, TextIdx middle, SampleIdx minPresence, SampleIdx iteration) {
+  TextIdx from = kNowhere;
+  TextIdx to = kNowhere;
+  TextIdx result = 0;
+  SampleIdx targetPresence = minPresence;
+  for (TextIdx i = 0; i < end; ++i) {
     if (i == middle) {
       targetPresence++;
     }
@@ -21,8 +29,8 @@ static size_t dryRun(size_t sliceLen, Slot* map, uint32_t* shortcut, size_t end,
     if (item.mark != iteration) {
       item.mark = iteration;
       if (item.presence >= targetPresence) {
-        if (to < i) {
-          if (from > 0) {
+        if ((to == kNowhere) || (to < i)) {
+          if (from != kNowhere) {
             result += to - from;
           }
           from = i;
@@ -31,20 +39,20 @@ static size_t dryRun(size_t sliceLen, Slot* map, uint32_t* shortcut, size_t end,
       }
     }
   }
-  if (from > 0) {
+  if (from != kNowhere) {
     result += to - from;
   }
   return result;
 }
 
-static std::string createDictionary(const uint8_t* data, size_t sliceLen,
-    Slot* map, uint32_t* shortcut, size_t end, size_t middle,
-    uint16_t minPresence, uint16_t iteration) {
+static std::string createDictionary(const uint8_t* data, TextIdx sliceLen,
+    Slot* map, TextIdx* shortcut, TextIdx end, TextIdx middle,
+    SampleIdx minPresence, SampleIdx iteration) {
   std::string output;
-  int from = -2;
-  int to = -1;
-  uint16_t targetPresence = minPresence;
-  for (uint32_t i = 0; i < end; ++i) {
+  TextIdx from = kNowhere;
+  TextIdx to = kNowhere;
+  SampleIdx targetPresence = minPresence;
+  for (TextIdx i = 0; i < end; ++i) {
     if (i == middle) {
       targetPresence++;
     }
@@ -52,8 +60,8 @@ static std::string createDictionary(const uint8_t* data, size_t sliceLen,
     if (item.mark != iteration) {
       item.mark = iteration;
       if (item.presence >= targetPresence) {
-        if (to < i) {
-          if (from > 0) {
+        if ((to == kNowhere) || (to < i)) {
+          if (from != kNowhere) {
             output.insert(output.end(), &data[from], &data[to]);
           }
           from = i;
@@ -62,7 +70,7 @@ static std::string createDictionary(const uint8_t* data, size_t sliceLen,
       }
     }
   }
-  if (from > 0) {
+  if (from != kNowhere) {
     output.insert(output.end(), &data[from], &data[to]);
   }
   return output;
@@ -71,55 +79,95 @@ static std::string createDictionary(const uint8_t* data, size_t sliceLen,
 std::string sieve_generate(size_t dictionary_size_limit, size_t slice_len,
     const std::vector<size_t>& sample_sizes, const uint8_t* sample_data) {
   /* Parameters aliasing */
-  size_t targetSize = dictionary_size_limit;
-  size_t sliceLen = slice_len;
+  TextIdx targetSize = static_cast<TextIdx>(dictionary_size_limit);
+  if (targetSize != dictionary_size_limit) {
+    fprintf(stderr, "dictionary_size_limit is too large\n");
+    return "";
+  }
+  TextIdx sliceLen = static_cast<TextIdx>(slice_len);
+  if (sliceLen != slice_len) {
+    fprintf(stderr, "slice_len is too large\n");
+    return "";
+  }
+  if (sliceLen < 1) {
+    fprintf(stderr, "slice_len is too small\n");
+    return "";
+  }
+  SampleIdx numSamples = static_cast<SampleIdx>(sample_sizes.size());
+  if ((numSamples != sample_sizes.size()) || (numSamples * 2 < numSamples)) {
+    fprintf(stderr, "too many samples\n");
+    return "";
+  }
   const uint8_t* data = sample_data;
 
-  size_t total = 0;
-  std::vector<size_t> offsets;
-  for (size_t i = 0; i < sample_sizes.size(); ++i) {
-    total += sample_sizes[i];
+  TextIdx total = 0;
+  std::vector<TextIdx> offsets;
+  for (SampleIdx i = 0; i < numSamples; ++i) {
+    TextIdx delta = static_cast<TextIdx>(sample_sizes[i]);
+    if (delta != sample_sizes[i]) {
+      fprintf(stderr, "sample is too large\n");
+      return "";
+    }
+    if (delta == 0) {
+      fprintf(stderr, "empty samples are prohibited\n");
+      return "";
+    }
+    if (total + delta <= total) {
+      fprintf(stderr, "corpus is too large\n");
+      return "";
+    }
+    total += delta;
     offsets.push_back(total);
+  }
+
+  if (total * 2 < total) {
+    fprintf(stderr, "corpus is too large\n");
+    return "";
+  }
+
+  if (total < sliceLen) {
+    fprintf(stderr, "slice_len is larger than corpus size\n");
+    return "";
   }
 
   /*****************************************************************************
    * Build coverage map.
    ****************************************************************************/
   std::vector<Slot> map;
-  std::vector<uint32_t> shortcut;
+  std::vector<TextIdx> shortcut;
   map.push_back({0, 0, 0, 0});
-  size_t end = total - sliceLen;
-  int hashLen = 8;
-  while ((1 << hashLen) < end) {
+  TextIdx end = total - sliceLen;
+  TextIdx hashLen = 11;
+  while (hashLen < 29 && ((1u << hashLen) < end)) {
     hashLen += 3;
   }
   hashLen -= 3;
-  uint32_t hashMask = (1u << hashLen) - 1u;
-  std::vector<uint32_t> hashHead(1 << hashLen);
-  uint32_t hashSlot = 1;
-  uint16_t piece = 0;
-  uint32_t hash = 0;
-  int lShift = 3;
-  int rShift = hashLen - lShift;
-  for (int i = 0; i < sliceLen - 1; ++i) {
-    uint32_t v = data[i];
+  TextIdx hashMask = (1u << hashLen) - 1u;
+  std::vector<TextIdx> hashHead(1 << hashLen);
+  TextIdx hashSlot = 1;
+  SampleIdx piece = 0;
+  TextIdx hash = 0;
+  TextIdx lShift = 3;
+  TextIdx rShift = hashLen - lShift;
+  for (TextIdx i = 0; i < sliceLen - 1; ++i) {
+    TextIdx v = data[i];
     hash = (((hash << lShift) | (hash >> rShift)) & hashMask) ^ v;
   }
-  int lShiftX = (lShift * (sliceLen - 1)) % hashLen;
-  int rShiftX = hashLen - lShiftX;
-  for (uint32_t i = 0; i < end; ++i) {
-    uint32_t v = data[i + sliceLen - 1];
+  TextIdx lShiftX = (lShift * (sliceLen - 1)) % hashLen;
+  TextIdx rShiftX = hashLen - lShiftX;
+  for (TextIdx i = 0; i < end; ++i) {
+    TextIdx v = data[i + sliceLen - 1];
     hash = (((hash << lShift) | (hash >> rShift)) & hashMask) ^ v;
 
     if (offsets[piece] == i) {
       piece++;
     }
-    uint32_t slot = hashHead[hash];
+    TextIdx slot = hashHead[hash];
     while (slot != 0) {
       Slot& item = map[slot];
-      int start = item.offset;
+      TextIdx start = item.offset;
       bool miss = false;
-      for (size_t j = 0; j < sliceLen; ++j) {
+      for (TextIdx j = 0; j < sliceLen; ++j) {
         if (data[i + j] != data[start + j]) {
           miss = true;
           break;
@@ -148,8 +196,8 @@ std::string sieve_generate(size_t dictionary_size_limit, size_t slice_len,
   /*****************************************************************************
    * Build dictionary of specified size.
    ****************************************************************************/
-  size_t a = 1;
-  size_t size = dryRun(
+  SampleIdx a = 1;
+  TextIdx size = dryRun(
       sliceLen, map.data(), shortcut.data(), end, end, a, ++piece);
   /* Maximal output is smaller than target. */
   if (size <= targetSize) {
@@ -157,7 +205,7 @@ std::string sieve_generate(size_t dictionary_size_limit, size_t slice_len,
         data, sliceLen, map.data(), shortcut.data(), end, end, a, ++piece);
   }
 
-  size_t b = offsets.size();
+  SampleIdx b = numSamples;
   size = dryRun(sliceLen, map.data(), shortcut.data(), end, end, b, ++piece);
   if (size == targetSize) {
     return createDictionary(
@@ -167,7 +215,7 @@ std::string sieve_generate(size_t dictionary_size_limit, size_t slice_len,
   if (size < targetSize) {
     /* size(a) > targetSize > size(b) && a < m < b */
     while (a + 1 < b) {
-      size_t m = (a + b) / 2;
+      SampleIdx m = static_cast<SampleIdx>((a + b) / 2);
       size = dryRun(
           sliceLen, map.data(), shortcut.data(), end, end, m, ++piece);
       if (size < targetSize) {
@@ -183,18 +231,18 @@ std::string sieve_generate(size_t dictionary_size_limit, size_t slice_len,
     a = b;
   }
   /* size(minPresence) > targetSize > size(minPresence + 1) */
-  size_t minPresence = a;
-  a = 0;
-  b = end;
+  SampleIdx minPresence = a;
+  TextIdx c = 0;
+  TextIdx d = end;
   /* size(a) < targetSize < size(b) && a < m < b */
-  while (a + 1 < b) {
-    size_t m = (a + b) / 2;
+  while (c + 1 < d) {
+    TextIdx m = (c + d) / 2;
     size = dryRun(
         sliceLen, map.data(), shortcut.data(), end, m, minPresence, ++piece);
     if (size < targetSize) {
-      a = m;
+      c = m;
     } else if (size > targetSize) {
-      b = m;
+      d = m;
     } else {
       return createDictionary(data, sliceLen, map.data(), shortcut.data(), end,
           m, minPresence, ++piece);
@@ -204,8 +252,8 @@ std::string sieve_generate(size_t dictionary_size_limit, size_t slice_len,
   bool unrestricted = false;
   if (minPresence <= 2 && !unrestricted) {
     minPresence = 2;
-    a = end;
+    c = end;
   }
-  return createDictionary(data, sliceLen, map.data(), shortcut.data(), end, a,
+  return createDictionary(data, sliceLen, map.data(), shortcut.data(), end, c,
       minPresence, ++piece);
 }

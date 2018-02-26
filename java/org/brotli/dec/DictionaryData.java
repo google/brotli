@@ -6,6 +6,7 @@
 
 package org.brotli.dec;
 
+import java.io.UnsupportedEncodingException;
 import java.nio.ByteBuffer;
 
 /**
@@ -20,31 +21,33 @@ final class DictionaryData {
 
   private static void unpackDictionaryData(
       ByteBuffer dictionary, String data0, String data1, String skipFlip) {
-    int n0 = data0.length();
-    int n1 = data1.length();
-    if (n0 + n1 != dictionary.capacity()) {
+    // Initialize lower 7 bits of every byte in the dictionary.
+    byte[] dict;
+    try {
+      // NB: String#getBytes(String) is present in JDK 1.1, while other variants require JDK 1.6 and
+      // above.
+      dict = (data0 + data1).getBytes("US-ASCII");
+    } catch (UnsupportedEncodingException e) {
+      throw new RuntimeException(e); // cannot happen
+    }
+    if (dict.length != dictionary.capacity()) {
       throw new RuntimeException("Corrupted brotli dictionary");
     }
+
+    // Toggle high bit using run-length delta encoded "skipFlip".
     int offset = 0;
-    for (int i = 0; i < n0; ++i) {
-      dictionary.put(offset, (byte) data0.charAt(i));
-      offset++;
-    }
-    for (int i = 0; i < n1; ++i) {
-      dictionary.put(offset, (byte) data1.charAt(i));
-      offset++;
-    }
-    offset = 0;
     int n = skipFlip.length();
     for (int i = 0; i < n; i += 2) {
       int skip = skipFlip.charAt(i) - 36;
       int flip = skipFlip.charAt(i + 1) - 36;
       offset += skip;
       for (int j = 0; j < flip; ++j) {
-        dictionary.put(offset, (byte) (dictionary.get(offset) | 0x80));
+        dict[offset] |= 0x80;
         offset++;
       }
     }
+
+    dictionary.put(dict);
   }
 
   static {

@@ -25,10 +25,10 @@ final class Decode {
   private static final int COPY_UNCOMPRESSED = 5;
   private static final int INSERT_LOOP = 6;
   private static final int COPY_LOOP = 7;
-  private static final int COPY_WRAP_BUFFER = 8;
-  private static final int TRANSFORM = 9;
-  private static final int FINISHED = 10;
-  private static final int CLOSED = 11;
+  private static final int TRANSFORM = 8;
+  private static final int FINISHED = 9;
+  private static final int CLOSED = 10;
+  private static final int INIT_WRITE = 11;
   private static final int WRITE = 12;
 
   private static final int DEFAULT_CODE_LENGTH = 8;
@@ -550,9 +550,7 @@ final class Decode {
   private static void readNextMetablockHeader(State s) {
     if (s.inputEnd != 0) {
       s.nextRunningState = FINISHED;
-      s.bytesToWrite = s.pos;
-      s.bytesWritten = 0;
-      s.runningState = WRITE;
+      s.runningState = INIT_WRITE;
       return;
     }
     // TODO: Reset? Do we need this?
@@ -674,9 +672,7 @@ final class Decode {
     s.pos += chunkLength;
     if (s.pos == s.ringBufferSize) {
         s.nextRunningState = COPY_UNCOMPRESSED;
-        s.bytesToWrite = s.ringBufferSize;
-        s.bytesWritten = 0;
-        s.runningState = WRITE;
+        s.runningState = INIT_WRITE;
         return;
       }
 
@@ -686,12 +682,12 @@ final class Decode {
 
   private static int writeRingBuffer(State s) {
     int toWrite = Math.min(s.outputLength - s.outputUsed,
-        s.bytesToWrite - s.bytesWritten);
+        s.ringBufferBytesReady - s.ringBufferBytesWritten);
     if (toWrite != 0) {
-      System.arraycopy(s.ringBuffer, s.bytesWritten, s.output,
+      System.arraycopy(s.ringBuffer, s.ringBufferBytesWritten, s.output,
           s.outputOffset + s.outputUsed, toWrite);
       s.outputUsed += toWrite;
-      s.bytesWritten += toWrite;
+      s.ringBufferBytesWritten += toWrite;
     }
 
     if (s.outputUsed < s.outputLength) {
@@ -712,6 +708,15 @@ final class Decode {
     return group;
   }
 
+  // Returns offset in ringBuffer that should trigger WRITE when filled.
+  private static int calculateFence(State s) {
+    int result = s.ringBufferSize;
+    if (s.isEager != 0) {
+      result = Math.min(result, s.ringBufferBytesWritten + s.outputLength - s.outputUsed);
+    }
+    return result;
+  }
+
   /**
    * Actual decompress implementation.
    */
@@ -722,6 +727,7 @@ final class Decode {
     if (s.runningState == CLOSED) {
       throw new IllegalStateException("Can't decompress after close");
     }
+    int fence = calculateFence(s);
     int ringBufferMask = s.ringBufferSize - 1;
     byte[] ringBuffer = s.ringBuffer;
 
@@ -734,6 +740,7 @@ final class Decode {
           }
           readNextMetablockHeader(s);
           /* Ring-buffer would be reallocated here. */
+          fence = calculateFence(s);
           ringBufferMask = s.ringBufferSize - 1;
           ringBuffer = s.ringBuffer;
           continue;
@@ -787,12 +794,11 @@ final class Decode {
               BitReader.fillBitWindow(s);
               ringBuffer[s.pos] =
                   (byte) readSymbol(s.hGroup0, s.literalTree, s);
+              s.pos++;
               s.j++;
-              if (s.pos++ == ringBufferMask) {
+              if (s.pos >= fence) {
                 s.nextRunningState = INSERT_LOOP;
-                s.bytesToWrite = s.ringBufferSize;
-                s.bytesWritten = 0;
-                s.runningState = WRITE;
+                s.runningState = INIT_WRITE;
                 break;
               }
             }
@@ -813,12 +819,11 @@ final class Decode {
               prevByte1 = readSymbol(
                   s.hGroup0, s.hGroup0[literalTreeIndex], s);
               ringBuffer[s.pos] = (byte) prevByte1;
+              s.pos++;
               s.j++;
-              if (s.pos++ == ringBufferMask) {
+              if (s.pos >= fence) {
                 s.nextRunningState = INSERT_LOOP;
-                s.bytesToWrite = s.ringBufferSize;
-                s.bytesWritten = 0;
-                s.runningState = WRITE;
+                s.runningState = INIT_WRITE;
                 break;
               }
             }
@@ -868,7 +873,6 @@ final class Decode {
             s.maxDistance = s.maxBackwardDistance;
           }
 
-          s.copyDst = s.pos;
           if (s.distance > s.maxDistance) {
             s.runningState = TRANSFORM;
             continue;
@@ -907,12 +911,11 @@ final class Decode {
               ringBuffer[s.pos] =
                   ringBuffer[(s.pos - s.distance) & ringBufferMask];
               s.metaBlockLength--;
+              s.pos++;
               s.j++;
-              if (s.pos++ == ringBufferMask) {
+              if (s.pos >= fence) {
                 s.nextRunningState = COPY_LOOP;
-                s.bytesToWrite = s.ringBufferSize;
-                s.bytesWritten = 0;
-                s.runningState = WRITE;
+                s.runningState = INIT_WRITE;
                 break;
               }
             }
@@ -933,16 +936,13 @@ final class Decode {
             int transformIdx = wordId >>> shift;
             offset += wordIdx * s.copyLength;
             if (transformIdx < Transform.NUM_TRANSFORMS) {
-              int len = Transform.transformDictionaryWord(ringBuffer, s.copyDst,
+              int len = Transform.transformDictionaryWord(ringBuffer, s.pos,
                   Dictionary.getData(), offset, s.copyLength, transformIdx);
-              s.copyDst += len;
               s.pos += len;
               s.metaBlockLength -= len;
-              if (s.copyDst >= s.ringBufferSize) {
-                s.nextRunningState = COPY_WRAP_BUFFER;
-                s.bytesToWrite = s.ringBufferSize;
-                s.bytesWritten = 0;
-                s.runningState = WRITE;
+              if (s.pos >= fence) {
+                s.nextRunningState = MAIN_LOOP;
+                s.runningState = INIT_WRITE;
                 continue;
               }
             } else {
@@ -951,11 +951,6 @@ final class Decode {
           } else {
             throw new BrotliRuntimeException("Invalid backward reference"); // COV_NF_LINE
           }
-          s.runningState = MAIN_LOOP;
-          continue;
-
-        case COPY_WRAP_BUFFER:
-          Utils.copyBytesWithin(ringBuffer, 0, s.ringBufferSize, s.copyDst);
           s.runningState = MAIN_LOOP;
           continue;
 
@@ -975,6 +970,10 @@ final class Decode {
           copyUncompressedData(s);
           continue;
 
+        case INIT_WRITE:
+          s.ringBufferBytesReady = Math.min(s.pos, s.ringBufferSize);
+          s.runningState = WRITE;
+          // fall through
         case WRITE:
           if (writeRingBuffer(s) == 0) {
             // Output buffer is full.
@@ -983,7 +982,14 @@ final class Decode {
           if (s.pos >= s.maxBackwardDistance) {
             s.maxDistance = s.maxBackwardDistance;
           }
-          s.pos &= ringBufferMask;
+          // Wrap the ringBuffer.
+          if (s.pos >= s.ringBufferSize) {
+            if (s.pos > s.ringBufferSize) {
+              Utils.copyBytesWithin(ringBuffer, 0, s.ringBufferSize, s.pos);
+            }
+            s.pos &= ringBufferMask;
+            s.ringBufferBytesWritten = 0;
+          }
           s.runningState = s.nextRunningState;
           continue;
 

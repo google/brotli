@@ -34,6 +34,10 @@ public class BrotliInputStream extends InputStream {
     this(source, DEFAULT_BUFFER_SIZE);
   }
 
+  public void setEager(boolean eager) {
+    decoder.setEager(eager);
+  }
+
   @Override
   public void close() throws IOException {
     decoder.close();

@@ -37,7 +37,7 @@ extern "C" {
    * There is no effort to ensure that it is a prime, the oddity is enough
      for this use.
    * The number has been tuned heuristically against compression benchmarks. */
-static const uint32_t kHashMul32 = 0x1e35a7bd;
+static const uint32_t kHashMul32 = 0x1E35A7BD;
 
 static BROTLI_INLINE uint32_t Hash(const uint8_t* p, size_t shift) {
   const uint64_t h = (BROTLI_UNALIGNED_LOAD64LE(p) << 16) * kHashMul32;

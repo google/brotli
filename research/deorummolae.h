@@ -1,17 +1,16 @@
 #ifndef BROTLI_RESEARCH_DEORUMMOLAE_H_
 #define BROTLI_RESEARCH_DEORUMMOLAE_H_
 
-#include <stddef.h>
-#include <stdint.h>
-
+#include <cstddef>
+#include <cstdint>
 #include <string>
 #include <vector>
 
 /* log2(maximal number of files). Value 6 provides some speedups. */
-#define LOG_MAX_FILES 6
+#define DM_LOG_MAX_FILES 6
 
 /* Non tunable definitions. */
-#define MAX_FILES (1 << LOG_MAX_FILES)
+#define DM_MAX_FILES (1 << DM_LOG_MAX_FILES)
 
 /**
  * Generate a dictionary for given samples.

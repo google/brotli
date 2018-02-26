@@ -1,4 +1,4 @@
-.TH "encode.h" 3 "Fri Dec 8 2017" "Brotli" \" -*- nroff -*-
+.TH "encode.h" 3 "Thu Feb 22 2018" "Brotli" \" -*- nroff -*-
 .ad l
 .nh
 .SH NAME
@@ -22,6 +22,10 @@ encode.h \- API for Brotli compression\&.
 .RI "#define \fBBROTLI_DEFAULT_WINDOW\fP   22"
 .br
 .RI "\fIDefault value for \fBBROTLI_PARAM_LGWIN\fP parameter\&. \fP"
+.ti -1c
+.RI "#define \fBBROTLI_LARGE_MAX_WINDOW_BITS\fP   30"
+.br
+.RI "\fIMaximal value for \fBBROTLI_PARAM_LGWIN\fP parameter in 'Large Window Brotli' (32-bit)\&. \fP"
 .ti -1c
 .RI "#define \fBBROTLI_MAX_INPUT_BLOCK_BITS\fP   24"
 .br
@@ -287,6 +291,9 @@ Flag that affects usage of 'literal context modeling' format feature\&. This fla
 .TP
 \fB\fIBROTLI_PARAM_SIZE_HINT \fP\fP
 Estimated total input size for all \fBBrotliEncoderCompressStream\fP calls\&. The default value is 0, which means that the total input size is unknown\&. 
+.TP
+\fB\fIBROTLI_PARAM_LARGE_WINDOW \fP\fP
+Flag that determines if 'Large Window Brotli' is used\&. 
 .SH "Function Documentation"
 .PP 
 .SS "\fBBROTLI_BOOL\fP BrotliEncoderCompress (int quality, int lgwin, \fBBrotliEncoderMode\fP mode, size_t input_size, const uint8_t input_buffer[input_size], size_t * encoded_size, uint8_t encoded_buffer[*encoded_size])"

@@ -27,6 +27,11 @@ extern "C" {
  * @note equal to @c BROTLI_MAX_DISTANCE_BITS constant.
  */
 #define BROTLI_MAX_WINDOW_BITS 24
+/**
+ * Maximal value for ::BROTLI_PARAM_LGWIN parameter
+ * in "Large Window Brotli" (32-bit).
+ */
+#define BROTLI_LARGE_MAX_WINDOW_BITS 30
 /** Minimal value for ::BROTLI_PARAM_LGBLOCK parameter. */
 #define BROTLI_MIN_INPUT_BLOCK_BITS 16
 /** Maximal value for ::BROTLI_PARAM_LGBLOCK parameter. */
@@ -176,7 +181,11 @@ typedef enum BrotliEncoderParameter {
    *
    * The default value is 0, which means that the total input size is unknown.
    */
-  BROTLI_PARAM_SIZE_HINT = 5
+  BROTLI_PARAM_SIZE_HINT = 5,
+  /**
+   * Flag that determines if "Large Window Brotli" is used.
+   */
+  BROTLI_PARAM_LARGE_WINDOW = 6
 } BrotliEncoderParameter;
 
 /**

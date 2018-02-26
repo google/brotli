@@ -10,6 +10,7 @@
 #define BROTLI_COMMON_PLATFORM_H_
 
 #include <string.h>  /* memcpy */
+#include <stdlib.h>  /* malloc, free */
 
 #include <brotli/port.h>
 #include <brotli/types.h>
@@ -204,7 +205,7 @@ static BROTLI_INLINE uint64_t BrotliUnalignedRead64(const void* p) {
 static BROTLI_INLINE void BrotliUnalignedWrite64(void* p, uint64_t v) {
   memcpy(p, &v, sizeof v);
 }
-#else /* BROTLI_ALIGNED_READ */
+#else  /* BROTLI_ALIGNED_READ */
 /* Unaligned memory access is allowed: just cast pointer to requested type. */
 static BROTLI_INLINE uint16_t BrotliUnalignedRead16(const void* p) {
   return *(const uint16_t*)p;
@@ -218,7 +219,7 @@ static BROTLI_INLINE uint64_t BrotliUnalignedRead64(const void* p) {
 static BROTLI_INLINE void BrotliUnalignedWrite64(void* p, uint64_t v) {
   *(uint64_t*)p = v;
 }
-#endif /* BROTLI_ALIGNED_READ */
+#endif  /* BROTLI_ALIGNED_READ */
 
 #if BROTLI_LITTLE_ENDIAN
 /* Straight endianness. Just read / write values. */
@@ -390,6 +391,18 @@ BROTLI_MIN_MAX(size_t) BROTLI_MIN_MAX(uint32_t) BROTLI_MIN_MAX(uint8_t)
   (A)[(J)] = __brotli_swap_tmp;   \
 }
 
+/* Default brotli_alloc_func */
+static void* BrotliDefaultAllocFunc(void* opaque, size_t size) {
+  BROTLI_UNUSED(opaque);
+  return malloc(size);
+}
+
+/* Default brotli_free_func */
+static void BrotliDefaultFreeFunc(void* opaque, void* address) {
+  BROTLI_UNUSED(opaque);
+  free(address);
+}
+
 BROTLI_UNUSED_FUNCTION void BrotliSuppressUnusedFunctions(void) {
   BROTLI_UNUSED(BrotliSuppressUnusedFunctions);
   BROTLI_UNUSED(BrotliUnalignedRead16);
@@ -413,6 +426,11 @@ BROTLI_UNUSED_FUNCTION void BrotliSuppressUnusedFunctions(void) {
   BROTLI_UNUSED(brotli_max_uint32_t);
   BROTLI_UNUSED(brotli_min_uint8_t);
   BROTLI_UNUSED(brotli_max_uint8_t);
+  BROTLI_UNUSED(BrotliDefaultAllocFunc);
+  BROTLI_UNUSED(BrotliDefaultFreeFunc);
+#if defined(BROTLI_DEBUG) || defined(BROTLI_ENABLE_LOG)
+  BROTLI_UNUSED(BrotliDump);
+#endif
 }
 
 #endif  /* BROTLI_COMMON_PLATFORM_H_ */

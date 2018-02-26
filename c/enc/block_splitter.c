@@ -174,7 +174,7 @@ void BrotliSplitBlock(MemoryManager* m,
     for (i = 0; i < num_commands; ++i) {
       const Command* cmd = &cmds[i];
       if (CommandCopyLen(cmd) && cmd->cmd_prefix_ >= 128) {
-        distance_prefixes[j++] = cmd->dist_prefix_;
+        distance_prefixes[j++] = cmd->dist_prefix_ & 0x3FF;
       }
     }
     /* Create the block split on the array of distance prefixes. */

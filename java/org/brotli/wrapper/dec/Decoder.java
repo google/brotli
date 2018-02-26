@@ -19,6 +19,7 @@ public class Decoder {
   private final DecoderJNI.Wrapper decoder;
   ByteBuffer buffer;
   boolean closed;
+  boolean eager;
 
   /**
    * Creates a Decoder wrapper.
@@ -47,6 +48,10 @@ public class Decoder {
     throw new IOException(message);
   }
 
+  public void setEager(boolean eager) {
+    this.eager = eager;
+  }
+
   /**
    * Continue decoding.
    *
@@ -71,6 +76,11 @@ public class Decoder {
           break;
 
         case NEEDS_MORE_INPUT:
+          // In "eager" more pulling preempts pushing.
+          if (eager && decoder.hasOutput()) {
+            buffer = decoder.pull();
+            break;
+          }
           ByteBuffer inputBuffer = decoder.getInputBuffer();
           inputBuffer.clear();
           int bytesRead = source.read(inputBuffer);
