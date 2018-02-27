@@ -89,8 +89,8 @@ static BROTLI_NOINLINE void EXPORT_FN(CreateBackwardReferences)(
           dist_cache[0] = (int)sr.distance;
           FN(PrepareDistanceCache)(hasher, dist_cache);
         }
-        InitCommand(commands++, insert_length, sr.len, sr.len_code_delta,
-            distance_code);
+        InitCommand(commands++, &params->dist, insert_length,
+            sr.len, sr.len_code_delta, distance_code);
       }
       *num_literals += insert_length;
       insert_length = 0;

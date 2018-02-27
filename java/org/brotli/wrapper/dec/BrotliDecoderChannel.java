@@ -58,8 +58,8 @@ public class BrotliDecoderChannel extends Decoder implements ReadableByteChannel
       int result = 0;
       while (dst.hasRemaining()) {
         int outputSize = decode();
-        if (outputSize == -1) {
-          return result == 0 ? -1 : result;
+        if (outputSize <= 0) {
+          return result == 0 ? outputSize : result;
         }
         result += consume(dst);
       }
