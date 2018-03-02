@@ -38,7 +38,7 @@ typedef struct BrotliEncoderParams {
   BROTLI_BOOL large_window;
   BrotliHasherParams hasher;
   BrotliDistanceParams dist;
-  BrotliEncoderDictionary dictionary;
+  SharedEncoderDictionary dictionary;
 } BrotliEncoderParams;
 
 #endif  /* BROTLI_ENC_PARAMS_H_ */

@@ -42,6 +42,11 @@ public class BrotliEncoderChannel extends Encoder implements WritableByteChannel
   }
 
   @Override
+  public void attachDictionary(PreparedDictionary dictionary) throws IOException {
+    super.attachDictionary(dictionary);
+  }
+
+  @Override
   public boolean isOpen() {
     synchronized (mutex) {
       return !closed;

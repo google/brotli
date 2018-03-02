@@ -48,6 +48,12 @@ public class Decoder {
     throw new IOException(message);
   }
 
+  void attachDictionary(ByteBuffer dictionary) throws IOException {
+    if (!decoder.attachDictionary(dictionary)) {
+      fail("failed to attach dictionary");
+    }
+  }
+
   public void setEager(boolean eager) {
     this.eager = eager;
   }

@@ -13,6 +13,7 @@
 #define BROTLI_DEC_DECODE_H_
 
 #include <brotli/port.h>
+#include <brotli/shared_dictionary.h>
 #include <brotli/types.h>
 
 #if defined(__cplusplus) || defined(c_plusplus)
@@ -246,6 +247,9 @@ BROTLI_DEC_API BrotliDecoderResult BrotliDecoderDecompress(
 BROTLI_DEC_API BrotliDecoderResult BrotliDecoderDecompressStream(
   BrotliDecoderState* state, size_t* available_in, const uint8_t** next_in,
   size_t* available_out, uint8_t** next_out, size_t* total_out);
+BROTLI_DEC_API BROTLI_BOOL BrotliDecoderAttachDictionary(
+    BrotliDecoderState* state, BrotliSharedDictionaryType type,
+    const uint8_t* data, size_t size);
 
 /**
  * Checks if decoder has more output.
