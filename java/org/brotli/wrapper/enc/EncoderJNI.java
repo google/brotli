@@ -17,6 +17,9 @@ class EncoderJNI {
   private static native void nativePush(long[] context, int length);
   private static native ByteBuffer nativePull(long[] context);
   private static native void nativeDestroy(long[] context);
+  private static native boolean nativeAttachDictionary(long[] context, ByteBuffer dictionary);
+  private static native ByteBuffer nativePrepareDictionary(ByteBuffer dictionary, long type);
+  private static native void nativeDestroyDictionary(ByteBuffer dictionary);
 
   enum Operation {
     PROCESS,
@@ -24,12 +27,31 @@ class EncoderJNI {
     FINISH
   }
 
+  static ByteBuffer prepareDictionary(ByteBuffer dictionary) {
+    if (!dictionary.isDirect()) {
+      throw new IllegalArgumentException("only direct buffers allowed");
+    }
+    return nativePrepareDictionary(dictionary, 0);
+  }
+
+  static void destroyDictionary(ByteBuffer dictionary) {
+    if (!dictionary.isDirect()) {
+      throw new IllegalArgumentException("only direct buffers allowed");
+    }
+    // TODO: add a seal to ensure that this buffer is from native code.
+    nativeDestroyDictionary(dictionary);
+  }
+
   static class Wrapper {
     protected final long[] context = new long[5];
     private final ByteBuffer inputBuffer;
+    private boolean fresh = true;
 
     Wrapper(int inputBufferSize, int quality, int lgwin)
         throws IOException {
+      if (inputBufferSize <= 0) {
+        throw new IOException("buffer size must be positive");
+      }
       this.context[1] = inputBufferSize;
       this.context[2] = quality;
       this.context[3] = lgwin;
@@ -40,6 +62,19 @@ class EncoderJNI {
       this.context[1] = 1;
       this.context[2] = 0;
       this.context[3] = 0;
+    }
+
+    boolean attachDictionary(ByteBuffer dictionary) {
+      if (!dictionary.isDirect()) {
+        throw new IllegalArgumentException("only direct buffers allowed");
+      }
+      if (context[0] == 0) {
+        throw new IllegalStateException("brotli decoder is already destroyed");
+      }
+      if (!fresh) {
+        throw new IllegalStateException("decoding is already started");
+      }
+      return nativeAttachDictionary(context, dictionary);
     }
 
     void push(Operation op, int length) {
@@ -56,6 +91,7 @@ class EncoderJNI {
         throw new IllegalStateException("pushing input to encoder over previous input");
       }
       context[1] = op.ordinal();
+      fresh = false;
       nativePush(context, length);
     }
 
@@ -86,6 +122,7 @@ class EncoderJNI {
       if (!isSuccess() || !hasMoreOutput()) {
         throw new IllegalStateException("pulling while data is not ready");
       }
+      fresh = false;
       return nativePull(context);
     }
 

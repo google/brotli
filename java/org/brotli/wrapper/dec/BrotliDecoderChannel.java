@@ -36,6 +36,11 @@ public class BrotliDecoderChannel extends Decoder implements ReadableByteChannel
   }
 
   @Override
+  public void attachDictionary(ByteBuffer dictionary) throws IOException {
+    super.attachDictionary(dictionary);
+  }
+
+  @Override
   public boolean isOpen() {
     synchronized (mutex) {
       return !closed;

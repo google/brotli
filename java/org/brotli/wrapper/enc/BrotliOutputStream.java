@@ -40,6 +40,10 @@ public class BrotliOutputStream extends OutputStream {
     this(destination, new Encoder.Parameters());
   }
 
+  public void attachDictionary(PreparedDictionary dictionary) throws IOException {
+    encoder.attachDictionary(dictionary);
+  }
+
   @Override
   public void close() throws IOException {
     encoder.close();

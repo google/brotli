@@ -17,6 +17,7 @@ public class DecoderJNI {
   private static native void nativePush(long[] context, int length);
   private static native ByteBuffer nativePull(long[] context);
   private static native void nativeDestroy(long[] context);
+  private static native boolean nativeAttachDictionary(long[] context, ByteBuffer dictionary);
 
   public enum Status {
     ERROR,
@@ -30,6 +31,7 @@ public class DecoderJNI {
     private final long[] context = new long[3];
     private final ByteBuffer inputBuffer;
     private Status lastStatus = Status.NEEDS_MORE_INPUT;
+    private boolean fresh = true;
 
     public Wrapper(int inputBufferSize) throws IOException {
       this.context[1] = inputBufferSize;
@@ -37,6 +39,19 @@ public class DecoderJNI {
       if (this.context[0] == 0) {
         throw new IOException("failed to initialize native brotli decoder");
       }
+    }
+
+    public boolean attachDictionary(ByteBuffer dictionary) {
+      if (!dictionary.isDirect()) {
+        throw new IllegalArgumentException("only direct buffers allowed");
+      }
+      if (context[0] == 0) {
+        throw new IllegalStateException("brotli decoder is already destroyed");
+      }
+      if (!fresh) {
+        throw new IllegalStateException("decoding is already started");
+      }
+      return nativeAttachDictionary(context, dictionary);
     }
 
     public void push(int length) {
@@ -52,6 +67,7 @@ public class DecoderJNI {
       if (lastStatus == Status.OK && length != 0) {
         throw new IllegalStateException("pushing input to decoder in OK state");
       }
+      fresh = false;
       nativePush(context, length);
       parseStatus();
     }
@@ -90,6 +106,7 @@ public class DecoderJNI {
       if (lastStatus != Status.NEEDS_MORE_OUTPUT && !hasOutput()) {
         throw new IllegalStateException("pulling output from decoder in " + lastStatus + " state");
       }
+      fresh = false;
       ByteBuffer result = nativePull(context);
       parseStatus();
       return result;
