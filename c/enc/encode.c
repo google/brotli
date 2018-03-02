@@ -171,26 +171,6 @@ BROTLI_BOOL BrotliEncoderSetParameter(
   }
 }
 
-static void RecomputeDistancePrefixes(Command* cmds,
-                                      size_t num_commands,
-                                      uint32_t num_direct_distance_codes,
-                                      uint32_t distance_postfix_bits) {
-  size_t i;
-  if (num_direct_distance_codes == 0 && distance_postfix_bits == 0) {
-    return;
-  }
-  for (i = 0; i < num_commands; ++i) {
-    Command* cmd = &cmds[i];
-    if (CommandCopyLen(cmd) && cmd->cmd_prefix_ >= 128) {
-      PrefixEncodeCopyDistance(CommandRestoreDistanceCode(cmd),
-                               num_direct_distance_codes,
-                               distance_postfix_bits,
-                               &cmd->dist_prefix_,
-                               &cmd->dist_extra_);
-    }
-  }
-}
-
 /* Wraps 64-bit input position to 32-bit ring-buffer position preserving
    "not-a-first-lap" feature. */
 static uint32_t WrapPosition(uint64_t position) {
@@ -587,13 +567,6 @@ static void WriteMetaBlockInternal(MemoryManager* m,
   BROTLI_DCHECK(*storage_ix <= 14);
   last_bytes = (uint16_t)((storage[1] << 8) | storage[0]);
   last_bytes_bits = (uint8_t)(*storage_ix);
-  if (params->dist.num_direct_distance_codes != 0 ||
-      params->dist.distance_postfix_bits != 0) {
-    RecomputeDistancePrefixes(commands,
-                              num_commands,
-                              params->dist.num_direct_distance_codes,
-                              params->dist.distance_postfix_bits);
-  }
   if (params->quality <= MAX_QUALITY_FOR_STATIC_ENTROPY_CODES) {
     BrotliStoreMetaBlockFast(m, data, wrapped_last_flush_pos,
                              bytes, mask, is_last, params,
@@ -663,6 +636,8 @@ static void WriteMetaBlockInternal(MemoryManager* m,
 }
 
 static void ChooseDistanceParams(BrotliEncoderParams* params) {
+  /* NDIRECT, NPOSTFIX must be both zero for qualities
+     up to MIN_QUALITY_FOR_BLOCK_SPLIT == 3. */
   uint32_t num_direct_distance_codes = 0;
   uint32_t distance_postfix_bits = 0;
   uint32_t alphabet_size;
@@ -782,9 +757,8 @@ static void BrotliEncoderInitState(BrotliEncoderState* s) {
   memcpy(s->saved_dist_cache_, s->dist_cache_, sizeof(s->saved_dist_cache_));
 }
 
-BrotliEncoderState* BrotliEncoderCreateInstance(brotli_alloc_func alloc_func,
-                                                brotli_free_func free_func,
-                                                void* opaque) {
+BrotliEncoderState* BrotliEncoderCreateInstance(
+    brotli_alloc_func alloc_func, brotli_free_func free_func, void* opaque) {
   BrotliEncoderState* state = 0;
   if (!alloc_func && !free_func) {
     state = (BrotliEncoderState*)malloc(sizeof(BrotliEncoderState));
@@ -912,7 +886,8 @@ static void ExtendLastCommand(BrotliEncoderState* s, uint32_t* bytes,
   uint64_t max_distance = last_processed_pos < max_backward_distance ?
       last_processed_pos : max_backward_distance;
   uint64_t cmd_dist = (uint64_t)s->dist_cache_[0];
-  uint32_t distance_code = CommandRestoreDistanceCode(last_command);
+  uint32_t distance_code = CommandRestoreDistanceCode(last_command,
+                                                      &s->params.dist);
   if (distance_code < BROTLI_NUM_DISTANCE_SHORT_CODES ||
       distance_code - (BROTLI_NUM_DISTANCE_SHORT_CODES - 1) == cmd_dist) {
     if (cmd_dist <= max_distance) {

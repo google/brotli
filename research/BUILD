@@ -35,3 +35,10 @@ cc_binary(
         ":sieve",
     ],
 )
+
+cc_binary(
+    name = "brotli_decoder",
+    srcs = ["brotli_decoder.c"],
+    linkstatic = 1,
+    deps = ["//:brotlidec"],
+)

@@ -18,6 +18,7 @@
 #include "./find_match_length.h"
 #include "./literal_cost.h"
 #include "./memory.h"
+#include "./params.h"
 #include "./prefix.h"
 #include "./quality.h"
 
@@ -25,9 +26,7 @@
 extern "C" {
 #endif
 
-#define BROTLI_SIMPLE_DISTANCE_ALPHABET_SIZE ( \
-    BROTLI_NUM_DISTANCE_SHORT_CODES + (2 * BROTLI_LARGE_MAX_DISTANCE_BITS))
-/* BROTLI_SIMPLE_DISTANCE_ALPHABET_SIZE == 74 */
+#define BROTLI_MAX_EFFECTIVE_DISTANCE_ALPHABET_SIZE 544
 
 static const float kInfinity = 1.7e38f;  /* ~= 2 ^ 127 */
 
@@ -76,7 +75,8 @@ static BROTLI_INLINE uint32_t ZopfliNodeCommandLength(const ZopfliNode* self) {
 typedef struct ZopfliCostModel {
   /* The insert and copy length symbols. */
   float cost_cmd_[BROTLI_NUM_COMMAND_SYMBOLS];
-  float cost_dist_[BROTLI_SIMPLE_DISTANCE_ALPHABET_SIZE];
+  float* cost_dist_;
+  uint32_t distance_alphabet_size;
   /* Cumulative costs of literals per position in the stream. */
   float* literal_costs_;
   float min_cost_cmd_;
@@ -84,14 +84,18 @@ typedef struct ZopfliCostModel {
 } ZopfliCostModel;
 
 static void InitZopfliCostModel(
-    MemoryManager* m, ZopfliCostModel* self, size_t num_bytes) {
+    MemoryManager* m, ZopfliCostModel* self, const BrotliDistanceParams* dist,
+    size_t num_bytes) {
   self->num_bytes_ = num_bytes;
   self->literal_costs_ = BROTLI_ALLOC(m, float, num_bytes + 2);
+  self->cost_dist_ = BROTLI_ALLOC(m, float, dist->alphabet_size);
+  self->distance_alphabet_size = dist->alphabet_size;
   if (BROTLI_IS_OOM(m)) return;
 }
 
 static void CleanupZopfliCostModel(MemoryManager* m, ZopfliCostModel* self) {
   BROTLI_FREE(m, self->literal_costs_);
+  BROTLI_FREE(m, self->cost_dist_);
 }
 
 static void SetCost(const uint32_t* histogram, size_t histogram_size,
@@ -135,7 +139,7 @@ static void ZopfliCostModelSetFromCommands(ZopfliCostModel* self,
                                            size_t last_insert_len) {
   uint32_t histogram_literal[BROTLI_NUM_LITERAL_SYMBOLS];
   uint32_t histogram_cmd[BROTLI_NUM_COMMAND_SYMBOLS];
-  uint32_t histogram_dist[BROTLI_SIMPLE_DISTANCE_ALPHABET_SIZE];
+  uint32_t histogram_dist[BROTLI_MAX_EFFECTIVE_DISTANCE_ALPHABET_SIZE];
   float cost_literal[BROTLI_NUM_LITERAL_SYMBOLS];
   size_t pos = position - last_insert_len;
   float min_cost_cmd = kInfinity;
@@ -167,7 +171,7 @@ static void ZopfliCostModelSetFromCommands(ZopfliCostModel* self,
           cost_literal);
   SetCost(histogram_cmd, BROTLI_NUM_COMMAND_SYMBOLS, BROTLI_FALSE,
           cost_cmd);
-  SetCost(histogram_dist, BROTLI_SIMPLE_DISTANCE_ALPHABET_SIZE, BROTLI_FALSE,
+  SetCost(histogram_dist, self->distance_alphabet_size, BROTLI_FALSE,
           self->cost_dist_);
 
   for (i = 0; i < BROTLI_NUM_COMMAND_SYMBOLS; ++i) {
@@ -210,7 +214,7 @@ static void ZopfliCostModelSetFromLiteralCosts(ZopfliCostModel* self,
   for (i = 0; i < BROTLI_NUM_COMMAND_SYMBOLS; ++i) {
     cost_cmd[i] = (float)FastLog2(11 + (uint32_t)i);
   }
-  for (i = 0; i < BROTLI_SIMPLE_DISTANCE_ALPHABET_SIZE; ++i) {
+  for (i = 0; i < self->distance_alphabet_size; ++i) {
     cost_dist[i] = (float)FastLog2(20 + (uint32_t)i);
   }
   self->min_cost_cmd_ = (float)FastLog2(11);
@@ -505,7 +509,9 @@ static size_t UpdateNodes(
         uint32_t distnumextra;
         float dist_cost;
         size_t max_match_len;
-        PrefixEncodeCopyDistance(dist_code, 0, 0, &dist_symbol, &distextra);
+        PrefixEncodeCopyDistance(
+            dist_code, params->dist.num_direct_distance_codes,
+            params->dist.distance_postfix_bits, &dist_symbol, &distextra);
         distnumextra = dist_symbol >> 10;
         dist_cost = base_cost + (float)distnumextra +
             ZopfliCostModelGetDistanceCost(model, dist_symbol & 0x3FF);
@@ -566,7 +572,6 @@ void BrotliZopfliCreateCommands(const size_t num_bytes,
   uint32_t offset = nodes[0].u.next;
   size_t i;
   size_t gap = 0;
-  BROTLI_UNUSED(params);
   for (i = 0; offset != BROTLI_UINT32_MAX; i++) {
     const ZopfliNode* next = &nodes[pos + offset];
     size_t copy_length = ZopfliNodeCopyLength(next);
@@ -584,7 +589,7 @@ void BrotliZopfliCreateCommands(const size_t num_bytes,
           BROTLI_MIN(size_t, block_start + pos, max_backward_limit);
       BROTLI_BOOL is_dictionary = TO_BROTLI_BOOL(distance > max_distance + gap);
       size_t dist_code = ZopfliNodeDistanceCode(next);
-      InitCommand(&commands[i], insert_length,
+      InitCommand(&commands[i], &params->dist, insert_length,
           copy_length, (int)len_code - (int)copy_length, dist_code);
 
       if (!is_dictionary && dist_code > 0) {
@@ -663,7 +668,7 @@ size_t BrotliZopfliComputeShortestPath(MemoryManager* m,
   size_t lz_matches_offset = 0;
   nodes[0].length = 0;
   nodes[0].u.cost = 0;
-  InitZopfliCostModel(m, &model, num_bytes);
+  InitZopfliCostModel(m, &model, &params->dist, num_bytes);
   if (BROTLI_IS_OOM(m)) return 0;
   ZopfliCostModelSetFromLiteralCosts(
       &model, position, ringbuffer, ringbuffer_mask);
@@ -788,7 +793,7 @@ void BrotliCreateHqZopfliBackwardReferences(MemoryManager* m,
   orig_num_commands = *num_commands;
   nodes = BROTLI_ALLOC(m, ZopfliNode, num_bytes + 1);
   if (BROTLI_IS_OOM(m)) return;
-  InitZopfliCostModel(m, &model, num_bytes);
+  InitZopfliCostModel(m, &model, &params->dist, num_bytes);
   if (BROTLI_IS_OOM(m)) return;
   for (i = 0; i < 2; i++) {
     BrotliInitZopfliNodes(nodes, num_bytes + 1);
