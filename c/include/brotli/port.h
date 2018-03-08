@@ -27,6 +27,14 @@
 #define __has_feature(x) 0
 #endif
 
+#ifndef __has_declspec_attribute
+#if defined(_WIN32)
+#define __has_declspec_attribute(x) 1
+#else
+#define __has_declspec_attribute(x) 0
+#endif
+#endif
+
 #if defined(__GNUC__) && defined(__GNUC_MINOR__)
 #define BROTLI_GCC_VERSION (__GNUC__ * 100 + __GNUC_MINOR__)
 #else
@@ -47,7 +55,7 @@
 #define BROTLI_MODERN_COMPILER 0
 #endif
 
-#if defined(BROTLI_SHARED_COMPILATION) && defined(_WIN32)
+#if defined(BROTLI_SHARED_COMPILATION) && (__has_declspec_attribute(dllexport) && __has_declspec_attribute(dllimport))
 #if defined(BROTLICOMMON_SHARED_COMPILATION)
 #define BROTLI_COMMON_API __declspec(dllexport)
 #else
