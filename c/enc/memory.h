@@ -80,6 +80,21 @@ R: requested size
   }                                              \
 }
 
+/*
+Appends value and dynamically grows array capacity when needed
+M: MemoryManager
+T: data type
+A: array
+C: array capacity
+S: array size
+V: value to append
+*/
+#define BROTLI_ENSURE_CAPACITY_APPEND(M, T, A, C, S, V) { \
+  (S)++;                                                  \
+  BROTLI_ENSURE_CAPACITY(M, T, A, C, S);                  \
+  A[(S) - 1] = (V);                                       \
+}
+
 #if defined(__cplusplus) || defined(c_plusplus)
 }  /* extern "C" */
 #endif

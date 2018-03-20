@@ -49,6 +49,7 @@ static BROTLI_INLINE size_t ComputeDistanceCode(size_t distance,
 #define CAT(a, b) a ## b
 #define FN(X) EXPAND_CAT(X, HASHER())
 #define EXPORT_FN(X) EXPAND_CAT(X, EXPAND_CAT(PREFIX(), HASHER()))
+
 #define PREFIX() N
 
 #define HASHER() H2
@@ -97,6 +98,7 @@ static BROTLI_INLINE size_t ComputeDistanceCode(size_t distance,
 #undef HASHER
 
 #undef PREFIX
+
 #undef EXPORT_FN
 #undef FN
 #undef CAT

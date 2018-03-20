@@ -249,6 +249,7 @@ EXT_MODULES = [
             'c/enc/memory.h',
             'c/enc/metablock.h',
             'c/enc/metablock_inc.h',
+            'c/enc/params.h',
             'c/enc/prefix.h',
             'c/enc/quality.h',
             'c/enc/ringbuffer.h',

@@ -167,6 +167,14 @@ BROTLI_BOOL BrotliEncoderSetParameter(
       state->params.large_window = TO_BROTLI_BOOL(!!value);
       return BROTLI_TRUE;
 
+    case BROTLI_PARAM_NPOSTFIX:
+      state->params.dist.distance_postfix_bits = value;
+      return BROTLI_TRUE;
+
+    case BROTLI_PARAM_NDIRECT:
+      state->params.dist.num_direct_distance_codes = value;
+      return BROTLI_TRUE;
+
     default: return BROTLI_FALSE;
   }
 }
@@ -636,26 +644,42 @@ static void WriteMetaBlockInternal(MemoryManager* m,
 }
 
 static void ChooseDistanceParams(BrotliEncoderParams* params) {
-  /* NDIRECT, NPOSTFIX must be both zero for qualities
-     up to MIN_QUALITY_FOR_BLOCK_SPLIT == 3. */
-  uint32_t num_direct_distance_codes = 0;
   uint32_t distance_postfix_bits = 0;
+  uint32_t num_direct_distance_codes = 0;
   uint32_t alphabet_size;
   size_t max_distance = BROTLI_MAX_DISTANCE;
 
-  if (params->quality >= MIN_QUALITY_FOR_RECOMPUTE_DISTANCE_PREFIXES &&
-      params->mode == BROTLI_MODE_FONT) {
-    num_direct_distance_codes = 12;
-    distance_postfix_bits = 1;
-    max_distance = (1U << 27) + 4;
+  if (params->quality >= MIN_QUALITY_FOR_NONZERO_DISTANCE_PARAMS) {
+    uint32_t ndirect_msb;
+    if (params->mode == BROTLI_MODE_FONT) {
+      distance_postfix_bits = 1;
+      num_direct_distance_codes = 12;
+    } else {
+      distance_postfix_bits = params->dist.distance_postfix_bits;
+      num_direct_distance_codes = params->dist.num_direct_distance_codes;
+    }
+    ndirect_msb = (num_direct_distance_codes >> distance_postfix_bits) & 0x0F;
+    if (distance_postfix_bits > BROTLI_MAX_NPOSTFIX ||
+        num_direct_distance_codes > BROTLI_MAX_NDIRECT ||
+        (ndirect_msb << distance_postfix_bits) != num_direct_distance_codes) {
+      distance_postfix_bits = 0;
+      num_direct_distance_codes = 0;
+    }
+    max_distance = num_direct_distance_codes +
+        (1U << (BROTLI_MAX_DISTANCE_BITS + distance_postfix_bits + 2)) -
+        (1U << (distance_postfix_bits + 2));
   }
 
   alphabet_size = BROTLI_DISTANCE_ALPHABET_SIZE(
       num_direct_distance_codes, distance_postfix_bits,
       BROTLI_MAX_DISTANCE_BITS);
   if (params->large_window) {
-    max_distance = BROTLI_MAX_ALLOWED_DISTANCE;
-    if (num_direct_distance_codes != 0 || distance_postfix_bits != 0) {
+    /* The maximum distance is set so that no distance symbol used can encode
+       a distance larger than BROTLI_MAX_ALLOWED_DISTANCE with all
+       its extra bits set. */
+    const uint32_t bound_ndirect[BROTLI_MAX_NDIRECT + 1] = {1, 6, 16, 36};
+    max_distance = (1U << 31) - 32;
+    if (num_direct_distance_codes >= bound_ndirect[distance_postfix_bits]) {
       max_distance = (3U << 29) - 4;
     }
     alphabet_size = BROTLI_DISTANCE_ALPHABET_SIZE(
@@ -663,8 +687,8 @@ static void ChooseDistanceParams(BrotliEncoderParams* params) {
         BROTLI_LARGE_MAX_DISTANCE_BITS);
   }
 
-  params->dist.num_direct_distance_codes = num_direct_distance_codes;
   params->dist.distance_postfix_bits = distance_postfix_bits;
+  params->dist.num_direct_distance_codes = num_direct_distance_codes;
   params->dist.alphabet_size = alphabet_size;
   params->dist.max_distance = max_distance;
 }
@@ -710,8 +734,8 @@ static void BrotliEncoderInitParams(BrotliEncoderParams* params) {
   params->size_hint = 0;
   params->disable_literal_context_modeling = BROTLI_FALSE;
   BrotliInitEncoderDictionary(&params->dictionary);
-  params->dist.num_direct_distance_codes = 0;
   params->dist.distance_postfix_bits = 0;
+  params->dist.num_direct_distance_codes = 0;
   params->dist.alphabet_size =
       BROTLI_DISTANCE_ALPHABET_SIZE(0, 0, BROTLI_MAX_DISTANCE_BITS);
   params->dist.max_distance = BROTLI_MAX_DISTANCE;
