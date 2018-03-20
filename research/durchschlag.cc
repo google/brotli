@@ -75,6 +75,8 @@ static std::string createDictionary(
   return output;
 }
 
+/* precondition: span > 0
+   precondition: end + span == len(shortcut) */
 static Score buildCandidatesList(std::vector<Candidate>* candidates,
     std::vector<MetaSlot>* map, TextIdx span, const TextIdx* shortcut,
     TextIdx end) {
@@ -87,7 +89,10 @@ static Score buildCandidatesList(std::vector<Candidate>* candidates,
   }
 
   Score score = 0;
-  for (size_t j = 0; j < span; ++j) {
+  /* Consider the whole span, except one last item. The following loop will
+     add the last item to the end of the "chain", evaluate it, and cut one
+     "link" form the beginning. */
+  for (size_t j = 0; j < span - 1; ++j) {
     MetaSlot& item = slots[shortcut[j]];
     if (item.mark == 0) {
       score += item.score;
@@ -99,7 +104,8 @@ static Score buildCandidatesList(std::vector<Candidate>* candidates,
   TextIdx limit = std::min<TextIdx>(end, CANDIDATE_BUNDLE_SIZE);
   Score maxScore = 0;
   for (; i < limit; ++i) {
-    MetaSlot& pick = slots[shortcut[i + span]];
+    TextIdx slice = shortcut[i + span - 1];
+    MetaSlot& pick = slots[slice];
     if (pick.mark == 0) {
       score += pick.score;
     }
@@ -120,7 +126,8 @@ static Score buildCandidatesList(std::vector<Candidate>* candidates,
   std::make_heap(candidates->begin(), candidates->end(), greaterScore());
   Score minScore = candidates->at(0).score;
   for (; i < end; ++i) {
-    MetaSlot& pick = slots[shortcut[i + span]];
+    TextIdx slice = shortcut[i + span - 1];
+    MetaSlot& pick = slots[slice];
     if (pick.mark == 0) {
       score += pick.score;
     }
@@ -156,6 +163,8 @@ static Score buildCandidatesList(std::vector<Candidate>* candidates,
   return minScore;
 }
 
+/* precondition: span > 0
+   precondition: end + span == len(shortcut) */
 static Score rebuildCandidatesList(std::vector<TextIdx>* candidates,
     std::vector<MetaSlot>* map, TextIdx span, const TextIdx* shortcut,
     TextIdx end, TextIdx* next) {
@@ -172,7 +181,10 @@ static Score rebuildCandidatesList(std::vector<TextIdx>* candidates,
   }
 
   Score score = 0;
-  for (TextIdx i = 0; i < span; ++i) {
+  /* Consider the whole span, except one last item. The following loop will
+     add the last item to the end of the "chain", evaluate it, and cut one
+     "link" form the beginning. */
+  for (TextIdx i = 0; i < span - 1; ++i) {
     MetaSlot& item = slots[shortcut[i]];
     if (item.mark == 0) {
       score += item.score;
@@ -182,7 +194,7 @@ static Score rebuildCandidatesList(std::vector<TextIdx>* candidates,
 
   Score maxScore = 0;
   for (TextIdx i = 0; i < end; ++i) {
-    MetaSlot& pick = slots[shortcut[i + span]];
+    MetaSlot& pick = slots[shortcut[i + span - 1]];
     if (pick.mark == 0) {
       score += pick.score;
     }
@@ -460,10 +472,10 @@ static std::string durchschlagGenerateExclusive(
   }
   TextIdx end = total - sliceLen + 1;
   ScoreSlices(offsets, map, shortcut, end);
-  end = total - blockLen + 1;
+  TextIdx span = blockLen - sliceLen + 1;
+  end = static_cast<TextIdx>(context.sliceMap.size()) - span;
   std::vector<TextIdx> candidates;
   std::vector<TextIdx> next(end);
-  TextIdx span = blockLen - sliceLen + 1;
   Score maxScore = rebuildCandidatesList(
       &candidates, &map, span, shortcut, end, next.data());
 
@@ -499,7 +511,7 @@ static std::string durchschlagGenerateExclusive(
       numTries++;
       numCandidates++;
       Score score = 0;
-      for (size_t j = candidate; j <= candidate + span; ++j) {
+      for (size_t j = candidate; j < candidate + span; ++j) {
         MetaSlot& item = map[shortcut[j]];
         if (item.mark != mark) {
           score += item.score;
@@ -522,7 +534,7 @@ static std::string durchschlagGenerateExclusive(
         fprintf(stderr, "Broken invariant\n");
         return "";
       }
-      for (TextIdx j = candidate; j <= candidate + span; ++j) {
+      for (TextIdx j = candidate; j < candidate + span; ++j) {
         MetaSlot& item = map[shortcut[j]];
         item.score = 0;
       }
@@ -566,10 +578,10 @@ static std::string durchschlagGenerateCollaborative(
   }
   TextIdx end = total - sliceLen + 1;
   ScoreSlices(offsets, map, shortcut, end);
-  end = total - blockLen + 1;
+  TextIdx span = blockLen - sliceLen + 1;
+  end = static_cast<TextIdx>(context.sliceMap.size()) - span;
   std::vector<Candidate> candidates;
   candidates.reserve(CANDIDATE_BUNDLE_SIZE + 1024);
-  TextIdx span = blockLen - sliceLen + 1;
   Score minScore = buildCandidatesList(&candidates, &map, span, shortcut, end);
 
   /* Block selection */
@@ -598,7 +610,7 @@ static std::string durchschlagGenerateCollaborative(
       candidates.pop_back();
       mark++;
       Score score = 0;
-      for (TextIdx j = candidate; j <= candidate + span; ++j) {
+      for (TextIdx j = candidate; j < candidate + span; ++j) {
         MetaSlot& item = map[shortcut[j]];
         if (item.mark != mark) {
           score += item.score;
@@ -614,7 +626,7 @@ static std::string durchschlagGenerateCollaborative(
       } else if (score > expectedScore) {
         fatal("Broken invariant");
       }
-      for (TextIdx j = candidate; j <= candidate + span; ++j) {
+      for (TextIdx j = candidate; j < candidate + span; ++j) {
         MetaSlot& item = map[shortcut[j]];
         item.score = 0;
       }

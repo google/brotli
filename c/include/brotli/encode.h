@@ -185,7 +185,23 @@ typedef enum BrotliEncoderParameter {
   /**
    * Flag that determines if "Large Window Brotli" is used.
    */
-  BROTLI_PARAM_LARGE_WINDOW = 6
+  BROTLI_PARAM_LARGE_WINDOW = 6,
+  /**
+   * Recommended number of postfix bits (NPOSTFIX).
+   *
+   * Encoder may change this value.
+   *
+   * Range is from 0 to ::BROTLI_MAX_NPOSTFIX.
+   */
+  BROTLI_PARAM_NPOSTFIX = 7,
+  /**
+   * Recommended number of direct distance codes (NDIRECT).
+   *
+   * Encoder may change this value.
+   *
+   * Range is from 0 to (15 << NPOSTFIX) in steps of (1 << NPOSTFIX).
+   */
+  BROTLI_PARAM_NDIRECT = 8
 } BrotliEncoderParameter;
 
 /**

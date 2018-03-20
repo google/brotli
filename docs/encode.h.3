@@ -294,6 +294,16 @@ Estimated total input size for all \fBBrotliEncoderCompressStream\fP calls\&. Th
 .TP
 \fB\fIBROTLI_PARAM_LARGE_WINDOW \fP\fP
 Flag that determines if 'Large Window Brotli' is used\&. 
+.TP
+\fB\fIBROTLI_PARAM_NPOSTFIX \fP\fP
+Recommended number of postfix bits (NPOSTFIX)\&. Encoder may change this value\&.
+.PP
+Range is from 0 to ::BROTLI_MAX_NPOSTFIX\&. 
+.TP
+\fB\fIBROTLI_PARAM_NDIRECT \fP\fP
+Recommended number of direct distance codes (NDIRECT)\&. Encoder may change this value\&.
+.PP
+Range is from 0 to (15 << NPOSTFIX) in steps of (1 << NPOSTFIX)\&. 
 .SH "Function Documentation"
 .PP 
 .SS "\fBBROTLI_BOOL\fP BrotliEncoderCompress (int quality, int lgwin, \fBBrotliEncoderMode\fP mode, size_t input_size, const uint8_t input_buffer[input_size], size_t * encoded_size, uint8_t encoded_buffer[*encoded_size])"

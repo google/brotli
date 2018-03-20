@@ -83,6 +83,7 @@ STRICT_C_OPTIONS = [
     "-Wmissing-declarations",
     "-Wmissing-prototypes",
     "-Wno-strict-aliasing",
+    "-Wno-implicit-fallthrough",
     "-Wshadow",
     "-Wsign-compare",
 ]

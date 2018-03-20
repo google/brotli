@@ -76,7 +76,7 @@ typedef struct ZopfliCostModel {
   /* The insert and copy length symbols. */
   float cost_cmd_[BROTLI_NUM_COMMAND_SYMBOLS];
   float* cost_dist_;
-  uint32_t distance_alphabet_size;
+  uint32_t distance_histogram_size;
   /* Cumulative costs of literals per position in the stream. */
   float* literal_costs_;
   float min_cost_cmd_;
@@ -86,10 +86,14 @@ typedef struct ZopfliCostModel {
 static void InitZopfliCostModel(
     MemoryManager* m, ZopfliCostModel* self, const BrotliDistanceParams* dist,
     size_t num_bytes) {
+  uint32_t distance_histogram_size = dist->alphabet_size;
+  if (distance_histogram_size > BROTLI_MAX_EFFECTIVE_DISTANCE_ALPHABET_SIZE) {
+    distance_histogram_size = BROTLI_MAX_EFFECTIVE_DISTANCE_ALPHABET_SIZE;
+  }
   self->num_bytes_ = num_bytes;
   self->literal_costs_ = BROTLI_ALLOC(m, float, num_bytes + 2);
   self->cost_dist_ = BROTLI_ALLOC(m, float, dist->alphabet_size);
-  self->distance_alphabet_size = dist->alphabet_size;
+  self->distance_histogram_size = distance_histogram_size;
   if (BROTLI_IS_OOM(m)) return;
 }
 
@@ -171,7 +175,7 @@ static void ZopfliCostModelSetFromCommands(ZopfliCostModel* self,
           cost_literal);
   SetCost(histogram_cmd, BROTLI_NUM_COMMAND_SYMBOLS, BROTLI_FALSE,
           cost_cmd);
-  SetCost(histogram_dist, self->distance_alphabet_size, BROTLI_FALSE,
+  SetCost(histogram_dist, self->distance_histogram_size, BROTLI_FALSE,
           self->cost_dist_);
 
   for (i = 0; i < BROTLI_NUM_COMMAND_SYMBOLS; ++i) {
@@ -214,7 +218,7 @@ static void ZopfliCostModelSetFromLiteralCosts(ZopfliCostModel* self,
   for (i = 0; i < BROTLI_NUM_COMMAND_SYMBOLS; ++i) {
     cost_cmd[i] = (float)FastLog2(11 + (uint32_t)i);
   }
-  for (i = 0; i < self->distance_alphabet_size; ++i) {
+  for (i = 0; i < self->distance_histogram_size; ++i) {
     cost_dist[i] = (float)FastLog2(20 + (uint32_t)i);
   }
   self->min_cost_cmd_ = (float)FastLog2(11);
