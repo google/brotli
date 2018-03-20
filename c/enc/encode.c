@@ -741,10 +741,6 @@ static void BrotliEncoderInitParams(BrotliEncoderParams* params) {
   params->dist.max_distance = BROTLI_MAX_DISTANCE;
 }
 
-static void BrotliEncoderCleanupParams(MemoryManager* m,
-    BrotliEncoderParams* params) {
-}
-
 static void BrotliEncoderInitState(BrotliEncoderState* s) {
   BrotliEncoderInitParams(&s->params);
   s->input_pos_ = 0;
@@ -816,7 +812,6 @@ static void BrotliEncoderCleanupState(BrotliEncoderState* s) {
   BROTLI_FREE(m, s->large_table_);
   BROTLI_FREE(m, s->command_buf_);
   BROTLI_FREE(m, s->literal_buf_);
-  BrotliEncoderCleanupParams(m, &s->params);
 }
 
 /* Deinitializes and frees BrotliEncoderState instance. */
@@ -1402,7 +1397,6 @@ static BROTLI_BOOL BrotliCompressBufferQuality10(
 
   *encoded_size = total_out_size;
   DestroyHasher(m, &hasher);
-  BrotliEncoderCleanupParams(m, &params);
   return ok;
 
 oom:
