@@ -21,6 +21,9 @@ class TestDecompressor(_test_utils.TestCase):
     def setUp(self):
         self.decompressor = brotli.Decompressor()
 
+    def tearDown(self):
+        self.decompressor = None
+
     def _check_decompression(self, test_data):
         # Verify decompression matches the original.
         temp_uncompressed = _test_utils.get_temp_uncompressed_name(test_data)

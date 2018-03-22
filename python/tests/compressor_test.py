@@ -17,6 +17,9 @@ class _TestCompressor(object):
 
     CHUNK_SIZE = 2048
 
+    def tearDown(self):
+        self.compressor = None
+
     def _check_decompression(self, test_data):
         # Write decompression to temp file and verify it matches the original.
         temp_uncompressed = _test_utils.get_temp_uncompressed_name(test_data)
