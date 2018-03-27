@@ -877,10 +877,6 @@ static BROTLI_BOOL DecompressFiles(Context* context) {
        fragmentation (new builds decode streams that old builds don't),
        it is better from used experience perspective. */
     BrotliDecoderSetParameter(s, BROTLI_DECODER_PARAM_LARGE_WINDOW, 1u);
-    if (context->dictionary) {
-      BrotliDecoderAttachDictionary(s, BROTLI_SHARED_DICTIONARY_RAW,
-          context->dictionary, context->dictionary_size);
-    }
     is_ok = OpenFiles(context);
     if (is_ok && !context->current_input_path &&
         !context->force_overwrite && isatty(STDIN_FILENO)) {
