@@ -78,7 +78,7 @@ typedef enum {
   COMMAND_VERSION
 } Command;
 
-#define DEFAULT_LGWIN 22
+#define DEFAULT_LGWIN 24
 #define DEFAULT_SUFFIX ".br"
 #define MAX_OPTIONS 20
 
@@ -93,6 +93,7 @@ typedef struct {
   BROTLI_BOOL write_to_stdout;
   BROTLI_BOOL test_integrity;
   BROTLI_BOOL decompress;
+  BROTLI_BOOL large_window;
   const char* output_path;
   const char* suffix;
   int not_input_indices[MAX_OPTIONS];
@@ -449,6 +450,24 @@ static Command ParseParams(Context* params) {
                     params->lgwin, BROTLI_MIN_WINDOW_BITS);
             return COMMAND_INVALID;
           }
+        } else if (strncmp("large_window", arg, key_len) == 0) {
+          /* This option is intentionally not mentioned in help. */
+          if (lgwin_set) {
+            fprintf(stderr, "lgwin parameter already set\n");
+            return COMMAND_INVALID;
+          }
+          lgwin_set = ParseInt(value, 0,
+                               BROTLI_LARGE_MAX_WINDOW_BITS, &params->lgwin);
+          if (!lgwin_set) {
+            fprintf(stderr, "error parsing lgwin value [%s]\n", value);
+            return COMMAND_INVALID;
+          }
+          if (params->lgwin != 0 && params->lgwin < BROTLI_MIN_WINDOW_BITS) {
+            fprintf(stderr,
+                    "lgwin parameter (%d) smaller than the minimum (%d)\n",
+                    params->lgwin, BROTLI_MIN_WINDOW_BITS);
+            return COMMAND_INVALID;
+          }
         } else if (strncmp("output", arg, key_len) == 0) {
           if (output_set) {
             fprintf(stderr,
@@ -506,39 +525,40 @@ static void PrintVersion(void) {
   fprintf(stdout, "brotli %d.%d.%d\n", major, minor, patch);
 }
 
-static void PrintHelp(const char* name) {
+static void PrintHelp(const char* name, BROTLI_BOOL error) {
+  FILE* media = error ? stderr : stdout;
   /* String is cut to pieces with length less than 509, to conform C90 spec. */
-  fprintf(stdout,
+  fprintf(media,
 "Usage: %s [OPTION]... [FILE]...\n",
           name);
-  fprintf(stdout,
+  fprintf(media,
 "Options:\n"
 "  -#                          compression level (0-9)\n"
 "  -c, --stdout                write on standard output\n"
 "  -d, --decompress            decompress\n"
 "  -f, --force                 force output file overwrite\n"
 "  -h, --help                  display this help and exit\n");
-  fprintf(stdout,
+  fprintf(media,
 "  -j, --rm                    remove source file(s)\n"
 "  -k, --keep                  keep source file(s) (default)\n"
 "  -n, --no-copy-stat          do not copy source file(s) attributes\n"
 "  -o FILE, --output=FILE      output file (only if 1 input file)\n");
-  fprintf(stdout,
+  fprintf(media,
 "  -q NUM, --quality=NUM       compression level (%d-%d)\n",
           BROTLI_MIN_QUALITY, BROTLI_MAX_QUALITY);
-  fprintf(stdout,
+  fprintf(media,
 "  -t, --test                  test compressed file integrity\n"
 "  -v, --verbose               verbose mode\n");
-  fprintf(stdout,
+  fprintf(media,
 "  -w NUM, --lgwin=NUM         set LZ77 window size (0, %d-%d)\n",
           BROTLI_MIN_WINDOW_BITS, BROTLI_MAX_WINDOW_BITS);
-  fprintf(stdout,
+  fprintf(media,
 "                              window size = 2**NUM - 16\n"
 "                              0 lets compressor choose the optimal value\n");
-  fprintf(stdout,
+  fprintf(media,
 "  -S SUF, --suffix=SUF        output file suffix (default:'%s')\n",
           DEFAULT_SUFFIX);
-  fprintf(stdout,
+  fprintf(media,
 "  -V, --version               display version and exit\n"
 "  -Z, --best                  use best compression level (11) (default)\n"
 "Simple options could be coalesced, i.e. '-9kf' is equivalent to '-9 -k -f'.\n"
@@ -853,6 +873,14 @@ static BROTLI_BOOL DecompressFiles(Context* context) {
       fprintf(stderr, "out of memory\n");
       return BROTLI_FALSE;
     }
+    /* This allows decoding "large-window" streams. Though it creates
+       fragmentation (new builds decode streams that old builds don't),
+       it is better from used experience perspective. */
+    BrotliDecoderSetParameter(s, BROTLI_DECODER_PARAM_LARGE_WINDOW, 1u);
+    if (context->dictionary) {
+      BrotliDecoderAttachDictionary(s, BROTLI_SHARED_DICTIONARY_RAW,
+          context->dictionary, context->dictionary_size);
+    }
     is_ok = OpenFiles(context);
     if (is_ok && !context->current_input_path &&
         !context->force_overwrite && isatty(STDIN_FILENO)) {
@@ -908,6 +936,10 @@ static BROTLI_BOOL CompressFiles(Context* context) {
         BROTLI_PARAM_QUALITY, (uint32_t)context->quality);
     if (context->lgwin > 0) {
       /* Specified by user. */
+      /* Do not enable "large-window" extension, if not required. */
+      if (context->lgwin > BROTLI_MAX_WINDOW_BITS) {
+        BrotliEncoderSetParameter(s, BROTLI_PARAM_LARGE_WINDOW, 1u);
+      }
       BrotliEncoderSetParameter(s,
           BROTLI_PARAM_LGWIN, (uint32_t)context->lgwin);
     } else {
@@ -959,6 +991,7 @@ int main(int argc, char** argv) {
   context.verbose = BROTLI_FALSE;
   context.write_to_stdout = BROTLI_FALSE;
   context.decompress = BROTLI_FALSE;
+  context.large_window = BROTLI_FALSE;
   context.output_path = NULL;
   context.suffix = DEFAULT_SUFFIX;
   for (i = 0; i < MAX_OPTIONS; ++i) context.not_input_indices[i] = 0;
@@ -1018,8 +1051,8 @@ int main(int argc, char** argv) {
     case COMMAND_HELP:
     case COMMAND_INVALID:
     default:
-      PrintHelp(FileName(argv[0]));
       is_ok = (command == COMMAND_HELP);
+      PrintHelp(FileName(argv[0]), is_ok);
       break;
   }
 

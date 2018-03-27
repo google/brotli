@@ -14,13 +14,13 @@
    BrotliEncoderVersion methods. */
 
 /* Semantic version, calculated as (MAJOR << 24) | (MINOR << 12) | PATCH */
-#define BROTLI_VERSION 0x1000003
+#define BROTLI_VERSION 0x1000004
 
 /* This macro is used by build system to produce Libtool-friendly soname. See
    https://www.gnu.org/software/libtool/manual/html_node/Libtool-versioning.html
  */
 
 /* ABI version, calculated as (CURRENT << 24) | (REVISION << 12) | AGE */
-#define BROTLI_ABI_VERSION 0x1003000
+#define BROTLI_ABI_VERSION 0x1004000
 
 #endif  /* BROTLI_COMMON_VERSION_H_ */

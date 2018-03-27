@@ -99,17 +99,15 @@
 #define BROTLI_NOINLINE
 #endif
 
-#if defined(__arm__) || defined(__thumb__) || \
-    defined(_M_ARM) || defined(_M_ARMT) || defined(__ARM64_ARCH_8__)
-#define BROTLI_TARGET_ARM
 #if (defined(__ARM_ARCH) && (__ARM_ARCH == 7)) || \
     (defined(M_ARM) && (M_ARM == 7))
 #define BROTLI_TARGET_ARMV7
 #endif  /* ARMv7 */
-#if defined(__aarch64__) || defined(__ARM64_ARCH_8__)
+
+#if (defined(__ARM_ARCH) && (__ARM_ARCH == 8)) || \
+    defined(__aarch64__) || defined(__ARM64_ARCH_8__)
 #define BROTLI_TARGET_ARMV8
 #endif  /* ARMv8 */
-#endif  /* ARM */
 
 #if defined(__i386) || defined(_M_IX86)
 #define BROTLI_TARGET_X86
@@ -213,12 +211,25 @@ static BROTLI_INLINE uint16_t BrotliUnalignedRead16(const void* p) {
 static BROTLI_INLINE uint32_t BrotliUnalignedRead32(const void* p) {
   return *(const uint32_t*)p;
 }
+#if (BROTLI_64_BITS)
 static BROTLI_INLINE uint64_t BrotliUnalignedRead64(const void* p) {
   return *(const uint64_t*)p;
 }
 static BROTLI_INLINE void BrotliUnalignedWrite64(void* p, uint64_t v) {
   *(uint64_t*)p = v;
 }
+#else  /* BROTLI_64_BITS */
+/* Avoid emitting LDRD / STRD, which require properly aligned address. */
+static BROTLI_INLINE uint64_t BrotliUnalignedRead64(const void* p) {
+  const uint32_t* dwords = (const uint32_t*)p;
+  return dwords[0] | ((uint64_t)dwords[1] << 32);
+}
+static BROTLI_INLINE void BrotliUnalignedWrite64(void* p, uint64_t v) {
+  uint32_t* dwords = (uint32_t *)p;
+  dwords[0] = (uint32_t)v;
+  dwords[1] = (uint32_t)(v >> 32);
+}
+#endif  /* BROTLI_64_BITS */
 #endif  /* BROTLI_ALIGNED_READ */
 
 #if BROTLI_LITTLE_ENDIAN
@@ -328,7 +339,7 @@ OR:
 #define BROTLI_IS_CONSTANT(x) (!!0)
 #endif
 
-#if defined(BROTLI_TARGET_ARM)
+#if defined(BROTLI_TARGET_ARMV7) || defined(BROTLI_TARGET_ARMV8)
 #define BROTLI_HAS_UBFX (!!1)
 #else
 #define BROTLI_HAS_UBFX (!!0)
@@ -362,7 +373,7 @@ static BROTLI_INLINE brotli_reg_t BrotliRBit(brotli_reg_t input) {
   return output;
 }
 #define BROTLI_RBIT(x) BrotliRBit(x)
-#endif  /* armv7 */
+#endif  /* armv7 / armv8 */
 #endif  /* gcc || clang */
 #if !defined(BROTLI_RBIT)
 static BROTLI_INLINE void BrotliRBit(void) { /* Should break build if used. */ }
