@@ -44,7 +44,7 @@ static BROTLI_INLINE void BrotliWriteBits(size_t n_bits,
      bits are in *p and we write 57 bits, then the next write will
      access a byte that was never initialized). */
   uint8_t* p = &array[*pos >> 3];
-  uint64_t v = *p;
+  uint64_t v = (uint64_t)(*p);  /* Zero-extend 8 to 64 bits. */
   BROTLI_LOG(("WriteBits  %2d  0x%08x%08x  %10d\n", (int)n_bits,
       (uint32_t)(bits >> 32), (uint32_t)(bits & 0xFFFFFFFF),
       (int)*pos));

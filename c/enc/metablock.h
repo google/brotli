@@ -67,15 +67,18 @@ static BROTLI_INLINE void DestroyMetaBlockSplit(
   BROTLI_FREE(m, mb->distance_histograms);
 }
 
-/* Uses the slow shortest-path block splitter and does context clustering. */
+/* Uses the slow shortest-path block splitter and does context clustering.
+   The distance parameters are dynamically selected based on the commands
+   which get recomputed under the new distance parameters. The new distance
+   parameters are stored into *params. */
 BROTLI_INTERNAL void BrotliBuildMetaBlock(MemoryManager* m,
                                           const uint8_t* ringbuffer,
                                           const size_t pos,
                                           const size_t mask,
-                                          const BrotliEncoderParams* params,
+                                          BrotliEncoderParams* params,
                                           uint8_t prev_byte,
                                           uint8_t prev_byte2,
-                                          const Command* cmds,
+                                          Command* cmds,
                                           size_t num_commands,
                                           ContextType literal_context_mode,
                                           MetaBlockSplit* mb);
@@ -91,6 +94,9 @@ BROTLI_INTERNAL void BrotliBuildMetaBlockGreedy(
 
 BROTLI_INTERNAL void BrotliOptimizeHistograms(uint32_t num_distance_codes,
                                               MetaBlockSplit* mb);
+
+BROTLI_INTERNAL void BrotliInitDistanceParams(BrotliEncoderParams* params,
+    uint32_t npostfix, uint32_t ndirect);
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }  /* extern "C" */
