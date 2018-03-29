@@ -145,11 +145,11 @@ static BROTLI_INLINE void InitInsertCommand(Command* self, size_t insertlen) {
 
 static BROTLI_INLINE uint32_t CommandRestoreDistanceCode(
     const Command* self, const BrotliDistanceParams* dist) {
-  if ((self->dist_prefix_ & 0x3FF) <
+  if ((self->dist_prefix_ & 0x3FFu) <
       BROTLI_NUM_DISTANCE_SHORT_CODES + dist->num_direct_distance_codes) {
-    return self->dist_prefix_ & 0x3FF;
+    return self->dist_prefix_ & 0x3FFu;
   } else {
-    uint32_t dcode = self->dist_prefix_ & 0x3FF;
+    uint32_t dcode = self->dist_prefix_ & 0x3FFu;
     uint32_t nbits = self->dist_prefix_ >> 10;
     uint32_t extra = self->dist_extra_;
     uint32_t postfix_mask = (1U << dist->distance_postfix_bits) - 1U;
