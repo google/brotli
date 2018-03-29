@@ -41,6 +41,12 @@ config_setting(
     visibility = ["//visibility:public"],
 )
 
+config_setting(
+    name = "msvc",
+    values = {"compiler": "msvc-cl"},
+    visibility = ["//visibility:public"],
+)
+
 genrule(
     name = "copy_link_jni_header",
     srcs = ["@openjdk_linux//:jni_h"],
@@ -73,19 +79,22 @@ cc_library(
 
 # <<< JNI headers
 
-STRICT_C_OPTIONS = [
-    "--pedantic-errors",
-    "-Wall",
-    "-Wconversion",
-    "-Werror",
-    "-Wextra",
-    "-Wlong-long",
-    "-Wmissing-declarations",
-    "-Wmissing-prototypes",
-    "-Wno-strict-aliasing",
-    "-Wshadow",
-    "-Wsign-compare",
-]
+STRICT_C_OPTIONS = select({
+    ":msvc": [],
+    "//conditions:default": [
+        "--pedantic-errors",
+        "-Wall",
+        "-Wconversion",
+        "-Werror",
+        "-Wextra",
+        "-Wlong-long",
+        "-Wmissing-declarations",
+        "-Wmissing-prototypes",
+        "-Wno-strict-aliasing",
+        "-Wshadow",
+        "-Wsign-compare",
+    ],
+})
 
 filegroup(
     name = "public_headers",
