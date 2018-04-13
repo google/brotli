@@ -117,8 +117,10 @@ matrix:
     - os: osx
       env: BUILD_SYSTEM=cmake C_COMPILER=gcc-6 CXX_COMPILER=g++-6
     - os: osx
-      osx_image: beta-xcode6.2
-      env: BUILD_SYSTEM=cmake C_COMPILER=gcc-4.4 CXX_COMPILER=g++-4.4
+      env: BUILD_SYSTEM=cmake C_COMPILER=gcc-4.9 CXX_COMPILER=g++-4.9
+    - os: osx
+      osx_image: xcode9.3
+      env: BUILD_SYSTEM=cmake
 
     ###
     ## Python 2.7 OS X build (using the system /usr/bin/python)

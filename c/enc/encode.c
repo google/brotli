@@ -882,7 +882,8 @@ static void ExtendLastCommand(BrotliEncoderState* s, uint32_t* bytes,
   Command* last_command = &s->commands_[s->num_commands_ - 1];
   const uint8_t* data = s->ringbuffer_.buffer_;
   const uint32_t mask = s->ringbuffer_.mask_;
-  uint64_t max_backward_distance = (1u << s->params.lgwin) - BROTLI_WINDOW_GAP;
+  uint64_t max_backward_distance =
+      (((uint64_t)1) << s->params.lgwin) - BROTLI_WINDOW_GAP;
   uint64_t last_copy_len = last_command->copy_len_ & 0x1FFFFFF;
   uint64_t last_processed_pos = s->last_processed_pos_ - last_copy_len;
   uint64_t max_distance = last_processed_pos < max_backward_distance ?

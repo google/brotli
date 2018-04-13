@@ -780,7 +780,7 @@ static BROTLI_BOOL CloseFiles(Context* context, BROTLI_BOOL success) {
   return is_ok;
 }
 
-static const size_t kFileBufferSize = 1 << 16;
+static const size_t kFileBufferSize = 1 << 19;
 
 static void InitializeBuffers(Context* context) {
   context->available_in = 0;
