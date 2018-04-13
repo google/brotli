@@ -11,7 +11,7 @@ case "$1" in
 
 		case "${CC}" in
 		    "gcc-"*)
-			which ${CC} || brew install $(echo "${CC}" | sed 's/\-/@/')
+			which ${CC} || brew install $(echo "${CC}" | sed 's/\-/@/') || brew link --overwrite $(echo "${CC}" | sed 's/\-/@/')
 			;;
 		esac
 
