@@ -108,7 +108,7 @@ encode.h \- API for Brotli compression\&.
 .br
 .RI "\fICalculates the output size bound for the given \fCinput_size\fP\&. \fP"
 .ti -1c
-.RI "BrotliEncoderPreparedDictionary * \fBBrotliEncoderPrepareDictionary\fP (const uint8_t *data, size_t size, BrotliSharedDictionaryType type, int quality, \fBbrotli_alloc_func\fP alloc_func, \fBbrotli_free_func\fP free_func, void *opaque)"
+.RI "BrotliEncoderPreparedDictionary * \fBBrotliEncoderPrepareDictionary\fP (BrotliSharedDictionaryType type, size_t data_size, const uint8_t data[data_size], int quality, \fBbrotli_alloc_func\fP alloc_func, \fBbrotli_free_func\fP free_func, void *opaque)"
 .br
 .RI "\fIPrepares a shared dictionary from the given file format for the encoder\&. \fP"
 .ti -1c
@@ -516,18 +516,18 @@ Result is only valid if quality is at least \fC2\fP and, in case \fBBrotliEncode
 .RE
 .PP
 
-.SS "BrotliEncoderPreparedDictionary* BrotliEncoderPrepareDictionary (const uint8_t * data, size_t size, BrotliSharedDictionaryType type, int quality, \fBbrotli_alloc_func\fP alloc_func, \fBbrotli_free_func\fP free_func, void * opaque)"
+.SS "BrotliEncoderPreparedDictionary* BrotliEncoderPrepareDictionary (BrotliSharedDictionaryType type, size_t data_size, const uint8_t data[data_size], int quality, \fBbrotli_alloc_func\fP alloc_func, \fBbrotli_free_func\fP free_func, void * opaque)"
 
 .PP
 Prepares a shared dictionary from the given file format for the encoder\&. \fCalloc_func\fP and \fCfree_func\fP \fBMUST\fP be both zero or both non-zero\&. In the case they are both zero, default memory allocators are used\&. \fCopaque\fP is passed to \fCalloc_func\fP and \fCfree_func\fP when they are called\&. \fCfree_func\fP has to return without doing anything when asked to free a NULL pointer\&.
 .PP
 \fBParameters:\fP
 .RS 4
-\fIdata\fP pointer to raw dictionary data buffer 
+\fItype\fP type of dictionary stored in data 
 .br
-\fIsize\fP size of \fCdata\fP buffer 
+\fIdata_size\fP size of \fCdata\fP buffer 
 .br
-\fItype\fP the file format of the data 
+\fIdata\fP pointer to the dictionary data 
 .br
 \fIquality\fP the maximum Brotli quality to prepare the dictionary for, use BROTLI_MAX_QUALITY by default 
 .br

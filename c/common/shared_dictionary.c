@@ -313,7 +313,6 @@ static BROTLI_BOOL ParseDictionary(const uint8_t* encoded, size_t size,
     return BROTLI_FALSE;
   }
 
-
   if (dict->num_transform_lists != 0) {
     dict->transforms_instances = (BrotliTransforms*)dict->alloc_func(
         dict->memory_manager_opaque,
@@ -452,17 +451,17 @@ void BrotliSharedDictionaryDestroyInstance(
 
 BROTLI_BOOL BrotliSharedDictionaryAttach(
     BrotliSharedDictionary* dict, BrotliSharedDictionaryType type,
-    const uint8_t* data, size_t size) {
+    size_t data_size, const uint8_t* data) {
   if (!dict) {
     return BROTLI_FALSE;
   }
   if (type == BROTLI_SHARED_DICTIONARY_SERIALIZED) {
-    return DecodeSharedDictionary(data, size, dict);
+    return DecodeSharedDictionary(data, data_size, dict);
   } else if (type == BROTLI_SHARED_DICTIONARY_RAW) {
     if (dict->num_prefix >= SHARED_BROTLI_MAX_COMPOUND_DICTS) {
       return BROTLI_FALSE;
     }
-    dict->prefix_size[dict->num_prefix] = size;
+    dict->prefix_size[dict->num_prefix] = data_size;
     dict->prefix[dict->num_prefix] = data;
     dict->num_prefix++;
     return BROTLI_TRUE;

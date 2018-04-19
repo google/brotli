@@ -267,9 +267,9 @@ typedef struct BrotliEncoderPreparedDictionaryStruct
  * passed to @p alloc_func and @p free_func when they are called. @p free_func
  * has to return without doing anything when asked to free a NULL pointer.
  *
- * @param data pointer to raw dictionary data buffer
- * @param size size of @p data buffer
- * @param type the file format of the data
+ * @param type type of dictionary stored in data
+ * @param data_size size of @p data buffer
+ * @param data pointer to the dictionary data
  * @param quality the maximum Brotli quality to prepare the dictionary for,
  *        use BROTLI_MAX_QUALITY by default
  * @param alloc_func custom memory allocation function
@@ -277,8 +277,9 @@ typedef struct BrotliEncoderPreparedDictionaryStruct
  * @param opaque custom memory manager handle
  */
 BROTLI_ENC_API BrotliEncoderPreparedDictionary*
-BrotliEncoderPrepareDictionary(const uint8_t* data, size_t size,
-    BrotliSharedDictionaryType type, int quality,
+BrotliEncoderPrepareDictionary(BrotliSharedDictionaryType type,
+    size_t data_size, const uint8_t data[BROTLI_ARRAY_PARAM(data_size)],
+    int quality,
     brotli_alloc_func alloc_func, brotli_free_func free_func, void* opaque);
 
 BROTLI_ENC_API void BrotliEncoderDestroyPreparedDictionary(
