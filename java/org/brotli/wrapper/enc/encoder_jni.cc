@@ -268,7 +268,7 @@ Java_org_brotli_wrapper_enc_EncoderJNI_nativePrepareDictionary(
       static_cast<BrotliSharedDictionaryType>(type);
   size_t size = static_cast<size_t>(capacity);
   BrotliEncoderPreparedDictionary* prepared_dictionary =
-      BrotliEncoderPrepareDictionary(address, size, dictionary_type,
+      BrotliEncoderPrepareDictionary(dictionary_type, size, address,
         BROTLI_MAX_QUALITY, nullptr, nullptr, nullptr);
   if (!prepared_dictionary) {
     return nullptr;

@@ -579,7 +579,7 @@ BROTLI_BOOL BrotliInitCustomSharedEncoderDictionary(
     return BROTLI_FALSE;
   }
   success = BrotliSharedDictionaryAttach(
-      decoded_dict, BROTLI_SHARED_DICTIONARY_SERIALIZED, encoded_dict, size);
+      decoded_dict, BROTLI_SHARED_DICTIONARY_SERIALIZED, size, encoded_dict);
   if (success) {
     success = InitCustomSharedEncoderDictionary(m,
         decoded_dict, quality, dict);

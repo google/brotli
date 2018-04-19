@@ -1503,11 +1503,11 @@ static int CopyFromCompoundDictionary(BrotliDecoderState* s, int pos) {
 }
 
 BROTLI_BOOL BrotliDecoderAttachDictionary(BrotliDecoderState* state,
-    BrotliSharedDictionaryType type, const uint8_t* data, size_t size) {
+    BrotliSharedDictionaryType type, size_t data_size, const uint8_t* data) {
   uint32_t i;
   uint32_t num_prefix_before = state->dictionary->num_prefix;
   if (state->state != BROTLI_STATE_UNINITED) return BROTLI_FALSE;
-  if (!BrotliSharedDictionaryAttach(state->dictionary, type, data, size)) {
+  if (!BrotliSharedDictionaryAttach(state->dictionary, type, data_size, data)) {
     return BROTLI_FALSE;
   }
   for (i = num_prefix_before; i < state->dictionary->num_prefix; i++) {

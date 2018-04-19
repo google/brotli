@@ -241,7 +241,7 @@ Java_org_brotli_wrapper_dec_DecoderJNI_nativeAttachDictionary(
   if (ok) {
     size_t size = static_cast<size_t>(capacity);
     ok = !!BrotliDecoderAttachDictionary(handle->state,
-        BROTLI_SHARED_DICTIONARY_RAW, address, size);
+        BROTLI_SHARED_DICTIONARY_RAW, size, address);
   }
 
   return static_cast<jboolean>(ok);

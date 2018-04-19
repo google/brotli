@@ -728,8 +728,8 @@ static BROTLI_BOOL ReadDictionary(Context* context, Command command) {
   context->dictionary = buffer;
   if (command == COMMAND_COMPRESS) {
     context->prepared_dictionary = BrotliEncoderPrepareDictionary(
-        context->dictionary, context->dictionary_size, 0, BROTLI_MAX_QUALITY,
-        NULL, NULL, NULL);
+        BROTLI_SHARED_DICTIONARY_RAW, context->dictionary_size,
+        context->dictionary, BROTLI_MAX_QUALITY, NULL, NULL, NULL);
     if (context->prepared_dictionary == NULL) {
       fprintf(stderr, "failed to prepare dictionary [%s]\n",
               PrintablePath(context->dictionary_path));
@@ -959,7 +959,7 @@ static BROTLI_BOOL DecompressFiles(Context* context) {
     BrotliDecoderSetParameter(s, BROTLI_DECODER_PARAM_LARGE_WINDOW, 1u);
     if (context->dictionary) {
       BrotliDecoderAttachDictionary(s, BROTLI_SHARED_DICTIONARY_RAW,
-          context->dictionary, context->dictionary_size);
+          context->dictionary_size, context->dictionary);
     }
     is_ok = OpenFiles(context);
     if (is_ok && !context->current_input_path &&

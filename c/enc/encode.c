@@ -1908,8 +1908,8 @@ uint32_t BrotliEncoderVersion(void) {
 }
 
 BrotliEncoderPreparedDictionary* BrotliEncoderPrepareDictionary(
-    const uint8_t* data, size_t size,
-    BrotliSharedDictionaryType type, int quality,
+    BrotliSharedDictionaryType type, size_t size, const uint8_t* data,
+    int quality,
     brotli_alloc_func alloc_func, brotli_free_func free_func, void* opaque) {
   ManagedDictionary* managed_dictionary = NULL;
   if (type != BROTLI_SHARED_DICTIONARY_RAW &&

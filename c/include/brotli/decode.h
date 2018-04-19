@@ -247,9 +247,11 @@ BROTLI_DEC_API BrotliDecoderResult BrotliDecoderDecompress(
 BROTLI_DEC_API BrotliDecoderResult BrotliDecoderDecompressStream(
   BrotliDecoderState* state, size_t* available_in, const uint8_t** next_in,
   size_t* available_out, uint8_t** next_out, size_t* total_out);
+
+/** TODO: add documentation. */
 BROTLI_DEC_API BROTLI_BOOL BrotliDecoderAttachDictionary(
     BrotliDecoderState* state, BrotliSharedDictionaryType type,
-    const uint8_t* data, size_t size);
+    size_t data_size, const uint8_t data[BROTLI_ARRAY_PARAM(data_size)]);
 
 /**
  * Checks if decoder has more output.
