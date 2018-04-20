@@ -32,6 +32,18 @@
 #include <stdio.h>
 #endif
 
+#if defined(__has_builtin)
+#define BROTLI_HAS_BUILTIN(x) __has_builtin(x)
+#else
+#define BROTLI_HAS_BUILTIN(x) 0
+#endif
+
+#if defined(__has_attribute)
+#define BROTLI_HAS_ATTRIBUTE(x) __has_attribute(x)
+#else
+#define BROTLI_HAS_ATTRIBUTE(x) 0
+#endif
+
 /* Macros for compiler / platform specific features and build options.
 
    Build options are:
@@ -48,7 +60,7 @@
     * BROTLI_ENABLE_LOG enables asserts and dumps various state information
 */
 
-#if BROTLI_MODERN_COMPILER || __has_attribute(always_inline)
+#if BROTLI_MODERN_COMPILER || BROTLI_HAS_ATTRIBUTE(always_inline)
 #define BROTLI_ATTRIBUTE_ALWAYS_INLINE __attribute__ ((always_inline))
 #else
 #define BROTLI_ATTRIBUTE_ALWAYS_INLINE
@@ -56,7 +68,7 @@
 
 #if defined(_WIN32) || defined(__CYGWIN__)
 #define BROTLI_ATTRIBUTE_VISIBILITY_HIDDEN
-#elif BROTLI_MODERN_COMPILER || __has_attribute(visibility)
+#elif BROTLI_MODERN_COMPILER || BROTLI_HAS_ATTRIBUTE(visibility)
 #define BROTLI_ATTRIBUTE_VISIBILITY_HIDDEN \
     __attribute__ ((visibility ("hidden")))
 #else
@@ -78,7 +90,7 @@
 #define BROTLI_INLINE __forceinline
 #endif  /* _MSC_VER */
 
-#if BROTLI_MODERN_COMPILER || __has_attribute(unused)
+#if BROTLI_MODERN_COMPILER || BROTLI_HAS_ATTRIBUTE(unused)
 #define BROTLI_UNUSED_FUNCTION static BROTLI_INLINE __attribute__ ((unused))
 #else
 #define BROTLI_UNUSED_FUNCTION static BROTLI_INLINE
@@ -93,7 +105,7 @@
 #define BROTLI_RESTRICT
 #endif
 
-#if BROTLI_MODERN_COMPILER || __has_attribute(noinline)
+#if BROTLI_MODERN_COMPILER || BROTLI_HAS_ATTRIBUTE(noinline)
 #define BROTLI_NOINLINE __attribute__((noinline))
 #else
 #define BROTLI_NOINLINE
@@ -324,7 +336,7 @@ OR:
   }
 
 */
-#if BROTLI_MODERN_COMPILER || __has_builtin(__builtin_expect)
+#if BROTLI_MODERN_COMPILER || BROTLI_HAS_BUILTIN(__builtin_expect)
 #define BROTLI_PREDICT_TRUE(x) (__builtin_expect(!!(x), 1))
 #define BROTLI_PREDICT_FALSE(x) (__builtin_expect(x, 0))
 #else
@@ -333,7 +345,7 @@ OR:
 #endif
 
 /* BROTLI_IS_CONSTANT macros returns true for compile-time constants. */
-#if BROTLI_MODERN_COMPILER || __has_builtin(__builtin_constant_p)
+#if BROTLI_MODERN_COMPILER || BROTLI_HAS_BUILTIN(__builtin_constant_p)
 #define BROTLI_IS_CONSTANT(x) (!!__builtin_constant_p(x))
 #else
 #define BROTLI_IS_CONSTANT(x) (!!0)

@@ -66,7 +66,6 @@ final class State {
   int maxBackwardDistance;
   int maxRingBufferSize;
   int ringBufferSize;
-  int ringBufferFence;
   int expectedTotalSize;
   int outputOffset;
   int outputLength;

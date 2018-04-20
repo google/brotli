@@ -14,19 +14,6 @@
 #ifndef BROTLI_COMMON_PORT_H_
 #define BROTLI_COMMON_PORT_H_
 
-/* Compatibility with non-clang compilers. */
-#ifndef __has_builtin
-#define __has_builtin(x) 0
-#endif
-
-#ifndef __has_attribute
-#define __has_attribute(x) 0
-#endif
-
-#ifndef __has_feature
-#define __has_feature(x) 0
-#endif
-
 #if defined(__GNUC__) && defined(__GNUC_MINOR__)
 #define BROTLI_GCC_VERSION (__GNUC__ * 100 + __GNUC_MINOR__)
 #else
@@ -67,12 +54,6 @@
 #define BROTLI_COMMON_API
 #define BROTLI_DEC_API
 #define BROTLI_ENC_API
-#endif
-
-#if BROTLI_MODERN_COMPILER || __has_attribute(deprecated)
-#define BROTLI_DEPRECATED __attribute__((deprecated))
-#else
-#define BROTLI_DEPRECATED
 #endif
 
 #endif  /* BROTLI_COMMON_PORT_H_ */
