@@ -36,8 +36,10 @@ extern "C" {
  * * HasherCommon structure
  * * private structured hasher data, depending on hasher type
  * * private dynamic hasher data, depending on hasher type and parameters
- */
-typedef uint8_t* HasherHandle;
+ *
+ * Using "define" instead of "typedef", because on MSVC __restrict does not work
+ * on typedef pointer types. */
+#define HasherHandle uint8_t*
 
 typedef struct {
   BrotliHasherParams params;
