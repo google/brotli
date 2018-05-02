@@ -34,7 +34,6 @@ typedef struct BrotliEncoderDictionary {
 
 BROTLI_INTERNAL void BrotliInitEncoderDictionary(BrotliEncoderDictionary* dict);
 
-
 #if defined(__cplusplus) || defined(c_plusplus)
 }  /* extern "C" */
 #endif

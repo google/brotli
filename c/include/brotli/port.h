@@ -4,34 +4,18 @@
    See file LICENSE for detail or copy at https://opensource.org/licenses/MIT
 */
 
-/* Macros for compiler / platform specific features and build options.
-
-   Build options are:
-    * BROTLI_BUILD_MODERN_COMPILER forces to use modern compilers built-ins,
-      features and attributes
- */
+/* Macros for compiler / platform specific API declarations. */
 
 #ifndef BROTLI_COMMON_PORT_H_
 #define BROTLI_COMMON_PORT_H_
 
-#if defined(__GNUC__) && defined(__GNUC_MINOR__)
-#define BROTLI_GCC_VERSION (__GNUC__ * 100 + __GNUC_MINOR__)
+/* NB: borrowed from github.com.nemequ/hedley. */
+#if defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L) && \
+    !defined(__STDC_NO_VLA__) && !defined(__cplusplus) &&         \
+    !defined(__PGI) && !defined(__PGIC__) && !defined(__TINYC__)
+#define BROTLI_ARRAY_PARAM(name) (name)
 #else
-#define BROTLI_GCC_VERSION 0
-#endif
-
-#if defined(__ICC)
-#define BROTLI_ICC_VERSION __ICC
-#else
-#define BROTLI_ICC_VERSION 0
-#endif
-
-#if defined(BROTLI_BUILD_MODERN_COMPILER)
-#define BROTLI_MODERN_COMPILER 1
-#elif BROTLI_GCC_VERSION >= 304 || BROTLI_ICC_VERSION >= 1600
-#define BROTLI_MODERN_COMPILER 1
-#else
-#define BROTLI_MODERN_COMPILER 0
+#define BROTLI_ARRAY_PARAM(name)
 #endif
 
 #if defined(BROTLI_SHARED_COMPILATION) && defined(_WIN32)
