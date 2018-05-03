@@ -20,7 +20,7 @@ extern "C" {
 
 #define BROTLI_REVERSE_BITS_MAX 8
 
-#ifdef BROTLI_RBIT
+#if defined(BROTLI_RBIT)
 #define BROTLI_REVERSE_BITS_BASE \
   ((sizeof(brotli_reg_t) << 3) - BROTLI_REVERSE_BITS_MAX)
 #else
@@ -68,7 +68,7 @@ static uint8_t kReverseBits[1 << BROTLI_REVERSE_BITS_MAX] = {
    where reverse(value, len) is the bit-wise reversal of the len least
    significant bits of value. */
 static BROTLI_INLINE brotli_reg_t BrotliReverseBits(brotli_reg_t num) {
-#ifdef BROTLI_RBIT
+#if defined(BROTLI_RBIT)
   return BROTLI_RBIT(num);
 #else
   return kReverseBits[num];

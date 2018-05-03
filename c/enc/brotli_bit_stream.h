@@ -73,8 +73,9 @@ BROTLI_INTERNAL void BrotliStoreMetaBlockFast(MemoryManager* m,
    REQUIRES: length > 0
    REQUIRES: length <= (1 << 24) */
 BROTLI_INTERNAL void BrotliStoreUncompressedMetaBlock(
-    BROTLI_BOOL is_final_block, const uint8_t* input, size_t position,
-    size_t mask, size_t len, size_t* storage_ix, uint8_t* storage);
+    BROTLI_BOOL is_final_block, const uint8_t* BROTLI_RESTRICT input,
+    size_t position, size_t mask, size_t len,
+    size_t* BROTLI_RESTRICT storage_ix, uint8_t* BROTLI_RESTRICT storage);
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }  /* extern "C" */

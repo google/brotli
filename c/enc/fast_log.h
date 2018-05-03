@@ -20,7 +20,8 @@ extern "C" {
 
 static BROTLI_INLINE uint32_t Log2FloorNonZero(size_t n) {
   /* TODO: generalize and move to platform.h */
-#if BROTLI_MODERN_COMPILER || BROTLI_HAS_BUILTIN(__builtin_clz)
+#if BROTLI_GNUC_HAS_BUILTIN(__builtin_clz, 3, 4, 0) || \
+    BROTLI_INTEL_VERSION_CHECK(16, 0, 0)
   return 31u ^ (uint32_t)__builtin_clz((uint32_t)n);
 #else
   uint32_t result = 0;
