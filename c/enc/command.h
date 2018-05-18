@@ -62,21 +62,21 @@ static BROTLI_INLINE uint16_t GetCopyLengthCode(size_t copylen) {
 static BROTLI_INLINE uint16_t CombineLengthCodes(
     uint16_t inscode, uint16_t copycode, BROTLI_BOOL use_last_distance) {
   uint16_t bits64 =
-      (uint16_t)((copycode & 0x7u) | ((inscode & 0x7u) << 3));
-  if (use_last_distance && inscode < 8 && copycode < 16) {
-    return (copycode < 8) ? bits64 : (bits64 | 64);
+      (uint16_t)((copycode & 0x7u) | ((inscode & 0x7u) << 3u));
+  if (use_last_distance && inscode < 8u && copycode < 16u) {
+    return (copycode < 8u) ? bits64 : (bits64 | 64u);
   } else {
     /* Specification: 5 Encoding of ... (last table) */
     /* offset = 2 * index, where index is in range [0..8] */
-    int offset = 2 * ((copycode >> 3) + 3 * (inscode >> 3));
+    uint32_t offset = 2u * ((copycode >> 3u) + 3u * (inscode >> 3u));
     /* All values in specification are K * 64,
        where   K = [2, 3, 6, 4, 5, 8, 7, 9, 10],
            i + 1 = [1, 2, 3, 4, 5, 6, 7, 8,  9],
        K - i - 1 = [1, 1, 3, 0, 0, 2, 0, 1,  2] = D.
        All values in D require only 2 bits to encode.
        Magic constant is shifted 6 bits left, to avoid final multiplication. */
-    offset = (offset << 5) + 0x40 + ((0x520D40 >> offset) & 0xC0);
-    return (uint16_t)offset | bits64;
+    offset = (offset << 5u) + 0x40u + ((0x520D40u >> offset) & 0xC0u);
+    return (uint16_t)(offset | bits64);
   }
 }
 
