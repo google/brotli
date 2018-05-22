@@ -406,12 +406,16 @@ OR:
 #define BROTLI_TARGET_POWERPC64
 #endif
 
+#if defined(__riscv) && defined(__riscv_xlen) && __riscv_xlen == 64
+#define BROTLI_TARGET_RISCV64
+#endif
+
 #if defined(BROTLI_BUILD_64_BIT)
 #define BROTLI_64_BITS 1
 #elif defined(BROTLI_BUILD_32_BIT)
 #define BROTLI_64_BITS 0
 #elif defined(BROTLI_TARGET_X64) || defined(BROTLI_TARGET_ARMV8) || \
-    defined(BROTLI_TARGET_POWERPC64)
+    defined(BROTLI_TARGET_POWERPC64) || defined(BROTLI_TARGET_RISCV64)
 #define BROTLI_64_BITS 1
 #else
 #define BROTLI_64_BITS 0
@@ -461,7 +465,8 @@ OR:
 #if defined(BROTLI_BUILD_PORTABLE)
 #define BROTLI_ALIGNED_READ (!!1)
 #elif defined(BROTLI_TARGET_X86) || defined(BROTLI_TARGET_X64) || \
-    defined(BROTLI_TARGET_ARMV7) || defined(BROTLI_TARGET_ARMV8)
+    defined(BROTLI_TARGET_ARMV7) || defined(BROTLI_TARGET_ARMV8) || \
+    defined(BROTLI_TARGET_RISCV64)
 /* Allow unaligned read only for white-listed CPUs. */
 #define BROTLI_ALIGNED_READ (!!0)
 #else
