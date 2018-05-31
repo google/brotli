@@ -62,7 +62,7 @@ case "$1" in
 		cd go && bazel test -c opt ...:all && cd .. &&
 		cd java && bazel test -c opt ...:all && cd .. &&
 		cd js && bazel test -c opt ...:all && cd .. &&
-		cd research && bazel test -c opt ...:all && cd .. &&
+		cd research && bazel test -c opt ...:all && cd ..
 		;;
 	esac
 	;;
