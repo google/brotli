@@ -11,7 +11,9 @@ closure_js_library(
     name = "polyfill",
     srcs = ["polyfill.js"],
     suppress = [
+        "JSC_INVALID_OPERAND_TYPE",
         "JSC_MISSING_JSDOC",
+        "JSC_STRICT_INEXISTENT_PROPERTY",
         "JSC_TYPE_MISMATCH",
         "JSC_UNKNOWN_EXPR_TYPE",
     ],
