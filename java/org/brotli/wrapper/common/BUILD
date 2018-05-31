@@ -20,33 +20,40 @@ java_library(
     ),
 )
 
+java_library(
+    name = "test_lib",
+    testonly = 1,
+    srcs = glob(["*Test*.java"]),
+    deps = [
+        ":common",
+        "//org/brotli/integration:brotli_jni_test_base",
+        "//org/brotli/wrapper/dec",
+        "@junit_junit//jar",
+    ],
+)
+
 java_test(
     name = "SetZeroDictionaryTest",
+    test_class = "org.brotli.wrapper.common.SetZeroDictionaryTest",
     size = "small",
-    srcs = ["SetZeroDictionaryTest.java"],
     data = [
         ":brotli_jni_no_dictionary_data",  # Bazel JNI workaround
     ],
     jvm_flags = [
         "-DBROTLI_JNI_LIBRARY=$(location :brotli_jni_no_dictionary_data)",
     ],
-    deps = [
-        ":common",
-        "//java/org/brotli/integration:brotli_jni_test_base",
-        "//java/org/brotli/wrapper/dec",
-        "@junit_junit//jar",
-    ],
+    runtime_deps = [":test_lib"],
 )
 
 filegroup(
     name = "rfc_dictionary",
-    srcs = ["//:dictionary"],
+    srcs = ["@org_brotli//:dictionary"],
 )
 
 java_test(
     name = "SetRfcDictionaryTest",
+    test_class = "org.brotli.wrapper.common.SetRfcDictionaryTest",
     size = "small",
-    srcs = ["SetRfcDictionaryTest.java"],
     data = [
         ":rfc_dictionary",
         ":brotli_jni_no_dictionary_data",  # Bazel JNI workaround
@@ -55,10 +62,5 @@ java_test(
         "-DRFC_DICTIONARY=$(location :rfc_dictionary)",
         "-DBROTLI_JNI_LIBRARY=$(location :brotli_jni_no_dictionary_data)",
     ],
-    deps = [
-        ":common",
-        "//java/org/brotli/integration:brotli_jni_test_base",
-        "//java/org/brotli/wrapper/dec",
-        "@junit_junit//jar",
-    ],
+    runtime_deps = [":test_lib"],
 )
