@@ -63,17 +63,22 @@ build_script:
     appveyor PushArtifact brotli-win-%ARCH%-%RELEASE_DATE%.zip && cd ..
   )
 - IF "%BUILD_SYSTEM%"=="bazel" (
-    bazel --batch build -c opt java/org/brotli/wrapper/...:all &&
-    python scripts/fix-win-bazel-build.py &&
+    cd java &&
+    bazel --batch build -c opt org/brotli/wrapper/...:all &&
+    python ../scripts/fix-win-bazel-build.py &&
     cd bazel-bin && 7z a -tzip -mx9 brotli-win-bazel-jni-%RELEASE_DATE%.zip brotli_jni.dll &&
-    appveyor PushArtifact brotli-win-bazel-jni-%RELEASE_DATE%.zip && cd ..
+    appveyor PushArtifact brotli-win-bazel-jni-%RELEASE_DATE%.zip && cd .. && cd ..
   )
 
 test_script:
 - IF "%BUILD_SYSTEM%"=="CMake" ( ctest --output-on-failure --interactive-debug-mode 0 -C Debug )
 - IF "%BUILD_SYSTEM%"=="Python" ( python setup.py test )
 - IF "%BUILD_SYSTEM%"=="make" ( sh -c "make test" )
-- IF "%BUILD_SYSTEM%"=="bazel" ( bazel --batch test -c opt --test_output streamed java/org/brotli/wrapper/...:all )
+- IF "%BUILD_SYSTEM%"=="bazel" (
+    cd java &&
+    bazel --batch test -c opt --test_output streamed org/brotli/wrapper/...:all &&
+    cd ..
+  )
 
 deploy:
 - provider: BinTray
