@@ -4,7 +4,7 @@ import os.path
 from shutil import copyfile
 
 matches = []
-for root, dirnames, filenames in os.walk('bazel-bin\\java\\org\\brotli'):
+for root, dirnames, filenames in os.walk('java\\bazel-bin\\org\\brotli'):
   for filename in fnmatch.filter(filenames, '*.runfiles_manifest'):
     matches.append(os.path.join(root, filename))
 
@@ -13,9 +13,9 @@ for match in matches:
   with open(match) as manifest:
     for entry in manifest:
       entry = entry.strip()
-      if not entry.startswith("org_brotli"):
+      if not entry.startswith("org_brotli_java"):
         continue
-      if entry.startswith('org_brotli/external'):
+      if entry.startswith('org_brotli_java/external'):
         continue
       (alias, space, link) = entry.partition(' ')
       if alias.endswith('.jar') or alias.endswith('.exe'):
