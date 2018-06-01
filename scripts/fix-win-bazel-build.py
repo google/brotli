@@ -4,11 +4,12 @@ import os.path
 from shutil import copyfile
 
 matches = []
-for root, dirnames, filenames in os.walk('java\\bazel-bin\\org\\brotli'):
+for root, dirnames, filenames in os.walk('bazel-bin\\org\\brotli'):
   for filename in fnmatch.filter(filenames, '*.runfiles_manifest'):
     matches.append(os.path.join(root, filename))
 
 for match in matches:
+  print('Scanning manifest ' + match)
   runfiles = match[:-len('_manifest')]
   with open(match) as manifest:
     for entry in manifest:
