@@ -3,6 +3,8 @@ import os
 import os.path
 from shutil import copyfile
 
+print('Searching for manifests...')
+
 matches = []
 for root, dirnames, filenames in os.walk('bazel-bin\\org\\brotli'):
   for filename in fnmatch.filter(filenames, '*.runfiles_manifest'):
@@ -30,3 +32,5 @@ for match in matches:
         if not os.path.exists(parent):
           os.makedirs(parent)
         copyfile(link, dst)
+
+print('Finished resolving symlinks')
