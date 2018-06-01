@@ -14,7 +14,7 @@ for match in matches:
   with open(match) as manifest:
     for entry in manifest:
       entry = entry.strip()
-      if not entry.startswith("org_brotli_java"):
+      if not entry.startswith("org_brotli"):
         continue
       if entry.startswith('org_brotli_java/external'):
         continue
