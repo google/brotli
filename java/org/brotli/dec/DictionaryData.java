@@ -53,6 +53,7 @@ final class DictionaryData {
   static {
     ByteBuffer dictionary = ByteBuffer.allocateDirect(122784);
     unpackDictionaryData(dictionary, DATA0, DATA1, SKIP_FLIP);
+    dictionary.flip();
     Dictionary.setData(dictionary.asReadOnlyBuffer());
   }
 }

@@ -16,15 +16,13 @@ for match in matches:
   with open(match) as manifest:
     for entry in manifest:
       entry = entry.strip()
-      if not entry.startswith("org_brotli"):
+      if not entry.startswith("org_brotli_java"):
         continue
       if entry.startswith('org_brotli_java/external'):
         continue
       (alias, space, link) = entry.partition(' ')
       if alias.endswith('.jar') or alias.endswith('.exe'):
         continue
-      if alias.startswith("org_brotli/"):
-        alias = "external/" + alias
       link = link.replace('/', '\\')
       alias = alias.replace('/', '\\')
       dst = os.path.join(runfiles, alias)
