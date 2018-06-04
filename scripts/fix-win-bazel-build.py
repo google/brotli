@@ -23,6 +23,8 @@ for match in matches:
       (alias, space, link) = entry.partition(' ')
       if alias.endswith('.jar') or alias.endswith('.exe'):
         continue
+      if alias.startswith("org_brotli/"):
+        alias = "external/" + alias
       link = link.replace('/', '\\')
       alias = alias.replace('/', '\\')
       dst = os.path.join(runfiles, alias)
