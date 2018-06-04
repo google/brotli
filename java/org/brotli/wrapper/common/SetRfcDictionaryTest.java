@@ -11,11 +11,12 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+import org.brotli.dec.Dictionary;
 import org.brotli.integration.BrotliJniTestBase;
 import org.brotli.wrapper.dec.BrotliInputStream;
 import java.io.ByteArrayInputStream;
-import java.io.FileInputStream;
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import org.junit.Test;
@@ -29,35 +30,18 @@ import org.junit.runners.JUnit4;
 public class SetRfcDictionaryTest extends BrotliJniTestBase {
 
   @Test
-  public void testRfcDictionaryChecksums() throws IOException, NoSuchAlgorithmException {
-    FileInputStream dictionary = new FileInputStream(System.getProperty("RFC_DICTIONARY"));
-    byte[] data = new byte[BrotliCommon.RFC_DICTIONARY_SIZE + 1];
-    int offset = 0;
-    try {
-      int readBytes;
-      while ((readBytes = dictionary.read(data, offset, data.length - offset)) != -1) {
-        offset += readBytes;
-        if (offset > BrotliCommon.RFC_DICTIONARY_SIZE) {
-          break;
-        }
-      }
-    } finally {
-      dictionary.close();
-    }
-    if (offset != BrotliCommon.RFC_DICTIONARY_SIZE) {
-      fail("dictionary size mismatch");
-    }
-
+  public void testRfcDictionaryChecksums() throws NoSuchAlgorithmException {
+    System.err.println(Dictionary.getData().slice().remaining());
     MessageDigest md5 = MessageDigest.getInstance("MD5");
-    md5.update(data, 0, offset);
+    md5.update(Dictionary.getData().slice());
     assertTrue(BrotliCommon.checkDictionaryDataMd5(md5.digest()));
 
     MessageDigest sha1 = MessageDigest.getInstance("SHA-1");
-    sha1.update(data, 0, offset);
+    sha1.update(Dictionary.getData().slice());
     assertTrue(BrotliCommon.checkDictionaryDataSha1(sha1.digest()));
 
     MessageDigest sha256 = MessageDigest.getInstance("SHA-256");
-    sha256.update(data, 0, offset);
+    sha256.update(Dictionary.getData().slice());
     assertTrue(BrotliCommon.checkDictionaryDataSha256(sha256.digest()));
   }
 
@@ -66,12 +50,7 @@ public class SetRfcDictionaryTest extends BrotliJniTestBase {
     /* "leftdatadataleft" encoded with dictionary words. */
     byte[] data = {27, 15, 0, 0, 0, 0, -128, -29, -76, 13, 0, 0, 7, 91, 38, 49, 64, 2, 0, -32, 78,
         27, 65, -128, 32, 80, 16, 36, 8, 6};
-    FileInputStream dictionary = new FileInputStream(System.getProperty("RFC_DICTIONARY"));
-    try {
-      BrotliCommon.setDictionaryData(dictionary);
-    } finally {
-      dictionary.close();
-    }
+    BrotliCommon.setDictionaryData(Dictionary.getData());
 
     BrotliInputStream decoder = new BrotliInputStream(new ByteArrayInputStream(data));
     byte[] output = new byte[17];

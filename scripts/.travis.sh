@@ -58,7 +58,11 @@ case "$1" in
 		./c/fuzz/test_fuzzer.sh
 		;;
 	    "bazel")
-		bazel test -c opt ...:all
+		bazel build -c opt ...:all &&
+		cd go && bazel test -c opt ...:all && cd .. &&
+		cd java && bazel test -c opt ...:all && cd .. &&
+		cd js && bazel test -c opt ...:all && cd .. &&
+		cd research && bazel build -c opt ...:all && cd ..
 		;;
 	esac
 	;;

@@ -13,8 +13,8 @@ go_library(
         "writer.go",
     ],
     cdeps = [
-        "//:brotlidec",
-        "//:brotlienc",
+        "@org_brotli//:brotlidec",
+        "@org_brotli//:brotlienc",
     ],
     cgo=True,
 )

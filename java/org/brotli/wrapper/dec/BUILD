@@ -15,6 +15,18 @@ java_library(
     ),
 )
 
+java_library(
+    name = "test_lib",
+    testonly = 1,
+    srcs = glob(["*Test*.java"]),
+    deps = [
+        ":dec",
+        "//org/brotli/integration:brotli_jni_test_base",
+        "//org/brotli/integration:bundle_helper",
+        "@junit_junit//jar",
+    ],
+)
+
 filegroup(
     name = "brotli_jni",
     srcs = ["//:brotli_jni.dll"],
@@ -22,13 +34,13 @@ filegroup(
 
 filegroup(
     name = "test_bundle",
-    srcs = ["//java/org/brotli/integration:test_data"],
+    srcs = ["//org/brotli/integration:test_data"],
 )
 
 java_test(
     name = "BrotliDecoderChannelTest",
+    test_class = "org.brotli.wrapper.dec.BrotliDecoderChannelTest",
     size = "large",
-    srcs = ["BrotliDecoderChannelTest.java"],
     data = [
         ":brotli_jni",  # Bazel JNI workaround
         ":test_bundle",
@@ -37,18 +49,13 @@ java_test(
         "-DBROTLI_JNI_LIBRARY=$(location :brotli_jni)",
         "-DTEST_BUNDLE=$(location :test_bundle)",
     ],
-    deps = [
-        ":dec",
-        "//java/org/brotli/integration:brotli_jni_test_base",
-        "//java/org/brotli/integration:bundle_helper",
-        "@junit_junit//jar",
-    ],
+    runtime_deps = [":test_lib"],
 )
 
 java_test(
     name = "BrotliInputStreamTest",
+    test_class = "org.brotli.wrapper.dec.BrotliInputStreamTest",
     size = "large",
-    srcs = ["BrotliInputStreamTest.java"],
     data = [
         ":brotli_jni",  # Bazel JNI workaround
         ":test_bundle",
@@ -57,18 +64,13 @@ java_test(
         "-DBROTLI_JNI_LIBRARY=$(location :brotli_jni)",
         "-DTEST_BUNDLE=$(location :test_bundle)",
     ],
-    deps = [
-        ":dec",
-        "//java/org/brotli/integration:brotli_jni_test_base",
-        "//java/org/brotli/integration:bundle_helper",
-        "@junit_junit//jar",
-    ],
+    runtime_deps = [":test_lib"],
 )
 
 java_test(
     name = "DecoderTest",
+    test_class = "org.brotli.wrapper.dec.DecoderTest",
     size = "large",
-    srcs = ["DecoderTest.java"],
     data = [
         ":brotli_jni",  # Bazel JNI workaround
         ":test_bundle",
@@ -77,10 +79,5 @@ java_test(
         "-DBROTLI_JNI_LIBRARY=$(location :brotli_jni)",
         "-DTEST_BUNDLE=$(location :test_bundle)",
     ],
-    deps = [
-        ":dec",
-        "//java/org/brotli/integration:brotli_jni_test_base",
-        "//java/org/brotli/integration:bundle_helper",
-        "@junit_junit//jar",
-    ],
+    runtime_deps = [":test_lib"],
 )
