@@ -117,7 +117,6 @@ typedef struct BrotliEncoderStateStruct {
 static BROTLI_BOOL EnsureInitialized(BrotliEncoderState* s);
 
 static size_t InputBlockSize(BrotliEncoderState* s) {
-  if (!EnsureInitialized(s)) return 0;
   return (size_t)1 << s->params.lgblock;
 }
 
@@ -817,7 +816,6 @@ static void CopyInputToRingBuffer(BrotliEncoderState* s,
                                   const uint8_t* input_buffer) {
   RingBuffer* ringbuffer_ = &s->ringbuffer_;
   MemoryManager* m = &s->memory_manager_;
-  if (!EnsureInitialized(s)) return;
   RingBufferWrite(m, input_buffer, input_size, ringbuffer_);
   if (BROTLI_IS_OOM(m)) return;
   s->input_pos_ += input_size;
@@ -933,7 +931,6 @@ static BROTLI_BOOL EncodeData(
   MemoryManager* m = &s->memory_manager_;
   ContextType literal_context_mode;
 
-  if (!EnsureInitialized(s)) return BROTLI_FALSE;
   data = s->ringbuffer_.buffer_;
   mask = s->ringbuffer_.mask_;
 

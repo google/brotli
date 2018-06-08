@@ -15,6 +15,7 @@ import java.util.ArrayList;
  * Base class for InputStream / Channel implementations.
  */
 public class Decoder {
+  private static final ByteBuffer EMPTY_BUFER = ByteBuffer.allocate(0);
   private final ReadableByteChannel source;
   private final DecoderJNI.Wrapper decoder;
   ByteBuffer buffer;
@@ -86,6 +87,11 @@ public class Decoder {
           int bytesRead = source.read(inputBuffer);
           if (bytesRead == -1) {
             fail("unexpected end of input");
+          }
+          if (bytesRead == 0) {
+            // No input data is currently available.
+            buffer = EMPTY_BUFER;
+            return 0;
           }
           decoder.push(bytesRead);
           break;

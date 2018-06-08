@@ -16,11 +16,6 @@
 extern "C" {
 #endif
 
-/* TODO: use BrotliTransforms.cutOffTransforms instead. */
-static const uint8_t kOmitLastNTransforms[10] = {
-  0, 12, 27, 23, 42, 63, 56, 48, 59, 64,
-};
-
 static BROTLI_INLINE uint32_t Hash(const uint8_t* data) {
   uint32_t h = BROTLI_UNALIGNED_LOAD32LE(data) * kDictHashMul32;
   /* The higher bits contain more mixture from the multiplication,
@@ -121,7 +116,10 @@ BROTLI_BOOL BrotliFindAllStaticDictionaryMatches(
         if (l > 9) minlen = BROTLI_MAX(size_t, minlen, l - 9);
         maxlen = BROTLI_MIN(size_t, matchlen, l - 2);
         for (len = minlen; len <= maxlen; ++len) {
-          AddMatch(id + kOmitLastNTransforms[l - len] * n, len, l, matches);
+          size_t cut = l - len;
+          size_t transform_id = (cut << 2) +
+              (size_t)((dictionary->cutoffTransforms >> (cut * 6)) & 0x3F);
+          AddMatch(id + transform_id * n, len, l, matches);
           has_found_match = BROTLI_TRUE;
         }
         if (matchlen < l || l + 6 >= max_length) {

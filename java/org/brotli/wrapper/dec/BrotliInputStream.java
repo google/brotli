@@ -53,7 +53,16 @@ public class BrotliInputStream extends InputStream {
     if (decoder.closed) {
       throw new IOException("read after close");
     }
-    if (decoder.decode() == -1) {
+    int decoded;
+    // Iterate until at leat one byte is decoded, or EOF reached.
+    while (true) {
+      decoded = decoder.decode();
+      if (decoded != 0) {
+        break;
+      }
+    }
+
+    if (decoded == -1) {
       return -1;
     }
     return decoder.buffer.get() & 0xFF;
