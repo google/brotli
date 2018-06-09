@@ -628,7 +628,8 @@ static BROTLI_INLINE void BrotliDump(const char* f, int l, const char* fn) {
 #define BROTLI_DUMP() (void)(0)
 #endif
 
-#if (BROTLI_MODERN_COMPILER || defined(__llvm__)) && \
+/* TODO: add appropriate icc/sunpro/arm/ibm/ti checks. */
+#if (BROTLI_GNUC_VERSION_CHECK(3, 0, 0) || defined(__llvm__)) && \
     !defined(BROTLI_BUILD_NO_RBIT)
 #if defined(BROTLI_TARGET_ARMV7) || defined(BROTLI_TARGET_ARMV8)
 /* TODO: detect ARMv6T2 and enable this code for it. */
@@ -680,32 +681,32 @@ static void BrotliDefaultFreeFunc(void* opaque, void* address) {
 }
 
 BROTLI_UNUSED_FUNCTION void BrotliSuppressUnusedFunctions(void) {
-  BROTLI_UNUSED(BrotliSuppressUnusedFunctions);
-  BROTLI_UNUSED(BrotliUnalignedRead16);
-  BROTLI_UNUSED(BrotliUnalignedRead32);
-  BROTLI_UNUSED(BrotliUnalignedRead64);
-  BROTLI_UNUSED(BrotliUnalignedWrite64);
-  BROTLI_UNUSED(BROTLI_UNALIGNED_LOAD16LE);
-  BROTLI_UNUSED(BROTLI_UNALIGNED_LOAD32LE);
-  BROTLI_UNUSED(BROTLI_UNALIGNED_LOAD64LE);
-  BROTLI_UNUSED(BROTLI_UNALIGNED_STORE64LE);
-  BROTLI_UNUSED(BrotliRBit);
-  BROTLI_UNUSED(brotli_min_double);
-  BROTLI_UNUSED(brotli_max_double);
-  BROTLI_UNUSED(brotli_min_float);
-  BROTLI_UNUSED(brotli_max_float);
-  BROTLI_UNUSED(brotli_min_int);
-  BROTLI_UNUSED(brotli_max_int);
-  BROTLI_UNUSED(brotli_min_size_t);
-  BROTLI_UNUSED(brotli_max_size_t);
-  BROTLI_UNUSED(brotli_min_uint32_t);
-  BROTLI_UNUSED(brotli_max_uint32_t);
-  BROTLI_UNUSED(brotli_min_uint8_t);
-  BROTLI_UNUSED(brotli_max_uint8_t);
-  BROTLI_UNUSED(BrotliDefaultAllocFunc);
-  BROTLI_UNUSED(BrotliDefaultFreeFunc);
+  BROTLI_UNUSED(&BrotliSuppressUnusedFunctions);
+  BROTLI_UNUSED(&BrotliUnalignedRead16);
+  BROTLI_UNUSED(&BrotliUnalignedRead32);
+  BROTLI_UNUSED(&BrotliUnalignedRead64);
+  BROTLI_UNUSED(&BrotliUnalignedWrite64);
+  BROTLI_UNUSED(&BROTLI_UNALIGNED_LOAD16LE);
+  BROTLI_UNUSED(&BROTLI_UNALIGNED_LOAD32LE);
+  BROTLI_UNUSED(&BROTLI_UNALIGNED_LOAD64LE);
+  BROTLI_UNUSED(&BROTLI_UNALIGNED_STORE64LE);
+  BROTLI_UNUSED(&BrotliRBit);
+  BROTLI_UNUSED(&brotli_min_double);
+  BROTLI_UNUSED(&brotli_max_double);
+  BROTLI_UNUSED(&brotli_min_float);
+  BROTLI_UNUSED(&brotli_max_float);
+  BROTLI_UNUSED(&brotli_min_int);
+  BROTLI_UNUSED(&brotli_max_int);
+  BROTLI_UNUSED(&brotli_min_size_t);
+  BROTLI_UNUSED(&brotli_max_size_t);
+  BROTLI_UNUSED(&brotli_min_uint32_t);
+  BROTLI_UNUSED(&brotli_max_uint32_t);
+  BROTLI_UNUSED(&brotli_min_uint8_t);
+  BROTLI_UNUSED(&brotli_max_uint8_t);
+  BROTLI_UNUSED(&BrotliDefaultAllocFunc);
+  BROTLI_UNUSED(&BrotliDefaultFreeFunc);
 #if defined(BROTLI_DEBUG) || defined(BROTLI_ENABLE_LOG)
-  BROTLI_UNUSED(BrotliDump);
+  BROTLI_UNUSED(&BrotliDump);
 #endif
 }
 

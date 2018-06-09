@@ -16,7 +16,7 @@
 #include <cstdlib>  /* exit, EXIT_FAILURE */
 #include <vector>
 
-#ifndef CHECK
+#if !defined(CHECK)
 #define CHECK(X) if (!(X)) exit(EXIT_FAILURE);
 #endif
 
