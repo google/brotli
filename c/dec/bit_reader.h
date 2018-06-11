@@ -238,7 +238,7 @@ static BROTLI_INLINE void BrotliTakeBits(
   BrotliBitReader* const br, uint32_t n_bits, uint32_t* val) {
   *val = (uint32_t)BrotliGetBitsUnmasked(br) & BitMask(n_bits);
   BROTLI_LOG(("[BrotliReadBits]  %d %d %d val: %6x\n",
-      (int)br->avail_in, (int)br->bit_pos_, n_bits, (int)*val));
+      (int)br->avail_in, (int)br->bit_pos_, (int)n_bits, (int)*val));
   BrotliDropBits(br, n_bits);
 }
 
