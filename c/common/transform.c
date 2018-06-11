@@ -4,7 +4,6 @@
    See file LICENSE for detail or copy at https://opensource.org/licenses/MIT
 */
 
-#include "./platform.h"
 #include "./transform.h"
 
 #if defined(__cplusplus) || defined(c_plusplus)
@@ -192,7 +191,7 @@ static int ToUpperCase(uint8_t* p) {
 }
 
 int BrotliTransformDictionaryWord(uint8_t* dst, const uint8_t* word, int len,
-    const BrotliTransforms* BROTLI_RESTRICT transforms, int transfom_idx) {
+    const BrotliTransforms* transforms, int transfom_idx) {
   int idx = 0;
   const uint8_t* prefix = BROTLI_TRANSFORM_PREFIX(transforms, transfom_idx);
   uint8_t type = BROTLI_TRANSFORM_TYPE(transforms, transfom_idx);

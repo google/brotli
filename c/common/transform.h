@@ -71,7 +71,7 @@ BROTLI_COMMON_API const BrotliTransforms* BrotliGetTransforms(void);
 
 BROTLI_COMMON_API int BrotliTransformDictionaryWord(
     uint8_t* dst, const uint8_t* word, int len,
-    const BrotliTransforms* BROTLI_RESTRICT transforms, int transform_idx);
+    const BrotliTransforms* transforms, int transform_idx);
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }  /* extern "C" */

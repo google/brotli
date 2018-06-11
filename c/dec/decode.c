@@ -516,7 +516,8 @@ static BROTLI_INLINE void ProcessSingleCodeLength(uint32_t code_len,
     *prev_code_len = code_len;
     *space -= 32768U >> code_len;
     code_length_histo[code_len]++;
-    BROTLI_LOG(("[ReadHuffmanCode] code_length[%d] = %d\n", *symbol, code_len));
+    BROTLI_LOG(("[ReadHuffmanCode] code_length[%d] = %d\n",
+        (int)*symbol, (int)code_len));
   }
   (*symbol)++;
 }
@@ -561,7 +562,7 @@ static BROTLI_INLINE void ProcessRepeatedCodeLength(uint32_t code_len,
     return;
   }
   BROTLI_LOG(("[ReadHuffmanCode] code_length[%d..%d] = %d\n",
-              *symbol, *symbol + repeat_delta - 1, *repeat_code_len));
+      (int)*symbol, (int)(*symbol + repeat_delta - 1), (int)*repeat_code_len));
   if (*repeat_code_len != 0) {
     unsigned last = *symbol + repeat_delta;
     int next = next_symbol[*repeat_code_len];
@@ -832,7 +833,7 @@ static BrotliDecoderErrorCode ReadHuffmanCode(uint32_t alphabet_size,
         }
 
         if (s->space != 0) {
-          BROTLI_LOG(("[ReadHuffmanCode] space = %d\n", s->space));
+          BROTLI_LOG(("[ReadHuffmanCode] space = %d\n", (int)s->space));
           return BROTLI_FAILURE(BROTLI_DECODER_ERROR_FORMAT_HUFFMAN_SPACE);
         }
         table_size = BrotliBuildHuffmanTable(

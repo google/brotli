@@ -9,14 +9,12 @@ package org.brotli.wrapper.common;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 
 import org.brotli.dec.Dictionary;
 import org.brotli.integration.BrotliJniTestBase;
 import org.brotli.wrapper.dec.BrotliInputStream;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.nio.ByteBuffer;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import org.junit.Test;
