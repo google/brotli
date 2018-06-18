@@ -4,11 +4,23 @@ branches:
 
 environment:
   matrix:
+  - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2017
+    BUILD_SYSTEM: CMake
+    GENERATOR: Visual Studio 15 2017 Win64
+    CONFIG: Release
+
+  - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2017
+    BUILD_SYSTEM: CMake
+    GENERATOR: Visual Studio 15 2017 Win64
+    CONFIG: Debug
+
   - BUILD_SYSTEM: CMake
     GENERATOR: Visual Studio 14 2015 Win64
+    CONFIG: Debug
 
   - BUILD_SYSTEM: CMake
     GENERATOR: Visual Studio 14 2015
+    CONFIG: Debug
 
   - BUILD_SYSTEM: Python
     PYTHON: "C:\\Python27"
@@ -38,11 +50,11 @@ install:
     IF "%ARCH%"=="i686" (
       SET "TOOLCHAIN=i686-6.3.0-posix-dwarf-rt_v5-rev1\mingw32"
     ) ELSE (
-      SET "TOOLCHAIN=x86_64-6.3.0-posix-seh-rt_v5-rev1\mingw64"
+      SET "TOOLCHAIN=x86_64-7.3.0-posix-seh-rt_v5-rev0\mingw64"
     )
   )
 - IF "%BUILD_SYSTEM%"=="bazel" (
-    appveyor DownloadFile https://github.com/bazelbuild/bazel/releases/download/0.11.1/bazel-0.11.1-windows-x86_64.exe -FileName bazel.exe
+    appveyor DownloadFile https://github.com/bazelbuild/bazel/releases/download/0.14.1/bazel-0.14.1-windows-x86_64.exe -FileName bazel.exe
   )
 
 before_build:
@@ -56,7 +68,7 @@ before_build:
 - SET "ROOT=%APPVEYOR_BUILD_FOLDER%"
 
 build_script:
-- IF "%BUILD_SYSTEM%"=="CMake" ( cmake --build . --config Debug )
+- IF "%BUILD_SYSTEM%"=="CMake" ( cmake --build . --config %CONFIG% )
 - IF "%BUILD_SYSTEM%"=="Python" ( python setup.py build_ext )
 - IF "%BUILD_SYSTEM%"=="make" (
     sh -c "make brotli" &&
@@ -75,7 +87,7 @@ build_script:
   )
 
 test_script:
-- IF "%BUILD_SYSTEM%"=="CMake" ( ctest --output-on-failure --interactive-debug-mode 0 -C Debug )
+- IF "%BUILD_SYSTEM%"=="CMake" ( ctest --output-on-failure --interactive-debug-mode 0 -C %CONFIG% )
 - IF "%BUILD_SYSTEM%"=="Python" ( python setup.py test )
 - IF "%BUILD_SYSTEM%"=="make" ( sh -c "make test" )
 - IF "%BUILD_SYSTEM%"=="bazel" (
