@@ -142,6 +142,24 @@ static BROTLI_INLINE void ChooseHasher(const BrotliEncoderParams* params,
     hparams->num_last_distances_to_check =
         params->quality < 7 ? 4 : params->quality < 9 ? 10 : 16;
   }
+
+  if (params->lgwin > 24) {
+    /* Different hashers for large window brotli: not for qualities <= 2,
+       these are too fast for large window. Not for qualities >= 10: their
+       hasher already works well with large window. So the changes are:
+       H3 --> H35: for quality 3.
+       H54 --> H55: for quality 4 with size hint > 1MB
+       H6 --> H65: for qualities 5, 6, 7, 8, 9. */
+    if (hparams->type == 3) {
+      hparams->type = 35;
+    }
+    if (hparams->type == 54) {
+      hparams->type = 55;
+    }
+    if (hparams->type == 6) {
+      hparams->type = 65;
+    }
+  }
 }
 
 #endif  /* BROTLI_ENC_QUALITY_H_ */
