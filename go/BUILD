@@ -1,3 +1,2 @@
-load("@io_bazel_rules_go//go:def.bzl", "go_prefix")
-
-go_prefix("github.com/google/brotli")
+# Description:
+#   cbrotli is a CGo wrapper for Brotli, a generic-purpose lossless compression algorithm.
