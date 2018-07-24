@@ -187,14 +187,7 @@ OR:
 
 #if (defined(__ARM_ARCH) && (__ARM_ARCH == 8)) || \
     defined(__aarch64__) || defined(__ARM64_ARCH_8__)
-#define BROTLI_TARGET_ARMV8_ANY
-
-#if defined(__ARM_32BIT_STATE)
-#define BROTLI_TARGET_ARMV8_32
-#elif defined(__ARM_64BIT_STATE)
-#define BROTLI_TARGET_ARMV8_64
-#endif
-
+#define BROTLI_TARGET_ARMV8
 #endif  /* ARMv8 */
 
 #if defined(__i386) || defined(_M_IX86)
@@ -217,7 +210,7 @@ OR:
 #define BROTLI_64_BITS 1
 #elif defined(BROTLI_BUILD_32_BIT)
 #define BROTLI_64_BITS 0
-#elif defined(BROTLI_TARGET_X64) || defined(BROTLI_TARGET_ARMV8_64) || \
+#elif defined(BROTLI_TARGET_X64) || defined(BROTLI_TARGET_ARMV8) || \
     defined(BROTLI_TARGET_POWERPC64) || defined(BROTLI_TARGET_RISCV64)
 #define BROTLI_64_BITS 1
 #else
@@ -268,7 +261,7 @@ OR:
 #if defined(BROTLI_BUILD_PORTABLE)
 #define BROTLI_ALIGNED_READ (!!1)
 #elif defined(BROTLI_TARGET_X86) || defined(BROTLI_TARGET_X64) || \
-    defined(BROTLI_TARGET_ARMV7) || defined(BROTLI_TARGET_ARMV8_ANY) || \
+    defined(BROTLI_TARGET_ARMV7) || defined(BROTLI_TARGET_ARMV8) || \
     defined(BROTLI_TARGET_RISCV64)
 /* Allow unaligned read only for white-listed CPUs. */
 #define BROTLI_ALIGNED_READ (!!0)
@@ -313,33 +306,15 @@ static BROTLI_INLINE void BrotliUnalignedWrite64(void* p, uint64_t v) {
 }
 #else  /* BROTLI_64_BITS */
 /* Avoid emitting LDRD / STRD, which require properly aligned address. */
-
-#if BROTLI_GNUC_HAS_ATTRIBUTE(aligned, 2, 7, 0)
-typedef  __attribute__((aligned(1))) uint64_t unaligned_uint64_t;
-
 static BROTLI_INLINE uint64_t BrotliUnalignedRead64(const void* p) {
-  return (uint64_t) ((unaligned_uint64_t*) p)[0];
+  const uint32_t* dwords = (const uint32_t*)p;
+  return dwords[0] | ((uint64_t)dwords[1] << 32);
 }
 static BROTLI_INLINE void BrotliUnalignedWrite64(void* p, uint64_t v) {
-  unaligned_uint64_t* dwords = (unaligned_uint64_t*) p;
-  dwords[0] = (unaligned_uint64_t) v;
+  uint32_t* dwords = (uint32_t *)p;
+  dwords[0] = (uint32_t)v;
+  dwords[1] = (uint32_t)(v >> 32);
 }
-#else /* BROTLI_GNUC_HAS_ATTRIBUTE(aligned, 2, 7, 0) */
-
-/* Alternative way to avoid LDRD/STRD is use volatile pointers. See:
- * http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.faqs/ka16346.html
- */
-static BROTLI_INLINE uint64_t BrotliUnalignedRead64(const void* p) {
-  return (uint64_t) *((volatile uint32_t*) p)
-    | ((uint64_t) *((volatile uint32_t*) p+1) << 32);
-}
-
-static BROTLI_INLINE void BrotliUnalignedWrite64(void* p, uint64_t v) {
-  *((volatile uint32_t*) p) = (uint32_t) v;
-  *((volatile uint32_t*) p+1) = (uint32_t) (v >> 32);
-}
-
-#endif  /* BROTLI_GNUC_HAS_ATTRIBUTE(aligned, 2, 7, 0) */
 #endif  /* BROTLI_64_BITS */
 #endif  /* BROTLI_ALIGNED_READ */
 
@@ -425,7 +400,7 @@ static BROTLI_INLINE void BROTLI_UNALIGNED_STORE64LE(void* p, uint64_t v) {
 #define BROTLI_IS_CONSTANT(x) (!!0)
 #endif
 
-#if defined(BROTLI_TARGET_ARMV7) || defined(BROTLI_TARGET_ARMV8_ANY)
+#if defined(BROTLI_TARGET_ARMV7) || defined(BROTLI_TARGET_ARMV8)
 #define BROTLI_HAS_UBFX (!!1)
 #else
 #define BROTLI_HAS_UBFX (!!0)
@@ -452,7 +427,7 @@ static BROTLI_INLINE void BrotliDump(const char* f, int l, const char* fn) {
 /* TODO: add appropriate icc/sunpro/arm/ibm/ti checks. */
 #if (BROTLI_GNUC_VERSION_CHECK(3, 0, 0) || defined(__llvm__)) && \
     !defined(BROTLI_BUILD_NO_RBIT)
-#if defined(BROTLI_TARGET_ARMV7) || defined(BROTLI_TARGET_ARMV8_ANY)
+#if defined(BROTLI_TARGET_ARMV7) || defined(BROTLI_TARGET_ARMV8)
 /* TODO: detect ARMv6T2 and enable this code for it. */
 static BROTLI_INLINE brotli_reg_t BrotliRBit(brotli_reg_t input) {
   brotli_reg_t output;
