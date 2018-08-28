@@ -11,13 +11,13 @@ project(brotli C)
 # we'll use the BROTLI_BUNDLED_MODE variable to let them do that; just
 # set it to OFF in your project before you add_subdirectory(brotli).
 get_directory_property(BROTLI_PARENT_DIRECTORY PARENT_DIRECTORY)
-if(BROTLI_BUNDLED_MODE STREQUAL "")
+if(NOT DEFINED BROTLI_BUNDLED_MODE)
   # Bundled mode hasn't been set one way or the other, set the default
   # depending on whether or not we are the top-level project.
   if(BROTLI_PARENT_DIRECTORY)
-    set(BROTLI_BUNDLED_MODE OFF)
-  else()
     set(BROTLI_BUNDLED_MODE ON)
+  else()
+    set(BROTLI_BUNDLED_MODE OFF)
   endif()
 endif()
 mark_as_advanced(BROTLI_BUNDLED_MODE)
