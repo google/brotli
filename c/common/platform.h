@@ -364,6 +364,7 @@ static BROTLI_INLINE void BrotliUnalignedWrite64(void* p, uint64_t v) {
 }
 #endif  /* BROTLI_GNUC_HAS_ATTRIBUTE(aligned, 2, 7, 0) */
 #endif  /* BROTLI_64_BITS */
+#endif  /* ASAN / TSAN / MSAN */
 #endif  /* BROTLI_ALIGNED_READ */
 
 #if BROTLI_LITTLE_ENDIAN
