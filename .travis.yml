@@ -115,7 +115,7 @@ matrix:
     ## We'll just test 4.4 and the most recent version.
     ###
     - os: osx
-      env: BUILD_SYSTEM=cmake C_COMPILER=gcc-7 CXX_COMPILER=g++-7
+      env: BUILD_SYSTEM=cmake C_COMPILER=gcc CXX_COMPILER=g++
     - os: osx
       env: BUILD_SYSTEM=cmake C_COMPILER=gcc-4.9 CXX_COMPILER=g++-4.9
     - os: osx
