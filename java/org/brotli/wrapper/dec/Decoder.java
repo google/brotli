@@ -108,7 +108,7 @@ public class Decoder {
   }
 
   void discard(int length) {
-    buffer.position(buffer.position() + length);
+    ((Buffer) buffer).position(buffer.position() + length);
     if (!buffer.hasRemaining()) {
       buffer = null;
     }
