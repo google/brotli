@@ -10,6 +10,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.Buffer;
 import java.nio.ByteBuffer;
 import java.nio.channels.Channels;
 import java.nio.channels.WritableByteChannel;
@@ -95,8 +96,8 @@ public class BrotliEncoderChannelTest extends BrotliJniTestBase {
           while (src.hasRemaining()) {
             int limit = Math.min(CHUNK_SIZE, src.remaining());
             ByteBuffer slice = src.slice();
-            slice.limit(limit);
-            src.position(src.position() + limit);
+            ((Buffer) slice).limit(limit);
+            ((Buffer) src).position(src.position() + limit);
             encoder.write(slice);
           }
           break;
