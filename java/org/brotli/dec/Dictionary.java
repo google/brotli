@@ -28,6 +28,7 @@ public final class Dictionary {
       try {
         Class.forName(Dictionary.class.getPackage().getName() + ".DictionaryData");
       } catch (Throwable ex) {
+        ex.printStackTrace(System.out);
         ok = false;
       }
       OK = ok;
