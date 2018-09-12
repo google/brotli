@@ -7,6 +7,7 @@
 package org.brotli.dec;
 
 import java.io.UnsupportedEncodingException;
+import java.nio.Buffer;
 import java.nio.ByteBuffer;
 
 /**
@@ -53,7 +54,7 @@ final class DictionaryData {
   static {
     ByteBuffer dictionary = ByteBuffer.allocateDirect(122784);
     unpackDictionaryData(dictionary, DATA0, DATA1, SKIP_FLIP);
-    dictionary.flip();
+    ((Buffer) dictionary).flip();
     Dictionary.setData(dictionary.asReadOnlyBuffer());
   }
 }
