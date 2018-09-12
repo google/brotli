@@ -13,6 +13,9 @@ case "$1" in
 		    "gcc-"*)
 			which ${CC} || brew install $(echo "${CC}" | sed 's/\-/@/') || brew link --overwrite $(echo "${CC}" | sed 's/\-/@/')
 			;;
+		    "gcc")
+			brew install gcc; brew upgrage gcc
+			;;
 		esac
 
 		case "${BUILD_SYSTEM}" in
