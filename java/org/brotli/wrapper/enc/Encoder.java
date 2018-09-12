@@ -7,6 +7,7 @@
 package org.brotli.wrapper.enc;
 
 import java.io.IOException;
+import java.nio.Buffer;
 import java.nio.ByteBuffer;
 import java.nio.channels.WritableByteChannel;
 import java.util.ArrayList;
@@ -17,8 +18,8 @@ import java.util.ArrayList;
 public class Encoder {
   private final WritableByteChannel destination;
   private final EncoderJNI.Wrapper encoder;
+  private ByteBuffer buffer;
   final ByteBuffer inputBuffer;
-  ByteBuffer buffer;
   boolean closed;
 
   /**
@@ -111,7 +112,7 @@ public class Encoder {
   boolean encode(EncoderJNI.Operation op) throws IOException {
     boolean force = (op != EncoderJNI.Operation.PROCESS);
     if (force) {
-      inputBuffer.limit(inputBuffer.position());
+      ((Buffer) inputBuffer).limit(inputBuffer.position());
     } else if (inputBuffer.hasRemaining()) {
       return true;
     }
@@ -129,7 +130,7 @@ public class Encoder {
         encoder.push(op, inputBuffer.limit());
         hasInput = false;
       } else {
-        inputBuffer.clear();
+        ((Buffer) inputBuffer).clear();
         return true;
       }
     }
@@ -156,6 +157,12 @@ public class Encoder {
    * Encodes the given data buffer.
    */
   public static byte[] compress(byte[] data, Parameters params) throws IOException {
+    if (data.length == 0) {
+      byte[] empty = new byte[1];
+      empty[0] = 6;
+      return empty;
+    }
+    /* data.length > 0 */
     EncoderJNI.Wrapper encoder = new EncoderJNI.Wrapper(data.length, params.quality, params.lgwin);
     ArrayList<byte[]> output = new ArrayList<byte[]>();
     int totalOutputSize = 0;
