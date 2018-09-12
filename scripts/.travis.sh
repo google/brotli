@@ -13,6 +13,9 @@ case "$1" in
 		    "gcc-"*)
 			which ${CC} || brew install $(echo "${CC}" | sed 's/\-/@/') || brew link --overwrite $(echo "${CC}" | sed 's/\-/@/')
 			;;
+		    "gcc")
+			brew install gcc; brew upgrage gcc
+			;;
 		esac
 
 		case "${BUILD_SYSTEM}" in
@@ -59,9 +62,9 @@ case "$1" in
 		;;
 	    "bazel")
 		bazel build -c opt ...:all &&
-		cd go && bazel test -c opt ...:all && cd .. &&
-		cd java && bazel test -c opt ...:all && cd .. &&
-		cd js && bazel test -c opt ...:all && cd .. &&
+		cd go && bazel test -c opt --test_output=all ...:all && cd .. &&
+		cd java && bazel test -c opt --test_output=all ...:all && cd .. &&
+		cd js && bazel test -c opt --test_output=all ...:all && cd .. &&
 		cd research && bazel build -c opt ...:all && cd ..
 		;;
 	esac
