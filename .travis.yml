@@ -119,7 +119,6 @@ matrix:
     - os: osx
       env: BUILD_SYSTEM=cmake C_COMPILER=gcc-4.9 CXX_COMPILER=g++-4.9
     - os: osx
-      osx_image: xcode9.3
       env: BUILD_SYSTEM=cmake
 
     ###
@@ -179,6 +178,8 @@ matrix:
 
     - os: osx
       env: BUILD_SYSTEM=bazel
+      # Latest image with Java 1.8 (required by Bazel).
+      osx_image: xcode9.4
 
 before_install:
 ###
