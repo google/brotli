@@ -170,6 +170,7 @@ matrix:
       addons:
         apt:
           sources:
+            - key_url: "https://storage.googleapis.com/bazel-apt/doc/apt-key.pub.gpg"
             - ubuntu-toolchain-r-test
           packages:
             - bazel
