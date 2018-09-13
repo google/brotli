@@ -298,6 +298,33 @@ static BROTLI_INLINE void BrotliUnalignedWrite64(void* p, uint64_t v) {
 }
 #else  /* BROTLI_ALIGNED_READ */
 /* Unaligned memory access is allowed: just cast pointer to requested type. */
+#if defined(ADDRESS_SANITIZER) || defined(THREAD_SANITIZER) || \
+    defined(MEMORY_SANITIZER)
+/* Consider we have an unaligned load/store of 4 bytes from address 0x...05.
+   AddressSanitizer will treat it as a 3-byte access to the range 05:07 and
+   will miss a bug if 08 is the first unaddressable byte.
+   ThreadSanitizer will also treat this as a 3-byte access to 05:07 and will
+   miss a race between this access and some other accesses to 08.
+   MemorySanitizer will correctly propagate the shadow on unaligned stores
+   and correctly report bugs on unaligned loads, but it may not properly
+   update and report the origin of the uninitialized memory.
+   For all three tools, replacing an unaligned access with a tool-specific
+   callback solves the problem. */
+#if defined(__cplusplus)
+extern "C" {
+#endif  /* __cplusplus */
+  uint16_t __sanitizer_unaligned_load16(const void* p);
+  uint32_t __sanitizer_unaligned_load32(const void* p);
+  uint64_t __sanitizer_unaligned_load64(const void* p);
+  void __sanitizer_unaligned_store64(void* p, uint64_t v);
+#if defined(__cplusplus)
+}  /* extern "C" */
+#endif  /* __cplusplus */
+#define BrotliUnalignedRead16 __sanitizer_unaligned_load16
+#define BrotliUnalignedRead32 __sanitizer_unaligned_load32
+#define BrotliUnalignedRead64 __sanitizer_unaligned_load64
+#define BrotliUnalignedWrite64 __sanitizer_unaligned_store64
+#else
 static BROTLI_INLINE uint16_t BrotliUnalignedRead16(const void* p) {
   return *(const uint16_t*)p;
 }
@@ -316,14 +343,14 @@ static BROTLI_INLINE void BrotliUnalignedWrite64(void* p, uint64_t v) {
 /* If __attribute__(aligned) is available, use that. Otherwise, memcpy. */
 
 #if BROTLI_GNUC_HAS_ATTRIBUTE(aligned, 2, 7, 0)
-typedef  __attribute__((aligned(1))) uint64_t unaligned_uint64_t;
+typedef  __attribute__((aligned(1))) uint64_t brotli_unaligned_uint64_t;
 
 static BROTLI_INLINE uint64_t BrotliUnalignedRead64(const void* p) {
-  return (uint64_t) ((unaligned_uint64_t*) p)[0];
+  return (uint64_t) ((brotli_unaligned_uint64_t*) p)[0];
 }
 static BROTLI_INLINE void BrotliUnalignedWrite64(void* p, uint64_t v) {
-  unaligned_uint64_t* dwords = (unaligned_uint64_t*) p;
-  dwords[0] = (unaligned_uint64_t) v;
+  brotli_unaligned_uint64_t* dwords = (brotli_unaligned_uint64_t*) p;
+  dwords[0] = (brotli_unaligned_uint64_t) v;
 }
 #else /* BROTLI_GNUC_HAS_ATTRIBUTE(aligned, 2, 7, 0) */
 static BROTLI_INLINE uint64_t BrotliUnalignedRead64(const void* p) {
@@ -337,6 +364,7 @@ static BROTLI_INLINE void BrotliUnalignedWrite64(void* p, uint64_t v) {
 }
 #endif  /* BROTLI_GNUC_HAS_ATTRIBUTE(aligned, 2, 7, 0) */
 #endif  /* BROTLI_64_BITS */
+#endif  /* ASAN / TSAN / MSAN */
 #endif  /* BROTLI_ALIGNED_READ */
 
 #if BROTLI_LITTLE_ENDIAN

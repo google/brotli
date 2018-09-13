@@ -8,6 +8,8 @@ package org.brotli.dec;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.UnsupportedEncodingException;
+import java.nio.Buffer;
 
 /**
  * A set of utility methods.
@@ -70,5 +72,20 @@ final class Utils {
 
   static void closeInput(InputStream src) throws IOException {
     src.close();
+  }
+
+  static byte[] toUsAsciiBytes(String src) {
+    try {
+      // NB: String#getBytes(String) is present in JDK 1.1, while other variants require JDK 1.6 and
+      // above.
+      return src.getBytes("US-ASCII");
+    } catch (UnsupportedEncodingException e) {
+      throw new RuntimeException(e); // cannot happen
+    }
+  }
+
+  // Crazy pills factory: code compiled for JDK8 does not work on JRE9.
+  static void flipBuffer(Buffer buffer) {
+    buffer.flip();
   }
 }

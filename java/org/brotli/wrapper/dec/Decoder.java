@@ -7,6 +7,7 @@
 package org.brotli.wrapper.dec;
 
 import java.io.IOException;
+import java.nio.Buffer;
 import java.nio.ByteBuffer;
 import java.nio.channels.ReadableByteChannel;
 import java.util.ArrayList;
@@ -83,7 +84,7 @@ public class Decoder {
             break;
           }
           ByteBuffer inputBuffer = decoder.getInputBuffer();
-          inputBuffer.clear();
+          ((Buffer) inputBuffer).clear();
           int bytesRead = source.read(inputBuffer);
           if (bytesRead == -1) {
             fail("unexpected end of input");
@@ -107,7 +108,7 @@ public class Decoder {
   }
 
   void discard(int length) {
-    buffer.position(buffer.position() + length);
+    ((Buffer) buffer).position(buffer.position() + length);
     if (!buffer.hasRemaining()) {
       buffer = null;
     }
@@ -116,7 +117,7 @@ public class Decoder {
   int consume(ByteBuffer dst) {
     ByteBuffer slice = buffer.slice();
     int limit = Math.min(slice.remaining(), dst.remaining());
-    slice.limit(limit);
+    ((Buffer) slice).limit(limit);
     dst.put(slice);
     discard(limit);
     return limit;

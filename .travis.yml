@@ -115,11 +115,10 @@ matrix:
     ## We'll just test 4.4 and the most recent version.
     ###
     - os: osx
-      env: BUILD_SYSTEM=cmake C_COMPILER=gcc-6 CXX_COMPILER=g++-6
+      env: BUILD_SYSTEM=cmake C_COMPILER=gcc CXX_COMPILER=g++
     - os: osx
       env: BUILD_SYSTEM=cmake C_COMPILER=gcc-4.9 CXX_COMPILER=g++-4.9
     - os: osx
-      osx_image: xcode9.3
       env: BUILD_SYSTEM=cmake
 
     ###
@@ -166,6 +165,7 @@ matrix:
     - os: linux
       sudo: required
       language: java
+      jdk: oraclejdk9
       env: BUILD_SYSTEM=bazel
       addons:
         apt:
@@ -174,11 +174,13 @@ matrix:
               key_url: "https://storage.googleapis.com/bazel-apt/doc/apt-key.pub.gpg"
             - ubuntu-toolchain-r-test
           packages:
-            - oracle-java8-installer
             - bazel
 
     - os: osx
       env: BUILD_SYSTEM=bazel
+      # Latest image with Java 1.8 (required to install Bazel).
+      osx_image: xcode9.3
+      language: java
 
 before_install:
 ###

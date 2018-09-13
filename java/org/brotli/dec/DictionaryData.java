@@ -6,7 +6,6 @@
 
 package org.brotli.dec;
 
-import java.io.UnsupportedEncodingException;
 import java.nio.ByteBuffer;
 
 /**
@@ -22,14 +21,7 @@ final class DictionaryData {
   private static void unpackDictionaryData(
       ByteBuffer dictionary, String data0, String data1, String skipFlip) {
     // Initialize lower 7 bits of every byte in the dictionary.
-    byte[] dict;
-    try {
-      // NB: String#getBytes(String) is present in JDK 1.1, while other variants require JDK 1.6 and
-      // above.
-      dict = (data0 + data1).getBytes("US-ASCII");
-    } catch (UnsupportedEncodingException e) {
-      throw new RuntimeException(e); // cannot happen
-    }
+    byte[] dict = Utils.toUsAsciiBytes(data0 + data1);
     if (dict.length != dictionary.capacity()) {
       throw new RuntimeException("Corrupted brotli dictionary");
     }
@@ -53,7 +45,7 @@ final class DictionaryData {
   static {
     ByteBuffer dictionary = ByteBuffer.allocateDirect(122784);
     unpackDictionaryData(dictionary, DATA0, DATA1, SKIP_FLIP);
-    dictionary.flip();
+    Utils.flipBuffer(dictionary);
     Dictionary.setData(dictionary.asReadOnlyBuffer());
   }
 }

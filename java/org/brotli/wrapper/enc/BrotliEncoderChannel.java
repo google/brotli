@@ -7,6 +7,7 @@
 package org.brotli.wrapper.enc;
 
 import java.io.IOException;
+import java.nio.Buffer;
 import java.nio.ByteBuffer;
 import java.nio.channels.ClosedChannelException;
 import java.nio.channels.WritableByteChannel;
@@ -65,10 +66,10 @@ public class BrotliEncoderChannel extends Encoder implements WritableByteChannel
       while (src.hasRemaining() && encode(EncoderJNI.Operation.PROCESS)) {
         int limit = Math.min(src.remaining(), inputBuffer.remaining());
         ByteBuffer slice = src.slice();
-        slice.limit(limit);
+        ((Buffer) slice).limit(limit);
         inputBuffer.put(slice);
         result += limit;
-        src.position(src.position() + limit);
+        ((Buffer) src).position(src.position() + limit);
       }
       return result;
     }
