@@ -165,15 +165,13 @@ matrix:
     - os: linux
       sudo: required
       language: java
+      jdk: oraclejdk9
       env: BUILD_SYSTEM=bazel
       addons:
         apt:
           sources:
-            - sourceline: "deb [arch=amd64] http://storage.googleapis.com/bazel-apt stable jdk1.8"
-              key_url: "https://storage.googleapis.com/bazel-apt/doc/apt-key.pub.gpg"
             - ubuntu-toolchain-r-test
           packages:
-            - oracle-java8-installer
             - bazel
 
     - os: osx
