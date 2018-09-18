@@ -1,10 +1,13 @@
 #!/usr/bin/env bash
 #
 # Roundtrip test for the brotli command-line tool.
+#
+# The first argument may be a wrapper for brotli, such as 'qemu-arm'.
 
 set -o errexit
 
-BROTLI=bin/brotli
+BROTLI_WRAPPER=$1
+BROTLI="${BROTLI_WRAPPER} bin/brotli"
 TMP_DIR=bin/tmp
 INPUTS="""
 tests/testdata/alice29.txt
