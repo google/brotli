@@ -4,7 +4,7 @@ Basic scripts to test any file comparing Gzip and Brotli across speed and compre
 ## Usage
 ```
 $ git clone 
-$ ./test.sh [test file]
+$ ./compare.sh [test file]
 ```
 
 For best results clone into /tmp or tmpfs to guarantee eliminating I/O time.
