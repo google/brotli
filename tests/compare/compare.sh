@@ -27,20 +27,24 @@ fi
 
 rm -f *.br *.gz
 
+mkdir -p "$1.d"
+
 origsize=$(stat -c '%s' "$1")
 
 for level in {1..9}
 do
-	brtime=$(microsecs brotli -$level -f -o "$1.$level.br" "$1")
-	brsize="$(stat -c '%s' ""$1.$level.br"")"
+	brtime=$(microsecs brotli -$level -f -o "$1.d/$level.br" "$1")
+	brsize="$(stat -c '%s' $1.d/$level.br)"
+	brutime=$(microsecs brotli -d "$1.d/$level.br" -f -o "$1"  )
 	echo "brotli	-$level: ${brtime}ms, ${brsize}b"
 
 	gztime=$(microsecs gzip -$level -f -k "$1")
 	gzsize="$(stat -c '%s' ""$1.gz"")"
+	gunztime=$(microsecs gunzip -f "$1.gz")
 	echo "gzip	-$level: ${gztime}ms, ${gzsize}b"
 	rm -f "$1.gz"
 
-	dataset="$dataset [$level, $gzsize, $brsize, $gztime, $brtime], "
+	dataset="$dataset [$level, $gzsize, $brsize, $gztime, $brtime, $gunztime, $brutime], "
 done
 
 #rm -f *.br *.gz
@@ -61,6 +65,8 @@ function drawAxisTickColors() {
       data.addColumn('number', 'Brotli Size (bytes)');
       data.addColumn('number', 'GZIP Time (microsec)');
       data.addColumn('number', 'Brotli Time (microsec)');
+      data.addColumn('number', 'Brotli Extract Time (microsec)');
+      data.addColumn('number', 'Gzip Extract Time (microsec)');
 
       data.addRows([
 $dataset
@@ -74,14 +80,14 @@ $dataset
           title: 'Compression Level',
           textStyle: {
             color: '#01579b',
-            fontSize: 20,
+            fontSize: 24,
             fontName: 'Arial',
             bold: true,
             italic: true
           },
           titleTextStyle: {
             color: '#01579b',
-            fontSize: 16,
+            fontSize: 28,
             fontName: 'Arial',
             bold: false,
             italic: true
@@ -100,7 +106,7 @@ $dataset
             bold: true
           }
         },
-        colors: ['#FF0000', '#00FF00', '#FF00FF', '#0000FF']
+        colors: ['#FF0000', '#00FF00', '#FF00FF', '#0000FF', '#228844', '#444444']
       };
       var chart = new google.visualization.LineChart(document.getElementById('chart_div'));
       chart.draw(data, options);
