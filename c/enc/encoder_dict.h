@@ -89,9 +89,6 @@ typedef struct BrotliEncoderDictionary {
   BrotliDictionary* words_instance_;
 } BrotliEncoderDictionary;
 
-/* Initializes to the brotli built-in dictionary */
-BROTLI_INTERNAL void BrotliInitEncoderDictionary(BrotliEncoderDictionary* dict);
-
 /* Dictionary data for all 64 contexts */
 typedef struct ContextualEncoderDictionary {
   BROTLI_BOOL context_based;

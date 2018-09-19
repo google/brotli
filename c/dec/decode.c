@@ -42,8 +42,9 @@ extern "C" {
 
 /* We need the slack region for the following reasons:
     - doing up to two 16-byte copies for fast backward copying
-    - inserting transformed dictionary word (5 prefix + 24 base + 8 suffix) */
-static const uint32_t kRingBufferWriteAheadSlack = 42;
+    - inserting transformed dictionary word:
+        255 prefix + 32 base + 255 suffix */
+static const uint32_t kRingBufferWriteAheadSlack = 542;
 
 static const uint8_t kCodeLengthCodeOrder[BROTLI_CODE_LENGTH_CODES] = {
   1, 2, 3, 4, 0, 5, 17, 6, 16, 7, 8, 9, 10, 11, 12, 13, 14, 15,

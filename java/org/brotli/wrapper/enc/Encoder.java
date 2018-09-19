@@ -6,6 +6,7 @@
 
 package org.brotli.wrapper.enc;
 
+import org.brotli.enc.PreparedDictionary;
 import java.io.IOException;
 import java.nio.Buffer;
 import java.nio.ByteBuffer;
@@ -18,11 +19,11 @@ import java.util.List;
  */
 public class Encoder {
   private final WritableByteChannel destination;
+  private final List<PreparedDictionary> dictionaries;
   private final EncoderJNI.Wrapper encoder;
   private ByteBuffer buffer;
   final ByteBuffer inputBuffer;
   boolean closed;
-  List<PreparedDictionary> nativeDictionaries;
 
   /**
    * Brotli encoder settings.
@@ -76,7 +77,7 @@ public class Encoder {
     if (destination == null) {
       throw new NullPointerException("destination can not be null");
     }
-    this.nativeDictionaries = new ArrayList<PreparedDictionary>();
+    this.dictionaries = new ArrayList<PreparedDictionary>();
     this.destination = destination;
     this.encoder = new EncoderJNI.Wrapper(inputBufferSize, params.quality, params.lgwin);
     this.inputBuffer = this.encoder.getInputBuffer();
@@ -92,13 +93,11 @@ public class Encoder {
   }
 
   public void attachDictionary(PreparedDictionary dictionary) throws IOException {
-    if (!encoder.attachDictionary(dictionary.data)) {
+    if (!encoder.attachDictionary(dictionary.getData())) {
       fail("failed to attach dictionary");
     }
-    // Only byte buffer is held by native encoder -> reference to wrapper should be held here.
-    if (dictionary.isNative) {
-      nativeDictionaries.add(dictionary);
-    }
+    // Reference to native prepared dictionary wrapper should be held till the end of encoding.
+    dictionaries.add(dictionary);
   }
 
   /**
@@ -216,11 +215,14 @@ public class Encoder {
     return compress(data, new Parameters());
   }
 
-  public static PreparedDictionary prepareDictionary(ByteBuffer dictionary) {
-    ByteBuffer data = EncoderJNI.prepareDictionary(dictionary);
-    if (data == null) {
-      throw new IllegalStateException("OOM");
-    }
-    return new PreparedDictionary(data, true);
+  /**
+   * Prepares raw or serialized dictionary for being used by encoder.
+   *
+   * @param dictionary raw / serialized dictionary data; MUST be direct
+   * @param sharedDictionaryType dictionary data type
+   */
+  public static PreparedDictionary prepareDictionary(ByteBuffer dictionary,
+      int sharedDictionaryType) {
+    return EncoderJNI.prepareDictionary(dictionary, sharedDictionaryType);
   }
 }

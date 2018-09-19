@@ -4,20 +4,34 @@
    See file LICENSE for detail or copy at https://opensource.org/licenses/MIT
 */
 
-package org.brotli.wrapper.enc;
+package org.brotli.enc;
 
+import java.nio.Buffer;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.IntBuffer;
 import java.nio.ShortBuffer;
 
 /**
- * Java prepared dictionary producer.
+ * Java prepared (raw) dictionary producer.
  */
 public class PreparedDictionaryGenerator {
 
   private static final int MAGIC = 0xDEBCEDE0;
   private static final long HASH_MULTIPLIER = 0x1fe35a7bd3579bd3L;
+
+  private static class PreparedDictionaryImpl implements PreparedDictionary {
+    private final ByteBuffer data;
+
+    private PreparedDictionaryImpl(ByteBuffer data) {
+      this.data = data;
+    }
+
+    @Override
+    public ByteBuffer getData() {
+      return data;
+    }
+  }
 
   // Disallow instantiation.
   private PreparedDictionaryGenerator() { }
@@ -28,7 +42,7 @@ public class PreparedDictionaryGenerator {
 
   public static PreparedDictionary generate(ByteBuffer src,
       int bucketBits, int slotBits, int hashBits, int blockBits) {
-    src.clear();  // Just in case...
+    ((Buffer) src).clear();  // Just in case...
     if (blockBits > 12) {
       throw new IllegalArgumentException("blockBits is too big");
     }
@@ -166,6 +180,6 @@ public class PreparedDictionaryGenerator {
 
     sourceCopy.put(src);
 
-    return new PreparedDictionary(flat, false);
+    return new PreparedDictionaryImpl(flat);
   }
 }

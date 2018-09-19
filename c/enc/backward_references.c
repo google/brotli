@@ -100,6 +100,21 @@ static BROTLI_INLINE size_t ComputeDistanceCode(size_t distance,
 #include "./backward_references_inc.h"
 #undef HASHER
 
+#define HASHER() H35
+/* NOLINTNEXTLINE(build/include) */
+#include "./backward_references_inc.h"
+#undef HASHER
+
+#define HASHER() H55
+/* NOLINTNEXTLINE(build/include) */
+#include "./backward_references_inc.h"
+#undef HASHER
+
+#define HASHER() H65
+/* NOLINTNEXTLINE(build/include) */
+#include "./backward_references_inc.h"
+#undef HASHER
+
 #undef ENABLE_COMPOUND_DICTIONARY
 #undef PREFIX
 #define PREFIX() D
@@ -122,6 +137,14 @@ static BROTLI_INLINE size_t ComputeDistanceCode(size_t distance,
 #include "./backward_references_inc.h"
 #undef HASHER
 #define HASHER() H42
+/* NOLINTNEXTLINE(build/include) */
+#include "./backward_references_inc.h"
+#undef HASHER
+#define HASHER() H55
+/* NOLINTNEXTLINE(build/include) */
+#include "./backward_references_inc.h"
+#undef HASHER
+#define HASHER() H65
 /* NOLINTNEXTLINE(build/include) */
 #include "./backward_references_inc.h"
 #undef HASHER
@@ -153,6 +176,8 @@ void BrotliCreateBackwardReferences(size_t num_bytes,
       CASE_(40)
       CASE_(41)
       CASE_(42)
+      CASE_(55)
+      CASE_(65)
 #undef CASE_
       default:
         break;

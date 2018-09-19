@@ -7,6 +7,7 @@
 #include "./encoder_dict.h"
 
 #include "../common/dictionary.h"
+#include "../common/platform.h"
 #include "../common/shared_dictionary_internal.h"
 #include "../common/transform.h"
 #include "./compound_dictionary.h"
@@ -38,8 +39,8 @@ static void BrotliTrieFree(MemoryManager* m, BrotliTrie* trie) {
   BrotliFree(m, trie->pool);
 }
 
-/* TODO: make this method internal? */
-void BrotliInitEncoderDictionary(BrotliEncoderDictionary* dict) {
+/* Initializes to RFC 7932 static dictionary / transforms. */
+static void InitEncoderDictionary(BrotliEncoderDictionary* dict) {
   dict->words = BrotliGetDictionary();
   dict->num_transforms = (uint32_t)BrotliGetTransforms()->num_transforms;
 
@@ -74,15 +75,9 @@ static void BrotliDestroyEncoderDictionary(MemoryManager* m,
   BrotliTrieFree(m, &dict->trie);
 }
 
-/* TODO: merge with BrotliLoad32LE from dec/bit_reader.h */
-static uint32_t Load32LE(const uint8_t* data) {
-  return (uint32_t)data[0] | ((uint32_t)data[1] << 8) |
-      ((uint32_t)data[2] << 16) | ((uint32_t)data[3] << 24);
-}
-
 /* Word length must be at least 4 bytes */
 static uint32_t Hash(const uint8_t* data, int bits) {
-  uint32_t h = Load32LE(data) * kHashMul32;
+  uint32_t h = BROTLI_UNALIGNED_LOAD32LE(data) * kHashMul32;
   /* The higher bits contain more mixture from the multiplication,
      so we take our results from there. */
   return h >> (32 - bits);
@@ -498,12 +493,14 @@ void BrotliInitSharedEncoderDictionary(SharedEncoderDictionary* dict) {
   dict->contextual.instances_ = 0;
   dict->contextual.num_instances_ = 1;  /* The instance_ field */
   dict->contextual.dict[0] = &dict->contextual.instance_;
-  BrotliInitEncoderDictionary(&dict->contextual.instance_);
+  InitEncoderDictionary(&dict->contextual.instance_);
   dict->contextual.instance_.parent = &dict->contextual;
 
   dict->max_quality = BROTLI_MAX_QUALITY;
 }
 
+/* TODO: make sure that tooling will warn user if not all the cutoff
+   transforms are available (for low-quality encoder). */
 static BROTLI_BOOL InitCustomSharedEncoderDictionary(
     MemoryManager* m, const BrotliSharedDictionary* decoded_dict,
     int quality, SharedEncoderDictionary* dict) {
@@ -545,7 +542,7 @@ static BROTLI_BOOL InitCustomSharedEncoderDictionary(
   }
   for (i = 0; i < (int)contextual->num_instances_; i++) {
     BrotliEncoderDictionary* current = &instances[i];
-    BrotliInitEncoderDictionary(current);
+    InitEncoderDictionary(current);
     current->parent = &dict->contextual;
     if (decoded_dict->words[i] == BrotliGetDictionary()) {
       current->words = BrotliGetDictionary();

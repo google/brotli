@@ -6,6 +6,7 @@
 
 package org.brotli.wrapper.enc;
 
+import org.brotli.enc.PreparedDictionary;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 
@@ -27,19 +28,45 @@ class EncoderJNI {
     FINISH
   }
 
-  static ByteBuffer prepareDictionary(ByteBuffer dictionary) {
-    if (!dictionary.isDirect()) {
-      throw new IllegalArgumentException("only direct buffers allowed");
+  private static class PreparedDictionaryImpl implements PreparedDictionary {
+    private ByteBuffer data;
+
+    private PreparedDictionaryImpl(ByteBuffer data) {
+      this.data = data;
     }
-    return nativePrepareDictionary(dictionary, 0);
+
+    @Override
+    public ByteBuffer getData() {
+      return data;
+    }
+
+    @Override
+    protected void finalize() throws Throwable {
+      try {
+        ByteBuffer data = this.data;
+        this.data = null;
+        nativeDestroyDictionary(data);
+      } finally {
+        super.finalize();
+      }
+    }
   }
 
-  static void destroyDictionary(ByteBuffer dictionary) {
+  /**
+   * Prepares raw or serialized dictionary for being used by encoder.
+   *
+   * @param dictionary raw / serialized dictionary data; MUST be direct
+   * @param sharedDictionaryType dictionary data type
+   */
+  static PreparedDictionary prepareDictionary(ByteBuffer dictionary, int sharedDictionaryType) {
     if (!dictionary.isDirect()) {
       throw new IllegalArgumentException("only direct buffers allowed");
     }
-    // TODO: add a seal to ensure that this buffer is from native code.
-    nativeDestroyDictionary(dictionary);
+    ByteBuffer dictionaryData = nativePrepareDictionary(dictionary, sharedDictionaryType);
+    if (dictionaryData == null) {
+      throw new IllegalStateException("OOM");
+    }
+    return new PreparedDictionaryImpl(dictionaryData);
   }
 
   static class Wrapper {

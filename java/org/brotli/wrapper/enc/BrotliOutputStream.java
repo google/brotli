@@ -6,6 +6,7 @@
 
 package org.brotli.wrapper.enc;
 
+import org.brotli.enc.PreparedDictionary;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.channels.Channels;

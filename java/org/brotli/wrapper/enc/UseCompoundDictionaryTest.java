@@ -3,6 +3,9 @@ package org.brotli.wrapper.enc;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
+import org.brotli.common.SharedDictionaryType;
+import org.brotli.enc.PreparedDictionary;
+import org.brotli.enc.PreparedDictionaryGenerator;
 import org.brotli.integration.BrotliJniTestBase;
 import org.brotli.integration.BundleHelper;
 import org.brotli.wrapper.common.BrotliCommon;
@@ -56,13 +59,13 @@ public class UseCompoundDictionaryTest extends BrotliJniTestBase {
     }
   }
 
-  private static PreparedDictionary prepareDictionary(String entryName, ByteBuffer data) {
+  private static PreparedDictionary prepareRawDictionary(String entryName, ByteBuffer data) {
     if (entryName.endsWith("E.coli.txt")) {
       // Default prepared dictionary parameters doesn't work well for DNA data.
       // Should work well with 8-byte hash.
       return PreparedDictionaryGenerator.generate(data, 17, 3, 64, 5);
     } else {
-       return Encoder.prepareDictionary(data);
+       return Encoder.prepareDictionary(data, SharedDictionaryType.RAW);
     }
   }
 
@@ -80,7 +83,7 @@ public class UseCompoundDictionaryTest extends BrotliJniTestBase {
     }
 
     ByteBuffer dictionary = BrotliCommon.makeNative(original);
-    PreparedDictionary preparedDictionary = prepareDictionary(entryName, dictionary);
+    PreparedDictionary preparedDictionary = prepareRawDictionary(entryName, dictionary);
 
     ByteArrayOutputStream dst = new ByteArrayOutputStream();
     BrotliOutputStream encoder =
