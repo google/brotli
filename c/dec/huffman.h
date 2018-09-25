@@ -33,10 +33,42 @@ static const uint16_t kMaxHuffmanTableSize[] = {
 
 #define BROTLI_HUFFMAN_MAX_CODE_LENGTH_CODE_LENGTH 5
 
+/* Do not create this struct directly - use the ConstructHuffmanCode
+ * constructor below! */
 typedef struct {
   uint8_t bits;    /* number of bits used for this symbol */
   uint16_t value;  /* symbol value or table offset */
 } HuffmanCode;
+
+static BROTLI_INLINE HuffmanCode ConstructHuffmanCode(const uint8_t bits,
+    const uint16_t value) {
+  HuffmanCode h;
+  h.bits = bits;
+  h.value = value;
+  return h;
+}
+
+/* Please use the following macros to optimize HuffmanCode accesses in hot
+ * paths.
+ *
+ * For example, assuming |table| contains a HuffmanCode pointer:
+ *
+ *   BROTLI_HC_MARK_TABLE_FOR_FAST_LOAD(table);
+ *   BROTLI_HC_ADJUST_TABLE_INDEX(table, index_into_table);
+ *   *bits = BROTLI_HC_GET_BITS(table);
+ *   *value = BROTLI_HC_GET_VALUE(table);
+ *   BROTLI_HC_ADJUST_TABLE_INDEX(table, offset);
+ *   *bits2 = BROTLI_HC_GET_BITS(table);
+ *   *value2 = BROTLI_HC_GET_VALUE(table);
+ *
+ */
+
+#define BROTLI_HC_MARK_TABLE_FOR_FAST_LOAD(H)
+#define BROTLI_HC_ADJUST_TABLE_INDEX(H, V) H += (V)
+
+/* These must be given a HuffmanCode pointer! */
+#define BROTLI_HC_FAST_LOAD_BITS(H) (H->bits)
+#define BROTLI_HC_FAST_LOAD_VALUE(H) (H->value)
 
 /* Builds Huffman lookup table assuming code lengths are in symbol order. */
 BROTLI_INTERNAL void BrotliBuildCodeLengthsHuffmanTable(HuffmanCode* root_table,
