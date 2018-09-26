@@ -47,10 +47,11 @@ static BROTLI_NOINLINE void EXPORT_FN(CreateBackwardReferences)(
                          params->dist.max_distance, &sr);
     if (sr.score > kMinScore) {
       /* Found a match. Let's look for something even better ahead. */
+      const score_t cost_diff_lazy = 175;
       int delayed_backward_references_in_row = 0;
       --max_length;
-      for (;; --max_length) {
-        const score_t cost_diff_lazy = 175;
+      for (; BackwardReferenceScoreUsingLastDistance(pos_end - (position + 1))
+                 >= sr.score + cost_diff_lazy; --max_length) {
         HasherSearchResult sr2;
         sr2.len = params->quality < MIN_QUALITY_FOR_EXTENSIVE_REFERENCE_SEARCH ?
             BROTLI_MIN(size_t, sr.len - 1, max_length) : 0;
