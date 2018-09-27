@@ -2,10 +2,13 @@
 #
 # Test that the brotli command-line tool can decompress old brotli-compressed
 # files.
+#
+# The first argument may be a wrapper for brotli, such as 'qemu-arm'.
 
 set -o errexit
 
-BROTLI=bin/brotli
+BROTLI_WRAPPER=$1
+BROTLI="${BROTLI_WRAPPER} bin/brotli"
 TMP_DIR=bin/tmp
 
 for file in tests/testdata/*.compressed*; do

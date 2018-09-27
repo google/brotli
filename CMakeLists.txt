@@ -218,12 +218,34 @@ endif()
 # to run the tests...
 if(NOT BROTLI_DISABLE_TESTS)
   if(WIN32 AND NOT CMAKE_HOST_WIN32)
-    find_program(BROTLI_WINE NAMES wine)
+    find_program(BROTLI_WRAPPER NAMES wine)
 
-    if(NOT BROTLI_WINE)
+    if(NOT BROTLI_WRAPPER)
       message(STATUS "wine not found, disabling tests")
       set(BROTLI_DISABLE_TESTS TRUE)
     endif()
+  endif()
+endif()
+
+# If our compiler is a cross-compiler that we know about (arm/aarch64),
+# then we need to use qemu to execute the tests.
+if(NOT BROTLI_DISABLE_TESTS)
+  if ("${CMAKE_C_COMPILER}" MATCHES "^.*/arm-linux-gnueabihf-.*$")
+    message(STATUS "Detected arm-linux-gnueabihf cross-compilation")
+    set(BROTLI_WRAPPER "qemu-arm")
+    set(BROTLI_WRAPPER_LD_PREFIX "/usr/arm-linux-gnueabihf")
+  endif()
+
+  if ("${CMAKE_C_COMPILER}" MATCHES "^.*/arm-linux-gnueabi-.*$")
+    message(STATUS "Detected arm-linux-gnueabi cross-compilation")
+    set(BROTLI_WRAPPER "qemu-arm")
+    set(BROTLI_WRAPPER_LD_PREFIX "/usr/arm-linux-gnueabi")
+  endif()
+
+  if ("${CMAKE_C_COMPILER}" MATCHES "^.*/aarch64-linux-gnu-.*$")
+    message(STATUS "Detected aarch64-linux-gnu cross-compilation")
+    set(BROTLI_WRAPPER "qemu-aarch64")
+    set(BROTLI_WRAPPER_LD_PREFIX "/usr/aarch64-linux-gnu")
   endif()
 endif()
 
@@ -249,7 +271,8 @@ if(NOT BROTLI_DISABLE_TESTS)
     foreach(quality 1 6 9 11)
       add_test(NAME "${BROTLI_TEST_PREFIX}roundtrip/${INPUT}/${quality}"
         COMMAND "${CMAKE_COMMAND}"
-          -DBROTLI_WRAPPER=${BROTLI_WINE}
+          -DBROTLI_WRAPPER=${BROTLI_WRAPPER}
+          -DBROTLI_WRAPPER_LD_PREFIX=${BROTLI_WRAPPER_LD_PREFIX}
           -DBROTLI_CLI=$<TARGET_FILE:brotli>
           -DQUALITY=${quality}
           -DINPUT=${INPUT_FILE}
@@ -266,7 +289,8 @@ if(NOT BROTLI_DISABLE_TESTS)
   foreach(INPUT ${COMPATIBILITY_INPUTS})
     add_test(NAME "${BROTLI_TEST_PREFIX}compatibility/${INPUT}"
       COMMAND "${CMAKE_COMMAND}"
-        -DBROTLI_WRAPPER=${BROTLI_WINE}
+        -DBROTLI_WRAPPER=${BROTLI_WRAPPER}
+        -DBROTLI_WRAPPER_LD_PREFIX=${BROTLI_WRAPPER_LD_PREFIX}
         -DBROTLI_CLI=$<TARGET_FILE:brotli>
         -DINPUT=${CMAKE_CURRENT_SOURCE_DIR}/${INPUT}
         -P ${CMAKE_CURRENT_SOURCE_DIR}/tests/run-compatibility-test.cmake)

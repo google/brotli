@@ -2,6 +2,8 @@ string(REGEX REPLACE "([a-zA-Z0-9\\.]+)\\.compressed(\\.[0-9]+)?$" "\\1" REFEREN
 string(REGEX REPLACE "\\.compressed" "" OUTPUT_FILE "${INPUT}")
 get_filename_component(OUTPUT_NAME "${OUTPUT_FILE}" NAME)
 
+set(ENV{QEMU_LD_PREFIX} "${BROTLI_WRAPPER_LD_PREFIX}")
+
 execute_process(
   WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
   COMMAND ${BROTLI_WRAPPER} ${BROTLI_CLI} --force --decompress ${INPUT} --output=${CMAKE_CURRENT_BINARY_DIR}/${OUTPUT_NAME}.unbr

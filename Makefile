@@ -15,6 +15,18 @@ ifeq ($(os), Darwin)
   CPPFLAGS += -DOS_MACOSX
 endif
 
+ifneq ($(strip $(CROSS_COMPILE)), )
+	CC=$(CROSS_COMPILE)-gcc
+	ARCH=$(firstword $(subst -, ,$(CROSS_COMPILE)))
+	BROTLI_WRAPPER="qemu-$(ARCH) -L /usr/$(CROSS_COMPILE)"
+endif
+
+# The arm-linux-gnueabi compiler defaults to Armv5. Since we only support Armv7
+# and beyond, we need to select Armv7 explicitly with march.
+ifeq ($(ARCH), arm)
+	CFLAGS += -march=armv7-a
+endif
+
 all: test
 	@:
 
@@ -31,8 +43,8 @@ lib: $(LIBOBJECTS)
 	ar -crs $(LIB_A) $(LIBOBJECTS)
 
 test: $(EXECUTABLE)
-	tests/compatibility_test.sh
-	tests/roundtrip_test.sh
+	tests/compatibility_test.sh $(BROTLI_WRAPPER)
+	tests/roundtrip_test.sh $(BROTLI_WRAPPER)
 
 clean:
 	rm -rf $(BINDIR) $(LIB_A)
