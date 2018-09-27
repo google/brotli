@@ -180,6 +180,12 @@ OR:
 #define BROTLI_UNUSED_FUNCTION static BROTLI_INLINE
 #endif
 
+#if BROTLI_GNUC_HAS_ATTRIBUTE(aligned, 2, 7, 0)
+#define BROTLI_ALIGNED(N) __attribute__((aligned(N)))
+#else
+#define BROTLI_ALIGNED(N)
+#endif
+
 #if (defined(__ARM_ARCH) && (__ARM_ARCH == 7)) || \
     (defined(M_ARM) && (M_ARM == 7))
 #define BROTLI_TARGET_ARMV7
@@ -343,7 +349,7 @@ static BROTLI_INLINE void BrotliUnalignedWrite64(void* p, uint64_t v) {
 /* If __attribute__(aligned) is available, use that. Otherwise, memcpy. */
 
 #if BROTLI_GNUC_HAS_ATTRIBUTE(aligned, 2, 7, 0)
-typedef  __attribute__((aligned(1))) uint64_t brotli_unaligned_uint64_t;
+typedef BROTLI_ALIGNED(1) uint64_t brotli_unaligned_uint64_t;
 
 static BROTLI_INLINE uint64_t BrotliUnalignedRead64(const void* p) {
   return (uint64_t) ((brotli_unaligned_uint64_t*) p)[0];
