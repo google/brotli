@@ -203,6 +203,10 @@ OR:
 
 #endif  /* ARMv8 */
 
+#if defined(__ARM_NEON__) || defined(__ARM_NEON)
+#define BROTLI_TARGET_NEON
+#endif
+
 #if defined(__i386) || defined(_M_IX86)
 #define BROTLI_TARGET_X86
 #endif
