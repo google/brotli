@@ -8,6 +8,8 @@
 
 #include <stdlib.h>  /* free, malloc */
 
+#include "../common/dictionary.h"
+#include "../common/transform.h"
 #include <brotli/types.h>
 #include "./huffman.h"
 
@@ -89,6 +91,7 @@ BROTLI_BOOL BrotliDecoderStateInit(BrotliDecoderState* s,
 
   s->mtf_upper_bound = 63;
 
+  s->compound_dictionary = NULL;
   s->dictionary = BrotliGetDictionary();
   s->transforms = BrotliGetTransforms();
 
@@ -137,6 +140,8 @@ void BrotliDecoderStateCleanupAfterMetablock(BrotliDecoderState* s) {
 void BrotliDecoderStateCleanup(BrotliDecoderState* s) {
   BrotliDecoderStateCleanupAfterMetablock(s);
 
+  BROTLI_DECODER_FREE(s, s->compound_dictionary);
+  s->dictionary = NULL;
   BROTLI_DECODER_FREE(s, s->ringbuffer);
   BROTLI_DECODER_FREE(s, s->block_type_trees);
 }

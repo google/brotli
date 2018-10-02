@@ -127,9 +127,9 @@ void BrotliCreateBackwardReferences(
   switch (params->hasher.type) {
 #define CASE_(N)                                                  \
     case N:                                                       \
-      CreateBackwardReferencesNH ## N(                            \
-          num_bytes, position, ringbuffer,                        \
-          ringbuffer_mask, params, hasher, dist_cache,            \
+      CreateBackwardReferencesNH ## N(num_bytes,                  \
+          position, ringbuffer, ringbuffer_mask,                  \
+          params, hasher, dist_cache,                             \
           last_insert_len, commands, num_commands, num_literals); \
       return;
     FOR_GENERIC_HASHERS(CASE_)

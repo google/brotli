@@ -208,7 +208,8 @@ static BROTLI_INLINE void SearchInStaticDictionary(
     self->dict_num_lookups++;
     if (item != 0) {
       BROTLI_BOOL item_matches = TestStaticDictionaryItem(
-          dictionary, item, data,
+          dictionary,
+          item, data,
           max_length, max_backward, max_distance, out);
       if (item_matches) {
         self->dict_num_matches++;

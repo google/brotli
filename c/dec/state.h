@@ -98,6 +98,20 @@ typedef enum {
   BROTLI_STATE_READ_BLOCK_LENGTH_SUFFIX
 } BrotliRunningReadBlockLengthState;
 
+/* BrotliDecoderState addon, used for Compound Dictionary functionality. */
+typedef struct BrotliDecoderCompoundDictionary {
+  int num_chunks;
+  int total_size;
+  int br_index;
+  int br_offset;
+  int br_length;
+  int br_copied;
+  const uint8_t* chunks[16];
+  int chunk_offsets[16];
+  int block_bits;
+  uint8_t block_map[256];
+} BrotliDecoderCompoundDictionary;
+
 struct BrotliDecoderStateStruct {
   BrotliRunningState state;
 
@@ -227,6 +241,7 @@ struct BrotliDecoderStateStruct {
 
   const BrotliDictionary* dictionary;
   const BrotliTransforms* transforms;
+  BrotliDecoderCompoundDictionary* compound_dictionary;
 
   uint32_t trivial_literal_contexts[8];  /* 256 bits */
 };

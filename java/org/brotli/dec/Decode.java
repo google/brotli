@@ -935,9 +935,9 @@ final class Decode {
             int wordIdx = wordId & mask;
             int transformIdx = wordId >>> shift;
             offset += wordIdx * s.copyLength;
-            if (transformIdx < Transform.NUM_TRANSFORMS) {
-              int len = Transform.transformDictionaryWord(ringBuffer, s.pos,
-                  Dictionary.getData(), offset, s.copyLength, transformIdx);
+            if (transformIdx < Transform.NUM_RFC_TRANSFORMS) {
+              int len = Transform.transformDictionaryWord(ringBuffer, s.pos, Dictionary.getData(),
+                  offset, s.copyLength, Transform.RFC_TRANSFORMS, transformIdx);
               s.pos += len;
               s.metaBlockLength -= len;
               if (s.pos >= fence) {
