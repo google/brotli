@@ -6,7 +6,7 @@
 
 #include <brotli/decode.h>
 
-#if defined(__ARM_NEON__)
+#if defined(BROTLI_TARGET_NEON)
 #include <arm_neon.h>
 #endif
 
@@ -167,7 +167,7 @@ static BrotliDecoderErrorCode DecodeWindowBits(BrotliDecoderState* s,
 }
 
 static BROTLI_INLINE void memmove16(uint8_t* dst, uint8_t* src) {
-#if defined(__ARM_NEON__)
+#if defined(BROTLI_TARGET_NEON)
   vst1q_u8(dst, vld1q_u8(src));
 #else
   uint32_t buffer[4];
