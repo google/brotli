@@ -1167,7 +1167,6 @@ static BROTLI_BOOL BrotliCompressBufferQuality10(
   MemoryManager* m = &memory_manager;
 
   const size_t mask = BROTLI_SIZE_MAX >> 1;
-  const size_t max_backward_limit = BROTLI_MAX_BACKWARD_LIMIT(lgwin);
   int dist_cache[4] = { 4, 11, 15, 16 };
   int saved_dist_cache[4] = { 4, 11, 15, 16 };
   BROTLI_BOOL ok = BROTLI_TRUE;
@@ -1178,7 +1177,7 @@ static BROTLI_BOOL BrotliCompressBufferQuality10(
   HasherHandle hasher = NULL;
 
   const size_t hasher_eff_size = BROTLI_MIN(size_t,
-      input_size, max_backward_limit + BROTLI_WINDOW_GAP);
+      input_size, BROTLI_MAX_BACKWARD_LIMIT(lgwin) + BROTLI_WINDOW_GAP);
 
   BrotliEncoderParams params;
 
@@ -1240,7 +1239,7 @@ static BROTLI_BOOL BrotliCompressBufferQuality10(
       StitchToPreviousBlockH10(hasher, block_size, block_start,
                                input_buffer, mask);
       path_size = BrotliZopfliComputeShortestPath(m, block_size, block_start,
-          input_buffer, mask, &params, max_backward_limit, dist_cache, hasher,
+          input_buffer, mask, &params, dist_cache, hasher,
           nodes);
       if (BROTLI_IS_OOM(m)) goto oom;
       /* We allocate a command buffer in the first iteration of this loop that
