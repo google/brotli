@@ -6,10 +6,6 @@
 
 #include <brotli/decode.h>
 
-#if defined(BROTLI_TARGET_NEON)
-#include <arm_neon.h>
-#endif
-
 #include <stdlib.h>  /* free, malloc */
 #include <string.h>  /* memcpy, memset */
 
@@ -23,6 +19,10 @@
 #include "./huffman.h"
 #include "./prefix.h"
 #include "./state.h"
+
+#if defined(BROTLI_TARGET_NEON)
+#include <arm_neon.h>
+#endif
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
