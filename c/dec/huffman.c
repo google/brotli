@@ -157,8 +157,7 @@ void BrotliBuildCodeLengthsHuffmanTable(HuffmanCode* table,
   step = 2;
   do {
     for (bits_count = count[bits]; bits_count != 0; --bits_count) {
-      code = ConstructHuffmanCode((uint8_t)bits,
-          (uint16_t)sorted[symbol++]);
+      code = ConstructHuffmanCode((uint8_t)bits, (uint16_t)sorted[symbol++]);
       ReplicateValue(&table[BrotliReverseBits(key)], step, table_size, code);
       key += key_step;
     }
@@ -248,8 +247,7 @@ uint32_t BrotliBuildHuffmanTable(HuffmanCode* root_table,
         sub_key = 0;
       }
       symbol = symbol_lists[symbol];
-      code = ConstructHuffmanCode((uint8_t)(len - root_bits),
-          (uint16_t)symbol);
+      code = ConstructHuffmanCode((uint8_t)(len - root_bits), (uint16_t)symbol);
       ReplicateValue(
           &table[BrotliReverseBits(sub_key)], step, table_size, code);
       sub_key += sub_key_step;
