@@ -24,7 +24,7 @@ endif
 # The arm-linux-gnueabi compiler defaults to Armv5. Since we only support Armv7
 # and beyond, we need to select Armv7 explicitly with march.
 ifeq ($(ARCH), arm)
-	CFLAGS += -march=armv7-a
+	CFLAGS += -march=armv7-a -mfloat-abi=hard -mfpu=neon
 endif
 
 all: test
