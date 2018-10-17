@@ -79,7 +79,7 @@ matrix:
     ## testing arm via qemu on Linux
     ###
     - os: linux
-      env: BUILD_SYSTEM=cmake C_COMPILER=arm-linux-gnueabihf-gcc CXX_COMPILER=arm-linux-gnueabihf-g++
+      env: BUILD_SYSTEM=cmake C_COMPILER=arm-linux-gnueabihf-gcc CXX_COMPILER=arm-linux-gnueabihf-g++ CFLAGS="-march=armv7-a -mfloat-abi=hard -mfpu=neon"
       addons:
         apt:
           sources:
