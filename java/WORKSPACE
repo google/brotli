@@ -10,60 +10,32 @@ maven_jar(
     artifact = "junit:junit:4.12",
 )
 
-new_http_archive(
-    name = "openjdk_linux",
-    urls = [
-        "https://mirror.bazel.build/openjdk/azul-zulu-8.23.0.3-jdk8.0.144/zulu8.23.0.3-jdk8.0.144-linux_x64.tar.gz",
-        "https://bazel-mirror.storage.googleapis.com/openjdk/azul-zulu-8.23.0.3-jdk8.0.144/zulu8.23.0.3-jdk8.0.144-linux_x64.tar.gz",
-        "https://cdn.azul.com/zulu/bin/zulu8.23.0.3-jdk8.0.144-linux_x64.tar.gz",
-    ],
-    sha256 = "7e6284739c0e5b7142bc7a9adc61ced70dc5bb26b130b582b18e809013bcb251",
-    build_file_content = """
-package(
-    default_visibility = ["//visibility:public"],
-)
-filegroup(
-    name = "jni_h",
-    srcs = ["zulu8.23.0.3-jdk8.0.144-linux_x64/include/jni.h"],
-)
-filegroup(
-    name = "jni_md_h",
-    srcs = ["zulu8.23.0.3-jdk8.0.144-linux_x64/include/linux/jni_md.h"],
-)""",
+load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_file")
+
+http_file(
+    name = "openjdk_jni_h",
+    downloaded_file_path = "jni.h",
+    urls = ["https://hg.openjdk.java.net/jdk8/jdk8/jdk/raw-file/687fd7c7986d/src/share/javavm/export/jni.h"],
+    sha256 = "ed99792df48670072b78028faf704a8dcb6868fe140ccc7eced9b01dfa62fef4",
 )
 
-new_http_archive(
-    name = "openjdk_macos",
-    urls = [
-        "https://mirror.bazel.build/openjdk/azul-zulu-8.23.0.3-jdk8.0.144/zulu8.23.0.3-jdk8.0.144-macosx_x64.zip",
-        "https://bazel-mirror.storage.googleapis.com/openjdk/azul-zulu-8.23.0.3-jdk8.0.144/zulu8.23.0.3-jdk8.0.144-macosx_x64.zip",
-        "https://cdn.azul.com/zulu/bin/zulu8.23.0.3-jdk8.0.144-macosx_x64.zip",
-    ],
-    sha256 = "ff533364c9cbd3b271ab5328efe28e2dd6d7bae5b630098a5683f742ecf0709d",
-    build_file_content = """
-package(
-    default_visibility = ["//visibility:public"],
-)
-filegroup(
-    name = "jni_md_h",
-    srcs = ["zulu8.23.0.3-jdk8.0.144-macosx_x64/include/darwin/jni_md.h"],
-)""",
+http_file(
+    name = "openjdk_solaris_jni_md_h",
+    downloaded_file_path = "jni_md.h",
+    urls = ["https://hg.openjdk.java.net/jdk8/jdk8/jdk/raw-file/687fd7c7986d/src/solaris/javavm/export/jni_md.h"],
+    sha256 = "ecbe6944fe1a4290644d5a6b3c8f68576798a53b9da12cd31c58c48569595ff7",
 )
 
-new_http_archive(
-    name = "openjdk_win",
-    urls = [
-        "https://mirror.bazel.build/openjdk/azul-zulu-8.23.0.3-jdk8.0.144/zulu8.23.0.3-jdk8.0.144-win_x64.zip",
-        "https://bazel-mirror.storage.googleapis.com/openjdk/azul-zulu-8.23.0.3-jdk8.0.144/zulu8.23.0.3-jdk8.0.144-win_x64.zip",
-        "https://cdn.azul.com/zulu/bin/zulu8.23.0.3-jdk8.0.144-win_x64.zip",
-    ],
-    sha256 = "f1d9d3341ef7c8c9baff3597953e99a6a7c64f8608ee62c03fdd7574b7655c02",
-    build_file_content = """
-package(
-    default_visibility = ["//visibility:public"],
+http_file(
+    name = "openjdk_macosx_jni_md_h",
+    downloaded_file_path = "jni_md.h",
+    urls = ["https://hg.openjdk.java.net/jdk8/jdk8/jdk/raw-file/687fd7c7986d/src/macosx/javavm/export/jni_md.h"],
+    sha256 = "8f718071022e7e7f2fc9a229984b7e83582db91ed83861b49ce1461436fe8dc4",
 )
-filegroup(
-    name = "jni_md_h",
-    srcs = ["zulu8.23.0.3-jdk8.0.144-win_x64/include/win32/jni_md.h"],
-)""",
+
+http_file(
+    name = "openjdk_windows_jni_md_h",
+    downloaded_file_path = "jni_md.h",
+    urls = ["https://hg.openjdk.java.net/jdk8/jdk8/jdk/raw-file/687fd7c7986d/src/windows/javavm/export/jni_md.h"],
+    sha256 = "5479fb385ea1e11619f5c0cdfd9ccb3ea3a3fea0f5bc6176fb3ce62be29d759b",
 )
