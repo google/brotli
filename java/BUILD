@@ -6,7 +6,7 @@ package(
 
 genrule(
     name = "copy_link_jni_header",
-    srcs = ["@openjdk_linux//:jni_h"],
+    srcs = ["@openjdk_jni_h//file"],
     outs = ["jni/jni.h"],
     cmd = "cp -f $< $@",
 )
@@ -14,12 +14,12 @@ genrule(
 genrule(
     name = "copy_link_jni_md_header",
     srcs = select({
-        "@org_brotli//:darwin": ["@openjdk_macos//:jni_md_h"],
-        "@org_brotli//:darwin_x86_64": ["@openjdk_macos//:jni_md_h"],
-        "@org_brotli//:windows_msys": ["@openjdk_win//:jni_md_h"],
-        "@org_brotli//:windows_msvc": ["@openjdk_win//:jni_md_h"],
-        "@org_brotli//:windows": ["@openjdk_win//:jni_md_h"],
-        "//conditions:default": ["@openjdk_linux//:jni_md_h"],
+        "@org_brotli//:darwin": ["@openjdk_macosx_jni_md_h//file"],
+        "@org_brotli//:darwin_x86_64": ["@openjdk_macosx_jni_md_h//file"],
+        "@org_brotli//:windows_msys": ["@openjdk_windows_jni_md_h//file"],
+        "@org_brotli//:windows_msvc": ["@openjdk_windows_jni_md_h//file"],
+        "@org_brotli//:windows": ["@openjdk_windows_jni_md_h//file"],
+        "//conditions:default": ["@openjdk_solaris_jni_md_h//file"],
     }),
     outs = ["jni/jni_md.h"],
     cmd = "cp -f $< $@",
@@ -42,21 +42,21 @@ cc_library(
 cc_binary(
     name = "brotli_jni.dll",
     srcs = [
+        "//org/brotli/wrapper/common:jni_src",
+        "//org/brotli/wrapper/dec:jni_src",
+        "//org/brotli/wrapper/enc:jni_src",
         "@org_brotli//:common_headers",
         "@org_brotli//:common_sources",
         "@org_brotli//:dec_headers",
         "@org_brotli//:dec_sources",
         "@org_brotli//:enc_headers",
         "@org_brotli//:enc_sources",
-        "//org/brotli/wrapper/common:jni_src",
-        "//org/brotli/wrapper/dec:jni_src",
-        "//org/brotli/wrapper/enc:jni_src",
-    ],
-    deps = [
-        "@org_brotli//:brotli_inc",
-        ":jni_inc",
     ],
     linkshared = 1,
+    deps = [
+        ":jni_inc",
+        "@org_brotli//:brotli_inc",
+    ],
 )
 
 ########################################################
@@ -65,22 +65,22 @@ cc_binary(
 cc_binary(
     name = "brotli_jni_no_dictionary_data.dll",
     srcs = [
+        "//org/brotli/wrapper/common:jni_src",
+        "//org/brotli/wrapper/dec:jni_src",
+        "//org/brotli/wrapper/enc:jni_src",
         "@org_brotli//:common_headers",
         "@org_brotli//:common_sources",
         "@org_brotli//:dec_headers",
         "@org_brotli//:dec_sources",
         "@org_brotli//:enc_headers",
         "@org_brotli//:enc_sources",
-        "//org/brotli/wrapper/common:jni_src",
-        "//org/brotli/wrapper/dec:jni_src",
-        "//org/brotli/wrapper/enc:jni_src",
     ],
     defines = [
         "BROTLI_EXTERNAL_DICTIONARY_DATA=",
     ],
-    deps = [
-        "@org_brotli//:brotli_inc",
-        ":jni_inc",
-    ],
     linkshared = 1,
+    deps = [
+        ":jni_inc",
+        "@org_brotli//:brotli_inc",
+    ],
 )

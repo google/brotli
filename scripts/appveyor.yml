@@ -54,7 +54,7 @@ install:
     )
   )
 - IF "%BUILD_SYSTEM%"=="bazel" (
-    appveyor DownloadFile https://github.com/bazelbuild/bazel/releases/download/0.14.1/bazel-0.14.1-windows-x86_64.exe -FileName bazel.exe
+    appveyor DownloadFile https://github.com/bazelbuild/bazel/releases/download/0.18.0/bazel-0.18.0-windows-x86_64.exe -FileName bazel.exe
   )
 
 before_build:
