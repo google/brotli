@@ -71,7 +71,7 @@ OR:
 */
 #if BROTLI_GNUC_HAS_BUILTIN(__builtin_expect, 3, 0, 0) || \
     BROTLI_INTEL_VERSION_CHECK(16, 0, 0) ||               \
-    BROTLI_SUNPRO_VERSION_CHECK(5, 12, 0) ||              \
+    BROTLI_SUNPRO_VERSION_CHECK(5, 15, 0) ||              \
     BROTLI_ARM_VERSION_CHECK(4, 1, 0) ||                  \
     BROTLI_IBM_VERSION_CHECK(10, 1, 0) ||                 \
     BROTLI_TI_VERSION_CHECK(7, 3, 0) ||                   \
