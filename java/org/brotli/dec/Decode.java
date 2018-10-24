@@ -18,18 +18,19 @@ final class Decode {
   // RunningState
   //----------------------------------------------------------------------------
   private static final int UNINITIALIZED = 0;
-  private static final int BLOCK_START = 1;
-  private static final int COMPRESSED_BLOCK_START = 2;
-  private static final int MAIN_LOOP = 3;
-  private static final int READ_METADATA = 4;
-  private static final int COPY_UNCOMPRESSED = 5;
-  private static final int INSERT_LOOP = 6;
-  private static final int COPY_LOOP = 7;
-  private static final int TRANSFORM = 8;
-  private static final int FINISHED = 9;
-  private static final int CLOSED = 10;
-  private static final int INIT_WRITE = 11;
-  private static final int WRITE = 12;
+  private static final int INITIALIZED = 1;
+  private static final int BLOCK_START = 2;
+  private static final int COMPRESSED_BLOCK_START = 3;
+  private static final int MAIN_LOOP = 4;
+  private static final int READ_METADATA = 5;
+  private static final int COPY_UNCOMPRESSED = 6;
+  private static final int INSERT_LOOP = 7;
+  private static final int COPY_LOOP = 8;
+  private static final int TRANSFORM = 9;
+  private static final int FINISHED = 10;
+  private static final int CLOSED = 11;
+  private static final int INIT_WRITE = 12;
+  private static final int WRITE = 13;
 
   private static final int DEFAULT_CODE_LENGTH = 8;
   private static final int CODE_LENGTH_REPEAT_CODE = 16;
@@ -140,6 +141,20 @@ final class Decode {
   }
 
   /**
+   * Switch decoder to "eager" mode.
+   *
+   * In "eager" mode decoder returns as soon as there is enough data to fill output buffer.
+   *
+   * @param s initialized state, before any read is performed.
+   */
+  static void setEager(State s) {
+    if (s.runningState != INITIALIZED) {
+      throw new IllegalStateException("State MUST be freshly initialized");
+    }
+    s.isEager = 1;
+  }
+
+  /**
    * Associate input with decoder state.
    *
    * @param s uninitialized state without associated input
@@ -152,13 +167,7 @@ final class Decode {
     s.blockTrees = new int[6 * HUFFMAN_TABLE_SIZE];
     s.input = input;
     BitReader.initBitReader(s);
-    int windowBits = decodeWindowBits(s);
-    if (windowBits == 9) { /* Reserved case for future expansion. */
-      throw new BrotliRuntimeException("Invalid 'windowBits' code");
-    }
-    s.maxRingBufferSize = 1 << windowBits;
-    s.maxBackwardDistance = s.maxRingBufferSize - 16;
-    s.runningState = BLOCK_START;
+    s.runningState = INITIALIZED;
   }
 
   static void close(State s) throws IOException {
@@ -727,6 +736,16 @@ final class Decode {
     if (s.runningState == CLOSED) {
       throw new IllegalStateException("Can't decompress after close");
     }
+    if (s.runningState == INITIALIZED) {
+      int windowBits = decodeWindowBits(s);
+      if (windowBits == 9) {  /* Reserved case for future expansion. */
+        throw new BrotliRuntimeException("Invalid 'windowBits' code");
+      }
+      s.maxRingBufferSize = 1 << windowBits;
+      s.maxBackwardDistance = s.maxRingBufferSize - 16;
+      s.runningState = BLOCK_START;
+    }
+
     int fence = calculateFence(s);
     int ringBufferMask = s.ringBufferSize - 1;
     byte[] ringBuffer = s.ringBuffer;
@@ -935,9 +954,9 @@ final class Decode {
             int wordIdx = wordId & mask;
             int transformIdx = wordId >>> shift;
             offset += wordIdx * s.copyLength;
-            if (transformIdx < Transform.NUM_TRANSFORMS) {
-              int len = Transform.transformDictionaryWord(ringBuffer, s.pos,
-                  Dictionary.getData(), offset, s.copyLength, transformIdx);
+            if (transformIdx < Transform.NUM_RFC_TRANSFORMS) {
+              int len = Transform.transformDictionaryWord(ringBuffer, s.pos, Dictionary.getData(),
+                  offset, s.copyLength, Transform.RFC_TRANSFORMS, transformIdx);
               s.pos += len;
               s.metaBlockLength -= len;
               if (s.pos >= fence) {

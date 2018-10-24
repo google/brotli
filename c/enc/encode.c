@@ -114,8 +114,6 @@ typedef struct BrotliEncoderStateStruct {
   BROTLI_BOOL is_initialized_;
 } BrotliEncoderStateStruct;
 
-static BROTLI_BOOL EnsureInitialized(BrotliEncoderState* s);
-
 static size_t InputBlockSize(BrotliEncoderState* s) {
   return (size_t)1 << s->params.lgblock;
 }

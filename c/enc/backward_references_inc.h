@@ -60,7 +60,8 @@ static BROTLI_NOINLINE void EXPORT_FN(CreateBackwardReferences)(
         FN(FindLongestMatch)(hasher,
             &params->dictionary,
             ringbuffer, ringbuffer_mask, dist_cache, position + 1, max_length,
-            max_distance, gap, params->dist.max_distance, &sr2);
+            max_distance, gap, params->dist.max_distance,
+            &sr2);
         if (sr2.score >= sr.score + cost_diff_lazy) {
           /* Ok, let's just write one byte for now and start a match from the
              next byte. */
@@ -76,7 +77,8 @@ static BROTLI_NOINLINE void EXPORT_FN(CreateBackwardReferences)(
       }
       apply_random_heuristics =
           position + 2 * sr.len + random_heuristics_window_size;
-      max_distance = BROTLI_MIN(size_t, position, max_backward_limit);
+      max_distance = BROTLI_MIN(size_t,
+          position, max_backward_limit);
       {
         /* The first 16 codes are special short-codes,
            and the minimum offset is 1. */

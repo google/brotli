@@ -419,8 +419,8 @@ static size_t UpdateNodes(
   size_t k;
   size_t gap = 0;
 
-  EvaluateNode(block_start, pos, max_backward_limit, gap, starting_dist_cache,
-      model, queue, nodes);
+  EvaluateNode(block_start, pos, max_backward_limit, gap,
+      starting_dist_cache, model, queue, nodes);
 
   {
     const PosData* posdata = StartPosQueueAt(queue, 0);
@@ -587,9 +587,10 @@ void BrotliZopfliCreateCommands(const size_t num_bytes,
     {
       size_t distance = ZopfliNodeCopyDistance(next);
       size_t len_code = ZopfliNodeLengthCode(next);
-      size_t max_distance =
-          BROTLI_MIN(size_t, block_start + pos, max_backward_limit);
-      BROTLI_BOOL is_dictionary = TO_BROTLI_BOOL(distance > max_distance + gap);
+      size_t max_distance = BROTLI_MIN(size_t,
+          block_start + pos, max_backward_limit);
+      BROTLI_BOOL is_dictionary =
+          TO_BROTLI_BOOL(distance > max_distance + gap);
       size_t dist_code = ZopfliNodeDistanceCode(next);
       InitCommand(&commands[i], &params->dist, insert_length,
           copy_length, (int)len_code - (int)copy_length, dist_code);

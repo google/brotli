@@ -23,14 +23,16 @@ extern "C" {
 #endif
 
 BROTLI_INTERNAL void BrotliCreateZopfliBackwardReferences(MemoryManager* m,
-    size_t num_bytes, size_t position, const uint8_t* ringbuffer,
-    size_t ringbuffer_mask, const BrotliEncoderParams* params,
+    size_t num_bytes,
+    size_t position, const uint8_t* ringbuffer, size_t ringbuffer_mask,
+    const BrotliEncoderParams* params,
     HasherHandle hasher, int* dist_cache, size_t* last_insert_len,
     Command* commands, size_t* num_commands, size_t* num_literals);
 
 BROTLI_INTERNAL void BrotliCreateHqZopfliBackwardReferences(MemoryManager* m,
-    size_t num_bytes, size_t position, const uint8_t* ringbuffer,
-    size_t ringbuffer_mask, const BrotliEncoderParams* params,
+    size_t num_bytes,
+    size_t position, const uint8_t* ringbuffer, size_t ringbuffer_mask,
+    const BrotliEncoderParams* params,
     HasherHandle hasher, int* dist_cache, size_t* last_insert_len,
     Command* commands, size_t* num_commands, size_t* num_literals);
 

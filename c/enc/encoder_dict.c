@@ -24,7 +24,6 @@ void BrotliInitEncoderDictionary(BrotliEncoderDictionary* dict) {
 
   dict->cutoffTransformsCount = kCutoffTransformsCount;
   dict->cutoffTransforms = kCutoffTransforms;
-
 }
 
 #if defined(__cplusplus) || defined(c_plusplus)
