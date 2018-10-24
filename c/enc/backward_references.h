@@ -25,9 +25,9 @@ extern "C" {
    initially the total amount of commands output by previous
    CreateBackwardReferences calls, and must be incremented by the amount written
    by this call. */
-BROTLI_INTERNAL void BrotliCreateBackwardReferences(
-    size_t num_bytes, size_t position, const uint8_t* ringbuffer,
-    size_t ringbuffer_mask, const BrotliEncoderParams* params,
+BROTLI_INTERNAL void BrotliCreateBackwardReferences(size_t num_bytes,
+    size_t position, const uint8_t* ringbuffer, size_t ringbuffer_mask,
+    const BrotliEncoderParams* params,
     HasherHandle hasher, int* dist_cache, size_t* last_insert_len,
     Command* commands, size_t* num_commands, size_t* num_literals);
 

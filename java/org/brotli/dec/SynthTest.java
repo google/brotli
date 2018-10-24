@@ -65,6 +65,474 @@ public class SynthTest {
 /* GENERATED CODE START */
 
   @Test
+  public void testAllTransforms10() {
+    byte[] compressed = {
+      (byte) 0x1b, (byte) 0xfc, (byte) 0x05, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x80,
+      (byte) 0xe3, (byte) 0xb4, (byte) 0x0d, (byte) 0x00, (byte) 0x00, (byte) 0x07, (byte) 0x5b,
+      (byte) 0x26, (byte) 0x31, (byte) 0x40, (byte) 0x02, (byte) 0x00, (byte) 0xe0, (byte) 0x4e,
+      (byte) 0x1b, (byte) 0x13, (byte) 0x7c, (byte) 0x84, (byte) 0x26, (byte) 0xf8, (byte) 0x04,
+      (byte) 0x10, (byte) 0x4c, (byte) 0xf0, (byte) 0x89, (byte) 0x38, (byte) 0x30, (byte) 0xc1,
+      (byte) 0x27, (byte) 0x4e, (byte) 0xc1, (byte) 0x04, (byte) 0x9f, (byte) 0x64, (byte) 0x06,
+      (byte) 0x26, (byte) 0xf8, (byte) 0x24, (byte) 0x3f, (byte) 0x34, (byte) 0xc1, (byte) 0x27,
+      (byte) 0x7d, (byte) 0x82, (byte) 0x09, (byte) 0x3e, (byte) 0xe9, (byte) 0x16, (byte) 0x4d,
+      (byte) 0xf0, (byte) 0xc9, (byte) 0xd2, (byte) 0xc0, (byte) 0x04, (byte) 0x9f, (byte) 0x0c,
+      (byte) 0x8f, (byte) 0x4c, (byte) 0xf0, (byte) 0xc9, (byte) 0x06, (byte) 0xd1, (byte) 0x04,
+      (byte) 0x9f, (byte) 0x6c, (byte) 0x92, (byte) 0x4d, (byte) 0xf0, (byte) 0xc9, (byte) 0x39,
+      (byte) 0xc1, (byte) 0x04, (byte) 0x9f, (byte) 0xdc, (byte) 0x94, (byte) 0x4c, (byte) 0xf0,
+      (byte) 0xc9, (byte) 0x69, (byte) 0xd1, (byte) 0x04, (byte) 0x9f, (byte) 0x3c, (byte) 0x98,
+      (byte) 0x4d, (byte) 0xf0, (byte) 0x29, (byte) 0x9c, (byte) 0x81, (byte) 0x09, (byte) 0x3e,
+      (byte) 0x45, (byte) 0x37, (byte) 0x31, (byte) 0xc1, (byte) 0xa7, (byte) 0x60, (byte) 0x47,
+      (byte) 0x26, (byte) 0xf8, (byte) 0x14, (byte) 0xfa, (byte) 0xcc, (byte) 0x04, (byte) 0x9f,
+      (byte) 0xc2, (byte) 0x20, (byte) 0x9a, (byte) 0xe0, (byte) 0x53, (byte) 0x48, (byte) 0x54,
+      (byte) 0x13, (byte) 0x7c, (byte) 0x8a, (byte) 0x8f, (byte) 0x6c, (byte) 0x82, (byte) 0x4f,
+      (byte) 0xb1, (byte) 0xd2, (byte) 0x4d, (byte) 0xf0, (byte) 0x29, (byte) 0x67, (byte) 0x82,
+      (byte) 0x09, (byte) 0x3e, (byte) 0xe5, (byte) 0x4f, (byte) 0x31, (byte) 0xc1, (byte) 0xa7,
+      (byte) 0x7c, (byte) 0x4a, (byte) 0x26, (byte) 0xf8, (byte) 0x94, (byte) 0x57, (byte) 0xcd,
+      (byte) 0x04, (byte) 0x9f, (byte) 0x12, (byte) 0x2c, (byte) 0x9a, (byte) 0xe0, (byte) 0x53,
+      (byte) 0xba, (byte) 0x55, (byte) 0x13, (byte) 0x7c, (byte) 0xca, (byte) 0xbf, (byte) 0x6c,
+      (byte) 0x82, (byte) 0x4f, (byte) 0xb9, (byte) 0xd8, (byte) 0x4d, (byte) 0xf0, (byte) 0xa9,
+      (byte) 0x30, (byte) 0x03, (byte) 0x13, (byte) 0x7c, (byte) 0x2a, (byte) 0xd2, (byte) 0xc2,
+      (byte) 0x04, (byte) 0x9f, (byte) 0x4a, (byte) 0x36, (byte) 0x31, (byte) 0xc1, (byte) 0xa7,
+      (byte) 0xca, (byte) 0x6d, (byte) 0x4c, (byte) 0xf0, (byte) 0xa9, (byte) 0x94, (byte) 0x23,
+      (byte) 0x13, (byte) 0x7c, (byte) 0x2a, (byte) 0xeb, (byte) 0xca, (byte) 0x04, (byte) 0x9f,
+      (byte) 0xea, (byte) 0x3c, (byte) 0x33, (byte) 0xc1, (byte) 0xa7, (byte) 0xb2, (byte) 0xef,
+      (byte) 0x4c, (byte) 0xf0, (byte) 0xa9, (byte) 0xf8, (byte) 0x43, (byte) 0x13, (byte) 0x7c,
+      (byte) 0xaa, (byte) 0x00, (byte) 0xd3, (byte) 0x04, (byte) 0x9f, (byte) 0x2a, (byte) 0x42,
+      (byte) 0x35, (byte) 0xc1, (byte) 0xa7, (byte) 0xc2, (byte) 0x70, (byte) 0x4d, (byte) 0xf0,
+      (byte) 0xa9, (byte) 0x52, (byte) 0x64, (byte) 0x13, (byte) 0x7c, (byte) 0x2a, (byte) 0x1a,
+      (byte) 0xdb, (byte) 0x04, (byte) 0x9f, (byte) 0x6a, (byte) 0x48, (byte) 0x37, (byte) 0xc1,
+      (byte) 0xa7, (byte) 0x92, (byte) 0xf2, (byte) 0x4d, (byte) 0xf0, (byte) 0xa9, (byte) 0xc3,
+      (byte) 0x04, (byte) 0x13, (byte) 0x7c, (byte) 0xea, (byte) 0x32, (byte) 0xc3, (byte) 0x04,
+      (byte) 0x9f, (byte) 0x7a, (byte) 0x4e, (byte) 0x31, (byte) 0xc1, (byte) 0xa7, (byte) 0x06,
+      (byte) 0x74, (byte) 0x4c, (byte) 0xf0, (byte) 0xa9, (byte) 0x19, (byte) 0x25, (byte) 0x13,
+      (byte) 0x7c, (byte) 0x6a, (byte) 0x4d, (byte) 0xcb, (byte) 0x04, (byte) 0x9f, (byte) 0x1a,
+      (byte) 0x55, (byte) 0x33, (byte) 0xc1, (byte) 0xa7, (byte) 0x56, (byte) 0xf5, (byte) 0x4c,
+      (byte) 0xf0, (byte) 0xa9, (byte) 0x5d, (byte) 0x45, (byte) 0x13, (byte) 0x7c, (byte) 0xea,
+      (byte) 0x59, (byte) 0xd3, (byte) 0x04, (byte) 0x9f, (byte) 0xfa, (byte) 0x57, (byte) 0x35,
+      (byte) 0xc1, (byte) 0xa7, (byte) 0x66, (byte) 0x76, (byte) 0x4d, (byte) 0xf0, (byte) 0xa9,
+      (byte) 0x9f, (byte) 0x65, (byte) 0x13, (byte) 0x7c, (byte) 0x6a, (byte) 0x6f, (byte) 0xdb,
+      (byte) 0x04, (byte) 0x9f, (byte) 0x9a, (byte) 0x5d, (byte) 0x37, (byte) 0xc1, (byte) 0xa7,
+      (byte) 0x06, (byte) 0xf8, (byte) 0x4d, (byte) 0xf0, (byte) 0x69, (byte) 0x0c, (byte) 0x06,
+      (byte) 0x26, (byte) 0xf8, (byte) 0x34, (byte) 0x08, (byte) 0x07, (byte) 0x13, (byte) 0x7c,
+      (byte) 0x1a, (byte) 0x8b, (byte) 0x85, (byte) 0x09, (byte) 0x3e, (byte) 0x8d, (byte) 0xc8,
+      (byte) 0xc3, (byte) 0x04, (byte) 0x9f, (byte) 0xe6, (byte) 0x65, (byte) 0x62, (byte) 0x82,
+      (byte) 0x4f, (byte) 0xb3, (byte) 0x73, (byte) 0x31, (byte) 0xc1, (byte) 0xa7, (byte) 0x41,
+      (byte) 0xda, (byte) 0x98, (byte) 0xe0, (byte) 0xd3, (byte) 0x54, (byte) 0x7d, (byte) 0x4c,
+      (byte) 0xf0, (byte) 0x69, (byte) 0xc4, (byte) 0x46, (byte) 0x26, (byte) 0xf8, (byte) 0x34,
+      (byte) 0x72, (byte) 0x27, (byte) 0x13, (byte) 0x7c, (byte) 0x1a, (byte) 0xc5, (byte) 0x95,
+      (byte) 0x09, (byte) 0x3e, (byte) 0x8d, (byte) 0xe5, (byte) 0xcb, (byte) 0x04, (byte) 0x9f,
+      (byte) 0x06, (byte) 0x75, (byte) 0x66, (byte) 0x82, (byte) 0x4f, (byte) 0x43, (byte) 0x7b,
+      (byte) 0x33, (byte) 0xc1, (byte) 0xa7, (byte) 0x09, (byte) 0xde, (byte) 0x99, (byte) 0xe0,
+      (byte) 0xd3, (byte) 0x34, (byte) 0xff, (byte) 0x4c, (byte) 0xf0, (byte) 0x69, (byte) 0xb2,
+      (byte) 0x87, (byte) 0x26, (byte) 0xf8, (byte) 0x34, (byte) 0xe9, (byte) 0x47, (byte) 0x13,
+      (byte) 0x7c, (byte) 0x9a, (byte) 0xfb, (byte) 0xa5, (byte) 0x09, (byte) 0x3e, (byte) 0x4d,
+      (byte) 0x01, (byte) 0xd4, (byte) 0x04, (byte) 0x9f, (byte) 0x46, (byte) 0x82, (byte) 0x6a,
+      (byte) 0x82, (byte) 0x4f, (byte) 0x03, (byte) 0x82, (byte) 0x35, (byte) 0xc1, (byte) 0xa7,
+      (byte) 0x61, (byte) 0xe1, (byte) 0x9a, (byte) 0xe0, (byte) 0xd3, (byte) 0xe4, (byte) 0x80,
+      (byte) 0x4d, (byte) 0xf0, (byte) 0x69, (byte) 0x8a, (byte) 0xc8, (byte) 0x26, (byte) 0xf8,
+      (byte) 0x34, (byte) 0x52, (byte) 0x68, (byte) 0x13, (byte) 0x7c, (byte) 0x9a, (byte) 0x2f,
+      (byte) 0xb6, (byte) 0x09, (byte) 0x3e, (byte) 0x8d, (byte) 0x1b, (byte) 0xdc, (byte) 0x04,
+      (byte) 0x9f, (byte) 0x86, (byte) 0x8f, (byte) 0x6e, (byte) 0x82, (byte) 0x4f, (byte) 0xb3,
+      (byte) 0x88, (byte) 0x37, (byte) 0xc1, (byte) 0xa7, (byte) 0xd9, (byte) 0xe4, (byte) 0x9b,
+      (byte) 0xe0, (byte) 0xd3, (byte) 0x9e, (byte) 0x02, (byte) 0x4c, (byte) 0xf0, (byte) 0x69,
+      (byte) 0x6d, (byte) 0x09, (byte) 0x26, (byte) 0xf8, (byte) 0xb4, (byte) 0xc3, (byte) 0x08,
+      (byte) 0x13, (byte) 0x7c, (byte) 0x5a, (byte) 0x68, (byte) 0x86, (byte) 0x09, (byte) 0x3e,
+      (byte) 0xad, (byte) 0x37, (byte) 0xc4, (byte) 0x04, (byte) 0x9f, (byte) 0x56, (byte) 0x9d,
+      (byte) 0x62, (byte) 0x82, (byte) 0x4f, (byte) 0x9b, (byte) 0x8f, (byte) 0x31, (byte) 0xc1,
+      (byte) 0xa7, (byte) 0x2d, (byte) 0xe8, (byte) 0x98, (byte) 0xe0, (byte) 0xd3, (byte) 0x4a,
+      (byte) 0x84, (byte) 0x4c, (byte) 0xf0, (byte) 0x69, (byte) 0x3f, (byte) 0x4a, (byte) 0x26,
+      (byte) 0xf8, (byte) 0xb4, (byte) 0x2c, (byte) 0x29, (byte) 0x13, (byte) 0x7c, (byte) 0xda,
+      (byte) 0x9c, (byte) 0x96, (byte) 0x09, (byte) 0x3e, (byte) 0x2d, (byte) 0x52, (byte) 0xcc,
+      (byte) 0x04, (byte) 0x9f, (byte) 0xb6, (byte) 0xaa, (byte) 0x66, (byte) 0x82, (byte) 0x4f,
+      (byte) 0x2b, (byte) 0x96, (byte) 0x33, (byte) 0xc1, (byte) 0xa7, (byte) 0x7d, (byte) 0xeb,
+      (byte) 0x99, (byte) 0xe0, (byte) 0xd3, (byte) 0xf6, (byte) 0x05, (byte) 0x4d, (byte) 0xf0,
+      (byte) 0x69, (byte) 0x17, (byte) 0x8b, (byte) 0x26, (byte) 0xf8, (byte) 0xb4, (byte) 0x97,
+      (byte) 0x49, (byte) 0x13, (byte) 0x7c, (byte) 0xda, (byte) 0xd1, (byte) 0xa6, (byte) 0x09,
+      (byte) 0x3e, (byte) 0x2d, (byte) 0x6c, (byte) 0xd4, (byte) 0x04, (byte) 0x9f, (byte) 0xb6,
+      (byte) 0xb7, (byte) 0x6a, (byte) 0x82, (byte) 0x4f, (byte) 0xab, (byte) 0x9c, (byte) 0x35,
+      (byte) 0xc1, (byte) 0xa7, (byte) 0xc5, (byte) 0xee, (byte) 0x9a, (byte) 0xe0, (byte) 0xd3,
+      (byte) 0x9a, (byte) 0x87, (byte) 0x4d, (byte) 0xf0, (byte) 0x69, (byte) 0xe9, (byte) 0xcb
+    };
+    checkSynth(
+    /*
+     * // The stream consists of word "time" with all possible transforms.
+     * main_header
+     * metablock_header_easy: 1533, 1
+     * command_easy: 10, "|", 2 // = 0 << 10 + 1 + 1
+     * command_easy: 10, "|", 1037 // = 1 << 10 + 1 + 12
+     * command_easy: 10, "|", 2073 // = 2 << 10 + 1 + 24
+     * command_easy: 10, "|", 3110 // = 3 << 10 + 1 + 37
+     * command_easy: 10, "|", 4144 // = 4 << 10 + 1 + 47
+     * command_easy: 10, "|", 5180 // = 5 << 10 + 1 + 59
+     * command_easy: 10, "|", 6220 // = 6 << 10 + 1 + 75
+     * command_easy: 10, "|", 7256 // = 7 << 10 + 1 + 87
+     * command_easy: 10, "|", 8294 // = 8 << 10 + 1 + 101
+     * command_easy: 10, "|", 9333 // = 9 << 10 + 1 + 116
+     * command_easy: 10, "|", 10368 // = 10 << 10 + 1 + 127
+     * command_easy: 10, "|", 11408 // = 11 << 10 + 1 + 143
+     * command_easy: 10, "|", 12441 // = 12 << 10 + 1 + 152
+     * command_easy: 10, "|", 13475 // = 13 << 10 + 1 + 162
+     * command_easy: 10, "|", 14513 // = 14 << 10 + 1 + 176
+     * command_easy: 10, "|", 15550 // = 15 << 10 + 1 + 189
+     * command_easy: 10, "|", 16587 // = 16 << 10 + 1 + 202
+     * command_easy: 10, "|", 17626 // = 17 << 10 + 1 + 217
+     * command_easy: 10, "|", 18665 // = 18 << 10 + 1 + 232
+     * command_easy: 10, "|", 19703 // = 19 << 10 + 1 + 246
+     * command_easy: 10, "|", 20739 // = 20 << 10 + 1 + 258
+     * command_easy: 10, "|", 21775 // = 21 << 10 + 1 + 270
+     * command_easy: 10, "|", 22812 // = 22 << 10 + 1 + 283
+     * command_easy: 10, "|", 23848 // = 23 << 10 + 1 + 295
+     * command_easy: 10, "|", 24880 // = 24 << 10 + 1 + 303
+     * command_easy: 10, "|", 25916 // = 25 << 10 + 1 + 315
+     * command_easy: 10, "|", 26956 // = 26 << 10 + 1 + 331
+     * command_easy: 10, "|", 27988 // = 27 << 10 + 1 + 339
+     * command_easy: 10, "|", 29021 // = 28 << 10 + 1 + 348
+     * command_easy: 10, "|", 30059 // = 29 << 10 + 1 + 362
+     * command_easy: 10, "|", 31100 // = 30 << 10 + 1 + 379
+     * command_easy: 10, "|", 32136 // = 31 << 10 + 1 + 391
+     * command_easy: 10, "|", 33173 // = 32 << 10 + 1 + 404
+     * command_easy: 10, "|", 34209 // = 33 << 10 + 1 + 416
+     * command_easy: 10, "|", 35247 // = 34 << 10 + 1 + 430
+     * command_easy: 10, "|", 36278 // = 35 << 10 + 1 + 437
+     * command_easy: 10, "|", 37319 // = 36 << 10 + 1 + 454
+     * command_easy: 10, "|", 38355 // = 37 << 10 + 1 + 466
+     * command_easy: 10, "|", 39396 // = 38 << 10 + 1 + 483
+     * command_easy: 10, "|", 40435 // = 39 << 10 + 1 + 498
+     * command_easy: 10, "|", 41465 // = 40 << 10 + 1 + 504
+     * command_easy: 10, "|", 42494 // = 41 << 10 + 1 + 509
+     * command_easy: 10, "|", 43534 // = 42 << 10 + 1 + 525
+     * command_easy: 10, "|", 44565 // = 43 << 10 + 1 + 532
+     * command_easy: 10, "|", 45606 // = 44 << 10 + 1 + 549
+     * command_easy: 10, "|", 46641 // = 45 << 10 + 1 + 560
+     * command_easy: 10, "|", 47680 // = 46 << 10 + 1 + 575
+     * command_easy: 10, "|", 48719 // = 47 << 10 + 1 + 590
+     * command_easy: 10, "|", 49758 // = 48 << 10 + 1 + 605
+     * command_easy: 10, "|", 50786 // = 49 << 10 + 1 + 609
+     * command_easy: 10, "|", 51824 // = 50 << 10 + 1 + 623
+     * command_easy: 10, "|", 52861 // = 51 << 10 + 1 + 636
+     * command_easy: 10, "|", 53897 // = 52 << 10 + 1 + 648
+     * command_easy: 10, "|", 54935 // = 53 << 10 + 1 + 662
+     * command_easy: 10, "|", 55973 // = 54 << 10 + 1 + 676
+     * command_easy: 10, "|", 56999 // = 55 << 10 + 1 + 678
+     * command_easy: 10, "|", 58027 // = 56 << 10 + 1 + 682
+     * command_easy: 10, "|", 59056 // = 57 << 10 + 1 + 687
+     * command_easy: 10, "|", 60092 // = 58 << 10 + 1 + 699
+     * command_easy: 10, "|", 61129 // = 59 << 10 + 1 + 712
+     * command_easy: 10, "|", 62156 // = 60 << 10 + 1 + 715
+     * command_easy: 10, "|", 63195 // = 61 << 10 + 1 + 730
+     * command_easy: 10, "|", 64233 // = 62 << 10 + 1 + 744
+     * command_easy: 10, "|", 65277 // = 63 << 10 + 1 + 764
+     * command_easy: 10, "|", 66307 // = 64 << 10 + 1 + 770
+     * command_easy: 10, "|", 67333 // = 65 << 10 + 1 + 772
+     * command_easy: 10, "|", 68371 // = 66 << 10 + 1 + 786
+     * command_easy: 10, "|", 69407 // = 67 << 10 + 1 + 798
+     * command_easy: 10, "|", 70444 // = 68 << 10 + 1 + 811
+     * command_easy: 10, "|", 71480 // = 69 << 10 + 1 + 823
+     * command_easy: 10, "|", 72517 // = 70 << 10 + 1 + 836
+     * command_easy: 10, "|", 73554 // = 71 << 10 + 1 + 849
+     * command_easy: 10, "|", 74591 // = 72 << 10 + 1 + 862
+     * command_easy: 10, "|", 75631 // = 73 << 10 + 1 + 878
+     * command_easy: 10, "|", 76679 // = 74 << 10 + 1 + 902
+     * command_easy: 10, "|", 77715 // = 75 << 10 + 1 + 914
+     * command_easy: 10, "|", 78757 // = 76 << 10 + 1 + 932
+     * command_easy: 10, "|", 79793 // = 77 << 10 + 1 + 944
+     * command_easy: 10, "|", 80830 // = 78 << 10 + 1 + 957
+     * command_easy: 10, "|", 81866 // = 79 << 10 + 1 + 969
+     * command_easy: 10, "|", 82902 // = 80 << 10 + 1 + 981
+     * command_easy: 10, "|", 83942 // = 81 << 10 + 1 + 997
+     * command_easy: 10, "|", 84980 // = 82 << 10 + 1 + 1011
+     * command_easy: 10, "|", 86018 // = 83 << 10 + 1 + 1025
+     * command_easy: 10, "|", 87055 // = 84 << 10 + 1 + 1038
+     * command_easy: 10, "|", 88093 // = 85 << 10 + 1 + 1052
+     * command_easy: 10, "|", 89129 // = 86 << 10 + 1 + 1064
+     * command_easy: 10, "|", 90166 // = 87 << 10 + 1 + 1077
+     * command_easy: 10, "|", 91202 // = 88 << 10 + 1 + 1089
+     * command_easy: 10, "|", 92239 // = 89 << 10 + 1 + 1102
+     * command_easy: 10, "|", 93276 // = 90 << 10 + 1 + 1115
+     * command_easy: 10, "|", 94315 // = 91 << 10 + 1 + 1130
+     * command_easy: 10, "|", 95353 // = 92 << 10 + 1 + 1144
+     * command_easy: 10, "|", 96392 // = 93 << 10 + 1 + 1159
+     * command_easy: 10, "|", 97432 // = 94 << 10 + 1 + 1175
+     * command_easy: 10, "|", 98468 // = 95 << 10 + 1 + 1187
+     * command_easy: 10, "|", 99507 // = 96 << 10 + 1 + 1202
+     * command_easy: 10, "|", 100544 // = 97 << 10 + 1 + 1215
+     * command_easy: 10, "|", 101581 // = 98 << 10 + 1 + 1228
+     * command_easy: 10, "|", 102619 // = 99 << 10 + 1 + 1242
+     * command_easy: 10, "|", 103655 // = 100 << 10 + 1 + 1254
+     * command_easy: 10, "|", 104694 // = 101 << 10 + 1 + 1269
+     * command_easy: 10, "|", 105730 // = 102 << 10 + 1 + 1281
+     * command_easy: 10, "|", 106767 // = 103 << 10 + 1 + 1294
+     * command_easy: 10, "|", 107804 // = 104 << 10 + 1 + 1307
+     * command_easy: 10, "|", 108841 // = 105 << 10 + 1 + 1320
+     * command_easy: 10, "|", 109878 // = 106 << 10 + 1 + 1333
+     * command_easy: 10, "|", 110917 // = 107 << 10 + 1 + 1348
+     * command_easy: 10, "|", 111954 // = 108 << 10 + 1 + 1361
+     * command_easy: 10, "|", 112991 // = 109 << 10 + 1 + 1374
+     * command_easy: 10, "|", 114028 // = 110 << 10 + 1 + 1387
+     * command_easy: 10, "|", 115066 // = 111 << 10 + 1 + 1401
+     * command_easy: 10, "|", 116104 // = 112 << 10 + 1 + 1415
+     * command_easy: 10, "|", 117140 // = 113 << 10 + 1 + 1427
+     * command_easy: 10, "|", 118176 // = 114 << 10 + 1 + 1439
+     * command_easy: 10, "|", 119213 // = 115 << 10 + 1 + 1452
+     * command_easy: 10, "|", 120250 // = 116 << 10 + 1 + 1465
+     * command_easy: 10, "|", 121287 // = 117 << 10 + 1 + 1478
+     * command_easy: 10, "|", 122325 // = 118 << 10 + 1 + 1492
+     * command_easy: 10, "|", 123363 // = 119 << 10 + 1 + 1506
+     * command_easy: 10, "|", 124401 // = 120 << 10 + 1 + 1520
+     */
+      compressed,
+      true,
+      "|categories|categories | categories |ategories|Categories |categories the | categories|s cat"
+      + "egories |categories of |Categories|categories and |tegories|categorie|, categories |catego"
+      + "ries, | Categories |categories in |categories to |e categories |categories\"|categories.|c"
+      + "ategories\">|categories\n|categor|categories]|categories for |egories|categori|categories "
+      + "a |categories that | Categories|categories. |.categories| categories, |gories|categories w"
+      + "ith |categories'|categories from |categories by |ories|ries| the categories|catego|categor"
+      + "ies. The |CATEGORIES|categories on |categories as |categories is |cat|categorieing |catego"
+      + "ries\n\t|categories:| categories. |categoriesed |s|ies|cate|categories(|Categories, |ca|ca"
+      + "tegories at |categoriesly | the categories of |categ|c| Categories, |Categories\"|.categor"
+      + "ies(|CATEGORIES |Categories\">|categories=\"| categories.|.com/categories| the categories "
+      + "of the |Categories'|categories. This |categories,|.categories |Categories(|Categories.|cat"
+      + "egories not | categories=\"|categorieser | CATEGORIES |categoriesal | CATEGORIES|categorie"
+      + "s='|CATEGORIES\"|Categories. | categories(|categoriesful | Categories. |categoriesive |cat"
+      + "egoriesless |CATEGORIES'|categoriesest | Categories.|CATEGORIES\">| categories='|Categorie"
+      + "s,|categoriesize |CATEGORIES.|\302\240categories| categories,|Categories=\"|CATEGORIES="
+      + "\"|categoriesous |CATEGORIES, |Categories='| Categories,| CATEGORIES=\"| CATEGORIES, |CATE"
+      + "GORIES,|CATEGORIES(|CATEGORIES. | CATEGORIES.|CATEGORIES='| CATEGORIES. | Categories=\"| C"
+      + "ATEGORIES='| Categories='"
+    );
+  }
+
+  @Test
+  public void testAllTransforms4() {
+    byte[] compressed = {
+      (byte) 0x1b, (byte) 0x40, (byte) 0x03, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x80,
+      (byte) 0xe3, (byte) 0xb4, (byte) 0x0d, (byte) 0x00, (byte) 0x00, (byte) 0x07, (byte) 0x5b,
+      (byte) 0x26, (byte) 0x31, (byte) 0x40, (byte) 0x02, (byte) 0x00, (byte) 0xe0, (byte) 0x4e,
+      (byte) 0x1b, (byte) 0x51, (byte) 0x3e, (byte) 0x42, (byte) 0x51, (byte) 0x3e, (byte) 0x81,
+      (byte) 0x02, (byte) 0x51, (byte) 0x3e, (byte) 0x11, (byte) 0x04, (byte) 0xa2, (byte) 0x7c,
+      (byte) 0xe2, (byte) 0x0b, (byte) 0x44, (byte) 0xf9, (byte) 0x24, (byte) 0x1b, (byte) 0x10,
+      (byte) 0xe5, (byte) 0x93, (byte) 0x84, (byte) 0x50, (byte) 0x94, (byte) 0x4f, (byte) 0xba,
+      (byte) 0x02, (byte) 0x51, (byte) 0x3e, (byte) 0x69, (byte) 0x0c, (byte) 0x45, (byte) 0xf9,
+      (byte) 0x64, (byte) 0x39, (byte) 0x20, (byte) 0xca, (byte) 0x27, (byte) 0x13, (byte) 0x22,
+      (byte) 0x51, (byte) 0x3e, (byte) 0xd9, (byte) 0x11, (byte) 0x8a, (byte) 0xf2, (byte) 0xc9,
+      (byte) 0xa2, (byte) 0x58, (byte) 0x94, (byte) 0x4f, (byte) 0x4e, (byte) 0x05, (byte) 0xa2,
+      (byte) 0x7c, (byte) 0x72, (byte) 0x2c, (byte) 0x12, (byte) 0xe5, (byte) 0x93, (byte) 0x83,
+      (byte) 0xa1, (byte) 0x28, (byte) 0x9f, (byte) 0xfc, (byte) 0x8c, (byte) 0x45, (byte) 0xf9,
+      (byte) 0x14, (byte) 0x6e, (byte) 0x40, (byte) 0x94, (byte) 0x4f, (byte) 0x71, (byte) 0x47,
+      (byte) 0x44, (byte) 0xf9, (byte) 0x14, (byte) 0x80, (byte) 0x48, (byte) 0x94, (byte) 0x4f,
+      (byte) 0x81, (byte) 0xc8, (byte) 0x44, (byte) 0xf9, (byte) 0x14, (byte) 0x8e, (byte) 0x50,
+      (byte) 0x94, (byte) 0x4f, (byte) 0x41, (byte) 0x49, (byte) 0x45, (byte) 0xf9, (byte) 0x14,
+      (byte) 0x9b, (byte) 0x58, (byte) 0x94, (byte) 0x4f, (byte) 0x11, (byte) 0xca, (byte) 0x45,
+      (byte) 0xf9, (byte) 0x94, (byte) 0xa3, (byte) 0x40, (byte) 0x94, (byte) 0x4f, (byte) 0x99,
+      (byte) 0x4a, (byte) 0x44, (byte) 0xf9, (byte) 0x94, (byte) 0xb3, (byte) 0x48, (byte) 0x94,
+      (byte) 0x4f, (byte) 0x59, (byte) 0xcb, (byte) 0x44, (byte) 0xf9, (byte) 0x94, (byte) 0xb8,
+      (byte) 0x50, (byte) 0x94, (byte) 0x4f, (byte) 0x09, (byte) 0x4c, (byte) 0x45, (byte) 0xf9,
+      (byte) 0x94, (byte) 0xcb, (byte) 0x58, (byte) 0x94, (byte) 0x4f, (byte) 0x19, (byte) 0xcd,
+      (byte) 0x45, (byte) 0xf9, (byte) 0x54, (byte) 0xd8, (byte) 0x80, (byte) 0x28, (byte) 0x9f,
+      (byte) 0xca, (byte) 0x9b, (byte) 0x10, (byte) 0xe5, (byte) 0x53, (byte) 0x99, (byte) 0x23,
+      (byte) 0xa2, (byte) 0x7c, (byte) 0xaa, (byte) 0x73, (byte) 0x46, (byte) 0x94, (byte) 0x4f,
+      (byte) 0x25, (byte) 0x0f, (byte) 0x89, (byte) 0xf2, (byte) 0xa9, (byte) 0xf0, (byte) 0x29,
+      (byte) 0x51, (byte) 0x3e, (byte) 0xd5, (byte) 0x40, (byte) 0x26, (byte) 0xca, (byte) 0xa7,
+      (byte) 0x62, (byte) 0xe8, (byte) 0x44, (byte) 0xf9, (byte) 0x54, (byte) 0x0d, (byte) 0xa1,
+      (byte) 0x28, (byte) 0x9f, (byte) 0xca, (byte) 0xa1, (byte) 0x14, (byte) 0xe5, (byte) 0x53,
+      (byte) 0x61, (byte) 0xa4, (byte) 0xa2, (byte) 0x7c, (byte) 0xaa, (byte) 0x8c, (byte) 0x56,
+      (byte) 0x94, (byte) 0x4f, (byte) 0x45, (byte) 0x12, (byte) 0x8b, (byte) 0xf2, (byte) 0xa9,
+      (byte) 0x52, (byte) 0x6a, (byte) 0x51, (byte) 0x3e, (byte) 0x95, (byte) 0x4c, (byte) 0x2e,
+      (byte) 0xca, (byte) 0xa7, (byte) 0xda, (byte) 0xe9, (byte) 0x45, (byte) 0xf9, (byte) 0xd4,
+      (byte) 0x44, (byte) 0x81, (byte) 0x28, (byte) 0x9f, (byte) 0xba, (byte) 0xa8, (byte) 0x10,
+      (byte) 0xe5, (byte) 0x53, (byte) 0x37, (byte) 0x25, (byte) 0xa2, (byte) 0x7c, (byte) 0x6a,
+      (byte) 0xaa, (byte) 0x46, (byte) 0x94, (byte) 0x4f, (byte) 0xad, (byte) 0x15, (byte) 0x89,
+      (byte) 0xf2, (byte) 0xa9, (byte) 0xc5, (byte) 0x2a, (byte) 0x51, (byte) 0x3e, (byte) 0xb5,
+      (byte) 0x5a, (byte) 0x26, (byte) 0xca, (byte) 0xa7, (byte) 0x5e, (byte) 0xeb, (byte) 0x44,
+      (byte) 0xf9, (byte) 0xd4, (byte) 0x6c, (byte) 0xa1, (byte) 0x28, (byte) 0x9f, (byte) 0xba,
+      (byte) 0xad, (byte) 0x14, (byte) 0xe5, (byte) 0x53, (byte) 0xcf, (byte) 0xa5, (byte) 0xa2,
+      (byte) 0x7c, (byte) 0x6a, (byte) 0xbd, (byte) 0x56, (byte) 0x94, (byte) 0x4f, (byte) 0xbd,
+      (byte) 0x17, (byte) 0x8b, (byte) 0xf2, (byte) 0xa9, (byte) 0x09, (byte) 0x6b, (byte) 0x51,
+      (byte) 0x3e, (byte) 0x35, (byte) 0x63, (byte) 0x2e, (byte) 0xca, (byte) 0xa7, (byte) 0xd6,
+      (byte) 0xec, (byte) 0x45, (byte) 0xf9, (byte) 0x34, (byte) 0x9b, (byte) 0x01, (byte) 0x51,
+      (byte) 0x3e, (byte) 0x0d, (byte) 0x67, (byte) 0x41, (byte) 0x94, (byte) 0x4f, (byte) 0x43,
+      (byte) 0x9a, (byte) 0x10, (byte) 0xe5, (byte) 0xd3, (byte) 0xa8, (byte) 0x36, (byte) 0x44,
+      (byte) 0xf9, (byte) 0x34, (byte) 0xb1, (byte) 0x11, (byte) 0x51, (byte) 0x3e, (byte) 0xcd,
+      (byte) 0x6d, (byte) 0x45, (byte) 0x94, (byte) 0x4f, (byte) 0xe3, (byte) 0x9b, (byte) 0x11,
+      (byte) 0xe5, (byte) 0xd3, (byte) 0x14, (byte) 0x77, (byte) 0x44, (byte) 0xf9, (byte) 0x34,
+      (byte) 0xcc, (byte) 0x21, (byte) 0x51, (byte) 0x3e, (byte) 0x8d, (byte) 0x75, (byte) 0x49,
+      (byte) 0x94, (byte) 0x4f, (byte) 0x83, (byte) 0x9e, (byte) 0x12, (byte) 0xe5, (byte) 0xd3,
+      (byte) 0xb8, (byte) 0xb7, (byte) 0x44, (byte) 0xf9, (byte) 0x34, (byte) 0xfa, (byte) 0x31,
+      (byte) 0x51, (byte) 0x3e, (byte) 0x0d, (byte) 0x80, (byte) 0x4d, (byte) 0x94, (byte) 0x4f,
+      (byte) 0x73, (byte) 0xa0, (byte) 0x13, (byte) 0xe5, (byte) 0xd3, (byte) 0x34, (byte) 0xf8,
+      (byte) 0x44, (byte) 0xf9, (byte) 0x34, (byte) 0x13, (byte) 0x42, (byte) 0x51, (byte) 0x3e,
+      (byte) 0x4d, (byte) 0x87, (byte) 0x51, (byte) 0x94, (byte) 0x4f, (byte) 0x53, (byte) 0xa2,
+      (byte) 0x14, (byte) 0xe5, (byte) 0xd3, (byte) 0xb4, (byte) 0x38, (byte) 0x45, (byte) 0xf9,
+      (byte) 0x34, (byte) 0x34, (byte) 0x52, (byte) 0x51, (byte) 0x3e, (byte) 0x0d, (byte) 0x8f,
+      (byte) 0x55, (byte) 0x94, (byte) 0x4f, (byte) 0x23, (byte) 0xa4, (byte) 0x15, (byte) 0xe5,
+      (byte) 0xd3, (byte) 0x24, (byte) 0x79, (byte) 0x45, (byte) 0xf9, (byte) 0x34, (byte) 0x4f,
+      (byte) 0x62, (byte) 0x51, (byte) 0x3e, (byte) 0x8d, (byte) 0x95, (byte) 0x59, (byte) 0x94,
+      (byte) 0x4f, (byte) 0xd3, (byte) 0xa5, (byte) 0x16, (byte) 0xe5, (byte) 0xd3, (byte) 0x98,
+      (byte) 0xb9, (byte) 0x45, (byte) 0xf9, (byte) 0x34, (byte) 0x6e, (byte) 0x72, (byte) 0x51,
+      (byte) 0x3e, (byte) 0xcd, (byte) 0x9d, (byte) 0x5d, (byte) 0x94, (byte) 0x4f, (byte) 0x13,
+      (byte) 0xa8, (byte) 0x17, (byte) 0xe5, (byte) 0xd3, (byte) 0x1c, (byte) 0xfa, (byte) 0x45,
+      (byte) 0xf9, (byte) 0xb4, (byte) 0x90, (byte) 0x02, (byte) 0x51, (byte) 0x3e, (byte) 0xed,
+      (byte) 0xa5, (byte) 0x41, (byte) 0x94, (byte) 0x4f, (byte) 0xeb, (byte) 0xa9, (byte) 0x10,
+      (byte) 0xe5, (byte) 0xd3, (byte) 0x9a, (byte) 0x3a, (byte) 0x44, (byte) 0xf9, (byte) 0xb4,
+      (byte) 0xac, (byte) 0x12, (byte) 0x51, (byte) 0x3e, (byte) 0x6d, (byte) 0xad, (byte) 0x45,
+      (byte) 0x94, (byte) 0x4f, (byte) 0xbb, (byte) 0xab, (byte) 0x11, (byte) 0xe5, (byte) 0xd3,
+      (byte) 0x0a, (byte) 0x7b, (byte) 0x44, (byte) 0xf9, (byte) 0xb4, (byte) 0xc9, (byte) 0x22,
+      (byte) 0x51, (byte) 0x3e, (byte) 0x2d, (byte) 0xb4, (byte) 0x49, (byte) 0x94, (byte) 0x4f,
+      (byte) 0x7b, (byte) 0xad, (byte) 0x12, (byte) 0xe5, (byte) 0xd3, (byte) 0x82, (byte) 0xbb,
+      (byte) 0x44, (byte) 0xf9, (byte) 0xb4, (byte) 0xe7, (byte) 0x32, (byte) 0x51, (byte) 0x3e,
+      (byte) 0xad, (byte) 0xbb, (byte) 0x4d, (byte) 0x94, (byte) 0x4f, (byte) 0x5b, (byte) 0xaf,
+      (byte) 0x13, (byte) 0xe5, (byte) 0xd3, (byte) 0xf6, (byte) 0xfb, (byte) 0x44, (byte) 0xf9,
+      (byte) 0xb4, (byte) 0x05, (byte) 0x43, (byte) 0x51, (byte) 0x3e, (byte) 0xed, (byte) 0xc2,
+      (byte) 0x51, (byte) 0x94, (byte) 0x4f, (byte) 0x1b, (byte) 0xb1, (byte) 0x14, (byte) 0xe5,
+      (byte) 0xd3, (byte) 0x62, (byte) 0x3c, (byte) 0x45, (byte) 0xf9, (byte) 0xb4, (byte) 0x1f,
+      (byte) 0x53, (byte) 0x51, (byte) 0x3e, (byte) 0xad, (byte) 0xc9, (byte) 0x55, (byte) 0x94,
+      (byte) 0x4f, (byte) 0xeb, (byte) 0xb2, (byte) 0x15, (byte) 0xe5, (byte) 0xd3, (byte) 0xda,
+      (byte) 0x7c, (byte) 0x45, (byte) 0xf9, (byte) 0xb4, (byte) 0x3e, (byte) 0x63
+    };
+    checkSynth(
+    /*
+     * // The stream consists of word "time" with all possible transforms.
+     * main_header
+     * metablock_header_easy: 833, 1
+     * command_easy: 4, "|", 2 // = 0 << 10 + 1 + 1
+     * command_easy: 4, "|", 1031 // = 1 << 10 + 1 + 6
+     * command_easy: 4, "|", 2061 // = 2 << 10 + 1 + 12
+     * command_easy: 4, "|", 3092 // = 3 << 10 + 1 + 19
+     * command_easy: 4, "|", 4120 // = 4 << 10 + 1 + 23
+     * command_easy: 4, "|", 5150 // = 5 << 10 + 1 + 29
+     * command_easy: 4, "|", 6184 // = 6 << 10 + 1 + 39
+     * command_easy: 4, "|", 7214 // = 7 << 10 + 1 + 45
+     * command_easy: 4, "|", 8246 // = 8 << 10 + 1 + 53
+     * command_easy: 4, "|", 9279 // = 9 << 10 + 1 + 62
+     * command_easy: 4, "|", 10308 // = 10 << 10 + 1 + 67
+     * command_easy: 4, "|", 11342 // = 11 << 10 + 1 + 77
+     * command_easy: 4, "|", 12369 // = 12 << 10 + 1 + 80
+     * command_easy: 4, "|", 13397 // = 13 << 10 + 1 + 84
+     * command_easy: 4, "|", 14429 // = 14 << 10 + 1 + 92
+     * command_easy: 4, "|", 15460 // = 15 << 10 + 1 + 99
+     * command_easy: 4, "|", 16491 // = 16 << 10 + 1 + 106
+     * command_easy: 4, "|", 17524 // = 17 << 10 + 1 + 115
+     * command_easy: 4, "|", 18557 // = 18 << 10 + 1 + 124
+     * command_easy: 4, "|", 19589 // = 19 << 10 + 1 + 132
+     * command_easy: 4, "|", 20619 // = 20 << 10 + 1 + 138
+     * command_easy: 4, "|", 21649 // = 21 << 10 + 1 + 144
+     * command_easy: 4, "|", 22680 // = 22 << 10 + 1 + 151
+     * command_easy: 4, "|", 23710 // = 23 << 10 + 1 + 157
+     * command_easy: 4, "|", 24736 // = 24 << 10 + 1 + 159
+     * command_easy: 4, "|", 25766 // = 25 << 10 + 1 + 165
+     * command_easy: 4, "|", 26800 // = 26 << 10 + 1 + 175
+     * command_easy: 4, "|", 27826 // = 27 << 10 + 1 + 177
+     * command_easy: 4, "|", 28853 // = 28 << 10 + 1 + 180
+     * command_easy: 4, "|", 29885 // = 29 << 10 + 1 + 188
+     * command_easy: 4, "|", 30920 // = 30 << 10 + 1 + 199
+     * command_easy: 4, "|", 31950 // = 31 << 10 + 1 + 205
+     * command_easy: 4, "|", 32981 // = 32 << 10 + 1 + 212
+     * command_easy: 4, "|", 34011 // = 33 << 10 + 1 + 218
+     * command_easy: 4, "|", 35043 // = 34 << 10 + 1 + 226
+     * command_easy: 4, "|", 36068 // = 35 << 10 + 1 + 227
+     * command_easy: 4, "|", 37103 // = 36 << 10 + 1 + 238
+     * command_easy: 4, "|", 38133 // = 37 << 10 + 1 + 244
+     * command_easy: 4, "|", 39168 // = 38 << 10 + 1 + 255
+     * command_easy: 4, "|", 40201 // = 39 << 10 + 1 + 264
+     * command_easy: 4, "|", 41226 // = 40 << 10 + 1 + 265
+     * command_easy: 4, "|", 42251 // = 41 << 10 + 1 + 266
+     * command_easy: 4, "|", 43285 // = 42 << 10 + 1 + 276
+     * command_easy: 4, "|", 44310 // = 43 << 10 + 1 + 277
+     * command_easy: 4, "|", 45345 // = 44 << 10 + 1 + 288
+     * command_easy: 4, "|", 46374 // = 45 << 10 + 1 + 293
+     * command_easy: 4, "|", 47407 // = 46 << 10 + 1 + 302
+     * command_easy: 4, "|", 48440 // = 47 << 10 + 1 + 311
+     * command_easy: 4, "|", 49473 // = 48 << 10 + 1 + 320
+     * command_easy: 4, "|", 50498 // = 49 << 10 + 1 + 321
+     * command_easy: 4, "|", 51530 // = 50 << 10 + 1 + 329
+     * command_easy: 4, "|", 52561 // = 51 << 10 + 1 + 336
+     * command_easy: 4, "|", 53591 // = 52 << 10 + 1 + 342
+     * command_easy: 4, "|", 54623 // = 53 << 10 + 1 + 350
+     * command_easy: 4, "|", 55655 // = 54 << 10 + 1 + 358
+     * command_easy: 4, "|", 56680 // = 55 << 10 + 1 + 359
+     * command_easy: 4, "|", 57705 // = 56 << 10 + 1 + 360
+     * command_easy: 4, "|", 58730 // = 57 << 10 + 1 + 361
+     * command_easy: 4, "|", 59760 // = 58 << 10 + 1 + 367
+     * command_easy: 4, "|", 60791 // = 59 << 10 + 1 + 374
+     * command_easy: 4, "|", 61816 // = 60 << 10 + 1 + 375
+     * command_easy: 4, "|", 62849 // = 61 << 10 + 1 + 384
+     * command_easy: 4, "|", 63881 // = 62 << 10 + 1 + 392
+     * command_easy: 4, "|", 64919 // = 63 << 10 + 1 + 406
+     * command_easy: 4, "|", 65944 // = 64 << 10 + 1 + 407
+     * command_easy: 4, "|", 66969 // = 65 << 10 + 1 + 408
+     * command_easy: 4, "|", 68001 // = 66 << 10 + 1 + 416
+     * command_easy: 4, "|", 69031 // = 67 << 10 + 1 + 422
+     * command_easy: 4, "|", 70062 // = 68 << 10 + 1 + 429
+     * command_easy: 4, "|", 71092 // = 69 << 10 + 1 + 435
+     * command_easy: 4, "|", 72123 // = 70 << 10 + 1 + 442
+     * command_easy: 4, "|", 73154 // = 71 << 10 + 1 + 449
+     * command_easy: 4, "|", 74185 // = 72 << 10 + 1 + 456
+     * command_easy: 4, "|", 75219 // = 73 << 10 + 1 + 466
+     * command_easy: 4, "|", 76261 // = 74 << 10 + 1 + 484
+     * command_easy: 4, "|", 77291 // = 75 << 10 + 1 + 490
+     * command_easy: 4, "|", 78327 // = 76 << 10 + 1 + 502
+     * command_easy: 4, "|", 79357 // = 77 << 10 + 1 + 508
+     * command_easy: 4, "|", 80388 // = 78 << 10 + 1 + 515
+     * command_easy: 4, "|", 81418 // = 79 << 10 + 1 + 521
+     * command_easy: 4, "|", 82448 // = 80 << 10 + 1 + 527
+     * command_easy: 4, "|", 83482 // = 81 << 10 + 1 + 537
+     * command_easy: 4, "|", 84514 // = 82 << 10 + 1 + 545
+     * command_easy: 4, "|", 85546 // = 83 << 10 + 1 + 553
+     * command_easy: 4, "|", 86577 // = 84 << 10 + 1 + 560
+     * command_easy: 4, "|", 87609 // = 85 << 10 + 1 + 568
+     * command_easy: 4, "|", 88639 // = 86 << 10 + 1 + 574
+     * command_easy: 4, "|", 89670 // = 87 << 10 + 1 + 581
+     * command_easy: 4, "|", 90700 // = 88 << 10 + 1 + 587
+     * command_easy: 4, "|", 91731 // = 89 << 10 + 1 + 594
+     * command_easy: 4, "|", 92762 // = 90 << 10 + 1 + 601
+     * command_easy: 4, "|", 93795 // = 91 << 10 + 1 + 610
+     * command_easy: 4, "|", 94827 // = 92 << 10 + 1 + 618
+     * command_easy: 4, "|", 95860 // = 93 << 10 + 1 + 627
+     * command_easy: 4, "|", 96894 // = 94 << 10 + 1 + 637
+     * command_easy: 4, "|", 97924 // = 95 << 10 + 1 + 643
+     * command_easy: 4, "|", 98957 // = 96 << 10 + 1 + 652
+     * command_easy: 4, "|", 99988 // = 97 << 10 + 1 + 659
+     * command_easy: 4, "|", 101019 // = 98 << 10 + 1 + 666
+     * command_easy: 4, "|", 102051 // = 99 << 10 + 1 + 674
+     * command_easy: 4, "|", 103081 // = 100 << 10 + 1 + 680
+     * command_easy: 4, "|", 104114 // = 101 << 10 + 1 + 689
+     * command_easy: 4, "|", 105144 // = 102 << 10 + 1 + 695
+     * command_easy: 4, "|", 106175 // = 103 << 10 + 1 + 702
+     * command_easy: 4, "|", 107206 // = 104 << 10 + 1 + 709
+     * command_easy: 4, "|", 108237 // = 105 << 10 + 1 + 716
+     * command_easy: 4, "|", 109268 // = 106 << 10 + 1 + 723
+     * command_easy: 4, "|", 110301 // = 107 << 10 + 1 + 732
+     * command_easy: 4, "|", 111332 // = 108 << 10 + 1 + 739
+     * command_easy: 4, "|", 112363 // = 109 << 10 + 1 + 746
+     * command_easy: 4, "|", 113394 // = 110 << 10 + 1 + 753
+     * command_easy: 4, "|", 114426 // = 111 << 10 + 1 + 761
+     * command_easy: 4, "|", 115458 // = 112 << 10 + 1 + 769
+     * command_easy: 4, "|", 116488 // = 113 << 10 + 1 + 775
+     * command_easy: 4, "|", 117518 // = 114 << 10 + 1 + 781
+     * command_easy: 4, "|", 118549 // = 115 << 10 + 1 + 788
+     * command_easy: 4, "|", 119580 // = 116 << 10 + 1 + 795
+     * command_easy: 4, "|", 120611 // = 117 << 10 + 1 + 802
+     * command_easy: 4, "|", 121643 // = 118 << 10 + 1 + 810
+     * command_easy: 4, "|", 122675 // = 119 << 10 + 1 + 818
+     * command_easy: 4, "|", 123707 // = 120 << 10 + 1 + 826
+     */
+      compressed,
+      true,
+      "|time|time | time |ime|Time |time the | time|s time |time of |Time|time and |me|tim|, time |"
+      + "time, | Time |time in |time to |e time |time\"|time.|time\">|time\n|t|time]|time for |e|ti"
+      + "|time a |time that | Time|time. |.time| time, ||time with |time'|time from |time by ||| th"
+      + "e time||time. The |TIME|time on |time as |time is ||timing |time\n\t|time:| time. |timeed "
+      + "||||time(|Time, ||time at |timely | the time of ||| Time, |Time\"|.time(|TIME |Time\">|tim"
+      + "e=\"| time.|.com/time| the time of the |Time'|time. This |time,|.time |Time(|Time.|time no"
+      + "t | time=\"|timeer | TIME |timeal | TIME|time='|TIME\"|Time. | time(|timeful | Time. |time"
+      + "ive |timeless |TIME'|timeest | Time.|TIME\">| time='|Time,|timeize |TIME.|\302\240time| ti"
+      + "me,|Time=\"|TIME=\"|timeous |TIME, |Time='| Time,| TIME=\"| TIME, |TIME,|TIME(|TIME. | TIM"
+      + "E.|TIME='| TIME. | Time=\"| TIME='| Time='"
+    );
+  }
+
+  @Test
   public void testBaseDictWord() {
     byte[] compressed = {
       (byte) 0x1b, (byte) 0x03, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x80,
@@ -439,6 +907,28 @@ public class SynthTest {
      * main_header
      * metablock_header_easy: 2, 1
      * command_easy: 2, "a", 1
+     */
+      compressed,
+      false,
+      ""
+    );
+  }
+
+  @Test
+  public void testCopyTooLong() {
+    byte[] compressed = {
+      (byte) 0xa1, (byte) 0x08, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00,
+      (byte) 0x1c, (byte) 0xa7, (byte) 0x6d, (byte) 0x00, (byte) 0x00, (byte) 0x38, (byte) 0xd8,
+      (byte) 0x32, (byte) 0x89, (byte) 0x01, (byte) 0x12, (byte) 0x00, (byte) 0x00, (byte) 0x77,
+      (byte) 0xda, (byte) 0x34, (byte) 0xab, (byte) 0xdb, (byte) 0x50, (byte) 0x00
+    };
+    checkSynth(
+    /*
+     * // Has a copy length that goes over the end of the meta-block,
+     * // with a ringbuffer wrap.
+     * main_header: 10
+     * metablock_header_easy: 2, 1
+     * command_easy: 1024, "a", 1
      */
       compressed,
       false,
@@ -2199,6 +2689,23 @@ public class SynthTest {
     );
   }
 
+/* DISABLED: Java decoder does not tolerate extra input after the brotli stream.
+  @Test
+  public void testSimplePrefixPlusExtraData() {
+    byte[] compressed = {
+      (byte) 0x1b, (byte) 0x03, (byte) 0x00, (byte) 0x00, (byte) 0xa0, (byte) 0xc3, (byte) 0xc4,
+      (byte) 0xc6, (byte) 0xc8, (byte) 0x02, (byte) 0x00, (byte) 0x70, (byte) 0xb0, (byte) 0x65,
+      (byte) 0x12, (byte) 0x03, (byte) 0x24, (byte) 0x00, (byte) 0x00, (byte) 0xee, (byte) 0xb4,
+      (byte) 0x51, (byte) 0xa0, (byte) 0x1d, (byte) 0x55, (byte) 0xaa
+    };
+    checkSynth(
+      compressed,
+      true,
+      "abcd"
+    );
+  }
+*/
+
   @Test
   public void testTooManySymbolsRepeated() {
     byte[] compressed = {
@@ -2246,7 +2753,7 @@ public class SynthTest {
      * main_header
      * metablock_header_easy: 9, 1
      * command_inscopy_easy: 0, 4
-     * command_dist_easy: 5121
+     * command_dist_easy: 5121  // 5 << 10 + 1
      */
       compressed,
       true,
@@ -2270,7 +2777,7 @@ public class SynthTest {
      * main_header
      * metablock_header_easy: 4, 1
      * command_inscopy_easy: 0, 4
-     * command_dist_easy: 5121
+     * command_dist_easy: 5121  // 5 << 10 + 1
      */
       compressed,
       false,
