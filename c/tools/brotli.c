@@ -539,7 +539,9 @@ static void PrintHelp(const char* name, BROTLI_BOOL error) {
           name);
   fprintf(media,
 "Options:\n"
-"  -#                          compression level (0-9)\n"
+"  -#                          compression level (0-9) (default: %d)\n",
+          BROTLI_DEFAULT_QUALITY);
+fprintf(media,
 "  -c, --stdout                write on standard output\n"
 "  -d, --decompress            decompress\n"
 "  -f, --force                 force output file overwrite\n"
@@ -550,8 +552,8 @@ static void PrintHelp(const char* name, BROTLI_BOOL error) {
 "  -n, --no-copy-stat          do not copy source file(s) attributes\n"
 "  -o FILE, --output=FILE      output file (only if 1 input file)\n");
   fprintf(media,
-"  -q NUM, --quality=NUM       compression level (%d-%d)\n",
-          BROTLI_MIN_QUALITY, BROTLI_MAX_QUALITY);
+"  -q NUM, --quality=NUM       compression level (%d-%d) (default: %d)\n",
+          BROTLI_MIN_QUALITY, BROTLI_MAX_QUALITY, BROTLI_DEFAULT_QUALITY);
   fprintf(media,
 "  -t, --test                  test compressed file integrity\n"
 "  -v, --verbose               verbose mode\n");
@@ -1017,7 +1019,7 @@ int main(int argc, char** argv) {
   BROTLI_BOOL is_ok = BROTLI_TRUE;
   int i;
 
-  context.quality = 11;
+  context.quality = BROTLI_DEFAULT_QUALITY;
   context.lgwin = -1;
   context.verbosity = 0;
   context.force_overwrite = BROTLI_FALSE;
