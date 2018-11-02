@@ -45,12 +45,12 @@ class TestDecompressor(_test_utils.TestCase):
 
     def test_garbage_appended(self):
         with self.assertRaises(brotli.error):
-            self.decompressor.process(brotli.compress('a') + 'a')
+            self.decompressor.process(brotli.compress(b'a') + b'a')
 
     def test_already_finished(self):
-        self.decompressor.process(brotli.compress('a'))
+        self.decompressor.process(brotli.compress(b'a'))
         with self.assertRaises(brotli.error):
-            self.decompressor.process('a')
+            self.decompressor.process(b'a')
 
 
 _test_utils.generate_test_methods(TestDecompressor, for_decompression=True)
