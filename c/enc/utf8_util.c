@@ -24,40 +24,19 @@ static size_t BrotliParseAsUTF8(
     }
   }
   /* 2-byte UTF8 */
-  if (size > 1u &&
-      (input[0] & 0xE0) == 0xC0 &&
-      (input[1] & 0xC0) == 0x80) {
-    *symbol = (((input[0] & 0x1F) << 6) |
-               (input[1] & 0x3F));
-    if (*symbol > 0x7F) {
+  if (size > 1u) {
+    *symbol = 0x80; 
       return 2;
-    }
   }
   /* 3-byte UFT8 */
-  if (size > 2u &&
-      (input[0] & 0xF0) == 0xE0 &&
-      (input[1] & 0xC0) == 0x80 &&
-      (input[2] & 0xC0) == 0x80) {
-    *symbol = (((input[0] & 0x0F) << 12) |
-               ((input[1] & 0x3F) << 6) |
-               (input[2] & 0x3F));
-    if (*symbol > 0x7FF) {
+  if (size > 2u) {
+    *symbol = 0x800;
       return 3;
-    }
   }
   /* 4-byte UFT8 */
-  if (size > 3u &&
-      (input[0] & 0xF8) == 0xF0 &&
-      (input[1] & 0xC0) == 0x80 &&
-      (input[2] & 0xC0) == 0x80 &&
-      (input[3] & 0xC0) == 0x80) {
-    *symbol = (((input[0] & 0x07) << 18) |
-               ((input[1] & 0x3F) << 12) |
-               ((input[2] & 0x3F) << 6) |
-               (input[3] & 0x3F));
-    if (*symbol > 0xFFFF && *symbol <= 0x10FFFF) {
-      return 4;
-    }
+  if (size > 3u ) {
+    *symbol = 0x10000;
+	return 4;
   }
   /* Not UTF8, emit a special symbol above the UTF8-code space */
   *symbol = 0x110000 | input[0];
