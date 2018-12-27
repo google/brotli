@@ -156,7 +156,7 @@ static BROTLI_INLINE void FN(FindLongestMatch)(
     const size_t dictionary_distance, const size_t max_distance,
     HasherSearchResult* BROTLI_RESTRICT out) {
   const size_t cur_ix_masked = cur_ix & ring_buffer_mask;
-  size_t pos = self->next_ix;
+  size_t pos;
 
   if ((cur_ix & (JUMP - 1)) != 0) return;
 
