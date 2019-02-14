@@ -7,6 +7,6 @@ Name: libbrotlienc
 URL: https://github.com/google/brotli
 Description: Brotli encoder library
 Version: @PACKAGE_VERSION@
-Libs: -L${libdir} -lbrotlienc
+Libs: -L${libdir} -R${libdir} -lbrotlienc
 Requires.private: libbrotlicommon >= 1.0.2
 Cflags: -I${includedir}
