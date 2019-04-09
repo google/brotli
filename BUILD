@@ -5,6 +5,8 @@ package(
     default_visibility = ["//visibility:public"],
 )
 
+load(":compiler_config_setting.bzl", "create_compiler_config_setting")
+
 licenses(["notice"])  # MIT
 
 exports_files(["LICENSE"])
@@ -39,11 +41,7 @@ config_setting(
     visibility = ["//visibility:public"],
 )
 
-config_setting(
-    name = "msvc",
-    values = {"compiler": "msvc-cl"},
-    visibility = ["//visibility:public"],
-)
+create_compiler_config_setting(name = "msvc", value = "msvc-cl")
 
 STRICT_C_OPTIONS = select({
     ":msvc": [],
