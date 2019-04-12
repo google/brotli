@@ -757,9 +757,9 @@ void BrotliCreateHqZopfliBackwardReferences(MemoryManager* m, size_t num_bytes,
   ZopfliCostModel model;
   ZopfliNode* nodes;
   BackwardMatch* matches = BROTLI_ALLOC(m, BackwardMatch, matches_size);
-  BROTLI_UNUSED(literal_context_lut);
   size_t gap = 0;
   size_t shadow_matches = 0;
+  BROTLI_UNUSED(literal_context_lut);
   if (BROTLI_IS_OOM(m)) return;
   for (i = 0; i + HashTypeLengthH10() - 1 < num_bytes; ++i) {
     const size_t pos = position + i;
