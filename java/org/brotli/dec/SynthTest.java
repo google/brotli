@@ -12,6 +12,7 @@ import static org.junit.Assert.fail;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.util.Arrays;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -624,7 +625,7 @@ public class SynthTest {
      * // one ins/copy and dist block type
      * vlq_blocktypes: 1
      * vlq_blocktypes: 1
-     * ndirect: 0 0
+     * ndirect: 0, 0
      * // two MSB6 literal context modes
      * bits: "00", "00"
      * // two literal prefix codes
@@ -680,7 +681,7 @@ public class SynthTest {
      * // one ins/copy and dist block type
      * vlq_blocktypes: 1
      * vlq_blocktypes: 1
-     * ndirect: 0 0
+     * ndirect: 0, 0
      * // two MSB6 literal context modes
      * bits: "00", "00"
      * // two literal prefix codes
@@ -984,6 +985,46 @@ public class SynthTest {
   }
 
   @Test
+  public void testDistanceLut() {
+    byte[] compressed = {
+      (byte) 0x8b, (byte) 0x02, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x80,
+      (byte) 0xe3, (byte) 0xb4, (byte) 0x0d, (byte) 0x00, (byte) 0x00, (byte) 0x07, (byte) 0x5b,
+      (byte) 0x26, (byte) 0x31, (byte) 0x40, (byte) 0x02, (byte) 0x00, (byte) 0xe0, (byte) 0x4e,
+      (byte) 0x1b, (byte) 0x99, (byte) 0x86, (byte) 0x46, (byte) 0xc6, (byte) 0x22, (byte) 0x14,
+      (byte) 0x00, (byte) 0x00, (byte) 0x03, (byte) 0x00, (byte) 0x00, (byte) 0x1c, (byte) 0xa7,
+      (byte) 0x6d, (byte) 0x00, (byte) 0x00, (byte) 0x38, (byte) 0xd8, (byte) 0x32, (byte) 0x89,
+      (byte) 0x01, (byte) 0x12, (byte) 0x21, (byte) 0x91, (byte) 0x69, (byte) 0x62, (byte) 0x6a,
+      (byte) 0x36
+    };
+    checkSynth(
+    /*
+     * main_header
+     * metablock_header_easy: 6, 0  // implicit ndirect: 0, 0
+     * command_easy: 3, "abc", 3  // Insert "abc", copy "abc"
+     * metablock_header_begin: 0, 0, 6, 0
+     * vlq_blocktypes: 1  // num litetal block types
+     * vlq_blocktypes: 1  // num command block types
+     * vlq_blocktypes: 1  // num distance block types
+     * ndirect: 3, 0
+     * bits: "00"  // literal context modes
+     * vlq_blocktypes: 1  // num literal Huffman trees
+     * // command has no context -> num trees == num block types
+     * vlq_blocktypes: 1  // num distance Huffman trees
+     * huffman_fixed: 256
+     * huffman_fixed: 704
+     * huffman_simple: 0,1,67, 18
+     * command_inscopy_easy: 3, 3  // Insert 3, copy 3
+     * command_literals_easy: "def"
+     * // 0-bit Huffman code : dcode = 18 -> third direct distance
+     * metablock_lastempty  // make sure that no extra distance bits are read
+     */
+      compressed,
+      true,
+      "abcabcdefdef"
+    );
+  }
+
+  @Test
   public void testEmpty() {
     byte[] compressed = {
       (byte) 0x3b
@@ -1264,7 +1305,7 @@ public class SynthTest {
      * // one ins/copy and dist block type
      * vlq_blocktypes: 1
      * vlq_blocktypes: 1
-     * ndirect: 0 0
+     * ndirect: 0, 0
      * // two MSB6 literal context modes
      * bits: "00", "00"
      * // two literal prefix codes
@@ -2707,6 +2748,87 @@ public class SynthTest {
 */
 
   @Test
+  public void testStressReadDistanceExtraBits() {
+    byte[] compressed = {
+      (byte) 0x4f, (byte) 0xfe, (byte) 0xff, (byte) 0x3f, (byte) 0x00, (byte) 0x00, (byte) 0x00,
+      (byte) 0x80, (byte) 0xe3, (byte) 0xb4, (byte) 0x0d, (byte) 0x00, (byte) 0x00, (byte) 0x07,
+      (byte) 0x5b, (byte) 0x26, (byte) 0x31, (byte) 0x40, (byte) 0x02, (byte) 0x00, (byte) 0xe0,
+      (byte) 0x4e, (byte) 0x9b, (byte) 0xf6, (byte) 0x69, (byte) 0xef, (byte) 0xff, (byte) 0x0c,
+      (byte) 0x8d, (byte) 0x8c, (byte) 0x05, (byte) 0x10, (byte) 0x00, (byte) 0x00, (byte) 0x00,
+      (byte) 0x00, (byte) 0x00, (byte) 0x38, (byte) 0x4e, (byte) 0xdb, (byte) 0x00, (byte) 0x00,
+      (byte) 0x70, (byte) 0xb0, (byte) 0x65, (byte) 0x12, (byte) 0x03, (byte) 0x24, (byte) 0xa8,
+      (byte) 0xaa, (byte) 0xef, (byte) 0xab, (byte) 0xaa, (byte) 0x7f, (byte) 0x24, (byte) 0x16,
+      (byte) 0x35, (byte) 0x8f, (byte) 0xac, (byte) 0x9e, (byte) 0x3d, (byte) 0xf7, (byte) 0xf3,
+      (byte) 0xe3, (byte) 0x0a, (byte) 0xfc, (byte) 0xff, (byte) 0x03, (byte) 0x00, (byte) 0x00,
+      (byte) 0x78, (byte) 0x01, (byte) 0x08, (byte) 0x30, (byte) 0x31, (byte) 0x32, (byte) 0x33,
+      (byte) 0x34, (byte) 0x35, (byte) 0x36, (byte) 0x37, (byte) 0x38, (byte) 0x39, (byte) 0x41,
+      (byte) 0x42, (byte) 0x43, (byte) 0x44, (byte) 0x45, (byte) 0x46, (byte) 0x30, (byte) 0x31,
+      (byte) 0x32, (byte) 0x33, (byte) 0x34, (byte) 0x35, (byte) 0x36, (byte) 0x37, (byte) 0x38,
+      (byte) 0x39, (byte) 0x41, (byte) 0x42, (byte) 0x43, (byte) 0x44, (byte) 0x45, (byte) 0x46,
+      (byte) 0x30, (byte) 0x31, (byte) 0x32, (byte) 0x33, (byte) 0x34, (byte) 0x35, (byte) 0x36,
+      (byte) 0x37, (byte) 0x38, (byte) 0x39, (byte) 0x41, (byte) 0x42, (byte) 0x43, (byte) 0x44,
+      (byte) 0x45, (byte) 0x46, (byte) 0x03
+    };
+    /* This line is added manually. */
+    char[] stub = new char[8388602]; Arrays.fill(stub, 'c'); String hex = "0123456789ABCDEF";
+    checkSynth(
+    /*
+     * main_header: 24
+     * metablock_header_easy: 8388605, 0  // 2^23 - 3 = shortest 22-bit distance
+     * command_easy: 8388602, "abc", 1
+     * metablock_header_begin: 0, 0, 3, 0
+     * vlq_blocktypes: 1  // num litetal block types
+     * vlq_blocktypes: 1  // num command block types
+     * vlq_blocktypes: 1  // num distance block types
+     * ndirect: 0, 0
+     * bits: "00"  // literal context modes
+     * vlq_blocktypes: 1  // num literal Huffman trees
+     * // command has no context -> num trees == num block types
+     * vlq_blocktypes: 1  // num distance Huffman trees
+     * huffman_fixed: 256
+     * huffman_fixed: 704
+     * // Begin of distance Huffman tree. First 15 codes have lengths 1 to 15.
+     * // Symbol that corresponds to first half of 22-bit distance range is also
+     * // 15. All other symbols are 0.
+     * hskip: 0
+     * clcl_ordered: 4,4,4,4, 4,4,4,4, 4,4,4,4, 4,4, 5,5,5,5
+     * set_prefix_cl_rle: "0000", "0001", "0010", "0011", \
+     *                    "0100", "0101", "0110", "0111", \
+     *                    "1000", "1001", "1010", "1011", \
+     *                    "1100", "1101", \
+     *                    "11100", "11101", "11110", "11111"
+     * cl_rle: 1
+     * cl_rle: 2
+     * cl_rle: 3
+     * cl_rle: 4
+     * cl_rle: 5
+     * cl_rle: 6
+     * cl_rle: 7
+     * cl_rle: 8
+     * cl_rle: 9
+     * cl_rle: 10
+     * cl_rle: 11
+     * cl_rle: 12
+     * cl_rle: 13
+     * cl_rle: 14
+     * cl_rle: 15
+     * cl_rle_rep_0: 43
+     * cl_rle: 15  // literal number 97, that is, the letter 'a'
+     * // end of literal Huffman tree
+     * command_inscopy_easy: 0, 3  // Insert 0, copy 3
+     * // 15 bits of distance code plus 22 extra bits
+     * command_dist_bits: "111111111111111", "0000000000000000000000"
+     * metablock_uncompressed: "0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF"
+     * metablock_lastempty
+     */
+      compressed,
+      true,
+      /* This line is modified manually. */
+      "abc" + new String(stub) + "abc" + hex + hex + hex
+    );
+  }
+
+  @Test
   public void testTooManySymbolsRepeated() {
     byte[] compressed = {
       (byte) 0x1b, (byte) 0x03, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x01, (byte) 0x80,
@@ -2782,6 +2904,34 @@ public class SynthTest {
       compressed,
       false,
       ""
+    );
+  }
+
+  @Test
+  public void testZeroCostLiterals() {
+    byte[] compressed = {
+      (byte) 0x9b, (byte) 0xff, (byte) 0xff, (byte) 0xff, (byte) 0x00, (byte) 0x20, (byte) 0x54,
+      (byte) 0x00, (byte) 0x00, (byte) 0x38, (byte) 0xd8, (byte) 0x32, (byte) 0x89, (byte) 0x01,
+      (byte) 0x12, (byte) 0x00, (byte) 0x00, (byte) 0x77, (byte) 0xda, (byte) 0xcc, (byte) 0xe1,
+      (byte) 0x7b, (byte) 0xfa, (byte) 0x0f
+    };
+    /* This lines is added manually. */
+    char[] expected = new char[16777216]; Arrays.fill(expected, '*');
+    checkSynth(
+    /*
+     * main_header
+     * metablock_header_begin: 1, 0, 16777216, 0
+     * metablock_header_trivial_context
+     * huffman_simple: 0,1,256, 42  // Single symbol alphabet
+     * huffman_fixed: 704
+     * huffman_fixed: 64
+     * command_inscopy_easy: 16777216, 0
+     * // 16777216 times 0 bits
+     */
+      compressed,
+      true,
+      /* This line is modified manually. */
+      new String(expected)
     );
   }
 

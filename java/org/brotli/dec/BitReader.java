@@ -12,9 +12,14 @@ package org.brotli.dec;
 final class BitReader {
 
   // Possible values: {5, 6}.  5 corresponds to 32-bit build, 6 to 64-bit. This value is used for
-  // conditional compilation -> produced artifacts might be binary INCOMPATIBLE (JLS 13.2).
-  private static final int LOG_BITNESS = 6;
-  private static final int BITNESS = 1 << LOG_BITNESS;
+  // JIT conditional compilation.
+  private static final int LOG_BITNESS = Utils.getLogBintness();
+
+  // Not only Java compiler prunes "if (const false)" code, but JVM as well.
+  // Code under "if (DEBUG != 0)" have zero performance impact (outside unit tests).
+  private static final int DEBUG = Utils.isDebugMode();
+
+  static final int BITNESS = 1 << LOG_BITNESS;
 
   private static final int BYTENESS = BITNESS / 8;
   private static final int CAPACITY = 4096;
@@ -89,7 +94,16 @@ final class BitReader {
     }
   }
 
+  static void assertAccumulatorHealthy(State s) {
+    if (s.bitOffset > BITNESS) {
+      throw new IllegalStateException("Accumulator underloaded: " + s.bitOffset);
+    }
+  }
+
   static void fillBitWindow(State s) {
+    if (DEBUG != 0) {
+      assertAccumulatorHealthy(s);
+    }
     if (s.bitOffset >= HALF_BITNESS) {
       // Same as doFillBitWindow. JVM fails to inline it.
       if (BITNESS == 64) {
@@ -103,7 +117,10 @@ final class BitReader {
     }
   }
 
-  private static void doFillBitWindow(State s) {
+  static void doFillBitWindow(State s) {
+    if (DEBUG != 0) {
+      assertAccumulatorHealthy(s);
+    }
     if (BITNESS == 64) {
       s.accumulator64 = ((long) s.intBuffer[s.halfOffset++] << HALF_BITNESS)
           | (s.accumulator64 >>> HALF_BITNESS);
@@ -122,6 +139,12 @@ final class BitReader {
     }
   }
 
+  /**
+   * Fetches bits from accumulator.
+   *
+   * WARNING: accumulator MUST contain at least the specified amount of bits,
+   * otherwise BitReader will become broken.
+   */
   static int readFewBits(State s, int n) {
     int val = peekBits(s) & ((1 << n) - 1);
     s.bitOffset += n;

@@ -556,11 +556,17 @@ static void PrintHelp(const char* name, BROTLI_BOOL error) {
 "  -t, --test                  test compressed file integrity\n"
 "  -v, --verbose               verbose mode\n");
   fprintf(media,
-"  -w NUM, --lgwin=NUM         set LZ77 window size (0, %d-%d)\n",
+"  -w NUM, --lgwin=NUM         set LZ77 window size (0, %d-%d)\n"
+"                              window size = 2**NUM - 16\n"
+"                              0 lets compressor choose the optimal value\n",
           BROTLI_MIN_WINDOW_BITS, BROTLI_MAX_WINDOW_BITS);
   fprintf(media,
-"                              window size = 2**NUM - 16\n"
-"                              0 lets compressor choose the optimal value\n");
+"  --large_window=NUM          use incompatible large-window brotli\n"
+"                              bitstream with window size (0, %d-%d)\n"
+"                              WARNING: this format is not compatible\n"
+"                              with brotli RFC 7932 and may not be\n"
+"                              decodable with regular brotli decoders\n",
+          BROTLI_MIN_WINDOW_BITS, BROTLI_LARGE_MAX_WINDOW_BITS);
   fprintf(media,
 "  -S SUF, --suffix=SUF        output file suffix (default:'%s')\n",
           DEFAULT_SUFFIX);

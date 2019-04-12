@@ -58,9 +58,12 @@ final class Huffman {
 
   /**
    * Builds Huffman lookup table assuming code lengths are in symbol order.
+   *
+   * @return number of slots used by resulting Huffman table
    */
-  static void buildHuffmanTable(int[] rootTable, int tableOffset, int rootBits, int[] codeLengths,
+  static int buildHuffmanTable(int[] tableGroup, int tableIdx, int rootBits, int[] codeLengths,
       int codeLengthsSize) {
+    int tableOffset = tableGroup[tableIdx];
     int key; // Reversed prefix code.
     int[] sorted = new int[codeLengthsSize]; // Symbols sorted by code length.
     // TODO: fill with zeroes?
@@ -93,9 +96,9 @@ final class Huffman {
     // Special case code with only one value.
     if (offset[MAX_LENGTH] == 1) {
       for (key = 0; key < totalSize; key++) {
-        rootTable[tableOffset + key] = sorted[0];
+        tableGroup[tableOffset + key] = sorted[0];
       }
-      return;
+      return totalSize;
     }
 
     // Fill in root table.
@@ -103,7 +106,8 @@ final class Huffman {
     symbol = 0;
     for (int len = 1, step = 2; len <= rootBits; len++, step <<= 1) {
       for (; count[len] > 0; count[len]--) {
-        replicateValue(rootTable, tableOffset + key, step, tableSize, len << 16 | sorted[symbol++]);
+        replicateValue(tableGroup, tableOffset + key, step, tableSize,
+            len << 16 | sorted[symbol++]);
         key = getNextKey(key, len);
       }
     }
@@ -120,13 +124,14 @@ final class Huffman {
           tableSize = 1 << tableBits;
           totalSize += tableSize;
           low = key & mask;
-          rootTable[tableOffset + low] =
+          tableGroup[tableOffset + low] =
               (tableBits + rootBits) << 16 | (currentOffset - tableOffset - low);
         }
-        replicateValue(rootTable, currentOffset + (key >> rootBits), step, tableSize,
+        replicateValue(tableGroup, currentOffset + (key >> rootBits), step, tableSize,
             (len - rootBits) << 16 | sorted[symbol++]);
         key = getNextKey(key, len);
       }
     }
+    return totalSize;
   }
 }

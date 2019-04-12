@@ -84,18 +84,12 @@ public class BrotliInputStream extends InputStream {
     }
   }
 
-  public void setEager(boolean eager) {
-    boolean isEager = (state.isEager != 0);
-    if (eager == isEager) {
-      /* Shortcut for no-op change. */
-      return;
-    }
-    if (eager) {
-      Decode.setEager(state);
-    } else {
-      /* Once decoder is "eager", there is no way back. */
-      throw new IllegalStateException("Brotli decoder has been already switched to eager mode");
-    }
+  public void enableEagerOutput() {
+    Decode.enableEagerOutput(state);
+  }
+
+  public void enableLargeWindow() {
+    Decode.enableLargeWindow(state);
   }
 
   /**

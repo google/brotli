@@ -32,4 +32,23 @@ public class BitReaderTest {
     }
     fail("BrotliRuntimeException should have been thrown by BitReader.checkHealth");
   }
+
+  @Test
+  public void testAccumulatorUnderflowDetected() {
+    State reader = new State();
+    Decode.initState(reader, new ByteArrayInputStream(new byte[8]));
+    // 65 bits is enough for both 32 and 64 bit systems.
+    BitReader.readBits(reader, 13);
+    BitReader.readBits(reader, 13);
+    BitReader.readBits(reader, 13);
+    BitReader.readBits(reader, 13);
+    BitReader.readBits(reader, 13);
+    try {
+      BitReader.fillBitWindow(reader);
+    } catch (IllegalStateException ex) {
+      // This exception is expected.
+      return;
+    }
+    fail("IllegalStateException should have been thrown by 'broken' BitReader");
+  }
 }

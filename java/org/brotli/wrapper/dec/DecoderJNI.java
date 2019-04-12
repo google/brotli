@@ -30,6 +30,7 @@ public class DecoderJNI {
     private final long[] context = new long[3];
     private final ByteBuffer inputBuffer;
     private Status lastStatus = Status.NEEDS_MORE_INPUT;
+    private boolean fresh = true;
 
     public Wrapper(int inputBufferSize) throws IOException {
       this.context[1] = inputBufferSize;
@@ -52,6 +53,7 @@ public class DecoderJNI {
       if (lastStatus == Status.OK && length != 0) {
         throw new IllegalStateException("pushing input to decoder in OK state");
       }
+      fresh = false;
       nativePush(context, length);
       parseStatus();
     }
@@ -90,6 +92,7 @@ public class DecoderJNI {
       if (lastStatus != Status.NEEDS_MORE_OUTPUT && !hasOutput()) {
         throw new IllegalStateException("pulling output from decoder in " + lastStatus + " state");
       }
+      fresh = false;
       ByteBuffer result = nativePull(context);
       parseStatus();
       return result;
