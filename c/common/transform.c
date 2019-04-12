@@ -24,8 +24,8 @@ static const char kPrefixSuffix[217] =
 /* 8x  _0 _ _3    _8   _C _E _ _1     _7       _F */
       " not \3er \3al \4ful \4ive \5less \4es"
 /* Ax       _5   _9   _D    _2    _7     _D */
-      "t \4ize \2\xc2\xa0\4ous \5 the \2e \0";
-/* Cx    _2    _7___ ___ _A    _F     _5  _8 */
+      "t \4ize \2\xc2\xa0\4ous \5 the \2e "; /* \0 - implicit trailing zero. */
+/* Cx    _2    _7___ ___ _A    _F     _5        _8 */
 
 static const uint16_t kPrefixSuffixMap[50] = {
   0x00, 0x02, 0x05, 0x0E, 0x13, 0x16, 0x18, 0x1E, 0x23, 0x25,

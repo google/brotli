@@ -22,25 +22,98 @@ function BrotliDecodeClosure() {
     /** @type {!number} */
     this.offset = 0;
   }
+  var MAX_HUFFMAN_TABLE_SIZE = Int32Array.from([256, 402, 436, 468, 500, 534, 566, 598, 630, 662, 694, 726, 758, 790, 822, 854, 886, 920, 952, 984, 1016, 1048, 1080]);
   var CODE_LENGTH_CODE_ORDER = Int32Array.from([1, 2, 3, 4, 0, 5, 17, 6, 16, 7, 8, 9, 10, 11, 12, 13, 14, 15]);
-  var DISTANCE_SHORT_CODE_INDEX_OFFSET = Int32Array.from([3, 2, 1, 0, 3, 3, 3, 3, 3, 3, 2, 2, 2, 2, 2, 2]);
+  var DISTANCE_SHORT_CODE_INDEX_OFFSET = Int32Array.from([0, 3, 2, 1, 0, 0, 0, 0, 0, 0, 3, 3, 3, 3, 3, 3]);
   var DISTANCE_SHORT_CODE_VALUE_OFFSET = Int32Array.from([0, 0, 0, 0, -1, 1, -2, 2, -3, 3, -1, 1, -2, 2, -3, 3]);
   var FIXED_TABLE = Int32Array.from([0x020000, 0x020004, 0x020003, 0x030002, 0x020000, 0x020004, 0x020003, 0x040001, 0x020000, 0x020004, 0x020003, 0x030002, 0x020000, 0x020004, 0x020003, 0x040005]);
   var DICTIONARY_OFFSETS_BY_LENGTH = Int32Array.from([0, 0, 0, 0, 0, 4096, 9216, 21504, 35840, 44032, 53248, 63488, 74752, 87040, 93696, 100864, 104704, 106752, 108928, 113536, 115968, 118528, 119872, 121280, 122016]);
   var DICTIONARY_SIZE_BITS_BY_LENGTH = Int32Array.from([0, 0, 0, 0, 10, 10, 11, 11, 10, 10, 10, 10, 10, 9, 9, 8, 7, 7, 8, 7, 7, 6, 6, 5, 5]);
   var BLOCK_LENGTH_OFFSET = Int32Array.from([1, 5, 9, 13, 17, 25, 33, 41, 49, 65, 81, 97, 113, 145, 177, 209, 241, 305, 369, 497, 753, 1265, 2289, 4337, 8433, 16625]);
   var BLOCK_LENGTH_N_BITS = Int32Array.from([2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5, 5, 6, 6, 7, 8, 9, 10, 11, 12, 13, 24]);
-  var INSERT_LENGTH_OFFSET = Int32Array.from([0, 1, 2, 3, 4, 5, 6, 8, 10, 14, 18, 26, 34, 50, 66, 98, 130, 194, 322, 578, 1090, 2114, 6210, 22594]);
-  var INSERT_LENGTH_N_BITS = Int32Array.from([0, 0, 0, 0, 0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 7, 8, 9, 10, 12, 14, 24]);
-  var COPY_LENGTH_OFFSET = Int32Array.from([2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 14, 18, 22, 30, 38, 54, 70, 102, 134, 198, 326, 582, 1094, 2118]);
-  var COPY_LENGTH_N_BITS = Int32Array.from([0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 7, 8, 9, 10, 24]);
-  var INSERT_RANGE_LUT = Int32Array.from([0, 0, 8, 8, 0, 16, 8, 16, 16]);
-  var COPY_RANGE_LUT = Int32Array.from([0, 8, 0, 8, 16, 0, 16, 8, 16]);
+  var INSERT_LENGTH_N_BITS = Int16Array.from([0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x01, 0x02, 0x02, 0x03, 0x03, 0x04, 0x04, 0x05, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0C, 0x0E, 0x18]);
+  var COPY_LENGTH_N_BITS = Int16Array.from([0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x01, 0x02, 0x02, 0x03, 0x03, 0x04, 0x04, 0x05, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x18]);
+  var CMD_LOOKUP = new Int16Array(2816);
+  {
+    unpackCommandLookupTable(CMD_LOOKUP);
+  }
+  /**
+   * @param {number} i
+   * @return {number}
+   */
+  function log2floor(i) {
+    var /** number */ result = -1;
+    var /** number */ step = 16;
+    while (step > 0) {
+      if ((i >>> step) != 0) {
+        result += step;
+        i = i >>> step;
+      }
+      step = step >> 1;
+    }
+    return result + i;
+  }
+  /**
+   * @param {number} npostfix
+   * @param {number} ndirect
+   * @param {number} maxndistbits
+   * @return {number}
+   */
+  function calculateDistanceAlphabetSize(npostfix, ndirect, maxndistbits) {
+    return 16 + ndirect + 2 * (maxndistbits << npostfix);
+  }
+  /**
+   * @param {number} maxDistance
+   * @param {number} npostfix
+   * @param {number} ndirect
+   * @return {number}
+   */
+  function calculateDistanceAlphabetLimit(maxDistance, npostfix, ndirect) {
+    if (maxDistance < ndirect + (2 << npostfix)) {
+      throw "maxDistance is too small";
+    }
+    var /** number */ offset = ((maxDistance - ndirect) >> npostfix) + 4;
+    var /** number */ ndistbits = log2floor(offset) - 1;
+    var /** number */ group = ((ndistbits - 1) << 1) | ((offset >> ndistbits) & 1);
+    return ((group - 1) << npostfix) + (1 << npostfix) + ndirect + 16;
+  }
+  /**
+   * @param {!Int16Array} cmdLookup
+   * @return {void}
+   */
+  function unpackCommandLookupTable(cmdLookup) {
+    var /** !Int16Array */ insertLengthOffsets = new Int16Array(24);
+    var /** !Int16Array */ copyLengthOffsets = new Int16Array(24);
+    copyLengthOffsets[0] = 2;
+    for (var /** number */ i = 0; i < 23; ++i) {
+      insertLengthOffsets[i + 1] = (insertLengthOffsets[i] + (1 << INSERT_LENGTH_N_BITS[i]));
+      copyLengthOffsets[i + 1] = (copyLengthOffsets[i] + (1 << COPY_LENGTH_N_BITS[i]));
+    }
+    for (var /** number */ cmdCode = 0; cmdCode < 704; ++cmdCode) {
+      var /** number */ rangeIdx = cmdCode >>> 6;
+      var /** number */ distanceContextOffset = -4;
+      if (rangeIdx >= 2) {
+        rangeIdx -= 2;
+        distanceContextOffset = 0;
+      }
+      var /** number */ insertCode = (((0x29850 >>> (rangeIdx * 2)) & 0x3) << 3) | ((cmdCode >>> 3) & 7);
+      var /** number */ copyCode = (((0x26244 >>> (rangeIdx * 2)) & 0x3) << 3) | (cmdCode & 7);
+      var /** number */ copyLengthOffset = copyLengthOffsets[copyCode];
+      var /** number */ distanceContext = distanceContextOffset + (copyLengthOffset > 4 ? 3 : copyLengthOffset - 2);
+      var /** number */ index = cmdCode * 4;
+      cmdLookup[index + 0] = (INSERT_LENGTH_N_BITS[insertCode] | (COPY_LENGTH_N_BITS[copyCode] << 8));
+      cmdLookup[index + 1] = insertLengthOffsets[insertCode];
+      cmdLookup[index + 2] = copyLengthOffsets[copyCode];
+      cmdLookup[index + 3] = distanceContext;
+    }
+  }
   /**
    * @param {!State} s
-   * @return {!number}
+   * @return {number}
    */
   function decodeWindowBits(s) {
+    var /** number */ largeWindowEnabled = s.isLargeWindow;
+    s.isLargeWindow = 0;
     if (s.bitOffset >= 16) {
       s.accumulator32 = (s.shortBuffer[s.halfOffset++] << 16) | (s.accumulator32 >>> 16);
       s.bitOffset -= 16;
@@ -48,15 +121,50 @@ function BrotliDecodeClosure() {
     if (readFewBits(s, 1) == 0) {
       return 16;
     }
-    var /** !number */ n = readFewBits(s, 3);
+    var /** number */ n = readFewBits(s, 3);
     if (n != 0) {
       return 17 + n;
     }
     n = readFewBits(s, 3);
     if (n != 0) {
-      return 8 + n;
+      if (n == 1) {
+        if (largeWindowEnabled == 0) {
+          return -1;
+        }
+        s.isLargeWindow = 1;
+        if (readFewBits(s, 1) == 1) {
+          return -1;
+        }
+        n = readFewBits(s, 6);
+        if (n < 10 || n > 30) {
+          return -1;
+        }
+        return n;
+      } else {
+        return 8 + n;
+      }
     }
     return 17;
+  }
+  /**
+   * @param {!State} s
+   * @return {void}
+   */
+  function enableEagerOutput(s) {
+    if (s.runningState != 1) {
+      throw "State MUST be freshly initialized";
+    }
+    s.isEager = 1;
+  }
+  /**
+   * @param {!State} s
+   * @return {void}
+   */
+  function enableLargeWindow(s) {
+    if (s.runningState != 1) {
+      throw "State MUST be freshly initialized";
+    }
+    s.isLargeWindow = 1;
   }
   /**
    * @param {!State} s
@@ -67,15 +175,14 @@ function BrotliDecodeClosure() {
     if (s.runningState != 0) {
       throw "State MUST be uninitialized";
     }
-    s.blockTrees = new Int32Array(6480);
+    s.blockTrees = new Int32Array(3091);
+    s.blockTrees[0] = 7;
+    s.distRbIdx = 3;
+    var /** number */ maxDistanceAlphabetLimit = calculateDistanceAlphabetLimit(0x7FFFFFFC, 3, 15 << 3);
+    s.distExtraBits = new Int8Array(maxDistanceAlphabetLimit);
+    s.distOffset = new Int32Array(maxDistanceAlphabetLimit);
     s.input = input;
     initBitReader(s);
-    var /** !number */ windowBits = decodeWindowBits(s);
-    if (windowBits == 9) {
-      throw "Invalid 'windowBits' code";
-    }
-    s.maxRingBufferSize = 1 << windowBits;
-    s.maxBackwardDistance = s.maxRingBufferSize - 16;
     s.runningState = 1;
   }
   /**
@@ -86,10 +193,10 @@ function BrotliDecodeClosure() {
     if (s.runningState == 0) {
       throw "State MUST be initialized";
     }
-    if (s.runningState == 10) {
+    if (s.runningState == 11) {
       return;
     }
-    s.runningState = 10;
+    s.runningState = 11;
     if (s.input != null) {
       closeInput(s.input);
       s.input = null;
@@ -97,7 +204,7 @@ function BrotliDecodeClosure() {
   }
   /**
    * @param {!State} s
-   * @return {!number}
+   * @return {number}
    */
   function decodeVarLenUnsignedByte(s) {
     if (s.bitOffset >= 16) {
@@ -105,7 +212,7 @@ function BrotliDecodeClosure() {
       s.bitOffset -= 16;
     }
     if (readFewBits(s, 1) != 0) {
-      var /** !number */ n = readFewBits(s, 3);
+      var /** number */ n = readFewBits(s, 3);
       if (n == 0) {
         return 1;
       } else {
@@ -130,34 +237,34 @@ function BrotliDecodeClosure() {
     if ((s.inputEnd != 0) && readFewBits(s, 1) != 0) {
       return;
     }
-    var /** !number */ sizeNibbles = readFewBits(s, 2) + 4;
+    var /** number */ sizeNibbles = readFewBits(s, 2) + 4;
     if (sizeNibbles == 7) {
       s.isMetadata = 1;
       if (readFewBits(s, 1) != 0) {
         throw "Corrupted reserved bit";
       }
-      var /** !number */ sizeBytes = readFewBits(s, 2);
+      var /** number */ sizeBytes = readFewBits(s, 2);
       if (sizeBytes == 0) {
         return;
       }
-      for (var /** !number */ i = 0; i < sizeBytes; i++) {
+      for (var /** number */ i = 0; i < sizeBytes; i++) {
         if (s.bitOffset >= 16) {
           s.accumulator32 = (s.shortBuffer[s.halfOffset++] << 16) | (s.accumulator32 >>> 16);
           s.bitOffset -= 16;
         }
-        var /** !number */ bits = readFewBits(s, 8);
+        var /** number */ bits = readFewBits(s, 8);
         if (bits == 0 && i + 1 == sizeBytes && sizeBytes > 1) {
           throw "Exuberant nibble";
         }
         s.metaBlockLength |= bits << (i * 8);
       }
     } else {
-      for (var /** !number */ i = 0; i < sizeNibbles; i++) {
+      for (var /** number */ i = 0; i < sizeNibbles; i++) {
         if (s.bitOffset >= 16) {
           s.accumulator32 = (s.shortBuffer[s.halfOffset++] << 16) | (s.accumulator32 >>> 16);
           s.bitOffset -= 16;
         }
-        var /** !number */ bits = readFewBits(s, 4);
+        var /** number */ bits = readFewBits(s, 4);
         if (bits == 0 && i + 1 == sizeNibbles && sizeNibbles > 4) {
           throw "Exuberant nibble";
         }
@@ -170,39 +277,40 @@ function BrotliDecodeClosure() {
     }
   }
   /**
-   * @param {!Int32Array} table
-   * @param {!number} offset
+   * @param {!Int32Array} tableGroup
+   * @param {number} tableIdx
    * @param {!State} s
-   * @return {!number}
+   * @return {number}
    */
-  function readSymbol(table, offset, s) {
-    var /** !number */ val = (s.accumulator32 >>> s.bitOffset);
+  function readSymbol(tableGroup, tableIdx, s) {
+    var /** number */ offset = tableGroup[tableIdx];
+    var /** number */ val = (s.accumulator32 >>> s.bitOffset);
     offset += val & 0xFF;
-    var /** !number */ bits = table[offset] >> 16;
-    var /** !number */ sym = table[offset] & 0xFFFF;
+    var /** number */ bits = tableGroup[offset] >> 16;
+    var /** number */ sym = tableGroup[offset] & 0xFFFF;
     if (bits <= 8) {
       s.bitOffset += bits;
       return sym;
     }
     offset += sym;
-    var /** !number */ mask = (1 << bits) - 1;
+    var /** number */ mask = (1 << bits) - 1;
     offset += (val & mask) >>> 8;
-    s.bitOffset += ((table[offset] >> 16) + 8);
-    return table[offset] & 0xFFFF;
+    s.bitOffset += ((tableGroup[offset] >> 16) + 8);
+    return tableGroup[offset] & 0xFFFF;
   }
   /**
-   * @param {!Int32Array} table
-   * @param {!number} offset
+   * @param {!Int32Array} tableGroup
+   * @param {number} tableIdx
    * @param {!State} s
-   * @return {!number}
+   * @return {number}
    */
-  function readBlockLength(table, offset, s) {
+  function readBlockLength(tableGroup, tableIdx, s) {
     if (s.bitOffset >= 16) {
       s.accumulator32 = (s.shortBuffer[s.halfOffset++] << 16) | (s.accumulator32 >>> 16);
       s.bitOffset -= 16;
     }
-    var /** !number */ code = readSymbol(table, offset, s);
-    var /** !number */ n = BLOCK_LENGTH_N_BITS[code];
+    var /** number */ code = readSymbol(tableGroup, tableIdx, s);
+    var /** number */ n = BLOCK_LENGTH_N_BITS[code];
     if (s.bitOffset >= 16) {
       s.accumulator32 = (s.shortBuffer[s.halfOffset++] << 16) | (s.accumulator32 >>> 16);
       s.bitOffset -= 16;
@@ -210,26 +318,12 @@ function BrotliDecodeClosure() {
     return BLOCK_LENGTH_OFFSET[code] + ((n <= 16) ? readFewBits(s, n) : readManyBits(s, n));
   }
   /**
-   * @param {!number} code
-   * @param {!Int32Array} ringBuffer
-   * @param {!number} index
-   * @return {!number}
-   */
-  function translateShortCodes(code, ringBuffer, index) {
-    if (code < 16) {
-      index += DISTANCE_SHORT_CODE_INDEX_OFFSET[code];
-      index &= 3;
-      return ringBuffer[index] + DISTANCE_SHORT_CODE_VALUE_OFFSET[code];
-    }
-    return code - 16 + 1;
-  }
-  /**
    * @param {!Int32Array} v
-   * @param {!number} index
+   * @param {number} index
    * @return {void}
    */
   function moveToFront(v, index) {
-    var /** !number */ value = v[index];
+    var /** number */ value = v[index];
     for (; index > 0; index--) {
       v[index] = v[index - 1];
     }
@@ -237,16 +331,16 @@ function BrotliDecodeClosure() {
   }
   /**
    * @param {!Int8Array} v
-   * @param {!number} vLen
+   * @param {number} vLen
    * @return {void}
    */
   function inverseMoveToFrontTransform(v, vLen) {
     var /** !Int32Array */ mtf = new Int32Array(256);
-    for (var /** !number */ i = 0; i < 256; i++) {
+    for (var /** number */ i = 0; i < 256; i++) {
       mtf[i] = i;
     }
-    for (var /** !number */ i = 0; i < vLen; i++) {
-      var /** !number */ index = v[i] & 0xFF;
+    for (var /** number */ i = 0; i < vLen; i++) {
+      var /** number */ index = v[i] & 0xFF;
       v[i] = mtf[index];
       if (index != 0) {
         moveToFront(mtf, index);
@@ -255,19 +349,20 @@ function BrotliDecodeClosure() {
   }
   /**
    * @param {!Int32Array} codeLengthCodeLengths
-   * @param {!number} numSymbols
+   * @param {number} numSymbols
    * @param {!Int32Array} codeLengths
    * @param {!State} s
    * @return {void}
    */
   function readHuffmanCodeLengths(codeLengthCodeLengths, numSymbols, codeLengths, s) {
-    var /** !number */ symbol = 0;
-    var /** !number */ prevCodeLen = 8;
-    var /** !number */ repeat = 0;
-    var /** !number */ repeatCodeLen = 0;
-    var /** !number */ space = 32768;
-    var /** !Int32Array */ table = new Int32Array(32);
-    buildHuffmanTable(table, 0, 5, codeLengthCodeLengths, 18);
+    var /** number */ symbol = 0;
+    var /** number */ prevCodeLen = 8;
+    var /** number */ repeat = 0;
+    var /** number */ repeatCodeLen = 0;
+    var /** number */ space = 32768;
+    var /** !Int32Array */ table = new Int32Array(32 + 1);
+    var /** number */ tableIdx = table.length - 1;
+    buildHuffmanTable(table, tableIdx, 5, codeLengthCodeLengths, 18);
     while (symbol < numSymbols && space > 0) {
       if (s.halfOffset > 2030) {
         doReadMoreInput(s);
@@ -276,9 +371,9 @@ function BrotliDecodeClosure() {
         s.accumulator32 = (s.shortBuffer[s.halfOffset++] << 16) | (s.accumulator32 >>> 16);
         s.bitOffset -= 16;
       }
-      var /** !number */ p = (s.accumulator32 >>> s.bitOffset) & 31;
+      var /** number */ p = (s.accumulator32 >>> s.bitOffset) & 31;
       s.bitOffset += table[p] >> 16;
-      var /** !number */ codeLen = table[p] & 0xFFFF;
+      var /** number */ codeLen = table[p] & 0xFFFF;
       if (codeLen < 16) {
         repeat = 0;
         codeLengths[symbol++] = codeLen;
@@ -287,8 +382,8 @@ function BrotliDecodeClosure() {
           space -= 32768 >> codeLen;
         }
       } else {
-        var /** !number */ extraBits = codeLen - 14;
-        var /** !number */ newLen = 0;
+        var /** number */ extraBits = codeLen - 14;
+        var /** number */ newLen = 0;
         if (codeLen == 16) {
           newLen = prevCodeLen;
         }
@@ -296,7 +391,7 @@ function BrotliDecodeClosure() {
           repeat = 0;
           repeatCodeLen = newLen;
         }
-        var /** !number */ oldRepeat = repeat;
+        var /** number */ oldRepeat = repeat;
         if (repeat > 0) {
           repeat -= 2;
           repeat <<= extraBits;
@@ -306,11 +401,11 @@ function BrotliDecodeClosure() {
           s.bitOffset -= 16;
         }
         repeat += readFewBits(s, extraBits) + 3;
-        var /** !number */ repeatDelta = repeat - oldRepeat;
+        var /** number */ repeatDelta = repeat - oldRepeat;
         if (symbol + repeatDelta > numSymbols) {
           throw "symbol + repeatDelta > numSymbols";
         }
-        for (var /** !number */ i = 0; i < repeatDelta; i++) {
+        for (var /** number */ i = 0; i < repeatDelta; i++) {
           codeLengths[symbol++] = repeatCodeLen;
         }
         if (repeatCodeLen != 0) {
@@ -325,112 +420,145 @@ function BrotliDecodeClosure() {
   }
   /**
    * @param {!Int32Array} symbols
-   * @param {!number} length
-   * @return {!number}
+   * @param {number} length
+   * @return {void}
    */
   function checkDupes(symbols, length) {
-    for (var /** !number */ i = 0; i < length - 1; ++i) {
-      for (var /** !number */ j = i + 1; j < length; ++j) {
+    for (var /** number */ i = 0; i < length - 1; ++i) {
+      for (var /** number */ j = i + 1; j < length; ++j) {
         if (symbols[i] == symbols[j]) {
-          return 0;
+          throw "Duplicate simple Huffman code symbol";
         }
       }
     }
-    return 1;
   }
   /**
-   * @param {!number} alphabetSize
-   * @param {!Int32Array} table
-   * @param {!number} offset
+   * @param {number} alphabetSizeMax
+   * @param {number} alphabetSizeLimit
+   * @param {!Int32Array} tableGroup
+   * @param {number} tableIdx
    * @param {!State} s
-   * @return {void}
+   * @return {number}
    */
-  function readHuffmanCode(alphabetSize, table, offset, s) {
-    var /** !number */ ok = 1;
-    var /** !number */ simpleCodeOrSkip;
+  function readSimpleHuffmanCode(alphabetSizeMax, alphabetSizeLimit, tableGroup, tableIdx, s) {
+    var /** !Int32Array */ codeLengths = new Int32Array(alphabetSizeLimit);
+    var /** !Int32Array */ symbols = new Int32Array(4);
+    var /** number */ maxBits = 1 + log2floor(alphabetSizeMax - 1);
+    var /** number */ numSymbols = readFewBits(s, 2) + 1;
+    for (var /** number */ i = 0; i < numSymbols; i++) {
+      if (s.bitOffset >= 16) {
+        s.accumulator32 = (s.shortBuffer[s.halfOffset++] << 16) | (s.accumulator32 >>> 16);
+        s.bitOffset -= 16;
+      }
+      var /** number */ symbol = readFewBits(s, maxBits);
+      if (symbol >= alphabetSizeLimit) {
+        throw "Can't readHuffmanCode";
+      }
+      symbols[i] = symbol;
+    }
+    checkDupes(symbols, numSymbols);
+    var /** number */ histogramId = numSymbols;
+    if (numSymbols == 4) {
+      histogramId += readFewBits(s, 1);
+    }
+    switch(histogramId) {
+      case 1:
+        codeLengths[symbols[0]] = 1;
+        break;
+      case 2:
+        codeLengths[symbols[0]] = 1;
+        codeLengths[symbols[1]] = 1;
+        break;
+      case 3:
+        codeLengths[symbols[0]] = 1;
+        codeLengths[symbols[1]] = 2;
+        codeLengths[symbols[2]] = 2;
+        break;
+      case 4:
+        codeLengths[symbols[0]] = 2;
+        codeLengths[symbols[1]] = 2;
+        codeLengths[symbols[2]] = 2;
+        codeLengths[symbols[3]] = 2;
+        break;
+      case 5:
+        codeLengths[symbols[0]] = 1;
+        codeLengths[symbols[1]] = 2;
+        codeLengths[symbols[2]] = 3;
+        codeLengths[symbols[3]] = 3;
+        break;
+      default:
+        break;
+    }
+    return buildHuffmanTable(tableGroup, tableIdx, 8, codeLengths, alphabetSizeLimit);
+  }
+  /**
+   * @param {number} alphabetSizeLimit
+   * @param {number} skip
+   * @param {!Int32Array} tableGroup
+   * @param {number} tableIdx
+   * @param {!State} s
+   * @return {number}
+   */
+  function readComplexHuffmanCode(alphabetSizeLimit, skip, tableGroup, tableIdx, s) {
+    var /** !Int32Array */ codeLengths = new Int32Array(alphabetSizeLimit);
+    var /** !Int32Array */ codeLengthCodeLengths = new Int32Array(18);
+    var /** number */ space = 32;
+    var /** number */ numCodes = 0;
+    for (var /** number */ i = skip; i < 18 && space > 0; i++) {
+      var /** number */ codeLenIdx = CODE_LENGTH_CODE_ORDER[i];
+      if (s.bitOffset >= 16) {
+        s.accumulator32 = (s.shortBuffer[s.halfOffset++] << 16) | (s.accumulator32 >>> 16);
+        s.bitOffset -= 16;
+      }
+      var /** number */ p = (s.accumulator32 >>> s.bitOffset) & 15;
+      s.bitOffset += FIXED_TABLE[p] >> 16;
+      var /** number */ v = FIXED_TABLE[p] & 0xFFFF;
+      codeLengthCodeLengths[codeLenIdx] = v;
+      if (v != 0) {
+        space -= (32 >> v);
+        numCodes++;
+      }
+    }
+    if (space != 0 && numCodes != 1) {
+      throw "Corrupted Huffman code histogram";
+    }
+    readHuffmanCodeLengths(codeLengthCodeLengths, alphabetSizeLimit, codeLengths, s);
+    return buildHuffmanTable(tableGroup, tableIdx, 8, codeLengths, alphabetSizeLimit);
+  }
+  /**
+   * @param {number} alphabetSizeMax
+   * @param {number} alphabetSizeLimit
+   * @param {!Int32Array} tableGroup
+   * @param {number} tableIdx
+   * @param {!State} s
+   * @return {number}
+   */
+  function readHuffmanCode(alphabetSizeMax, alphabetSizeLimit, tableGroup, tableIdx, s) {
     if (s.halfOffset > 2030) {
       doReadMoreInput(s);
     }
-    var /** !Int32Array */ codeLengths = new Int32Array(alphabetSize);
     if (s.bitOffset >= 16) {
       s.accumulator32 = (s.shortBuffer[s.halfOffset++] << 16) | (s.accumulator32 >>> 16);
       s.bitOffset -= 16;
     }
-    simpleCodeOrSkip = readFewBits(s, 2);
+    var /** number */ simpleCodeOrSkip = readFewBits(s, 2);
     if (simpleCodeOrSkip == 1) {
-      var /** !number */ maxBitsCounter = alphabetSize - 1;
-      var /** !number */ maxBits = 0;
-      var /** !Int32Array */ symbols = new Int32Array(4);
-      var /** !number */ numSymbols = readFewBits(s, 2) + 1;
-      while (maxBitsCounter != 0) {
-        maxBitsCounter >>= 1;
-        maxBits++;
-      }
-      for (var /** !number */ i = 0; i < numSymbols; i++) {
-        if (s.bitOffset >= 16) {
-          s.accumulator32 = (s.shortBuffer[s.halfOffset++] << 16) | (s.accumulator32 >>> 16);
-          s.bitOffset -= 16;
-        }
-        symbols[i] = readFewBits(s, maxBits) % alphabetSize;
-        codeLengths[symbols[i]] = 2;
-      }
-      codeLengths[symbols[0]] = 1;
-      switch(numSymbols) {
-        case 2:
-          codeLengths[symbols[1]] = 1;
-          break;
-        case 4:
-          if (readFewBits(s, 1) == 1) {
-            codeLengths[symbols[2]] = 3;
-            codeLengths[symbols[3]] = 3;
-          } else {
-            codeLengths[symbols[0]] = 2;
-          }
-          break;
-        default:
-          break;
-      }
-      ok = checkDupes(symbols, numSymbols);
+      return readSimpleHuffmanCode(alphabetSizeMax, alphabetSizeLimit, tableGroup, tableIdx, s);
     } else {
-      var /** !Int32Array */ codeLengthCodeLengths = new Int32Array(18);
-      var /** !number */ space = 32;
-      var /** !number */ numCodes = 0;
-      for (var /** !number */ i = simpleCodeOrSkip; i < 18 && space > 0; i++) {
-        var /** !number */ codeLenIdx = CODE_LENGTH_CODE_ORDER[i];
-        if (s.bitOffset >= 16) {
-          s.accumulator32 = (s.shortBuffer[s.halfOffset++] << 16) | (s.accumulator32 >>> 16);
-          s.bitOffset -= 16;
-        }
-        var /** !number */ p = (s.accumulator32 >>> s.bitOffset) & 15;
-        s.bitOffset += FIXED_TABLE[p] >> 16;
-        var /** !number */ v = FIXED_TABLE[p] & 0xFFFF;
-        codeLengthCodeLengths[codeLenIdx] = v;
-        if (v != 0) {
-          space -= (32 >> v);
-          numCodes++;
-        }
-      }
-      if (space != 0 && numCodes != 1) {
-        ok = 0;
-      }
-      readHuffmanCodeLengths(codeLengthCodeLengths, alphabetSize, codeLengths, s);
+      return readComplexHuffmanCode(alphabetSizeLimit, simpleCodeOrSkip, tableGroup, tableIdx, s);
     }
-    if (ok == 0) {
-      throw "Can't readHuffmanCode";
-    }
-    buildHuffmanTable(table, offset, 8, codeLengths, alphabetSize);
   }
   /**
-   * @param {!number} contextMapSize
+   * @param {number} contextMapSize
    * @param {!Int8Array} contextMap
    * @param {!State} s
-   * @return {!number}
+   * @return {number}
    */
   function decodeContextMap(contextMapSize, contextMap, s) {
     if (s.halfOffset > 2030) {
       doReadMoreInput(s);
     }
-    var /** !number */ numTrees = decodeVarLenUnsignedByte(s) + 1;
+    var /** number */ numTrees = decodeVarLenUnsignedByte(s) + 1;
     if (numTrees == 1) {
       contextMap.fill(0, 0, contextMapSize);
       return numTrees;
@@ -439,14 +567,17 @@ function BrotliDecodeClosure() {
       s.accumulator32 = (s.shortBuffer[s.halfOffset++] << 16) | (s.accumulator32 >>> 16);
       s.bitOffset -= 16;
     }
-    var /** !number */ useRleForZeros = readFewBits(s, 1);
-    var /** !number */ maxRunLengthPrefix = 0;
+    var /** number */ useRleForZeros = readFewBits(s, 1);
+    var /** number */ maxRunLengthPrefix = 0;
     if (useRleForZeros != 0) {
       maxRunLengthPrefix = readFewBits(s, 4) + 1;
     }
-    var /** !Int32Array */ table = new Int32Array(1080);
-    readHuffmanCode(numTrees + maxRunLengthPrefix, table, 0, s);
-    for (var /** !number */ i = 0; i < contextMapSize; ) {
+    var /** number */ alphabetSize = numTrees + maxRunLengthPrefix;
+    var /** number */ tableSize = MAX_HUFFMAN_TABLE_SIZE[(alphabetSize + 31) >> 5];
+    var /** !Int32Array */ table = new Int32Array(tableSize + 1);
+    var /** number */ tableIdx = table.length - 1;
+    readHuffmanCode(alphabetSize, alphabetSize, table, tableIdx, s);
+    for (var /** number */ i = 0; i < contextMapSize; ) {
       if (s.halfOffset > 2030) {
         doReadMoreInput(s);
       }
@@ -454,7 +585,7 @@ function BrotliDecodeClosure() {
         s.accumulator32 = (s.shortBuffer[s.halfOffset++] << 16) | (s.accumulator32 >>> 16);
         s.bitOffset -= 16;
       }
-      var /** !number */ code = readSymbol(table, 0, s);
+      var /** number */ code = readSymbol(table, tableIdx, s);
       if (code == 0) {
         contextMap[i] = 0;
         i++;
@@ -463,7 +594,7 @@ function BrotliDecodeClosure() {
           s.accumulator32 = (s.shortBuffer[s.halfOffset++] << 16) | (s.accumulator32 >>> 16);
           s.bitOffset -= 16;
         }
-        var /** !number */ reps = (1 << code) + readFewBits(s, code);
+        var /** number */ reps = (1 << code) + readFewBits(s, code);
         while (reps != 0) {
           if (i >= contextMapSize) {
             throw "Corrupted context map";
@@ -488,19 +619,19 @@ function BrotliDecodeClosure() {
   }
   /**
    * @param {!State} s
-   * @param {!number} treeType
-   * @param {!number} numBlockTypes
-   * @return {!number}
+   * @param {number} treeType
+   * @param {number} numBlockTypes
+   * @return {number}
    */
   function decodeBlockTypeAndLength(s, treeType, numBlockTypes) {
     var /** !Int32Array */ ringBuffers = s.rings;
-    var /** !number */ offset = 4 + treeType * 2;
+    var /** number */ offset = 4 + treeType * 2;
     if (s.bitOffset >= 16) {
       s.accumulator32 = (s.shortBuffer[s.halfOffset++] << 16) | (s.accumulator32 >>> 16);
       s.bitOffset -= 16;
     }
-    var /** !number */ blockType = readSymbol(s.blockTrees, treeType * 1080, s);
-    var /** !number */ result = readBlockLength(s.blockTrees, (treeType + 3) * 1080, s);
+    var /** number */ blockType = readSymbol(s.blockTrees, 2 * treeType, s);
+    var /** number */ result = readBlockLength(s.blockTrees, 2 * treeType + 1, s);
     if (blockType == 1) {
       blockType = ringBuffers[offset + 1] + 1;
     } else if (blockType == 0) {
@@ -521,11 +652,10 @@ function BrotliDecodeClosure() {
    */
   function decodeLiteralBlockSwitch(s) {
     s.literalBlockLength = decodeBlockTypeAndLength(s, 0, s.numLiteralBlockTypes);
-    var /** !number */ literalBlockType = s.rings[5];
+    var /** number */ literalBlockType = s.rings[5];
     s.contextMapSlice = literalBlockType << 6;
-    s.literalTreeIndex = s.contextMap[s.contextMapSlice] & 0xFF;
-    s.literalTree = s.hGroup0[s.literalTreeIndex];
-    var /** !number */ contextMode = s.contextModes[literalBlockType];
+    s.literalTreeIdx = s.contextMap[s.contextMapSlice] & 0xFF;
+    var /** number */ contextMode = s.contextModes[literalBlockType];
     s.contextLookupOffset1 = contextMode << 9;
     s.contextLookupOffset2 = s.contextLookupOffset1 + 256;
   }
@@ -535,7 +665,7 @@ function BrotliDecodeClosure() {
    */
   function decodeCommandBlockSwitch(s) {
     s.commandBlockLength = decodeBlockTypeAndLength(s, 1, s.numCommandBlockTypes);
-    s.treeCommandOffset = s.hGroup1[s.rings[7]];
+    s.commandTreeIdx = s.rings[7];
   }
   /**
    * @param {!State} s
@@ -550,9 +680,9 @@ function BrotliDecodeClosure() {
    * @return {void}
    */
   function maybeReallocateRingBuffer(s) {
-    var /** !number */ newSize = s.maxRingBufferSize;
+    var /** number */ newSize = s.maxRingBufferSize;
     if (newSize > s.expectedTotalSize) {
-      var /** !number */ minimalNewSize = s.expectedTotalSize;
+      var /** number */ minimalNewSize = s.expectedTotalSize;
       while ((newSize >> 1) > minimalNewSize) {
         newSize >>= 1;
       }
@@ -563,7 +693,7 @@ function BrotliDecodeClosure() {
     if (newSize <= s.ringBufferSize) {
       return;
     }
-    var /** !number */ ringBufferSizeWithSlack = newSize + 37;
+    var /** number */ ringBufferSizeWithSlack = newSize + 37;
     var /** !Int8Array */ newBuffer = new Int8Array(ringBufferSizeWithSlack);
     if (s.ringBuffer.length != 0) {
       newBuffer.set(s.ringBuffer.subarray(0, 0 + s.ringBufferSize), 0);
@@ -577,13 +707,13 @@ function BrotliDecodeClosure() {
    */
   function readNextMetablockHeader(s) {
     if (s.inputEnd != 0) {
-      s.nextRunningState = 9;
-      s.runningState = 11;
+      s.nextRunningState = 10;
+      s.runningState = 12;
       return;
     }
-    s.hGroup0 = new Int32Array(0);
-    s.hGroup1 = new Int32Array(0);
-    s.hGroup2 = new Int32Array(0);
+    s.literalTreeGroup = new Int32Array(0);
+    s.commandTreeGroup = new Int32Array(0);
+    s.distanceTreeGroup = new Int32Array(0);
     if (s.halfOffset > 2030) {
       doReadMoreInput(s);
     }
@@ -593,9 +723,9 @@ function BrotliDecodeClosure() {
     }
     if ((s.isUncompressed != 0) || (s.isMetadata != 0)) {
       jumpToByteBoundary(s);
-      s.runningState = (s.isMetadata != 0) ? 4 : 5;
+      s.runningState = (s.isMetadata != 0) ? 5 : 6;
     } else {
-      s.runningState = 2;
+      s.runningState = 3;
     }
     if (s.isMetadata != 0) {
       return;
@@ -610,17 +740,54 @@ function BrotliDecodeClosure() {
   }
   /**
    * @param {!State} s
-   * @param {!number} treeType
-   * @param {!number} numBlockTypes
-   * @return {!number}
+   * @param {number} treeType
+   * @param {number} numBlockTypes
+   * @return {number}
    */
   function readMetablockPartition(s, treeType, numBlockTypes) {
+    var /** number */ offset = s.blockTrees[2 * treeType];
     if (numBlockTypes <= 1) {
+      s.blockTrees[2 * treeType + 1] = offset;
+      s.blockTrees[2 * treeType + 2] = offset;
       return 1 << 28;
     }
-    readHuffmanCode(numBlockTypes + 2, s.blockTrees, treeType * 1080, s);
-    readHuffmanCode(26, s.blockTrees, (treeType + 3) * 1080, s);
-    return readBlockLength(s.blockTrees, (treeType + 3) * 1080, s);
+    var /** number */ blockTypeAlphabetSize = numBlockTypes + 2;
+    offset += readHuffmanCode(blockTypeAlphabetSize, blockTypeAlphabetSize, s.blockTrees, 2 * treeType, s);
+    s.blockTrees[2 * treeType + 1] = offset;
+    var /** number */ blockLengthAlphabetSize = 26;
+    offset += readHuffmanCode(blockLengthAlphabetSize, blockLengthAlphabetSize, s.blockTrees, 2 * treeType + 1, s);
+    s.blockTrees[2 * treeType + 2] = offset;
+    return readBlockLength(s.blockTrees, 2 * treeType + 1, s);
+  }
+  /**
+   * @param {!State} s
+   * @param {number} alphabetSizeLimit
+   * @return {void}
+   */
+  function calculateDistanceLut(s, alphabetSizeLimit) {
+    var /** !Int8Array */ distExtraBits = s.distExtraBits;
+    var /** !Int32Array */ distOffset = s.distOffset;
+    var /** number */ npostfix = s.distancePostfixBits;
+    var /** number */ ndirect = s.numDirectDistanceCodes;
+    var /** number */ postfix = 1 << npostfix;
+    var /** number */ bits = 1;
+    var /** number */ half = 0;
+    var /** number */ i = 16;
+    for (var /** number */ j = 0; j < ndirect; ++j) {
+      distExtraBits[i] = 0;
+      distOffset[i] = j + 1;
+      ++i;
+    }
+    while (i < alphabetSizeLimit) {
+      var /** number */ base = ndirect + ((((2 + half) << bits) - 4) << npostfix) + 1;
+      for (var /** number */ j = 0; j < postfix; ++j) {
+        distExtraBits[i] = bits;
+        distOffset[i] = base + j;
+        ++i;
+      }
+      bits = bits + half;
+      half = half ^ 1;
+    }
   }
   /**
    * @param {!State} s
@@ -641,44 +808,49 @@ function BrotliDecodeClosure() {
       s.bitOffset -= 16;
     }
     s.distancePostfixBits = readFewBits(s, 2);
-    s.numDirectDistanceCodes = 16 + (readFewBits(s, 4) << s.distancePostfixBits);
+    s.numDirectDistanceCodes = readFewBits(s, 4) << s.distancePostfixBits;
     s.distancePostfixMask = (1 << s.distancePostfixBits) - 1;
-    var /** !number */ numDistanceCodes = s.numDirectDistanceCodes + (48 << s.distancePostfixBits);
     s.contextModes = new Int8Array(s.numLiteralBlockTypes);
-    for (var /** !number */ i = 0; i < s.numLiteralBlockTypes; ) {
-      var /** !number */ limit = min(i + 96, s.numLiteralBlockTypes);
+    for (var /** number */ i = 0; i < s.numLiteralBlockTypes; ) {
+      var /** number */ limit = min(i + 96, s.numLiteralBlockTypes);
       for (; i < limit; ++i) {
         if (s.bitOffset >= 16) {
           s.accumulator32 = (s.shortBuffer[s.halfOffset++] << 16) | (s.accumulator32 >>> 16);
           s.bitOffset -= 16;
         }
-        s.contextModes[i] = (readFewBits(s, 2));
+        s.contextModes[i] = readFewBits(s, 2);
       }
       if (s.halfOffset > 2030) {
         doReadMoreInput(s);
       }
     }
     s.contextMap = new Int8Array(s.numLiteralBlockTypes << 6);
-    var /** !number */ numLiteralTrees = decodeContextMap(s.numLiteralBlockTypes << 6, s.contextMap, s);
+    var /** number */ numLiteralTrees = decodeContextMap(s.numLiteralBlockTypes << 6, s.contextMap, s);
     s.trivialLiteralContext = 1;
-    for (var /** !number */ j = 0; j < s.numLiteralBlockTypes << 6; j++) {
+    for (var /** number */ j = 0; j < s.numLiteralBlockTypes << 6; j++) {
       if (s.contextMap[j] != j >> 6) {
         s.trivialLiteralContext = 0;
         break;
       }
     }
     s.distContextMap = new Int8Array(s.numDistanceBlockTypes << 2);
-    var /** !number */ numDistTrees = decodeContextMap(s.numDistanceBlockTypes << 2, s.distContextMap, s);
-    s.hGroup0 = decodeHuffmanTreeGroup(256, numLiteralTrees, s);
-    s.hGroup1 = decodeHuffmanTreeGroup(704, s.numCommandBlockTypes, s);
-    s.hGroup2 = decodeHuffmanTreeGroup(numDistanceCodes, numDistTrees, s);
+    var /** number */ numDistTrees = decodeContextMap(s.numDistanceBlockTypes << 2, s.distContextMap, s);
+    s.literalTreeGroup = decodeHuffmanTreeGroup(256, 256, numLiteralTrees, s);
+    s.commandTreeGroup = decodeHuffmanTreeGroup(704, 704, s.numCommandBlockTypes, s);
+    var /** number */ distanceAlphabetSizeMax = calculateDistanceAlphabetSize(s.distancePostfixBits, s.numDirectDistanceCodes, 24);
+    var /** number */ distanceAlphabetSizeLimit = distanceAlphabetSizeMax;
+    if (s.isLargeWindow == 1) {
+      distanceAlphabetSizeMax = calculateDistanceAlphabetSize(s.distancePostfixBits, s.numDirectDistanceCodes, 62);
+      distanceAlphabetSizeLimit = calculateDistanceAlphabetLimit(0x7FFFFFFC, s.distancePostfixBits, s.numDirectDistanceCodes);
+    }
+    s.distanceTreeGroup = decodeHuffmanTreeGroup(distanceAlphabetSizeMax, distanceAlphabetSizeLimit, numDistTrees, s);
+    calculateDistanceLut(s, distanceAlphabetSizeLimit);
     s.contextMapSlice = 0;
     s.distContextMapSlice = 0;
-    s.contextLookupOffset1 = (s.contextModes[0]) << 9;
+    s.contextLookupOffset1 = s.contextModes[0] * 512;
     s.contextLookupOffset2 = s.contextLookupOffset1 + 256;
-    s.literalTreeIndex = 0;
-    s.literalTree = s.hGroup0[0];
-    s.treeCommandOffset = s.hGroup1[0];
+    s.literalTreeIdx = 0;
+    s.commandTreeIdx = 0;
     s.rings[4] = 1;
     s.rings[5] = 0;
     s.rings[6] = 1;
@@ -694,27 +866,27 @@ function BrotliDecodeClosure() {
     var /** !Int8Array */ ringBuffer = s.ringBuffer;
     if (s.metaBlockLength <= 0) {
       reload(s);
-      s.runningState = 1;
+      s.runningState = 2;
       return;
     }
-    var /** !number */ chunkLength = min(s.ringBufferSize - s.pos, s.metaBlockLength);
+    var /** number */ chunkLength = min(s.ringBufferSize - s.pos, s.metaBlockLength);
     copyBytes(s, ringBuffer, s.pos, chunkLength);
     s.metaBlockLength -= chunkLength;
     s.pos += chunkLength;
     if (s.pos == s.ringBufferSize) {
-      s.nextRunningState = 5;
-      s.runningState = 11;
+      s.nextRunningState = 6;
+      s.runningState = 12;
       return;
     }
     reload(s);
-    s.runningState = 1;
+    s.runningState = 2;
   }
   /**
    * @param {!State} s
-   * @return {!number}
+   * @return {number}
    */
   function writeRingBuffer(s) {
-    var /** !number */ toWrite = min(s.outputLength - s.outputUsed, s.ringBufferBytesReady - s.ringBufferBytesWritten);
+    var /** number */ toWrite = min(s.outputLength - s.outputUsed, s.ringBufferBytesReady - s.ringBufferBytesWritten);
     if (toWrite != 0) {
       s.output.set(s.ringBuffer.subarray(s.ringBufferBytesWritten, s.ringBufferBytesWritten + toWrite), s.outputOffset + s.outputUsed);
       s.outputUsed += toWrite;
@@ -727,27 +899,28 @@ function BrotliDecodeClosure() {
     }
   }
   /**
-   * @param {!number} alphabetSize
-   * @param {!number} n
+   * @param {number} alphabetSizeMax
+   * @param {number} alphabetSizeLimit
+   * @param {number} n
    * @param {!State} s
    * @return {!Int32Array}
    */
-  function decodeHuffmanTreeGroup(alphabetSize, n, s) {
-    var /** !Int32Array */ group = new Int32Array(n + (n * 1080));
-    var /** !number */ next = n;
-    for (var /** !number */ i = 0; i < n; i++) {
+  function decodeHuffmanTreeGroup(alphabetSizeMax, alphabetSizeLimit, n, s) {
+    var /** number */ maxTableSize = MAX_HUFFMAN_TABLE_SIZE[(alphabetSizeLimit + 31) >> 5];
+    var /** !Int32Array */ group = new Int32Array(n + n * maxTableSize);
+    var /** number */ next = n;
+    for (var /** number */ i = 0; i < n; ++i) {
       group[i] = next;
-      readHuffmanCode(alphabetSize, group, next, s);
-      next += 1080;
+      next += readHuffmanCode(alphabetSizeMax, alphabetSizeLimit, group, i, s);
     }
     return group;
   }
   /**
    * @param {!State} s
-   * @return {!number}
+   * @return {number}
    */
   function calculateFence(s) {
-    var /** !number */ result = s.ringBufferSize;
+    var /** number */ result = s.ringBufferSize;
     if (s.isEager != 0) {
       result = min(result, s.ringBufferBytesWritten + s.outputLength - s.outputUsed);
     }
@@ -761,15 +934,24 @@ function BrotliDecodeClosure() {
     if (s.runningState == 0) {
       throw "Can't decompress until initialized";
     }
-    if (s.runningState == 10) {
+    if (s.runningState == 11) {
       throw "Can't decompress after close";
     }
-    var /** !number */ fence = calculateFence(s);
-    var /** !number */ ringBufferMask = s.ringBufferSize - 1;
+    if (s.runningState == 1) {
+      var /** number */ windowBits = decodeWindowBits(s);
+      if (windowBits == -1) {
+        throw "Invalid 'windowBits' code";
+      }
+      s.maxRingBufferSize = 1 << windowBits;
+      s.maxBackwardDistance = s.maxRingBufferSize - 16;
+      s.runningState = 2;
+    }
+    var /** number */ fence = calculateFence(s);
+    var /** number */ ringBufferMask = s.ringBufferSize - 1;
     var /** !Int8Array */ ringBuffer = s.ringBuffer;
-    while (s.runningState != 9) {
+    while (s.runningState != 10) {
       switch(s.runningState) {
-        case 1:
+        case 2:
           if (s.metaBlockLength < 0) {
             throw "Invalid metablock length";
           }
@@ -778,12 +960,12 @@ function BrotliDecodeClosure() {
           ringBufferMask = s.ringBufferSize - 1;
           ringBuffer = s.ringBuffer;
           continue;
-        case 2:
-          readMetablockHuffmanCodesAndContextMaps(s);
-          s.runningState = 3;
         case 3:
+          readMetablockHuffmanCodesAndContextMaps(s);
+          s.runningState = 4;
+        case 4:
           if (s.metaBlockLength <= 0) {
-            s.runningState = 1;
+            s.runningState = 2;
             continue;
           }
           if (s.halfOffset > 2030) {
@@ -797,32 +979,26 @@ function BrotliDecodeClosure() {
             s.accumulator32 = (s.shortBuffer[s.halfOffset++] << 16) | (s.accumulator32 >>> 16);
             s.bitOffset -= 16;
           }
-          var /** !number */ cmdCode = readSymbol(s.hGroup1, s.treeCommandOffset, s);
-          var /** !number */ rangeIdx = cmdCode >>> 6;
-          s.distanceCode = 0;
-          if (rangeIdx >= 2) {
-            rangeIdx -= 2;
-            s.distanceCode = -1;
-          }
-          var /** !number */ insertCode = INSERT_RANGE_LUT[rangeIdx] + ((cmdCode >>> 3) & 7);
+          var /** number */ cmdCode = readSymbol(s.commandTreeGroup, s.commandTreeIdx, s) << 2;
+          var /** number */ insertAndCopyExtraBits = CMD_LOOKUP[cmdCode];
+          var /** number */ insertLengthOffset = CMD_LOOKUP[cmdCode + 1];
+          var /** number */ copyLengthOffset = CMD_LOOKUP[cmdCode + 2];
+          s.distanceCode = CMD_LOOKUP[cmdCode + 3];
           if (s.bitOffset >= 16) {
             s.accumulator32 = (s.shortBuffer[s.halfOffset++] << 16) | (s.accumulator32 >>> 16);
             s.bitOffset -= 16;
           }
-          var /** !number */ insertBits = INSERT_LENGTH_N_BITS[insertCode];
-          var /** !number */ insertExtra = ((insertBits <= 16) ? readFewBits(s, insertBits) : readManyBits(s, insertBits));
-          s.insertLength = INSERT_LENGTH_OFFSET[insertCode] + insertExtra;
-          var /** !number */ copyCode = COPY_RANGE_LUT[rangeIdx] + (cmdCode & 7);
+          var /** number */ extraBits = insertAndCopyExtraBits & 0xFF;
+          s.insertLength = insertLengthOffset + ((extraBits <= 16) ? readFewBits(s, extraBits) : readManyBits(s, extraBits));
           if (s.bitOffset >= 16) {
             s.accumulator32 = (s.shortBuffer[s.halfOffset++] << 16) | (s.accumulator32 >>> 16);
             s.bitOffset -= 16;
           }
-          var /** !number */ copyBits = COPY_LENGTH_N_BITS[copyCode];
-          var /** !number */ copyExtra = ((copyBits <= 16) ? readFewBits(s, copyBits) : readManyBits(s, copyBits));
-          s.copyLength = COPY_LENGTH_OFFSET[copyCode] + copyExtra;
+          var /** number */ extraBits = insertAndCopyExtraBits >> 8;
+          s.copyLength = copyLengthOffset + ((extraBits <= 16) ? readFewBits(s, extraBits) : readManyBits(s, extraBits));
           s.j = 0;
-          s.runningState = 6;
-        case 6:
+          s.runningState = 7;
+        case 7:
           if (s.trivialLiteralContext != 0) {
             while (s.j < s.insertLength) {
               if (s.halfOffset > 2030) {
@@ -836,18 +1012,18 @@ function BrotliDecodeClosure() {
                 s.accumulator32 = (s.shortBuffer[s.halfOffset++] << 16) | (s.accumulator32 >>> 16);
                 s.bitOffset -= 16;
               }
-              ringBuffer[s.pos] = readSymbol(s.hGroup0, s.literalTree, s);
+              ringBuffer[s.pos] = readSymbol(s.literalTreeGroup, s.literalTreeIdx, s);
               s.pos++;
               s.j++;
               if (s.pos >= fence) {
-                s.nextRunningState = 6;
-                s.runningState = 11;
+                s.nextRunningState = 7;
+                s.runningState = 12;
                 break;
               }
             }
           } else {
-            var /** !number */ prevByte1 = ringBuffer[(s.pos - 1) & ringBufferMask] & 0xFF;
-            var /** !number */ prevByte2 = ringBuffer[(s.pos - 2) & ringBufferMask] & 0xFF;
+            var /** number */ prevByte1 = ringBuffer[(s.pos - 1) & ringBufferMask] & 0xFF;
+            var /** number */ prevByte2 = ringBuffer[(s.pos - 2) & ringBufferMask] & 0xFF;
             while (s.j < s.insertLength) {
               if (s.halfOffset > 2030) {
                 doReadMoreInput(s);
@@ -855,33 +1031,37 @@ function BrotliDecodeClosure() {
               if (s.literalBlockLength == 0) {
                 decodeLiteralBlockSwitch(s);
               }
-              var /** !number */ literalTreeIndex = s.contextMap[s.contextMapSlice + (LOOKUP[s.contextLookupOffset1 + prevByte1] | LOOKUP[s.contextLookupOffset2 + prevByte2])] & 0xFF;
+              var /** number */ literalContext = LOOKUP[s.contextLookupOffset1 + prevByte1] | LOOKUP[s.contextLookupOffset2 + prevByte2];
+              var /** number */ literalTreeIdx = s.contextMap[s.contextMapSlice + literalContext] & 0xFF;
               s.literalBlockLength--;
               prevByte2 = prevByte1;
               if (s.bitOffset >= 16) {
                 s.accumulator32 = (s.shortBuffer[s.halfOffset++] << 16) | (s.accumulator32 >>> 16);
                 s.bitOffset -= 16;
               }
-              prevByte1 = readSymbol(s.hGroup0, s.hGroup0[literalTreeIndex], s);
+              prevByte1 = readSymbol(s.literalTreeGroup, literalTreeIdx, s);
               ringBuffer[s.pos] = prevByte1;
               s.pos++;
               s.j++;
               if (s.pos >= fence) {
-                s.nextRunningState = 6;
-                s.runningState = 11;
+                s.nextRunningState = 7;
+                s.runningState = 12;
                 break;
               }
             }
           }
-          if (s.runningState != 6) {
+          if (s.runningState != 7) {
             continue;
           }
           s.metaBlockLength -= s.insertLength;
           if (s.metaBlockLength <= 0) {
-            s.runningState = 3;
+            s.runningState = 4;
             continue;
           }
-          if (s.distanceCode < 0) {
+          var /** number */ distanceCode = s.distanceCode;
+          if (distanceCode < 0) {
+            s.distance = s.rings[s.distRbIdx];
+          } else {
             if (s.halfOffset > 2030) {
               doReadMoreInput(s);
             }
@@ -893,24 +1073,28 @@ function BrotliDecodeClosure() {
               s.accumulator32 = (s.shortBuffer[s.halfOffset++] << 16) | (s.accumulator32 >>> 16);
               s.bitOffset -= 16;
             }
-            s.distanceCode = readSymbol(s.hGroup2, s.hGroup2[s.distContextMap[s.distContextMapSlice + (s.copyLength > 4 ? 3 : s.copyLength - 2)] & 0xFF], s);
-            if (s.distanceCode >= s.numDirectDistanceCodes) {
-              s.distanceCode -= s.numDirectDistanceCodes;
-              var /** !number */ postfix = s.distanceCode & s.distancePostfixMask;
-              s.distanceCode >>>= s.distancePostfixBits;
-              var /** !number */ n = (s.distanceCode >>> 1) + 1;
-              var /** !number */ offset = ((2 + (s.distanceCode & 1)) << n) - 4;
-              if (s.bitOffset >= 16) {
-                s.accumulator32 = (s.shortBuffer[s.halfOffset++] << 16) | (s.accumulator32 >>> 16);
-                s.bitOffset -= 16;
+            var /** number */ distTreeIdx = s.distContextMap[s.distContextMapSlice + distanceCode] & 0xFF;
+            distanceCode = readSymbol(s.distanceTreeGroup, distTreeIdx, s);
+            if (distanceCode < 16) {
+              var /** number */ index = (s.distRbIdx + DISTANCE_SHORT_CODE_INDEX_OFFSET[distanceCode]) & 0x3;
+              s.distance = s.rings[index] + DISTANCE_SHORT_CODE_VALUE_OFFSET[distanceCode];
+              if (s.distance < 0) {
+                throw "Negative distance";
               }
-              var /** !number */ distanceExtra = ((n <= 16) ? readFewBits(s, n) : readManyBits(s, n));
-              s.distanceCode = s.numDirectDistanceCodes + postfix + ((offset + distanceExtra) << s.distancePostfixBits);
+            } else {
+              var /** number */ extraBits = s.distExtraBits[distanceCode];
+              var /** number */ bits;
+              if (s.bitOffset + extraBits <= 32) {
+                bits = readFewBits(s, extraBits);
+              } else {
+                if (s.bitOffset >= 16) {
+                  s.accumulator32 = (s.shortBuffer[s.halfOffset++] << 16) | (s.accumulator32 >>> 16);
+                  s.bitOffset -= 16;
+                }
+                bits = ((extraBits <= 16) ? readFewBits(s, extraBits) : readManyBits(s, extraBits));
+              }
+              s.distance = s.distOffset[distanceCode] + (bits << s.distancePostfixBits);
             }
-          }
-          s.distance = translateShortCodes(s.distanceCode, s.rings, s.distRbIdx);
-          if (s.distance < 0) {
-            throw "Negative distance";
           }
           if (s.maxDistance != s.maxBackwardDistance && s.pos < s.maxBackwardDistance) {
             s.maxDistance = s.pos;
@@ -918,27 +1102,27 @@ function BrotliDecodeClosure() {
             s.maxDistance = s.maxBackwardDistance;
           }
           if (s.distance > s.maxDistance) {
-            s.runningState = 8;
+            s.runningState = 9;
             continue;
           }
-          if (s.distanceCode > 0) {
-            s.rings[s.distRbIdx & 3] = s.distance;
-            s.distRbIdx++;
+          if (distanceCode > 0) {
+            s.distRbIdx = (s.distRbIdx + 1) & 0x3;
+            s.rings[s.distRbIdx] = s.distance;
           }
           if (s.copyLength > s.metaBlockLength) {
             throw "Invalid backward reference";
           }
           s.j = 0;
-          s.runningState = 7;
-        case 7:
-          var /** !number */ src = (s.pos - s.distance) & ringBufferMask;
-          var /** !number */ dst = s.pos;
-          var /** !number */ copyLength = s.copyLength - s.j;
-          var /** !number */ srcEnd = src + copyLength;
-          var /** !number */ dstEnd = dst + copyLength;
+          s.runningState = 8;
+        case 8:
+          var /** number */ src = (s.pos - s.distance) & ringBufferMask;
+          var /** number */ dst = s.pos;
+          var /** number */ copyLength = s.copyLength - s.j;
+          var /** number */ srcEnd = src + copyLength;
+          var /** number */ dstEnd = dst + copyLength;
           if ((srcEnd < ringBufferMask) && (dstEnd < ringBufferMask)) {
             if (copyLength < 12 || (srcEnd > dst && dstEnd > src)) {
-              for (var /** !number */ k = 0; k < copyLength; k += 4) {
+              for (var /** number */ k = 0; k < copyLength; k += 4) {
                 ringBuffer[dst++] = ringBuffer[src++];
                 ringBuffer[dst++] = ringBuffer[src++];
                 ringBuffer[dst++] = ringBuffer[src++];
@@ -957,32 +1141,35 @@ function BrotliDecodeClosure() {
               s.pos++;
               s.j++;
               if (s.pos >= fence) {
-                s.nextRunningState = 7;
-                s.runningState = 11;
+                s.nextRunningState = 8;
+                s.runningState = 12;
                 break;
               }
             }
           }
-          if (s.runningState == 7) {
-            s.runningState = 3;
+          if (s.runningState == 8) {
+            s.runningState = 4;
           }
           continue;
-        case 8:
+        case 9:
+          if (s.distance > 0x7FFFFFFC) {
+            throw "Invalid backward reference";
+          }
           if (s.copyLength >= 4 && s.copyLength <= 24) {
-            var /** !number */ offset = DICTIONARY_OFFSETS_BY_LENGTH[s.copyLength];
-            var /** !number */ wordId = s.distance - s.maxDistance - 1;
-            var /** !number */ shift = DICTIONARY_SIZE_BITS_BY_LENGTH[s.copyLength];
-            var /** !number */ mask = (1 << shift) - 1;
-            var /** !number */ wordIdx = wordId & mask;
-            var /** !number */ transformIdx = wordId >>> shift;
+            var /** number */ offset = DICTIONARY_OFFSETS_BY_LENGTH[s.copyLength];
+            var /** number */ wordId = s.distance - s.maxDistance - 1;
+            var /** number */ shift = DICTIONARY_SIZE_BITS_BY_LENGTH[s.copyLength];
+            var /** number */ mask = (1 << shift) - 1;
+            var /** number */ wordIdx = wordId & mask;
+            var /** number */ transformIdx = wordId >>> shift;
             offset += wordIdx * s.copyLength;
             if (transformIdx < 121) {
-              var /** !number */ len = transformDictionaryWord(ringBuffer, s.pos, DICTIONARY_DATA, offset, s.copyLength, transformIdx);
+              var /** number */ len = transformDictionaryWord(ringBuffer, s.pos, DICTIONARY_DATA, offset, s.copyLength, RFC_TRANSFORMS, transformIdx);
               s.pos += len;
               s.metaBlockLength -= len;
               if (s.pos >= fence) {
-                s.nextRunningState = 3;
-                s.runningState = 11;
+                s.nextRunningState = 4;
+                s.runningState = 12;
                 continue;
               }
             } else {
@@ -991,9 +1178,9 @@ function BrotliDecodeClosure() {
           } else {
             throw "Invalid backward reference";
           }
-          s.runningState = 3;
+          s.runningState = 4;
           continue;
-        case 4:
+        case 5:
           while (s.metaBlockLength > 0) {
             if (s.halfOffset > 2030) {
               doReadMoreInput(s);
@@ -1005,15 +1192,15 @@ function BrotliDecodeClosure() {
             readFewBits(s, 8);
             s.metaBlockLength--;
           }
-          s.runningState = 1;
+          s.runningState = 2;
           continue;
-        case 5:
+        case 6:
           copyUncompressedData(s);
           continue;
-        case 11:
-          s.ringBufferBytesReady = min(s.pos, s.ringBufferSize);
-          s.runningState = 12;
         case 12:
+          s.ringBufferBytesReady = min(s.pos, s.ringBufferSize);
+          s.runningState = 13;
+        case 13:
           if (writeRingBuffer(s) == 0) {
             return;
           }
@@ -1033,7 +1220,7 @@ function BrotliDecodeClosure() {
           throw "Unexpected state " + s.runningState;
       }
     }
-    if (s.runningState == 9) {
+    if (s.runningState == 10) {
       if (s.metaBlockLength < 0) {
         throw "Invalid metablock length";
       }
@@ -1042,9 +1229,32 @@ function BrotliDecodeClosure() {
     }
   }
 
-  var TRANSFORMS = new Int32Array(363);
-  var PREFIX_SUFFIX = new Int8Array(217);
-  var PREFIX_SUFFIX_HEADS = new Int32Array(51);
+  /**
+   * @constructor
+   * @param {number} numTransforms
+   * @param {number} prefixSuffixLen
+   * @param {number} prefixSuffixCount
+   * @struct
+   */
+  function Transforms(numTransforms, prefixSuffixLen, prefixSuffixCount) {
+    /** @type {!number} */
+    this.numTransforms = 0;
+    /** @type {!Int32Array} */
+    this.triplets = new Int32Array(0);
+    /** @type {!Int8Array} */
+    this.prefixSuffixStorage = new Int8Array(0);
+    /** @type {!Int32Array} */
+    this.prefixSuffixHeads = new Int32Array(0);
+    /** @type {!Int16Array} */
+    this.params = new Int16Array(0);
+    this.numTransforms = numTransforms;
+    this.triplets = new Int32Array(numTransforms * 3);
+    this.params = new Int16Array(numTransforms);
+    this.prefixSuffixStorage = new Int8Array(prefixSuffixLen);
+    this.prefixSuffixHeads = new Int32Array(prefixSuffixCount + 1);
+  }
+
+  var RFC_TRANSFORMS = new Transforms(121, 167, 50);
   /**
    * @param {!Int8Array} prefixSuffix
    * @param {!Int32Array} prefixSuffixHeads
@@ -1054,67 +1264,83 @@ function BrotliDecodeClosure() {
    * @return {void}
    */
   function unpackTransforms(prefixSuffix, prefixSuffixHeads, transforms, prefixSuffixSrc, transformsSrc) {
-    var /** !number */ n = prefixSuffixSrc.length;
-    var /** !number */ index = 1;
-    for (var /** !number */ i = 0; i < n; ++i) {
-      var /** !number */ c = prefixSuffixSrc.charCodeAt(i);
-      prefixSuffix[i] = c;
+    var /** number */ n = prefixSuffixSrc.length;
+    var /** number */ index = 1;
+    var /** number */ j = 0;
+    for (var /** number */ i = 0; i < n; ++i) {
+      var /** number */ c = prefixSuffixSrc.charCodeAt(i);
       if (c == 35) {
-        prefixSuffixHeads[index++] = i + 1;
-        prefixSuffix[i] = 0;
+        prefixSuffixHeads[index++] = j;
+      } else {
+        prefixSuffix[j++] = c;
       }
     }
-    for (var /** !number */ i = 0; i < 363; ++i) {
+    for (var /** number */ i = 0; i < 363; ++i) {
       transforms[i] = transformsSrc.charCodeAt(i) - 32;
     }
   }
   {
-    unpackTransforms(PREFIX_SUFFIX, PREFIX_SUFFIX_HEADS, TRANSFORMS, "# #s #, #e #.# the #.com/#\u00C2\u00A0# of # and # in # to #\"#\">#\n#]# for # a # that #. # with #'# from # by #. The # on # as # is #ing #\n\t#:#ed #(# at #ly #=\"# of the #. This #,# not #er #al #='#ful #ive #less #est #ize #ous #", "     !! ! ,  *!  &!  \" !  ) *   * -  ! # !  #!*!  +  ,$ !  -  %  .  / #   0  1 .  \"   2  3!*   4%  ! # /   5  6  7  8 0  1 &   $   9 +   :  ;  < '  !=  >  ?! 4  @ 4  2  &   A *# (   B  C& ) %  ) !*# *-% A +! *.  D! %'  & E *6  F  G% ! *A *%  H! D  I!+!  J!+   K +- *4! A  L!*4  M  N +6  O!*% +.! K *G  P +%(  ! G *D +D  Q +# *K!*G!+D!+# +G +A +4!+% +K!+4!*D!+K!*K");
+    unpackTransforms(RFC_TRANSFORMS.prefixSuffixStorage, RFC_TRANSFORMS.prefixSuffixHeads, RFC_TRANSFORMS.triplets, "# #s #, #e #.# the #.com/#\u00C2\u00A0# of # and # in # to #\"#\">#\n#]# for # a # that #. # with #'# from # by #. The # on # as # is #ing #\n\t#:#ed #(# at #ly #=\"# of the #. This #,# not #er #al #='#ful #ive #less #est #ize #ous #", "     !! ! ,  *!  &!  \" !  ) *   * -  ! # !  #!*!  +  ,$ !  -  %  .  / #   0  1 .  \"   2  3!*   4%  ! # /   5  6  7  8 0  1 &   $   9 +   :  ;  < '  !=  >  ?! 4  @ 4  2  &   A *# (   B  C& ) %  ) !*# *-% A +! *.  D! %'  & E *6  F  G% ! *A *%  H! D  I!+!  J!+   K +- *4! A  L!*4  M  N +6  O!*% +.! K *G  P +%(  ! G *D +D  Q +# *K!*G!+D!+# +G +A +4!+% +K!+4!*D!+K!*K");
   }
   /**
    * @param {!Int8Array} dst
-   * @param {!number} dstOffset
-   * @param {!Int8Array} data
-   * @param {!number} wordOffset
-   * @param {!number} len
-   * @param {!number} transformIndex
-   * @return {!number}
+   * @param {number} dstOffset
+   * @param {!Int8Array} src
+   * @param {number} srcOffset
+   * @param {number} len
+   * @param {!Transforms} transforms
+   * @param {number} transformIndex
+   * @return {number}
    */
-  function transformDictionaryWord(dst, dstOffset, data, wordOffset, len, transformIndex) {
-    var /** !number */ offset = dstOffset;
-    var /** !number */ transformOffset = 3 * transformIndex;
-    var /** !number */ transformPrefix = PREFIX_SUFFIX_HEADS[TRANSFORMS[transformOffset]];
-    var /** !number */ transformType = TRANSFORMS[transformOffset + 1];
-    var /** !number */ transformSuffix = PREFIX_SUFFIX_HEADS[TRANSFORMS[transformOffset + 2]];
-    while (PREFIX_SUFFIX[transformPrefix] != 0) {
-      dst[offset++] = PREFIX_SUFFIX[transformPrefix++];
+  function transformDictionaryWord(dst, dstOffset, src, srcOffset, len, transforms, transformIndex) {
+    var /** number */ offset = dstOffset;
+    var /** !Int32Array */ triplets = transforms.triplets;
+    var /** !Int8Array */ prefixSuffixStorage = transforms.prefixSuffixStorage;
+    var /** !Int32Array */ prefixSuffixHeads = transforms.prefixSuffixHeads;
+    var /** number */ transformOffset = 3 * transformIndex;
+    var /** number */ prefixIdx = triplets[transformOffset];
+    var /** number */ transformType = triplets[transformOffset + 1];
+    var /** number */ suffixIdx = triplets[transformOffset + 2];
+    var /** number */ prefix = prefixSuffixHeads[prefixIdx];
+    var /** number */ prefixEnd = prefixSuffixHeads[prefixIdx + 1];
+    var /** number */ suffix = prefixSuffixHeads[suffixIdx];
+    var /** number */ suffixEnd = prefixSuffixHeads[suffixIdx + 1];
+    var /** number */ omitFirst = transformType - 11;
+    var /** number */ omitLast = transformType - 0;
+    if (omitFirst < 1 || omitFirst > 9) {
+      omitFirst = 0;
     }
-    var /** !number */ omitFirst = transformType >= 12 ? (transformType - 11) : 0;
+    if (omitLast < 1 || omitLast > 9) {
+      omitLast = 0;
+    }
+    while (prefix != prefixEnd) {
+      dst[offset++] = prefixSuffixStorage[prefix++];
+    }
     if (omitFirst > len) {
       omitFirst = len;
     }
-    wordOffset += omitFirst;
+    srcOffset += omitFirst;
     len -= omitFirst;
-    len -= transformType <= 9 ? transformType : 0;
-    var /** !number */ i = len;
+    len -= omitLast;
+    var /** number */ i = len;
     while (i > 0) {
-      dst[offset++] = data[wordOffset++];
+      dst[offset++] = src[srcOffset++];
       i--;
     }
-    if (transformType == 11 || transformType == 10) {
-      var /** !number */ uppercaseOffset = offset - len;
+    if (transformType == 10 || transformType == 11) {
+      var /** number */ uppercaseOffset = offset - len;
       if (transformType == 10) {
         len = 1;
       }
       while (len > 0) {
-        var /** !number */ tmp = dst[uppercaseOffset] & 0xFF;
-        if (tmp < 0xc0) {
-          if (tmp >= 97 && tmp <= 122) {
+        var /** number */ c0 = dst[uppercaseOffset] & 0xFF;
+        if (c0 < 0xC0) {
+          if (c0 >= 97 && c0 <= 122) {
             dst[uppercaseOffset] ^= 32;
           }
           uppercaseOffset += 1;
           len -= 1;
-        } else if (tmp < 0xe0) {
+        } else if (c0 < 0xE0) {
           dst[uppercaseOffset + 1] ^= 32;
           uppercaseOffset += 2;
           len -= 2;
@@ -1124,20 +1350,74 @@ function BrotliDecodeClosure() {
           len -= 3;
         }
       }
+    } else if (transformType == 21 || transformType == 22) {
+      var /** number */ shiftOffset = offset - len;
+      var /** number */ param = transforms.params[transformIndex];
+      var /** number */ scalar = (param & 0x7FFF) + (0x1000000 - (param & 0x8000));
+      while (len > 0) {
+        var /** number */ step = 1;
+        var /** number */ c0 = dst[shiftOffset] & 0xFF;
+        if (c0 < 0x80) {
+          scalar += c0;
+          dst[shiftOffset] = (scalar & 0x7F);
+        } else if (c0 < 0xC0) {
+        } else if (c0 < 0xE0) {
+          if (len >= 2) {
+            var /** number */ c1 = dst[shiftOffset + 1];
+            scalar += (c1 & 0x3F) | ((c0 & 0x1F) << 6);
+            dst[shiftOffset] = (0xC0 | ((scalar >> 6) & 0x1F));
+            dst[shiftOffset + 1] = ((c1 & 0xC0) | (scalar & 0x3F));
+            step = 2;
+          } else {
+            step = len;
+          }
+        } else if (c0 < 0xF0) {
+          if (len >= 3) {
+            var /** number */ c1 = dst[shiftOffset + 1];
+            var /** number */ c2 = dst[shiftOffset + 2];
+            scalar += (c2 & 0x3F) | ((c1 & 0x3F) << 6) | ((c0 & 0x0F) << 12);
+            dst[shiftOffset] = (0xE0 | ((scalar >> 12) & 0x0F));
+            dst[shiftOffset + 1] = ((c1 & 0xC0) | ((scalar >> 6) & 0x3F));
+            dst[shiftOffset + 2] = ((c2 & 0xC0) | (scalar & 0x3F));
+            step = 3;
+          } else {
+            step = len;
+          }
+        } else if (c0 < 0xF8) {
+          if (len >= 4) {
+            var /** number */ c1 = dst[shiftOffset + 1];
+            var /** number */ c2 = dst[shiftOffset + 2];
+            var /** number */ c3 = dst[shiftOffset + 3];
+            scalar += (c3 & 0x3F) | ((c2 & 0x3F) << 6) | ((c1 & 0x3F) << 12) | ((c0 & 0x07) << 18);
+            dst[shiftOffset] = (0xF0 | ((scalar >> 18) & 0x07));
+            dst[shiftOffset + 1] = ((c1 & 0xC0) | ((scalar >> 12) & 0x3F));
+            dst[shiftOffset + 2] = ((c2 & 0xC0) | ((scalar >> 6) & 0x3F));
+            dst[shiftOffset + 3] = ((c3 & 0xC0) | (scalar & 0x3F));
+            step = 4;
+          } else {
+            step = len;
+          }
+        }
+        shiftOffset += step;
+        len -= step;
+        if (transformType == 21) {
+          len = 0;
+        }
+      }
     }
-    while (PREFIX_SUFFIX[transformSuffix] != 0) {
-      dst[offset++] = PREFIX_SUFFIX[transformSuffix++];
+    while (suffix != suffixEnd) {
+      dst[offset++] = prefixSuffixStorage[suffix++];
     }
     return offset - dstOffset;
   }
 
   /**
-   * @param {!number} key
-   * @param {!number} len
-   * @return {!number}
+   * @param {number} key
+   * @param {number} len
+   * @return {number}
    */
   function getNextKey(key, len) {
-    var /** !number */ step = 1 << (len - 1);
+    var /** number */ step = 1 << (len - 1);
     while ((key & step) != 0) {
       step >>= 1;
     }
@@ -1145,10 +1425,10 @@ function BrotliDecodeClosure() {
   }
   /**
    * @param {!Int32Array} table
-   * @param {!number} offset
-   * @param {!number} step
-   * @param {!number} end
-   * @param {!number} item
+   * @param {number} offset
+   * @param {number} step
+   * @param {number} end
+   * @param {number} item
    * @return {void}
    */
   function replicateValue(table, offset, step, end, item) {
@@ -1159,12 +1439,12 @@ function BrotliDecodeClosure() {
   }
   /**
    * @param {!Int32Array} count
-   * @param {!number} len
-   * @param {!number} rootBits
-   * @return {!number}
+   * @param {number} len
+   * @param {number} rootBits
+   * @return {number}
    */
   function nextTableBitSize(count, len, rootBits) {
-    var /** !number */ left = 1 << (len - rootBits);
+    var /** number */ left = 1 << (len - rootBits);
     while (len < 15) {
       left -= count[len];
       if (left <= 0) {
@@ -1176,24 +1456,25 @@ function BrotliDecodeClosure() {
     return len - rootBits;
   }
   /**
-   * @param {!Int32Array} rootTable
-   * @param {!number} tableOffset
-   * @param {!number} rootBits
+   * @param {!Int32Array} tableGroup
+   * @param {number} tableIdx
+   * @param {number} rootBits
    * @param {!Int32Array} codeLengths
-   * @param {!number} codeLengthsSize
-   * @return {void}
+   * @param {number} codeLengthsSize
+   * @return {number}
    */
-  function buildHuffmanTable(rootTable, tableOffset, rootBits, codeLengths, codeLengthsSize) {
-    var /** !number */ key;
+  function buildHuffmanTable(tableGroup, tableIdx, rootBits, codeLengths, codeLengthsSize) {
+    var /** number */ tableOffset = tableGroup[tableIdx];
+    var /** number */ key;
     var /** !Int32Array */ sorted = new Int32Array(codeLengthsSize);
     var /** !Int32Array */ count = new Int32Array(16);
     var /** !Int32Array */ offset = new Int32Array(16);
-    var /** !number */ symbol;
+    var /** number */ symbol;
     for (symbol = 0; symbol < codeLengthsSize; symbol++) {
       count[codeLengths[symbol]]++;
     }
     offset[1] = 0;
-    for (var /** !number */ len = 1; len < 15; len++) {
+    for (var /** number */ len = 1; len < 15; len++) {
       offset[len + 1] = offset[len] + count[len];
     }
     for (symbol = 0; symbol < codeLengthsSize; symbol++) {
@@ -1201,27 +1482,27 @@ function BrotliDecodeClosure() {
         sorted[offset[codeLengths[symbol]]++] = symbol;
       }
     }
-    var /** !number */ tableBits = rootBits;
-    var /** !number */ tableSize = 1 << tableBits;
-    var /** !number */ totalSize = tableSize;
+    var /** number */ tableBits = rootBits;
+    var /** number */ tableSize = 1 << tableBits;
+    var /** number */ totalSize = tableSize;
     if (offset[15] == 1) {
       for (key = 0; key < totalSize; key++) {
-        rootTable[tableOffset + key] = sorted[0];
+        tableGroup[tableOffset + key] = sorted[0];
       }
-      return;
+      return totalSize;
     }
     key = 0;
     symbol = 0;
-    for (var /** !number */ len = 1, step = 2; len <= rootBits; len++, step <<= 1) {
+    for (var /** number */ len = 1, step = 2; len <= rootBits; len++, step <<= 1) {
       for (; count[len] > 0; count[len]--) {
-        replicateValue(rootTable, tableOffset + key, step, tableSize, len << 16 | sorted[symbol++]);
+        replicateValue(tableGroup, tableOffset + key, step, tableSize, len << 16 | sorted[symbol++]);
         key = getNextKey(key, len);
       }
     }
-    var /** !number */ mask = totalSize - 1;
-    var /** !number */ low = -1;
-    var /** !number */ currentOffset = tableOffset;
-    for (var /** !number */ len = rootBits + 1, step = 2; len <= 15; len++, step <<= 1) {
+    var /** number */ mask = totalSize - 1;
+    var /** number */ low = -1;
+    var /** number */ currentOffset = tableOffset;
+    for (var /** number */ len = rootBits + 1, step = 2; len <= 15; len++, step <<= 1) {
       for (; count[len] > 0; count[len]--) {
         if ((key & mask) != low) {
           currentOffset += tableSize;
@@ -1229,12 +1510,13 @@ function BrotliDecodeClosure() {
           tableSize = 1 << tableBits;
           totalSize += tableSize;
           low = key & mask;
-          rootTable[tableOffset + low] = (tableBits + rootBits) << 16 | (currentOffset - tableOffset - low);
+          tableGroup[tableOffset + low] = (tableBits + rootBits) << 16 | (currentOffset - tableOffset - low);
         }
-        replicateValue(rootTable, currentOffset + (key >> rootBits), step, tableSize, (len - rootBits) << 16 | sorted[symbol++]);
+        replicateValue(tableGroup, currentOffset + (key >> rootBits), step, tableSize, (len - rootBits) << 16 | sorted[symbol++]);
         key = getNextKey(key, len);
       }
     }
+    return totalSize;
   }
 
   /**
@@ -1248,13 +1530,13 @@ function BrotliDecodeClosure() {
       }
       throw "No more input";
     }
-    var /** !number */ readOffset = s.halfOffset << 1;
-    var /** !number */ bytesInBuffer = 4096 - readOffset;
+    var /** number */ readOffset = s.halfOffset << 1;
+    var /** number */ bytesInBuffer = 4096 - readOffset;
     s.byteBuffer.copyWithin(0, readOffset, 4096);
     s.halfOffset = 0;
     while (bytesInBuffer < 4096) {
-      var /** !number */ spaceLeft = 4096 - bytesInBuffer;
-      var /** !number */ len = readInput(s.input, s.byteBuffer, bytesInBuffer, spaceLeft);
+      var /** number */ spaceLeft = 4096 - bytesInBuffer;
+      var /** number */ len = readInput(s.input, s.byteBuffer, bytesInBuffer, spaceLeft);
       if (len <= 0) {
         s.endOfStreamReached = 1;
         s.tailBytes = bytesInBuffer;
@@ -1267,14 +1549,14 @@ function BrotliDecodeClosure() {
   }
   /**
    * @param {!State} s
-   * @param {!number} endOfStream
+   * @param {number} endOfStream
    * @return {void}
    */
   function checkHealth(s, endOfStream) {
     if (s.endOfStreamReached == 0) {
       return;
     }
-    var /** !number */ byteOffset = (s.halfOffset << 1) + ((s.bitOffset + 7) >> 3) - 4;
+    var /** number */ byteOffset = (s.halfOffset << 1) + ((s.bitOffset + 7) >> 3) - 4;
     if (byteOffset > s.tailBytes) {
       throw "Read after end";
     }
@@ -1284,21 +1566,30 @@ function BrotliDecodeClosure() {
   }
   /**
    * @param {!State} s
-   * @param {!number} n
-   * @return {!number}
+   * @return {void}
+   */
+  function assertAccumulatorHealthy(s) {
+    if (s.bitOffset > 32) {
+      throw "Accumulator underloaded: " + s.bitOffset;
+    }
+  }
+  /**
+   * @param {!State} s
+   * @param {number} n
+   * @return {number}
    */
   function readFewBits(s, n) {
-    var /** !number */ val = (s.accumulator32 >>> s.bitOffset) & ((1 << n) - 1);
+    var /** number */ val = (s.accumulator32 >>> s.bitOffset) & ((1 << n) - 1);
     s.bitOffset += n;
     return val;
   }
   /**
    * @param {!State} s
-   * @param {!number} n
-   * @return {!number}
+   * @param {number} n
+   * @return {number}
    */
   function readManyBits(s, n) {
-    var /** !number */ low = readFewBits(s, 16);
+    var /** number */ low = readFewBits(s, 16);
     s.accumulator32 = (s.shortBuffer[s.halfOffset++] << 16) | (s.accumulator32 >>> 16);
     s.bitOffset -= 16;
     return low | (readFewBits(s, n - 16) << 16);
@@ -1344,9 +1635,9 @@ function BrotliDecodeClosure() {
    * @return {void}
    */
   function jumpToByteBoundary(s) {
-    var /** !number */ padding = (32 - s.bitOffset) & 7;
+    var /** number */ padding = (32 - s.bitOffset) & 7;
     if (padding != 0) {
-      var /** !number */ paddingBits = readFewBits(s, padding);
+      var /** number */ paddingBits = readFewBits(s, padding);
       if (paddingBits != 0) {
         throw "Corrupted padding bits";
       }
@@ -1354,10 +1645,10 @@ function BrotliDecodeClosure() {
   }
   /**
    * @param {!State} s
-   * @return {!number}
+   * @return {number}
    */
   function halfAvailable(s) {
-    var /** !number */ limit = 2048;
+    var /** number */ limit = 2048;
     if (s.endOfStreamReached != 0) {
       limit = (s.tailBytes + 1) >> 1;
     }
@@ -1366,8 +1657,8 @@ function BrotliDecodeClosure() {
   /**
    * @param {!State} s
    * @param {!Int8Array} data
-   * @param {!number} offset
-   * @param {!number} length
+   * @param {number} offset
+   * @param {number} length
    * @return {void}
    */
   function copyBytes(s, data, offset, length) {
@@ -1382,10 +1673,10 @@ function BrotliDecodeClosure() {
     if (length == 0) {
       return;
     }
-    var /** !number */ copyNibbles = min(halfAvailable(s), length >> 1);
+    var /** number */ copyNibbles = min(halfAvailable(s), length >> 1);
     if (copyNibbles > 0) {
-      var /** !number */ readOffset = s.halfOffset << 1;
-      var /** !number */ delta = copyNibbles << 1;
+      var /** number */ readOffset = s.halfOffset << 1;
+      var /** number */ delta = copyNibbles << 1;
       data.set(s.byteBuffer.subarray(readOffset, readOffset + delta), offset);
       offset += delta;
       length -= delta;
@@ -1408,7 +1699,7 @@ function BrotliDecodeClosure() {
       return;
     }
     while (length > 0) {
-      var /** !number */ len = readInput(s.input, data, offset, length);
+      var /** number */ len = readInput(s.input, data, offset, length);
       if (len == -1) {
         throw "Unexpected end of input";
       }
@@ -1418,14 +1709,14 @@ function BrotliDecodeClosure() {
   }
   /**
    * @param {!State} s
-   * @param {!number} byteLen
+   * @param {number} byteLen
    * @return {void}
    */
   function bytesToNibbles(s, byteLen) {
     var /** !Int8Array */ byteBuffer = s.byteBuffer;
-    var /** !number */ halfLen = byteLen >> 1;
+    var /** number */ halfLen = byteLen >> 1;
     var /** !Int16Array */ shortBuffer = s.shortBuffer;
-    for (var /** !number */ i = 0; i < halfLen; ++i) {
+    for (var /** number */ i = 0; i < halfLen; ++i) {
       shortBuffer[i] = ((byteBuffer[i * 2] & 0xFF) | ((byteBuffer[(i * 2) + 1] & 0xFF) << 8));
     }
   }
@@ -1438,33 +1729,33 @@ function BrotliDecodeClosure() {
    * @return {void}
    */
   function unpackLookupTable(lookup, map, rle) {
-    for (var /** !number */ i = 0; i < 256; ++i) {
+    for (var /** number */ i = 0; i < 256; ++i) {
       lookup[i] = i & 0x3F;
       lookup[512 + i] = i >> 2;
       lookup[1792 + i] = 2 + (i >> 6);
     }
-    for (var /** !number */ i = 0; i < 128; ++i) {
+    for (var /** number */ i = 0; i < 128; ++i) {
       lookup[1024 + i] = 4 * (map.charCodeAt(i) - 32);
     }
-    for (var /** !number */ i = 0; i < 64; ++i) {
+    for (var /** number */ i = 0; i < 64; ++i) {
       lookup[1152 + i] = i & 1;
       lookup[1216 + i] = 2 + (i & 1);
     }
-    var /** !number */ offset = 1280;
-    for (var /** !number */ k = 0; k < 19; ++k) {
-      var /** !number */ value = k & 3;
-      var /** !number */ rep = rle.charCodeAt(k) - 32;
-      for (var /** !number */ i = 0; i < rep; ++i) {
+    var /** number */ offset = 1280;
+    for (var /** number */ k = 0; k < 19; ++k) {
+      var /** number */ value = k & 3;
+      var /** number */ rep = rle.charCodeAt(k) - 32;
+      for (var /** number */ i = 0; i < rep; ++i) {
         lookup[offset++] = value;
       }
     }
-    for (var /** !number */ i = 0; i < 16; ++i) {
+    for (var /** number */ i = 0; i < 16; ++i) {
       lookup[1792 + i] = 1;
       lookup[2032 + i] = 6;
     }
     lookup[1792] = 0;
     lookup[2047] = 7;
-    for (var /** !number */ i = 0; i < 256; ++i) {
+    for (var /** number */ i = 0; i < 256; ++i) {
       lookup[1536 + i] = lookup[1792 + i] << 3;
     }
   }
@@ -1486,6 +1777,8 @@ function BrotliDecodeClosure() {
     /** @type {!Int8Array} */
     this.distContextMap = new Int8Array(0);
     /** @type {!Int8Array} */
+    this.distExtraBits = new Int8Array(0);
+    /** @type {!Int8Array} */
     this.output = new Int8Array(0);
     /** @type {!Int8Array} */
     this.byteBuffer = new Int8Array(0);
@@ -1498,11 +1791,13 @@ function BrotliDecodeClosure() {
     /** @type {!Int32Array} */
     this.blockTrees = new Int32Array(0);
     /** @type {!Int32Array} */
-    this.hGroup0 = new Int32Array(0);
+    this.literalTreeGroup = new Int32Array(0);
     /** @type {!Int32Array} */
-    this.hGroup1 = new Int32Array(0);
+    this.commandTreeGroup = new Int32Array(0);
     /** @type {!Int32Array} */
-    this.hGroup2 = new Int32Array(0);
+    this.distanceTreeGroup = new Int32Array(0);
+    /** @type {!Int32Array} */
+    this.distOffset = new Int32Array(0);
     /** @type {!number} */
     this.runningState = 0;
     /** @type {!number} */
@@ -1546,9 +1841,9 @@ function BrotliDecodeClosure() {
     /** @type {!number} */
     this.trivialLiteralContext = 0;
     /** @type {!number} */
-    this.literalTreeIndex = 0;
+    this.literalTreeIdx = 0;
     /** @type {!number} */
-    this.literalTree = 0;
+    this.commandTreeIdx = 0;
     /** @type {!number} */
     this.j = 0;
     /** @type {!number} */
@@ -1561,8 +1856,6 @@ function BrotliDecodeClosure() {
     this.contextLookupOffset1 = 0;
     /** @type {!number} */
     this.contextLookupOffset2 = 0;
-    /** @type {!number} */
-    this.treeCommandOffset = 0;
     /** @type {!number} */
     this.distanceCode = 0;
     /** @type {!number} */
@@ -1595,6 +1888,8 @@ function BrotliDecodeClosure() {
     this.ringBufferBytesReady = 0;
     /** @type {!number} */
     this.isEager = 0;
+    /** @type {!number} */
+    this.isLargeWindow = 0;
     /** @type {!InputStream|null} */
     this.input = null;
     this.ringBuffer = new Int8Array(0);
@@ -1617,13 +1912,13 @@ function BrotliDecodeClosure() {
     if (dict.length != dictionary.length) {
       throw "Corrupted brotli dictionary";
     }
-    var /** !number */ offset = 0;
-    var /** !number */ n = skipFlip.length;
-    for (var /** !number */ i = 0; i < n; i += 2) {
-      var /** !number */ skip = skipFlip.charCodeAt(i) - 36;
-      var /** !number */ flip = skipFlip.charCodeAt(i + 1) - 36;
+    var /** number */ offset = 0;
+    var /** number */ n = skipFlip.length;
+    for (var /** number */ i = 0; i < n; i += 2) {
+      var /** number */ skip = skipFlip.charCodeAt(i) - 36;
+      var /** number */ flip = skipFlip.charCodeAt(i + 1) - 36;
       offset += skip;
-      for (var /** !number */ j = 0; j < flip; ++j) {
+      for (var /** number */ j = 0; j < flip; ++j) {
         dict[offset] |= 0x80;
         offset++;
       }

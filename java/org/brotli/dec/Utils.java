@@ -88,4 +88,15 @@ final class Utils {
   static void flipBuffer(Buffer buffer) {
     buffer.flip();
   }
+
+  static int isDebugMode() {
+    boolean assertsEnabled = Boolean.parseBoolean(System.getProperty("BROTLI_ENABLE_ASSERTS"));
+    return assertsEnabled ? 1 : 0;
+  }
+
+  // See BitReader.LOG_BITNESS
+  static int getLogBintness() {
+    boolean isLongExpensive = Boolean.parseBoolean(System.getProperty("BROTLI_32_BIT_CPU"));
+    return isLongExpensive ? 5 : 6;
+  }
 }

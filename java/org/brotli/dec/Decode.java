@@ -14,6 +14,11 @@ import java.io.InputStream;
  */
 final class Decode {
 
+  static final int MIN_LARGE_WINDOW_BITS = 10;
+  /* Maximum was chosen to be 30 to allow efficient decoder implementation.
+   * Format allows bigger window, but Java does not support 2G+ arrays. */
+  static final int MAX_LARGE_WINDOW_BITS = 30;
+
   //----------------------------------------------------------------------------
   // RunningState
   //----------------------------------------------------------------------------
@@ -35,7 +40,7 @@ final class Decode {
   private static final int DEFAULT_CODE_LENGTH = 8;
   private static final int CODE_LENGTH_REPEAT_CODE = 16;
   private static final int NUM_LITERAL_CODES = 256;
-  private static final int NUM_INSERT_AND_COPY_CODES = 704;
+  private static final int NUM_COMMAND_CODES = 704;
   private static final int NUM_BLOCK_LENGTH_CODES = 26;
   private static final int LITERAL_CONTEXT_BITS = 6;
   private static final int DISTANCE_CONTEXT_BITS = 2;
@@ -44,10 +49,19 @@ final class Decode {
   private static final int HUFFMAN_TABLE_MASK = 0xFF;
 
   /**
-   * Maximum possible Huffman table size for an alphabet size of 704, max code length 15 and root
-   * table bits 8.
+   * Maximum possible Huffman table size for an alphabet size of (index * 32),
+   * max code length 15 and root table bits 8.
+   * The biggest alphabet is "command" - 704 symbols. Though "distance" alphabet could theoretically
+   * outreach that limit (for 62 extra bit distances), practically it is limited by
+   * MAX_ALLOWED_DISTANCE and never gets bigger than 544 symbols.
    */
-  static final int HUFFMAN_TABLE_SIZE = 1080;
+  static final int[] MAX_HUFFMAN_TABLE_SIZE = {
+      256, 402, 436, 468, 500, 534, 566, 598, 630, 662, 694, 726, 758, 790, 822,
+      854, 886, 920, 952, 984, 1016, 1048, 1080
+  };
+
+  private static final int HUFFMAN_TABLE_SIZE_26 = 396;
+  private static final int HUFFMAN_TABLE_SIZE_258 = 632;
 
   private static final int CODE_LENGTH_CODES = 18;
   private static final int[] CODE_LENGTH_CODE_ORDER = {
@@ -56,7 +70,7 @@ final class Decode {
 
   private static final int NUM_DISTANCE_SHORT_CODES = 16;
   private static final int[] DISTANCE_SHORT_CODE_INDEX_OFFSET = {
-      3, 2, 1, 0, 3, 3, 3, 3, 3, 3, 2, 2, 2, 2, 2, 2
+    0, 3, 2, 1, 0, 0, 0, 0, 0, 0, 3, 3, 3, 3, 3, 3
   };
 
   private static final int[] DISTANCE_SHORT_CODE_VALUE_OFFSET = {
@@ -86,6 +100,17 @@ final class Decode {
 
   static final int MAX_TRANSFORMED_WORD_LENGTH = 5 + MAX_WORD_LENGTH + 8;
 
+  private static final int MAX_DISTANCE_BITS = 24;
+  private static final int MAX_LARGE_WINDOW_DISTANCE_BITS = 62;
+
+  /**
+   * Safe distance limit.
+   *
+   * Limit ((1 << 31) - 4) allows safe distance calculation without overflows,
+   * given the distance alphabet size is limited to corresponding size.
+   */
+  private static final int MAX_ALLOWED_DISTANCE = 0x7FFFFFFC;
+
   //----------------------------------------------------------------------------
   // Prefix code LUT.
   //----------------------------------------------------------------------------
@@ -98,33 +123,103 @@ final class Decode {
       2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5, 5, 6, 6, 7, 8, 9, 10, 11, 12, 13, 24
   };
 
-  static final int[] INSERT_LENGTH_OFFSET = {
-      0, 1, 2, 3, 4, 5, 6, 8, 10, 14, 18, 26, 34, 50, 66, 98, 130, 194, 322, 578, 1090, 2114, 6210,
-      22594
+  static final short[] INSERT_LENGTH_N_BITS = {
+      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x01, 0x02, 0x02, 0x03, 0x03,
+      0x04, 0x04, 0x05, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0C, 0x0E, 0x18
   };
 
-  static final int[] INSERT_LENGTH_N_BITS = {
-      0, 0, 0, 0, 0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 7, 8, 9, 10, 12, 14, 24
+  static final short[] COPY_LENGTH_N_BITS = {
+      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x01, 0x02, 0x02,
+      0x03, 0x03, 0x04, 0x04, 0x05, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x18
   };
 
-  static final int[] COPY_LENGTH_OFFSET = {
-      2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 14, 18, 22, 30, 38, 54, 70, 102, 134, 198, 326, 582, 1094,
-      2118
-  };
+  // Each command is represented with 4x16-bit values:
+  //  * [insertLenExtraBits, copyLenExtraBits]
+  //  * insertLenOffset
+  //  * copyLenOffset
+  //  * distanceContext
+  static final short[] CMD_LOOKUP = new short[NUM_COMMAND_CODES * 4];
 
-  static final int[] COPY_LENGTH_N_BITS = {
-      0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 7, 8, 9, 10, 24
-  };
+  static {
+    unpackCommandLookupTable(CMD_LOOKUP);
+  }
 
-  static final int[] INSERT_RANGE_LUT = {
-      0, 0, 8, 8, 0, 16, 8, 16, 16
-  };
+  private static int log2floor(int i) {
+    int result = -1;
+    int step = 16;
+    while (step > 0) {
+      if ((i >>> step) != 0) {
+        result += step;
+        i = i >>> step;
+      }
+      step = step >> 1;
+    }
+    return result + i;
+  }
 
-  static final int[] COPY_RANGE_LUT = {
-      0, 8, 0, 8, 16, 0, 16, 8, 16
-  };
+  private static int calculateDistanceAlphabetSize(int npostfix, int ndirect, int maxndistbits) {
+    return NUM_DISTANCE_SHORT_CODES + ndirect + 2 * (maxndistbits << npostfix);
+  }
 
+  // TODO: add a correctness test for this function when
+  //               large-window and dictionary are implemented.
+  private static int calculateDistanceAlphabetLimit(int maxDistance, int npostfix, int ndirect) {
+    if (maxDistance < ndirect + (2 << npostfix)) {
+      throw new IllegalArgumentException("maxDistance is too small");
+    }
+    int offset = ((maxDistance - ndirect) >> npostfix) + 4;
+    int ndistbits = log2floor(offset) - 1;
+    int group = ((ndistbits - 1) << 1) | ((offset >> ndistbits) & 1);
+    return ((group - 1) << npostfix) + (1 << npostfix) + ndirect + NUM_DISTANCE_SHORT_CODES;
+  }
+
+  private static void unpackCommandLookupTable(short[] cmdLookup) {
+    short[] insertLengthOffsets = new short[24];
+    short[] copyLengthOffsets = new short[24];
+    copyLengthOffsets[0] = 2;
+    for (int i = 0; i < 23; ++i) {
+      insertLengthOffsets[i + 1] =
+          (short) (insertLengthOffsets[i] + (1 << INSERT_LENGTH_N_BITS[i]));
+      copyLengthOffsets[i + 1] =
+          (short) (copyLengthOffsets[i] + (1 << COPY_LENGTH_N_BITS[i]));
+    }
+
+    for (int cmdCode = 0; cmdCode < NUM_COMMAND_CODES; ++cmdCode) {
+      int rangeIdx = cmdCode >>> 6;
+      /* -4 turns any regular distance code to negative. */
+      int distanceContextOffset = -4;
+      if (rangeIdx >= 2) {
+        rangeIdx -= 2;
+        distanceContextOffset = 0;
+      }
+      int insertCode = (((0x29850 >>> (rangeIdx * 2)) & 0x3) << 3) | ((cmdCode >>> 3) & 7);
+      int copyCode = (((0x26244 >>> (rangeIdx * 2)) & 0x3) << 3) | (cmdCode & 7);
+      short copyLengthOffset = copyLengthOffsets[copyCode];
+      int distanceContext =
+          distanceContextOffset + (copyLengthOffset > 4 ? 3 : copyLengthOffset - 2);
+      int index = cmdCode * 4;
+      cmdLookup[index + 0] =
+          (short) (INSERT_LENGTH_N_BITS[insertCode] | (COPY_LENGTH_N_BITS[copyCode] << 8));
+      cmdLookup[index + 1] = insertLengthOffsets[insertCode];
+      cmdLookup[index + 2] = copyLengthOffsets[copyCode];
+      cmdLookup[index + 3] = (short) distanceContext;
+    }
+  }
+
+  /**
+   * Reads brotli stream header and parses "window bits".
+   *
+   * @param s initialized state, before any read is performed.
+   * @return -1 if header is invalid
+   */
   private static int decodeWindowBits(State s) {
+    /* Change the meaning of flag. Before that step it means "decoder must be capable of reading
+     * "large-window" brotli stream. After this step it means that "large-window" feature
+     * is actually detected. Despite the window size could be same as before (lgwin = 10..24),
+     * encoded distances are allowed to be much greater, thus bigger dictinary could be used. */
+    int largeWindowEnabled = s.isLargeWindow;
+    s.isLargeWindow = 0;
+
     BitReader.fillBitWindow(s);
     if (BitReader.readFewBits(s, 1) == 0) {
       return 16;
@@ -135,7 +230,25 @@ final class Decode {
     }
     n = BitReader.readFewBits(s, 3);
     if (n != 0) {
-      return 8 + n;
+      if (n == 1) {
+        if (largeWindowEnabled == 0) {
+          /* Reserved value in regular brotli stream. */
+          return -1;
+        }
+        s.isLargeWindow = 1;
+        /* Check "reserved" bit for future (post-large-window) extensions. */
+        if (BitReader.readFewBits(s, 1) == 1) {
+          return -1;
+        }
+        n = BitReader.readFewBits(s, 6);
+        if (n < MIN_LARGE_WINDOW_BITS || n > MAX_LARGE_WINDOW_BITS) {
+          /* Encoded window bits value is too small or too big. */
+          return -1;
+        }
+        return n;
+      } else {
+        return 8 + n;
+      }
     }
     return 17;
   }
@@ -147,11 +260,18 @@ final class Decode {
    *
    * @param s initialized state, before any read is performed.
    */
-  static void setEager(State s) {
+  static void enableEagerOutput(State s) {
     if (s.runningState != INITIALIZED) {
       throw new IllegalStateException("State MUST be freshly initialized");
     }
     s.isEager = 1;
+  }
+
+  static void enableLargeWindow(State s) {
+    if (s.runningState != INITIALIZED) {
+      throw new IllegalStateException("State MUST be freshly initialized");
+    }
+    s.isLargeWindow = 1;
   }
 
   /**
@@ -164,7 +284,13 @@ final class Decode {
     if (s.runningState != UNINITIALIZED) {
       throw new IllegalStateException("State MUST be uninitialized");
     }
-    s.blockTrees = new int[6 * HUFFMAN_TABLE_SIZE];
+    /* 6 trees + 1 extra "offset" slot to simplify table decoding logic. */
+    s.blockTrees = new int[7 + 3 * (HUFFMAN_TABLE_SIZE_258 + HUFFMAN_TABLE_SIZE_26)];
+    s.blockTrees[0] = 7;
+    s.distRbIdx = 3;
+    int maxDistanceAlphabetLimit = calculateDistanceAlphabetLimit(MAX_ALLOWED_DISTANCE, 3, 15 << 3);
+    s.distExtraBits = new byte[maxDistanceAlphabetLimit];
+    s.distOffset = new int[maxDistanceAlphabetLimit];
     s.input = input;
     BitReader.initBitReader(s);
     s.runningState = INITIALIZED;
@@ -246,11 +372,12 @@ final class Decode {
   /**
    * Decodes the next Huffman code from bit-stream.
    */
-  private static int readSymbol(int[] table, int offset, State s) {
+  private static int readSymbol(int[] tableGroup, int tableIdx, State s) {
+    int offset = tableGroup[tableIdx];
     int val = BitReader.peekBits(s);
     offset += val & HUFFMAN_TABLE_MASK;
-    int bits = table[offset] >> 16;
-    int sym = table[offset] & 0xFFFF;
+    int bits = tableGroup[offset] >> 16;
+    int sym = tableGroup[offset] & 0xFFFF;
     if (bits <= HUFFMAN_TABLE_BITS) {
       s.bitOffset += bits;
       return sym;
@@ -258,25 +385,16 @@ final class Decode {
     offset += sym;
     int mask = (1 << bits) - 1;
     offset += (val & mask) >>> HUFFMAN_TABLE_BITS;
-    s.bitOffset += ((table[offset] >> 16) + HUFFMAN_TABLE_BITS);
-    return table[offset] & 0xFFFF;
+    s.bitOffset += ((tableGroup[offset] >> 16) + HUFFMAN_TABLE_BITS);
+    return tableGroup[offset] & 0xFFFF;
   }
 
-  private static int readBlockLength(int[] table, int offset, State s) {
+  private static int readBlockLength(int[] tableGroup, int tableIdx, State s) {
     BitReader.fillBitWindow(s);
-    int code = readSymbol(table, offset, s);
+    int code = readSymbol(tableGroup, tableIdx, s);
     int n = BLOCK_LENGTH_N_BITS[code];
     BitReader.fillBitWindow(s);
     return BLOCK_LENGTH_OFFSET[code] + BitReader.readBits(s, n);
-  }
-
-  private static int translateShortCodes(int code, int[] ringBuffer, int index) {
-    if (code < NUM_DISTANCE_SHORT_CODES) {
-      index += DISTANCE_SHORT_CODE_INDEX_OFFSET[code];
-      index &= 3;
-      return ringBuffer[index] + DISTANCE_SHORT_CODE_VALUE_OFFSET[code];
-    }
-    return code - NUM_DISTANCE_SHORT_CODES + 1;
   }
 
   private static void moveToFront(int[] v, int index) {
@@ -308,9 +426,9 @@ final class Decode {
     int repeat = 0;
     int repeatCodeLen = 0;
     int space = 32768;
-    int[] table = new int[32];
-
-    Huffman.buildHuffmanTable(table, 0, 5, codeLengthCodeLengths, CODE_LENGTH_CODES);
+    int[] table = new int[32 + 1];  /* Speculative single entry table group. */
+    int tableIdx = table.length - 1;
+    Huffman.buildHuffmanTable(table, tableIdx, 5, codeLengthCodeLengths, CODE_LENGTH_CODES);
 
     while (symbol < numSymbols && space > 0) {
       BitReader.readMoreInput(s);
@@ -361,85 +479,128 @@ final class Decode {
     Utils.fillIntsWithZeroes(codeLengths, symbol, numSymbols);
   }
 
-  static int checkDupes(int[] symbols, int length) {
+  private static void checkDupes(int[] symbols, int length) {
     for (int i = 0; i < length - 1; ++i) {
       for (int j = i + 1; j < length; ++j) {
         if (symbols[i] == symbols[j]) {
-          return 0;
+          throw new BrotliRuntimeException("Duplicate simple Huffman code symbol"); // COV_NF_LINE
         }
       }
     }
-    return 1;
   }
 
-  // TODO: Use specialized versions for smaller tables.
-  static void readHuffmanCode(int alphabetSize, int[] table, int offset, State s) {
-    int ok = 1;
-    int simpleCodeOrSkip;
+  /**
+   * Reads up to 4 symbols directly and applies predefined histograms.
+   */
+  private static int readSimpleHuffmanCode(int alphabetSizeMax, int alphabetSizeLimit,
+      int[] tableGroup, int tableIdx, State s) {
+    // TODO: Avoid allocation?
+    int[] codeLengths = new int[alphabetSizeLimit];
+    int[] symbols = new int[4];
+
+    int maxBits = 1 + log2floor(alphabetSizeMax - 1);
+
+    int numSymbols = BitReader.readFewBits(s, 2) + 1;
+    for (int i = 0; i < numSymbols; i++) {
+      BitReader.fillBitWindow(s);
+      int symbol = BitReader.readFewBits(s, maxBits);
+      if (symbol >= alphabetSizeLimit) {
+        throw new BrotliRuntimeException("Can't readHuffmanCode"); // COV_NF_LINE
+      }
+      symbols[i] = symbol;
+    }
+    checkDupes(symbols, numSymbols);
+
+    int histogramId = numSymbols;
+    if (numSymbols == 4) {
+      histogramId += BitReader.readFewBits(s, 1);
+    }
+
+    switch (histogramId) {
+      case 1:
+        codeLengths[symbols[0]] = 1;
+        break;
+
+      case 2:
+        codeLengths[symbols[0]] = 1;
+        codeLengths[symbols[1]] = 1;
+        break;
+
+      case 3:
+        codeLengths[symbols[0]] = 1;
+        codeLengths[symbols[1]] = 2;
+        codeLengths[symbols[2]] = 2;
+        break;
+
+      case 4:  // uniform 4-symbol histogram
+        codeLengths[symbols[0]] = 2;
+        codeLengths[symbols[1]] = 2;
+        codeLengths[symbols[2]] = 2;
+        codeLengths[symbols[3]] = 2;
+        break;
+
+      case 5:  // prioritized 4-symbol histogram
+        codeLengths[symbols[0]] = 1;
+        codeLengths[symbols[1]] = 2;
+        codeLengths[symbols[2]] = 3;
+        codeLengths[symbols[3]] = 3;
+        break;
+
+      default:
+        break;
+    }
+
+    // TODO: Use specialized version?
+    return Huffman.buildHuffmanTable(
+        tableGroup, tableIdx, HUFFMAN_TABLE_BITS, codeLengths, alphabetSizeLimit);
+  }
+
+  // Decode Huffman-coded code lengths.
+  private static int readComplexHuffmanCode(int alphabetSizeLimit, int skip,
+      int[] tableGroup, int tableIdx, State s) {
+    // TODO: Avoid allocation?
+    int[] codeLengths = new int[alphabetSizeLimit];
+    int[] codeLengthCodeLengths = new int[CODE_LENGTH_CODES];
+    int space = 32;
+    int numCodes = 0;
+    for (int i = skip; i < CODE_LENGTH_CODES && space > 0; i++) {
+      int codeLenIdx = CODE_LENGTH_CODE_ORDER[i];
+      BitReader.fillBitWindow(s);
+      int p = BitReader.peekBits(s) & 15;
+      // TODO: Demultiplex FIXED_TABLE.
+      s.bitOffset += FIXED_TABLE[p] >> 16;
+      int v = FIXED_TABLE[p] & 0xFFFF;
+      codeLengthCodeLengths[codeLenIdx] = v;
+      if (v != 0) {
+        space -= (32 >> v);
+        numCodes++;
+      }
+    }
+    if (space != 0 && numCodes != 1) {
+      throw new BrotliRuntimeException("Corrupted Huffman code histogram"); // COV_NF_LINE
+    }
+
+    readHuffmanCodeLengths(codeLengthCodeLengths, alphabetSizeLimit, codeLengths, s);
+
+    return Huffman.buildHuffmanTable(
+        tableGroup, tableIdx, HUFFMAN_TABLE_BITS, codeLengths, alphabetSizeLimit);
+  }
+
+  /**
+   * Decodes Huffman table from bit-stream.
+   *
+   * @return number of slots used by resulting Huffman table
+   */
+  private static int readHuffmanCode(int alphabetSizeMax, int alphabetSizeLimit,
+      int[] tableGroup, int tableIdx, State s) {
     BitReader.readMoreInput(s);
-    // TODO: Avoid allocation.
-    int[] codeLengths = new int[alphabetSize];
     BitReader.fillBitWindow(s);
-    simpleCodeOrSkip = BitReader.readFewBits(s, 2);
-    if (simpleCodeOrSkip == 1) { // Read symbols, codes & code lengths directly.
-      int maxBitsCounter = alphabetSize - 1;
-      int maxBits = 0;
-      int[] symbols = new int[4];
-      int numSymbols = BitReader.readFewBits(s, 2) + 1;
-      while (maxBitsCounter != 0) {
-        maxBitsCounter >>= 1;
-        maxBits++;
-      }
-      // TODO: uncomment when codeLengths is reused.
-      // Utils.fillWithZeroes(codeLengths, 0, alphabetSize);
-      for (int i = 0; i < numSymbols; i++) {
-        BitReader.fillBitWindow(s);
-        symbols[i] = BitReader.readFewBits(s, maxBits) % alphabetSize;
-        codeLengths[symbols[i]] = 2;
-      }
-      codeLengths[symbols[0]] = 1;
-      switch (numSymbols) {
-        case 2:
-          codeLengths[symbols[1]] = 1;
-          break;
-        case 4:
-          if (BitReader.readFewBits(s, 1) == 1) {
-            codeLengths[symbols[2]] = 3;
-            codeLengths[symbols[3]] = 3;
-          } else {
-            codeLengths[symbols[0]] = 2;
-          }
-          break;
-        default:
-          break;
-      }
-      ok = checkDupes(symbols, numSymbols);
-    } else { // Decode Huffman-coded code lengths.
-      int[] codeLengthCodeLengths = new int[CODE_LENGTH_CODES];
-      int space = 32;
-      int numCodes = 0;
-      for (int i = simpleCodeOrSkip; i < CODE_LENGTH_CODES && space > 0; i++) {
-        int codeLenIdx = CODE_LENGTH_CODE_ORDER[i];
-        BitReader.fillBitWindow(s);
-        int p = BitReader.peekBits(s) & 15;
-        // TODO: Demultiplex FIXED_TABLE.
-        s.bitOffset += FIXED_TABLE[p] >> 16;
-        int v = FIXED_TABLE[p] & 0xFFFF;
-        codeLengthCodeLengths[codeLenIdx] = v;
-        if (v != 0) {
-          space -= (32 >> v);
-          numCodes++;
-        }
-      }
-      if (space != 0 && numCodes != 1) {
-        ok = 0;
-      }
-      readHuffmanCodeLengths(codeLengthCodeLengths, alphabetSize, codeLengths, s);
+    int simpleCodeOrSkip = BitReader.readFewBits(s, 2);
+    if (simpleCodeOrSkip == 1) {
+      return readSimpleHuffmanCode(alphabetSizeMax, alphabetSizeLimit, tableGroup, tableIdx, s);
+    } else {
+      return readComplexHuffmanCode(alphabetSizeLimit, simpleCodeOrSkip, tableGroup, tableIdx, s);
     }
-    if (ok == 0) {
-      throw new BrotliRuntimeException("Can't readHuffmanCode"); // COV_NF_LINE
-    }
-    Huffman.buildHuffmanTable(table, offset, HUFFMAN_TABLE_BITS, codeLengths, alphabetSize);
   }
 
   private static int decodeContextMap(int contextMapSize, byte[] contextMap, State s) {
@@ -457,12 +618,16 @@ final class Decode {
     if (useRleForZeros != 0) {
       maxRunLengthPrefix = BitReader.readFewBits(s, 4) + 1;
     }
-    int[] table = new int[HUFFMAN_TABLE_SIZE];
-    readHuffmanCode(numTrees + maxRunLengthPrefix, table, 0, s);
+    int alphabetSize = numTrees + maxRunLengthPrefix;
+    int tableSize = MAX_HUFFMAN_TABLE_SIZE[(alphabetSize + 31) >> 5];
+    /* Speculative single entry table group. */
+    int[] table = new int[tableSize + 1];
+    int tableIdx = table.length - 1;
+    readHuffmanCode(alphabetSize, alphabetSize, table, tableIdx, s);
     for (int i = 0; i < contextMapSize; ) {
       BitReader.readMoreInput(s);
       BitReader.fillBitWindow(s);
-      int code = readSymbol(table, 0, s);
+      int code = readSymbol(table, tableIdx, s);
       if (code == 0) {
         contextMap[i] = 0;
         i++;
@@ -493,8 +658,8 @@ final class Decode {
     final int[] ringBuffers = s.rings;
     final int offset = 4 + treeType * 2;
     BitReader.fillBitWindow(s);
-    int blockType = readSymbol(s.blockTrees, treeType * HUFFMAN_TABLE_SIZE, s);
-    int result = readBlockLength(s.blockTrees, (treeType + 3) * HUFFMAN_TABLE_SIZE, s);
+    int blockType = readSymbol(s.blockTrees, 2 * treeType, s);
+    int result = readBlockLength(s.blockTrees, 2 * treeType + 1, s);
 
     if (blockType == 1) {
       blockType = ringBuffers[offset + 1] + 1;
@@ -515,8 +680,7 @@ final class Decode {
     s.literalBlockLength = decodeBlockTypeAndLength(s, 0, s.numLiteralBlockTypes);
     int literalBlockType = s.rings[5];
     s.contextMapSlice = literalBlockType << LITERAL_CONTEXT_BITS;
-    s.literalTreeIndex = s.contextMap[s.contextMapSlice] & 0xFF;
-    s.literalTree = s.hGroup0[s.literalTreeIndex];
+    s.literalTreeIdx = s.contextMap[s.contextMapSlice] & 0xFF;
     int contextMode = s.contextModes[literalBlockType];
     s.contextLookupOffset1 = contextMode << 9;
     s.contextLookupOffset2 = s.contextLookupOffset1 + 256;
@@ -524,7 +688,7 @@ final class Decode {
 
   private static void decodeCommandBlockSwitch(State s) {
     s.commandBlockLength = decodeBlockTypeAndLength(s, 1, s.numCommandBlockTypes);
-    s.treeCommandOffset = s.hGroup1[s.rings[7]];
+    s.commandTreeIdx = s.rings[7];
   }
 
   private static void decodeDistanceBlockSwitch(State s) {
@@ -563,9 +727,9 @@ final class Decode {
       return;
     }
     // TODO: Reset? Do we need this?
-    s.hGroup0 = new int[0];
-    s.hGroup1 = new int[0];
-    s.hGroup2 = new int[0];
+    s.literalTreeGroup = new int[0];
+    s.commandTreeGroup = new int[0];
+    s.distanceTreeGroup = new int[0];
 
     BitReader.readMoreInput(s);
     decodeMetaBlockLength(s);
@@ -592,12 +756,57 @@ final class Decode {
   }
 
   private static int readMetablockPartition(State s, int treeType, int numBlockTypes) {
+    int offset = s.blockTrees[2 * treeType];
     if (numBlockTypes <= 1) {
+      s.blockTrees[2 * treeType + 1] = offset;
+      s.blockTrees[2 * treeType + 2] = offset;
       return 1 << 28;
     }
-    readHuffmanCode(numBlockTypes + 2, s.blockTrees, treeType * HUFFMAN_TABLE_SIZE, s);
-    readHuffmanCode(NUM_BLOCK_LENGTH_CODES, s.blockTrees, (treeType + 3) * HUFFMAN_TABLE_SIZE, s);
-    return readBlockLength(s.blockTrees, (treeType + 3) * HUFFMAN_TABLE_SIZE, s);
+
+    int blockTypeAlphabetSize = numBlockTypes + 2;
+    offset += readHuffmanCode(
+        blockTypeAlphabetSize, blockTypeAlphabetSize, s.blockTrees, 2 * treeType, s);
+    s.blockTrees[2 * treeType + 1] = offset;
+
+    int blockLengthAlphabetSize = NUM_BLOCK_LENGTH_CODES;
+    offset += readHuffmanCode(
+        blockLengthAlphabetSize, blockLengthAlphabetSize, s.blockTrees, 2 * treeType + 1, s);
+    s.blockTrees[2 * treeType + 2] = offset;
+
+    return readBlockLength(s.blockTrees, 2 * treeType + 1, s);
+  }
+
+  private static void calculateDistanceLut(State s, int alphabetSizeLimit) {
+    byte[] distExtraBits = s.distExtraBits;
+    int[] distOffset = s.distOffset;
+    int npostfix = s.distancePostfixBits;
+    int ndirect = s.numDirectDistanceCodes;
+    int postfix = 1 << npostfix;
+    int bits = 1;
+    int half = 0;
+
+    /* Skip short codes. */
+    int i = NUM_DISTANCE_SHORT_CODES;
+
+    /* Fill direct codes. */
+    for (int j = 0; j < ndirect; ++j) {
+      distExtraBits[i] = 0;
+      distOffset[i] = j + 1;
+      ++i;
+    }
+
+    /* Fill regular distance codes. */
+    while (i < alphabetSizeLimit) {
+      int base = ndirect + ((((2 + half) << bits) - 4) << npostfix) + 1;
+      /* Always fill the complete group. */
+      for (int j = 0; j < postfix; ++j) {
+        distExtraBits[i] = (byte) bits;
+        distOffset[i] = base + j;
+        ++i;
+      }
+      bits = bits + half;
+      half = half ^ 1;
+    }
   }
 
   private static void readMetablockHuffmanCodesAndContextMaps(State s) {
@@ -611,10 +820,8 @@ final class Decode {
     BitReader.readMoreInput(s);
     BitReader.fillBitWindow(s);
     s.distancePostfixBits = BitReader.readFewBits(s, 2);
-    s.numDirectDistanceCodes =
-        NUM_DISTANCE_SHORT_CODES + (BitReader.readFewBits(s, 4) << s.distancePostfixBits);
+    s.numDirectDistanceCodes = BitReader.readFewBits(s, 4) << s.distancePostfixBits;
     s.distancePostfixMask = (1 << s.distancePostfixBits) - 1;
-    int numDistanceCodes = s.numDirectDistanceCodes + (48 << s.distancePostfixBits);
     // TODO: Reuse?
     s.contextModes = new byte[s.numLiteralBlockTypes];
     for (int i = 0; i < s.numLiteralBlockTypes;) {
@@ -622,7 +829,7 @@ final class Decode {
       int limit = Math.min(i + 96, s.numLiteralBlockTypes);
       for (; i < limit; ++i) {
         BitReader.fillBitWindow(s);
-        s.contextModes[i] = (byte) (BitReader.readFewBits(s, 2));
+        s.contextModes[i] = (byte) BitReader.readFewBits(s, 2);
       }
       BitReader.readMoreInput(s);
     }
@@ -644,18 +851,29 @@ final class Decode {
     int numDistTrees = decodeContextMap(s.numDistanceBlockTypes << DISTANCE_CONTEXT_BITS,
         s.distContextMap, s);
 
-    s.hGroup0 = decodeHuffmanTreeGroup(NUM_LITERAL_CODES, numLiteralTrees, s);
-    s.hGroup1 =
-        decodeHuffmanTreeGroup(NUM_INSERT_AND_COPY_CODES, s.numCommandBlockTypes, s);
-    s.hGroup2 = decodeHuffmanTreeGroup(numDistanceCodes, numDistTrees, s);
+    s.literalTreeGroup = decodeHuffmanTreeGroup(NUM_LITERAL_CODES, NUM_LITERAL_CODES,
+        numLiteralTrees, s);
+    s.commandTreeGroup = decodeHuffmanTreeGroup(NUM_COMMAND_CODES, NUM_COMMAND_CODES,
+        s.numCommandBlockTypes, s);
+    int distanceAlphabetSizeMax = calculateDistanceAlphabetSize(
+        s.distancePostfixBits, s.numDirectDistanceCodes, MAX_DISTANCE_BITS);
+    int distanceAlphabetSizeLimit = distanceAlphabetSizeMax;
+    if (s.isLargeWindow == 1) {
+      distanceAlphabetSizeMax = calculateDistanceAlphabetSize(
+          s.distancePostfixBits, s.numDirectDistanceCodes, MAX_LARGE_WINDOW_DISTANCE_BITS);
+      distanceAlphabetSizeLimit = calculateDistanceAlphabetLimit(
+          MAX_ALLOWED_DISTANCE, s.distancePostfixBits, s.numDirectDistanceCodes);
+    }
+    s.distanceTreeGroup = decodeHuffmanTreeGroup(distanceAlphabetSizeMax, distanceAlphabetSizeLimit,
+        numDistTrees, s);
+    calculateDistanceLut(s, distanceAlphabetSizeLimit);
 
     s.contextMapSlice = 0;
     s.distContextMapSlice = 0;
-    s.contextLookupOffset1 = (int) (s.contextModes[0]) << 9;
+    s.contextLookupOffset1 = s.contextModes[0] * 512;
     s.contextLookupOffset2 = s.contextLookupOffset1 + 256;
-    s.literalTreeIndex = 0;
-    s.literalTree = s.hGroup0[0];
-    s.treeCommandOffset = s.hGroup1[0];
+    s.literalTreeIdx = 0;
+    s.commandTreeIdx = 0;
 
     s.rings[4] = 1;
     s.rings[5] = 0;
@@ -706,13 +924,14 @@ final class Decode {
     }
   }
 
-  private static int[] decodeHuffmanTreeGroup(int alphabetSize, int n, State s) {
-    int[] group = new int[n + (n * HUFFMAN_TABLE_SIZE)];
+  private static int[] decodeHuffmanTreeGroup(int alphabetSizeMax, int alphabetSizeLimit,
+      int n, State s) {
+    int maxTableSize = MAX_HUFFMAN_TABLE_SIZE[(alphabetSizeLimit + 31) >> 5];
+    int[] group = new int[n + n * maxTableSize];
     int next = n;
-    for (int i = 0; i < n; i++) {
+    for (int i = 0; i < n; ++i) {
       group[i] = next;
-      Decode.readHuffmanCode(alphabetSize, group, next, s);
-      next += HUFFMAN_TABLE_SIZE;
+      next += readHuffmanCode(alphabetSizeMax, alphabetSizeLimit, group, i, s);
     }
     return group;
   }
@@ -738,7 +957,7 @@ final class Decode {
     }
     if (s.runningState == INITIALIZED) {
       int windowBits = decodeWindowBits(s);
-      if (windowBits == 9) {  /* Reserved case for future expansion. */
+      if (windowBits == -1) {  /* Reserved case for future expansion. */
         throw new BrotliRuntimeException("Invalid 'windowBits' code");
       }
       s.maxRingBufferSize = 1 << windowBits;
@@ -780,23 +999,21 @@ final class Decode {
           }
           s.commandBlockLength--;
           BitReader.fillBitWindow(s);
-          int cmdCode = readSymbol(s.hGroup1, s.treeCommandOffset, s);
-          int rangeIdx = cmdCode >>> 6;
-          s.distanceCode = 0;
-          if (rangeIdx >= 2) {
-            rangeIdx -= 2;
-            s.distanceCode = -1;
+          int cmdCode = readSymbol(s.commandTreeGroup, s.commandTreeIdx, s) << 2;
+          short insertAndCopyExtraBits = CMD_LOOKUP[cmdCode];
+          int insertLengthOffset = CMD_LOOKUP[cmdCode + 1];
+          int copyLengthOffset = CMD_LOOKUP[cmdCode + 2];
+          s.distanceCode = CMD_LOOKUP[cmdCode + 3];
+          BitReader.fillBitWindow(s);
+          {
+            int extraBits = insertAndCopyExtraBits & 0xFF;
+            s.insertLength = insertLengthOffset + BitReader.readBits(s, extraBits);
           }
-          int insertCode = INSERT_RANGE_LUT[rangeIdx] + ((cmdCode >>> 3) & 7);
           BitReader.fillBitWindow(s);
-          int insertBits = INSERT_LENGTH_N_BITS[insertCode];
-          int insertExtra = BitReader.readBits(s, insertBits);
-          s.insertLength = INSERT_LENGTH_OFFSET[insertCode] + insertExtra;
-          int copyCode = COPY_RANGE_LUT[rangeIdx] + (cmdCode & 7);
-          BitReader.fillBitWindow(s);
-          int copyBits = COPY_LENGTH_N_BITS[copyCode];
-          int copyExtra = BitReader.readBits(s, copyBits);
-          s.copyLength = COPY_LENGTH_OFFSET[copyCode] + copyExtra;
+          {
+            int extraBits = insertAndCopyExtraBits >> 8;
+            s.copyLength = copyLengthOffset + BitReader.readBits(s, extraBits);
+          }
 
           s.j = 0;
           s.runningState = INSERT_LOOP;
@@ -811,8 +1028,7 @@ final class Decode {
               }
               s.literalBlockLength--;
               BitReader.fillBitWindow(s);
-              ringBuffer[s.pos] =
-                  (byte) readSymbol(s.hGroup0, s.literalTree, s);
+              ringBuffer[s.pos] = (byte) readSymbol(s.literalTreeGroup, s.literalTreeIdx, s);
               s.pos++;
               s.j++;
               if (s.pos >= fence) {
@@ -829,14 +1045,13 @@ final class Decode {
               if (s.literalBlockLength == 0) {
                 decodeLiteralBlockSwitch(s);
               }
-              int literalTreeIndex = s.contextMap[s.contextMapSlice
-                + (Context.LOOKUP[s.contextLookupOffset1 + prevByte1]
-                    | Context.LOOKUP[s.contextLookupOffset2 + prevByte2])] & 0xFF;
+              int literalContext = Context.LOOKUP[s.contextLookupOffset1 + prevByte1]
+                  | Context.LOOKUP[s.contextLookupOffset2 + prevByte2];
+              int literalTreeIdx = s.contextMap[s.contextMapSlice + literalContext] & 0xFF;
               s.literalBlockLength--;
               prevByte2 = prevByte1;
               BitReader.fillBitWindow(s);
-              prevByte1 = readSymbol(
-                  s.hGroup0, s.hGroup0[literalTreeIndex], s);
+              prevByte1 = readSymbol(s.literalTreeGroup, literalTreeIdx, s);
               ringBuffer[s.pos] = (byte) prevByte1;
               s.pos++;
               s.j++;
@@ -855,34 +1070,36 @@ final class Decode {
             s.runningState = MAIN_LOOP;
             continue;
           }
-          if (s.distanceCode < 0) {
+          int distanceCode = s.distanceCode;
+          if (distanceCode < 0) {
+            // distanceCode in untouched; assigning it 0 won't affect distance ring buffer rolling.
+            s.distance = s.rings[s.distRbIdx];
+          } else {
             BitReader.readMoreInput(s);
             if (s.distanceBlockLength == 0) {
               decodeDistanceBlockSwitch(s);
             }
             s.distanceBlockLength--;
             BitReader.fillBitWindow(s);
-            s.distanceCode = readSymbol(s.hGroup2, s.hGroup2[
-                s.distContextMap[s.distContextMapSlice
-                    + (s.copyLength > 4 ? 3 : s.copyLength - 2)] & 0xFF], s);
-            if (s.distanceCode >= s.numDirectDistanceCodes) {
-              s.distanceCode -= s.numDirectDistanceCodes;
-              int postfix = s.distanceCode & s.distancePostfixMask;
-              s.distanceCode >>>= s.distancePostfixBits;
-              int n = (s.distanceCode >>> 1) + 1;
-              int offset = ((2 + (s.distanceCode & 1)) << n) - 4;
-              BitReader.fillBitWindow(s);
-              int distanceExtra = BitReader.readBits(s, n);
-              s.distanceCode = s.numDirectDistanceCodes + postfix
-                  + ((offset + distanceExtra) << s.distancePostfixBits);
+            int distTreeIdx = s.distContextMap[s.distContextMapSlice + distanceCode] & 0xFF;
+            distanceCode = readSymbol(s.distanceTreeGroup, distTreeIdx, s);
+            if (distanceCode < NUM_DISTANCE_SHORT_CODES) {
+              int index = (s.distRbIdx + DISTANCE_SHORT_CODE_INDEX_OFFSET[distanceCode]) & 0x3;
+              s.distance = s.rings[index] + DISTANCE_SHORT_CODE_VALUE_OFFSET[distanceCode];
+              if (s.distance < 0) {
+                throw new BrotliRuntimeException("Negative distance"); // COV_NF_LINE
+              }
+            } else {
+              int extraBits = s.distExtraBits[distanceCode];
+              int bits;
+              if (s.bitOffset + extraBits <= BitReader.BITNESS) {
+                bits = BitReader.readFewBits(s, extraBits);
+              } else {
+                BitReader.fillBitWindow(s);
+                bits = BitReader.readBits(s, extraBits);
+              }
+              s.distance = s.distOffset[distanceCode] + (bits << s.distancePostfixBits);
             }
-          }
-
-          // Convert the distance code to the actual distance by possibly looking up past distances
-          // from the ringBuffer.
-          s.distance = translateShortCodes(s.distanceCode, s.rings, s.distRbIdx);
-          if (s.distance < 0) {
-            throw new BrotliRuntimeException("Negative distance"); // COV_NF_LINE
           }
 
           if (s.maxDistance != s.maxBackwardDistance
@@ -897,9 +1114,9 @@ final class Decode {
             continue;
           }
 
-          if (s.distanceCode > 0) {
-            s.rings[s.distRbIdx & 3] = s.distance;
-            s.distRbIdx++;
+          if (distanceCode > 0) {
+            s.distRbIdx = (s.distRbIdx + 1) & 0x3;
+            s.rings[s.distRbIdx] = s.distance;
           }
 
           if (s.copyLength > s.metaBlockLength) {
@@ -916,7 +1133,10 @@ final class Decode {
           int dstEnd = dst + copyLength;
           if ((srcEnd < ringBufferMask) && (dstEnd < ringBufferMask)) {
             if (copyLength < 12 || (srcEnd > dst && dstEnd > src)) {
-              for (int k = 0; k < copyLength; ++k) {
+              for (int k = 0; k < copyLength; k += 4) {
+                ringBuffer[dst++] = ringBuffer[src++];
+                ringBuffer[dst++] = ringBuffer[src++];
+                ringBuffer[dst++] = ringBuffer[src++];
                 ringBuffer[dst++] = ringBuffer[src++];
               }
             } else {
@@ -945,6 +1165,10 @@ final class Decode {
           continue;
 
         case TRANSFORM:
+          // This check is done here to unburden the hot loop.
+          if (s.distance > MAX_ALLOWED_DISTANCE) {
+            throw new BrotliRuntimeException("Invalid backward reference"); // COV_NF_LINE
+          }
           if (s.copyLength >= MIN_WORD_LENGTH
               && s.copyLength <= MAX_WORD_LENGTH) {
             int offset = DICTIONARY_OFFSETS_BY_LENGTH[s.copyLength];

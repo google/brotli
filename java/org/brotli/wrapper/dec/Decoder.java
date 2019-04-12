@@ -50,8 +50,8 @@ public class Decoder {
     throw new IOException(message);
   }
 
-  public void setEager(boolean eager) {
-    this.eager = eager;
+  public void enableEagerOutput() {
+    this.eager = true;
   }
 
   /**

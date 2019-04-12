@@ -40,7 +40,6 @@ filegroup(
 
 java_test(
     name = "BrotliEncoderChannelTest",
-    test_class = "org.brotli.wrapper.enc.BrotliEncoderChannelTest",
     size = "large",
     data = [
         ":brotli_jni",  # Bazel JNI workaround
@@ -51,12 +50,12 @@ java_test(
         "-DTEST_BUNDLE=$(location :test_bundle)",
     ],
     shard_count = 15,
+    test_class = "org.brotli.wrapper.enc.BrotliEncoderChannelTest",
     runtime_deps = [":test_lib"],
 )
 
 java_test(
     name = "BrotliOutputStreamTest",
-    test_class = "org.brotli.wrapper.enc.BrotliOutputStreamTest",
     size = "large",
     data = [
         ":brotli_jni",  # Bazel JNI workaround
@@ -67,12 +66,12 @@ java_test(
         "-DTEST_BUNDLE=$(location :test_bundle)",
     ],
     shard_count = 15,
+    test_class = "org.brotli.wrapper.enc.BrotliOutputStreamTest",
     runtime_deps = [":test_lib"],
 )
 
 java_test(
     name = "EncoderTest",
-    test_class = "org.brotli.wrapper.enc.EncoderTest",
     size = "large",
     data = [
         ":brotli_jni",  # Bazel JNI workaround
@@ -83,5 +82,6 @@ java_test(
         "-DTEST_BUNDLE=$(location :test_bundle)",
     ],
     shard_count = 15,
+    test_class = "org.brotli.wrapper.enc.EncoderTest",
     runtime_deps = [":test_lib"],
 )
