@@ -31,7 +31,7 @@ The basic commands to build, test and install brotli are:
     $ ../configure-cmake
     $ make
     $ make test
-    $ make install
+    $ sudo make install
 
 By default, debug binaries are built. To generate "release" `Makefile` specify `--disable-debug` option to `configure-cmake`.
 
