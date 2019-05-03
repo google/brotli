@@ -426,7 +426,7 @@ static BROTLI_INLINE void HasherSetup(MemoryManager* m, Hasher* hasher,
     ChooseHasher(params, &params->hasher);
     alloc_size = HasherSize(params, one_shot, input_size);
     hasher->common.extra = BROTLI_ALLOC(m, uint8_t, alloc_size);
-    if (BROTLI_IS_OOM(m)) return;
+    if (BROTLI_IS_OOM(m) || BROTLI_IS_NULL(hasher->common.extra)) return;
     hasher->common.params = params->hasher;
     switch (hasher->common.params.type) {
 #define INITIALIZE_(N)                        \

@@ -75,7 +75,7 @@ static BROTLI_INLINE void RingBufferInitBuffer(
   uint8_t* new_data = BROTLI_ALLOC(
       m, uint8_t, 2 + buflen + kSlackForEightByteHashingEverywhere);
   size_t i;
-  if (BROTLI_IS_OOM(m)) return;
+  if (BROTLI_IS_OOM(m) || BROTLI_IS_NULL(new_data)) return;
   if (rb->data_) {
     memcpy(new_data, rb->data_,
         2 + rb->cur_size_ + kSlackForEightByteHashingEverywhere);

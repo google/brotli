@@ -167,21 +167,21 @@ static BROTLI_INLINE void FN(FindLongestMatch)(
   if (prev_ix < cur_ix) {
     prev_ix &= (uint32_t)ring_buffer_mask;
     if (compare_char == data[prev_ix + best_len]) {
-      size_t len = FindMatchLengthWithLimit(&data[prev_ix],
-                                            &data[cur_ix_masked],
-                                            max_length);
+      const size_t len = FindMatchLengthWithLimit(
+          &data[prev_ix], &data[cur_ix_masked], max_length);
       if (len >= 4) {
         const score_t score = BackwardReferenceScoreUsingLastDistance(len);
         if (best_score < score) {
-          best_score = score;
-          best_len = len;
           out->len = len;
           out->distance = cached_backward;
-          out->score = best_score;
-          compare_char = data[cur_ix_masked + best_len];
+          out->score = score;
           if (BUCKET_SWEEP == 1) {
             buckets[key] = (uint32_t)cur_ix;
             return;
+          } else {
+            best_len = len;
+            best_score = score;
+            compare_char = data[cur_ix_masked + len];
           }
         }
       }

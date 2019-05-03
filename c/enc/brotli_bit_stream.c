@@ -450,7 +450,7 @@ void BrotliBuildAndStoreHuffmanTreeFast(MemoryManager* m,
     const size_t max_tree_size = 2 * length + 1;
     HuffmanTree* tree = BROTLI_ALLOC(m, HuffmanTree, max_tree_size);
     uint32_t count_limit;
-    if (BROTLI_IS_OOM(m)) return;
+    if (BROTLI_IS_OOM(m) || BROTLI_IS_NULL(tree)) return;
     for (count_limit = 1; ; count_limit *= 2) {
       HuffmanTree* node = tree;
       size_t l;
@@ -714,7 +714,7 @@ static void EncodeContextMap(MemoryManager* m,
   }
 
   rle_symbols = BROTLI_ALLOC(m, uint32_t, context_map_size);
-  if (BROTLI_IS_OOM(m)) return;
+  if (BROTLI_IS_OOM(m) || BROTLI_IS_NULL(rle_symbols)) return;
   MoveToFrontTransform(context_map, context_map_size, rle_symbols);
   RunLengthCodeZeros(context_map_size, rle_symbols,
                      &num_rle_symbols, &max_run_length_prefix);
@@ -970,7 +970,7 @@ void BrotliStoreMetaBlock(MemoryManager* m,
   StoreCompressedMetaBlockHeader(is_last, length, storage_ix, storage);
 
   tree = BROTLI_ALLOC(m, HuffmanTree, MAX_HUFFMAN_TREE_SIZE);
-  if (BROTLI_IS_OOM(m)) return;
+  if (BROTLI_IS_OOM(m) || BROTLI_IS_NULL(tree)) return;
   InitBlockEncoder(&literal_enc, BROTLI_NUM_LITERAL_SYMBOLS,
       mb->literal_split.num_types, mb->literal_split.types,
       mb->literal_split.lengths, mb->literal_split.num_blocks);
@@ -1175,7 +1175,7 @@ void BrotliStoreMetaBlockTrivial(MemoryManager* m,
   BrotliWriteBits(13, 0, storage_ix, storage);
 
   tree = BROTLI_ALLOC(m, HuffmanTree, MAX_HUFFMAN_TREE_SIZE);
-  if (BROTLI_IS_OOM(m)) return;
+  if (BROTLI_IS_OOM(m) || BROTLI_IS_NULL(tree)) return;
   BuildAndStoreHuffmanTree(lit_histo.data_, BROTLI_NUM_LITERAL_SYMBOLS,
                            BROTLI_NUM_LITERAL_SYMBOLS, tree,
                            lit_depth, lit_bits,
