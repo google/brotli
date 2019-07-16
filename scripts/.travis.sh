@@ -18,6 +18,7 @@ case "$1" in
 		case "${BUILD_SYSTEM}" in
 		    "bazel")
 			brew install bazel
+			brew upgrade python
 			;;
 		esac
 		;;

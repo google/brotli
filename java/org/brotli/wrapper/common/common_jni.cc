@@ -6,7 +6,7 @@
 
 #include <jni.h>
 
-#include "../common/dictionary.h"
+#include "c/common/dictionary.h"
 
 #ifdef __cplusplus
 extern "C" {

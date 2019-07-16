@@ -99,7 +99,7 @@ cc_library(
     name = "brotli_inc",
     hdrs = [":public_headers"],
     copts = STRICT_C_OPTIONS,
-    includes = ["c/include"],
+    strip_include_prefix = "c/include",
 )
 
 cc_library(
