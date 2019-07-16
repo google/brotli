@@ -191,6 +191,7 @@ matrix:
             - bazel
 
     - os: osx
+      python: 3.6
       env: BUILD_SYSTEM=bazel
       # Latest image with Java 1.8 (required to install Bazel).
       osx_image: xcode9.3
