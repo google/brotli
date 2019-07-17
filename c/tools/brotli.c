@@ -263,7 +263,7 @@ static Command ParseParams(Context* params) {
           return COMMAND_HELP;
         } else if (c == 'j' || c == 'k') {
           if (keep_set) {
-            fprintf(stderr, "argument --rm / -j or --keep / -n already set\n");
+            fprintf(stderr, "argument --rm / -j or --keep / -k already set\n");
             return COMMAND_INVALID;
           }
           keep_set = BROTLI_TRUE;
@@ -388,7 +388,7 @@ static Command ParseParams(Context* params) {
         return COMMAND_HELP;
       } else if (strcmp("keep", arg) == 0) {
         if (keep_set) {
-          fprintf(stderr, "argument --rm / -j or --keep / -n already set\n");
+          fprintf(stderr, "argument --rm / -j or --keep / -k already set\n");
           return COMMAND_INVALID;
         }
         keep_set = BROTLI_TRUE;
@@ -401,7 +401,7 @@ static Command ParseParams(Context* params) {
         params->copy_stat = BROTLI_FALSE;
       } else if (strcmp("rm", arg) == 0) {
         if (keep_set) {
-          fprintf(stderr, "argument --rm / -j or --keep / -n already set\n");
+          fprintf(stderr, "argument --rm / -j or --keep / -k already set\n");
           return COMMAND_INVALID;
         }
         keep_set = BROTLI_TRUE;

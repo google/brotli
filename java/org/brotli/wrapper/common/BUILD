@@ -18,6 +18,7 @@ java_library(
         ["*.java"],
         exclude = ["*Test*.java"],
     ),
+    resource_jars = ["//:license"],
 )
 
 java_library(
