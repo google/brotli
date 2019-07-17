@@ -17,6 +17,7 @@ java_library(
         exclude = ["*Test*.java"],
     ),
     proguard_specs = ["proguard.pgcfg"],
+    resource_jars = ["//:license"],
 )
 
 load(":build_defs.bzl", "brotli_java_test")

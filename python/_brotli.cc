@@ -703,13 +703,14 @@ PyDoc_STRVAR(brotli_doc, "Implementation module for the Brotli library.");
 
 static struct PyModuleDef brotli_module = {
   PyModuleDef_HEAD_INIT,
-  "_brotli",
-  brotli_doc,
-  0,
-  brotli_methods,
-  NULL,
-  NULL,
-  NULL
+  "_brotli",      /* m_name */
+  brotli_doc,     /* m_doc */
+  0,              /* m_size */
+  brotli_methods, /* m_methods */
+  NULL,           /* m_reload */
+  NULL,           /* m_traverse */
+  NULL,           /* m_clear */
+  NULL            /* m_free */
 };
 #else
 #define INIT_BROTLI   init_brotli
