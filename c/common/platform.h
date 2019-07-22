@@ -308,8 +308,7 @@ static BROTLI_INLINE void BrotliUnalignedWrite64(void* p, uint64_t v) {
 }
 #else  /* BROTLI_ALIGNED_READ */
 /* Unaligned memory access is allowed: just cast pointer to requested type. */
-#if defined(ADDRESS_SANITIZER) || defined(THREAD_SANITIZER) || \
-    defined(MEMORY_SANITIZER)
+#if BROTLI_SANITIZED
 /* Consider we have an unaligned load/store of 4 bytes from address 0x...05.
    AddressSanitizer will treat it as a 3-byte access to the range 05:07 and
    will miss a bug if 08 is the first unaddressable byte.
@@ -334,7 +333,7 @@ extern "C" {
 #define BrotliUnalignedRead32 __sanitizer_unaligned_load32
 #define BrotliUnalignedRead64 __sanitizer_unaligned_load64
 #define BrotliUnalignedWrite64 __sanitizer_unaligned_store64
-#else
+#else  /* BROTLI_SANITIZED */
 static BROTLI_INLINE uint16_t BrotliUnalignedRead16(const void* p) {
   return *(const uint16_t*)p;
 }
@@ -374,7 +373,7 @@ static BROTLI_INLINE void BrotliUnalignedWrite64(void* p, uint64_t v) {
 }
 #endif  /* BROTLI_GNUC_HAS_ATTRIBUTE(aligned, 2, 7, 0) */
 #endif  /* BROTLI_64_BITS */
-#endif  /* ASAN / TSAN / MSAN */
+#endif  /* BROTLI_SANITIZED */
 #endif  /* BROTLI_ALIGNED_READ */
 
 #if BROTLI_LITTLE_ENDIAN
