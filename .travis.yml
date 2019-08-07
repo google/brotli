@@ -44,27 +44,27 @@ matrix:
     ## Test that fuzzer is compiling / working.
     ###
     - os: linux
-      env: BUILD_SYSTEM=fuzz C_COMPILER=clang-5.0 CXX_COMPILER=clang++-5.0 ASAN_OPTIONS=detect_leaks=0
+      env: BUILD_SYSTEM=fuzz C_COMPILER=clang-7 CXX_COMPILER=clang++-7 ASAN_OPTIONS=detect_leaks=0
       addons:
         apt:
           sources:
           - ubuntu-toolchain-r-test
-          - llvm-toolchain-trusty-5.0
+          - llvm-toolchain-xenial-7
           packages:
-          - clang-5.0
+          - clang-7
 
     ###
     ## clang on Linux
     ###
     - os: linux
-      env: BUILD_SYSTEM=cmake C_COMPILER=clang-5.0 CXX_COMPILER=clang++-5.0
+      env: BUILD_SYSTEM=cmake C_COMPILER=clang-7 CXX_COMPILER=clang++-7
       addons:
         apt:
           sources:
-          - llvm-toolchain-trusty-5.0
+          - llvm-toolchain-xenial-7
           - ubuntu-toolchain-r-test
           packages:
-          - clang-5.0
+          - clang-7
     - os: linux
       env: BUILD_SYSTEM=cmake C_COMPILER=clang-3.5 CXX_COMPILER=clang++-3.5
       addons:
@@ -145,35 +145,38 @@ matrix:
     ## Sanitizers
     ###
     - os: linux
-      env: BUILD_SYSTEM=cmake C_COMPILER=clang-5.0 CXX_COMPILER=clang++-5.0 SANITIZER=address ASAN_OPTIONS=detect_leaks=0
+      env: BUILD_SYSTEM=cmake C_COMPILER=clang-7 CXX_COMPILER=clang++-7 SANITIZER=address ASAN_OPTIONS=detect_leaks=0
       addons:
         apt:
           sources:
           - ubuntu-toolchain-r-test
-          - llvm-toolchain-trusty-5.0
+          - llvm-toolchain-xenial-7
           packages:
-          - clang-5.0
+          - clang-7
     - os: linux
-      env: BUILD_SYSTEM=cmake C_COMPILER=clang-5.0 CXX_COMPILER=clang++-5.0 SANITIZER=thread
+      env: BUILD_SYSTEM=cmake C_COMPILER=clang-7 CXX_COMPILER=clang++-7 SANITIZER=thread
       addons:
         apt:
           sources:
           - ubuntu-toolchain-r-test
-          - llvm-toolchain-trusty-5.0
+          - llvm-toolchain-xenial-7
           packages:
-          - clang-5.0
+          - clang-7
     - os: linux
-      env: BUILD_SYSTEM=cmake C_COMPILER=clang-5.0 CXX_COMPILER=clang++-5.0 SANITIZER=undefined CFLAGS="-fno-sanitize-recover=undefined,integer"
+      env: BUILD_SYSTEM=cmake C_COMPILER=clang-7 CXX_COMPILER=clang++-7 SANITIZER=undefined CFLAGS="-fno-sanitize-recover=undefined,integer"
       addons:
         apt:
           sources:
           - ubuntu-toolchain-r-test
-          - llvm-toolchain-trusty-5.0
+          - llvm-toolchain-xenial-7
           packages:
-          - clang-5.0
+          - clang-7
 
     - os: linux
       env: BUILD_SYSTEM=maven
+      jdk:
+      # maven + jdk11 + javadoc == trouble
+      - openjdk10
       language: java
 
     - os: linux
