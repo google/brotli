@@ -6,6 +6,8 @@ cmake_minimum_required(VERSION 2.8.6)
 
 project(brotli C)
 
+option(BROTLI_DISABLE_SHARED "do not build shared libraries")
+
 # If Brotli is being bundled in another project, we don't want to
 # install anything.  However, we want to let people override this, so
 # we'll use the BROTLI_BUNDLED_MODE variable to let them do that; just
@@ -137,10 +139,16 @@ endfunction()
 transform_sources_list("scripts/sources.lst" "${CMAKE_CURRENT_BINARY_DIR}/sources.lst.cmake")
 include("${CMAKE_CURRENT_BINARY_DIR}/sources.lst.cmake")
 
-add_library(brotlicommon SHARED ${BROTLI_COMMON_C})
-add_library(brotlidec SHARED ${BROTLI_DEC_C})
-add_library(brotlienc SHARED ${BROTLI_ENC_C})
+if(BROTLI_DISABLE_SHARED)
+  set(BROTLI_SHARED_LIBS "")
+else()
+  set(BROTLI_SHARED_LIBS brotlicommon brotlidec brotlienc)
+  add_library(brotlicommon SHARED ${BROTLI_COMMON_C})
+  add_library(brotlidec SHARED ${BROTLI_DEC_C})
+  add_library(brotlienc SHARED ${BROTLI_ENC_C})
+endif()
 
+set(BROTLI_STATIC_LIBS brotlicommon-static brotlidec-static brotlienc-static)
 add_library(brotlicommon-static STATIC ${BROTLI_COMMON_C})
 add_library(brotlidec-static STATIC ${BROTLI_DEC_C})
 add_library(brotlienc-static STATIC ${BROTLI_ENC_C})
@@ -148,13 +156,13 @@ add_library(brotlienc-static STATIC ${BROTLI_ENC_C})
 # Older CMake versions does not understand INCLUDE_DIRECTORIES property.
 include_directories(${BROTLI_INCLUDE_DIRS})
 
-foreach(lib brotlicommon brotlidec brotlienc)
+foreach(lib IN LISTS BROTLI_SHARED_LIBS)
   target_compile_definitions(${lib} PUBLIC "BROTLI_SHARED_COMPILATION" )
   string(TOUPPER "${lib}" LIB)
-  set_target_properties (${lib} PROPERTIES DEFINE_SYMBOL "${LIB}_SHARED_COMPILATION" )
+  set_target_properties (${lib} PROPERTIES DEFINE_SYMBOL "${LIB}_SHARED_COMPILATION")
 endforeach()
 
-foreach(lib brotlicommon brotlidec brotlienc brotlicommon-static brotlidec-static brotlienc-static)
+foreach(lib IN LISTS BROTLI_SHARED_LIBS BROTLI_STATIC_LIBS)
   target_link_libraries(${lib} ${LIBM_LIBRARY})
   set_property(TARGET ${lib} APPEND PROPERTY INCLUDE_DIRECTORIES ${BROTLI_INCLUDE_DIRS})
   set_target_properties(${lib} PROPERTIES
@@ -164,8 +172,10 @@ foreach(lib brotlicommon brotlidec brotlienc brotlicommon-static brotlidec-stati
   set_property(TARGET ${lib} APPEND PROPERTY INTERFACE_INCLUDE_DIRECTORIES "${BROTLI_INCLUDE_DIRS}")
 endforeach()
 
+if(NOT BROTLI_DISABLE_SHARED)
 target_link_libraries(brotlidec brotlicommon)
 target_link_libraries(brotlienc brotlicommon)
+endif()
 
 target_link_libraries(brotlidec-static brotlicommon-static)
 target_link_libraries(brotlienc-static brotlicommon-static)
