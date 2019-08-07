@@ -49,7 +49,7 @@ matrix:
         apt:
           sources:
           - ubuntu-toolchain-r-test
-          - llvm-toolchain-bionic-7
+          - llvm-toolchain-xenial-7
           packages:
           - clang-7
 
@@ -61,7 +61,7 @@ matrix:
       addons:
         apt:
           sources:
-          - llvm-toolchain-bionic-7
+          - llvm-toolchain-xenial-7
           - ubuntu-toolchain-r-test
           packages:
           - clang-7
@@ -150,7 +150,7 @@ matrix:
         apt:
           sources:
           - ubuntu-toolchain-r-test
-          - llvm-toolchain-bionic-7
+          - llvm-toolchain-xenial-7
           packages:
           - clang-7
     - os: linux
@@ -159,7 +159,7 @@ matrix:
         apt:
           sources:
           - ubuntu-toolchain-r-test
-          - llvm-toolchain-bionic-7
+          - llvm-toolchain-xenial-7
           packages:
           - clang-7
     - os: linux
@@ -168,7 +168,7 @@ matrix:
         apt:
           sources:
           - ubuntu-toolchain-r-test
-          - llvm-toolchain-bionic-7
+          - llvm-toolchain-xenial-7
           packages:
           - clang-7
 
