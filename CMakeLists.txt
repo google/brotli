@@ -6,7 +6,18 @@ cmake_minimum_required(VERSION 2.8.6)
 
 project(brotli C)
 
-option(BROTLI_DISABLE_SHARED "do not build shared libraries")
+include(CheckCSourceCompiles)
+check_c_source_compiles(
+  "#if defined(__EMSCRIPTEN__)
+   int main() {return 0;}
+   #endif"
+  BROTLI_EMSCRIPTEN
+)
+if (BROTLI_EMSCRIPTEN)
+  message("-- Compiler is EMSCRIPTEN")
+else()
+  message("-- Compiler is not EMSCRIPTEN")
+endif()
 
 # If Brotli is being bundled in another project, we don't want to
 # install anything.  However, we want to let people override this, so
@@ -139,7 +150,7 @@ endfunction()
 transform_sources_list("scripts/sources.lst" "${CMAKE_CURRENT_BINARY_DIR}/sources.lst.cmake")
 include("${CMAKE_CURRENT_BINARY_DIR}/sources.lst.cmake")
 
-if(BROTLI_DISABLE_SHARED)
+if(BROTLI_EMSCRIPTEN)
   set(BROTLI_SHARED_LIBS "")
 else()
   set(BROTLI_SHARED_LIBS brotlicommon brotlidec brotlienc)
@@ -167,12 +178,14 @@ foreach(lib IN LISTS BROTLI_SHARED_LIBS BROTLI_STATIC_LIBS)
   set_property(TARGET ${lib} APPEND PROPERTY INCLUDE_DIRECTORIES ${BROTLI_INCLUDE_DIRS})
   set_target_properties(${lib} PROPERTIES
     VERSION "${BROTLI_ABI_COMPATIBILITY}.${BROTLI_ABI_AGE}.${BROTLI_ABI_REVISION}"
-    SOVERSION "${BROTLI_ABI_COMPATIBILITY}"
-    POSITION_INDEPENDENT_CODE TRUE)
+    SOVERSION "${BROTLI_ABI_COMPATIBILITY}")
+  if(NOT BROTLI_EMSCRIPTEN)
+    set_target_properties(${lib} PROPERTIES POSITION_INDEPENDENT_CODE TRUE)
+  endif()
   set_property(TARGET ${lib} APPEND PROPERTY INTERFACE_INCLUDE_DIRECTORIES "${BROTLI_INCLUDE_DIRS}")
 endforeach()
 
-if(NOT BROTLI_DISABLE_SHARED)
+if(NOT BROTLI_EMSCRIPTEN)
 target_link_libraries(brotlidec brotlicommon)
 target_link_libraries(brotlienc brotlicommon)
 endif()
@@ -196,6 +209,7 @@ add_executable(brotli ${BROTLI_CLI_C})
 target_link_libraries(brotli ${BROTLI_LIBRARIES_STATIC})
 
 # Installation
+if(NOT BROTLI_EMSCRIPTEN)
 if(NOT BROTLI_BUNDLED_MODE)
   install(
     TARGETS brotli
@@ -220,7 +234,8 @@ if(NOT BROTLI_BUNDLED_MODE)
     DIRECTORY ${BROTLI_INCLUDE_DIRS}/brotli
     DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
   )
-endif()
+endif()  # BROTLI_BUNDLED_MODE
+endif()  # BROTLI_EMSCRIPTEN
 
 # Tests
 
@@ -376,6 +391,7 @@ transform_pc_file("scripts/libbrotlidec.pc.in" "${CMAKE_CURRENT_BINARY_DIR}/libb
 
 transform_pc_file("scripts/libbrotlienc.pc.in" "${CMAKE_CURRENT_BINARY_DIR}/libbrotlienc.pc" "${BROTLI_VERSION}")
 
+if(NOT BROTLI_EMSCRIPTEN)
 if(NOT BROTLI_BUNDLED_MODE)
   install(FILES "${CMAKE_CURRENT_BINARY_DIR}/libbrotlicommon.pc"
     DESTINATION "${CMAKE_INSTALL_LIBDIR}/pkgconfig")
@@ -383,7 +399,8 @@ if(NOT BROTLI_BUNDLED_MODE)
     DESTINATION "${CMAKE_INSTALL_LIBDIR}/pkgconfig")
   install(FILES "${CMAKE_CURRENT_BINARY_DIR}/libbrotlienc.pc"
     DESTINATION "${CMAKE_INSTALL_LIBDIR}/pkgconfig")
-endif()
+endif()  # BROTLI_BUNDLED_MODE
+endif()  # BROTLI_EMSCRIPTEN
 
 if (ENABLE_COVERAGE STREQUAL "yes")
   SETUP_TARGET_FOR_COVERAGE(coverage test coverage)
