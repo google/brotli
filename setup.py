@@ -142,7 +142,7 @@ DESCRIPTION = 'Python bindings for the Brotli compression library'
 
 AUTHOR = 'The Brotli Authors'
 
-LICENSE = 'Apache 2.0'
+LICENSE = 'MIT'
 
 PLATFORMS = ['Posix', 'MacOS X', 'Windows']
 
@@ -150,7 +150,7 @@ CLASSIFIERS = [
     'Development Status :: 4 - Beta',
     'Environment :: Console',
     'Intended Audience :: Developers',
-    'License :: OSI Approved :: Apache Software License',
+    'License :: OSI Approved :: MIT License',
     'Operating System :: MacOS :: MacOS X',
     'Operating System :: Microsoft :: Windows',
     'Operating System :: POSIX :: Linux',
