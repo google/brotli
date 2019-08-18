@@ -1,8 +1,6 @@
 This directory contains the code for the Python `brotli` module,
 `bro.py` tool, and roundtrip tests.
 
-Only Python 2.7+ is supported.
-
 We provide a `Makefile` to simplify common development commands.
 
 ### Installation
