@@ -21,6 +21,18 @@ https://groups.google.com/forum/#!forum/brotli
 
 ### Build instructions
 
+#### Vcpkg
+
+You can download and install brotli using the [vcpkg](https://github.com/Microsoft/vcpkg/) dependency manager:
+
+    git clone https://github.com/Microsoft/vcpkg.git
+    cd vcpkg
+    ./bootstrap-vcpkg.sh
+    ./vcpkg integrate install
+    vcpkg install brotli
+
+The brotli port in vcpkg is kept up to date by Microsoft team members and community contributors. If the version is out of date, please [create an issue or pull request](https://github.com/Microsoft/vcpkg) on the vcpkg repository.
+
 #### Autotools-style CMake
 
 [configure-cmake](https://github.com/nemequ/configure-cmake) is an
