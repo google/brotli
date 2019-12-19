@@ -160,7 +160,7 @@ static const uint8_t kTransformsData[] = {
    0, BROTLI_TRANSFORM_UPPERCASE_FIRST, 34,
 };
 
-static BrotliTransforms kBrotliTransforms = {
+static const BrotliTransforms kBrotliTransforms = {
   sizeof(kPrefixSuffix),
   (const uint8_t*)kPrefixSuffix,
   kPrefixSuffixMap,
