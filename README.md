@@ -272,7 +272,7 @@ Dart [native bindings](https://github.com/thosakwe/brotli)
       same "printed page" as the copyright notice for easier
       identification within third-party archives.
 
-   Copyright [2019] [ROLANDO GOPEZ LACUATA]
+   Copyright 2019 ROLANDO GOPEZ LACUATA
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
