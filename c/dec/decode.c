@@ -275,7 +275,7 @@ static BrotliDecoderErrorCode BROTLI_NOINLINE DecodeMetaBlockLength(
             s->loop_counter = i;
             return BROTLI_DECODER_NEEDS_MORE_INPUT;
           }
-          if (i + 1 == s->size_nibbles && s->size_nibbles > 4 && bits == 0) {
+          if (i + 1 == (int)s->size_nibbles && s->size_nibbles > 4 && bits == 0) {
             return BROTLI_FAILURE(BROTLI_DECODER_ERROR_FORMAT_EXUBERANT_NIBBLE);
           }
           s->meta_block_remaining_len |= (int)(bits << (i * 4));
@@ -324,7 +324,7 @@ static BrotliDecoderErrorCode BROTLI_NOINLINE DecodeMetaBlockLength(
             s->loop_counter = i;
             return BROTLI_DECODER_NEEDS_MORE_INPUT;
           }
-          if (i + 1 == s->size_nibbles && s->size_nibbles > 1 && bits == 0) {
+          if (i + 1 == (int)s->size_nibbles && s->size_nibbles > 1 && bits == 0) {
             return BROTLI_FAILURE(
                 BROTLI_DECODER_ERROR_FORMAT_EXUBERANT_META_NIBBLE);
           }
