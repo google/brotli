@@ -123,6 +123,16 @@ static const float kLog2Table[] = {
   7.9943534368588578f
 };
 
+/* Visual Studio 2012 and Android API levels < 18 do not have the log2()
+ * function defined, so we use log() and a multiplication instead. */
+#ifndef BROTLI_HAVE_LOG2
+#if ((defined(_MSC_VER) && _MSC_VER <= 1700) || (defined(__ANDROID_API__) && __ANDROID_API__ < 18))
+#define BROTLI_HAVE_LOG2 0
+#else
+#define BROTLI_HAVE_LOG2 1
+#endif
+#endif
+
 #define LOG_2_INV 1.4426950408889634
 
 /* Faster logarithm for small integers, with the property of log2(0) == 0. */
@@ -130,10 +140,7 @@ static BROTLI_INLINE double FastLog2(size_t v) {
   if (v < sizeof(kLog2Table) / sizeof(kLog2Table[0])) {
     return kLog2Table[v];
   }
-#if (defined(_MSC_VER) && _MSC_VER <= 1700) || \
-    (defined(__ANDROID_API__) && __ANDROID_API__ < 18)
-  /* Visual Studio 2012 and Android API levels < 18 do not have the log2()
-   * function defined, so we use log() and a multiplication instead. */
+#if !(BROTLI_HAVE_LOG2)
   return log((double)v) * LOG_2_INV;
 #else
   return log2((double)v);
