@@ -195,8 +195,7 @@ matrix:
 
     - os: osx
       env: BUILD_SYSTEM=bazel
-      # Latest image with Java 1.8 (required to install Bazel).
-      osx_image: xcode9.3
+      osx_image: xcode11.3
       language: java
 
 before_install:
