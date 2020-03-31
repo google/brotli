@@ -30,7 +30,7 @@ java_library(
         "//org/brotli/integration:brotli_jni_test_base",
         "//org/brotli/integration:bundle_helper",
         "//org/brotli/wrapper/dec",
-        "@junit_junit//jar",
+        "@maven//:junit_junit",
     ],
 )
 

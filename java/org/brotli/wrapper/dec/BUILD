@@ -24,7 +24,7 @@ java_library(
         ":dec",
         "//org/brotli/integration:brotli_jni_test_base",
         "//org/brotli/integration:bundle_helper",
-        "@junit_junit//jar",
+        "@maven//:junit_junit",
     ],
 )
 

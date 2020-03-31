@@ -7,7 +7,7 @@ licenses(["notice"])  # MIT
 
 TEST_DEPS = [
     ":dec",
-    "@junit_junit//jar",
+    "@maven//:junit_junit",
 ]
 
 java_library(
