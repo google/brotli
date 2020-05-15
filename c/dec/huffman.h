@@ -83,7 +83,7 @@ typedef BROTLI_ALIGNED(4) uint32_t HuffmanCode;
 
 static BROTLI_INLINE HuffmanCode ConstructHuffmanCode(const uint8_t bits,
     const uint16_t value) {
-  return ((value & 0xFFFF) << 16) | (bits & 0xFF);
+  return (HuffmanCode) ((value & 0xFFFF) << 16) | (bits & 0xFF);
 }
 
 #define BROTLI_HC_MARK_TABLE_FOR_FAST_LOAD(H) uint32_t __fastload_##H = (*H)

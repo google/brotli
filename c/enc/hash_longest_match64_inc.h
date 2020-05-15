@@ -115,8 +115,8 @@ static BROTLI_INLINE void FN(Store)(
                                      self->hash_shift_);
   const size_t minor_ix = num[key] & self->block_mask_;
   const size_t offset = minor_ix + (key << self->block_bits_);
-  buckets[offset] = (uint32_t)ix;
   ++num[key];
+  buckets[offset] = (uint32_t)ix;
 }
 
 static BROTLI_INLINE void FN(StoreRange)(HashLongestMatch* BROTLI_RESTRICT self,

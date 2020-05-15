@@ -8,6 +8,7 @@ package org.brotli.dec;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.ByteBuffer;
 
 /**
  * API for Brotli decompression.
@@ -31,11 +32,12 @@ final class Decode {
   private static final int COPY_UNCOMPRESSED = 6;
   private static final int INSERT_LOOP = 7;
   private static final int COPY_LOOP = 8;
-  private static final int TRANSFORM = 9;
+  private static final int USE_DICTIONARY = 9;
   private static final int FINISHED = 10;
   private static final int CLOSED = 11;
   private static final int INIT_WRITE = 12;
   private static final int WRITE = 13;
+  private static final int COPY_FROM_COMPOUND_DICTIONARY = 14;
 
   private static final int DEFAULT_CODE_LENGTH = 8;
   private static final int CODE_LENGTH_REPEAT_CODE = 16;
@@ -45,6 +47,7 @@ final class Decode {
   private static final int LITERAL_CONTEXT_BITS = 6;
   private static final int DISTANCE_CONTEXT_BITS = 2;
 
+  private static final int CD_BLOCK_MAP_BITS = 8;
   private static final int HUFFMAN_TABLE_BITS = 8;
   private static final int HUFFMAN_TABLE_MASK = 0xFF;
 
@@ -85,20 +88,8 @@ final class Decode {
       0x020000, 0x020004, 0x020003, 0x030002, 0x020000, 0x020004, 0x020003, 0x040005
   };
 
-  static final int[] DICTIONARY_OFFSETS_BY_LENGTH = {
-    0, 0, 0, 0, 0, 4096, 9216, 21504, 35840, 44032, 53248, 63488, 74752, 87040, 93696, 100864,
-    104704, 106752, 108928, 113536, 115968, 118528, 119872, 121280, 122016
-  };
-
-  static final int[] DICTIONARY_SIZE_BITS_BY_LENGTH = {
-    0, 0, 0, 0, 10, 10, 11, 11, 10, 10, 10, 10, 10, 9, 9, 8, 7, 7, 8, 7, 7, 6, 6, 5, 5
-  };
-
-  static final int MIN_WORD_LENGTH = 4;
-
-  static final int MAX_WORD_LENGTH = 24;
-
-  static final int MAX_TRANSFORMED_WORD_LENGTH = 5 + MAX_WORD_LENGTH + 8;
+  // TODO: generalize.
+  static final int MAX_TRANSFORMED_WORD_LENGTH = 5 + 24 + 8;
 
   private static final int MAX_DISTANCE_BITS = 24;
   private static final int MAX_LARGE_WINDOW_DISTANCE_BITS = 62;
@@ -272,6 +263,25 @@ final class Decode {
       throw new IllegalStateException("State MUST be freshly initialized");
     }
     s.isLargeWindow = 1;
+  }
+
+  // TODO: do we need byte views?
+  static void attachDictionaryChunk(State s, byte[] data) {
+    if (s.runningState != INITIALIZED) {
+      throw new IllegalStateException("State MUST be freshly initialized");
+    }
+    if (s.cdNumChunks == 0) {
+      s.cdChunks = new byte[16][];
+      s.cdChunkOffsets = new int[16];
+      s.cdBlockBits = -1;
+    }
+    if (s.cdNumChunks == 15) {
+      throw new IllegalStateException("Too many dictionary chunks");
+    }
+    s.cdChunks[s.cdNumChunks] = data;
+    s.cdNumChunks++;
+    s.cdTotalSize += data.length;
+    s.cdChunkOffsets[s.cdNumChunks] = s.cdTotalSize;
   }
 
   /**
@@ -821,7 +831,6 @@ final class Decode {
     BitReader.fillBitWindow(s);
     s.distancePostfixBits = BitReader.readFewBits(s, 2);
     s.numDirectDistanceCodes = BitReader.readFewBits(s, 4) << s.distancePostfixBits;
-    s.distancePostfixMask = (1 << s.distancePostfixBits) - 1;
     // TODO: Reuse?
     s.contextModes = new byte[s.numLiteralBlockTypes];
     for (int i = 0; i < s.numLiteralBlockTypes;) {
@@ -943,6 +952,118 @@ final class Decode {
       result = Math.min(result, s.ringBufferBytesWritten + s.outputLength - s.outputUsed);
     }
     return result;
+  }
+
+  private static void doUseDictionary(State s, int fence) {
+    if (s.distance > MAX_ALLOWED_DISTANCE) {
+      throw new BrotliRuntimeException("Invalid backward reference");
+    }
+    int address = s.distance - s.maxDistance - 1 - s.cdTotalSize;
+    if (address < 0) {
+      initializeCompoundDictionaryCopy(s, -address - 1, s.copyLength);
+      s.runningState = COPY_FROM_COMPOUND_DICTIONARY;
+    } else {
+      // Force lazy dictionary initialization.
+      ByteBuffer dictionaryData = Dictionary.getData();
+      int wordLength = s.copyLength;
+      if (wordLength > Dictionary.MAX_DICTIONARY_WORD_LENGTH) {
+        throw new BrotliRuntimeException("Invalid backward reference"); // COV_NF_LINE
+      }
+      int shift = Dictionary.sizeBits[wordLength];
+      if (shift == 0) {
+        throw new BrotliRuntimeException("Invalid backward reference"); // COV_NF_LINE
+      }
+      int offset = Dictionary.offsets[wordLength];
+      int mask = (1 << shift) - 1;
+      int wordIdx = address & mask;
+      int transformIdx = address >>> shift;
+      offset += wordIdx * wordLength;
+      Transform.Transforms transforms = Transform.RFC_TRANSFORMS;
+      if (transformIdx >= transforms.numTransforms) {
+        throw new BrotliRuntimeException("Invalid backward reference"); // COV_NF_LINE
+      }
+      int len = Transform.transformDictionaryWord(s.ringBuffer, s.pos, dictionaryData,
+          offset, wordLength, transforms, transformIdx);
+      s.pos += len;
+      s.metaBlockLength -= len;
+      if (s.pos >= fence) {
+        s.nextRunningState = MAIN_LOOP;
+        s.runningState = INIT_WRITE;
+        return;
+      }
+      s.runningState = MAIN_LOOP;
+    }
+  }
+
+  private static void initializeCompoundDictionary(State s) {
+    s.cdBlockMap = new byte[1 << CD_BLOCK_MAP_BITS];
+    int blockBits = CD_BLOCK_MAP_BITS;
+    // If this function is executed, then s.cdTotalSize > 0.
+    while (((s.cdTotalSize - 1) >>> blockBits) != 0) {
+      blockBits++;
+    }
+    blockBits -= CD_BLOCK_MAP_BITS;
+    s.cdBlockBits = blockBits;
+    int cursor = 0;
+    int index = 0;
+    while (cursor < s.cdTotalSize) {
+      while (s.cdChunkOffsets[index + 1] < cursor) {
+        index++;
+      }
+      s.cdBlockMap[cursor >>> blockBits] = (byte) index;
+      cursor += 1 << blockBits;
+    }
+  }
+
+  private static void initializeCompoundDictionaryCopy(State s, int address, int length) {
+    if (s.cdBlockBits == -1) {
+      initializeCompoundDictionary(s);
+    }
+    int index = s.cdBlockMap[address >>> s.cdBlockBits];
+    while (address >= s.cdChunkOffsets[index + 1]) {
+      index++;
+    }
+    if (s.cdTotalSize > address + length) {
+      throw new BrotliRuntimeException("Invalid backward reference");
+    }
+    /* Update the recent distances cache */
+    s.distRbIdx = (s.distRbIdx + 1) & 0x3;
+    s.rings[s.distRbIdx] = s.distance;
+    s.metaBlockLength -= length;
+    s.cdBrIndex = index;
+    s.cdBrOffset = address - s.cdChunkOffsets[index];
+    s.cdBrLength = length;
+    s.cdBrCopied = 0;
+  }
+
+  private static int copyFromCompoundDictionary(State s, int fence) {
+    int pos = s.pos;
+    int origPos = pos;
+    while (s.cdBrLength != s.cdBrCopied) {
+      int space = fence - pos;
+      int chunkLength = s.cdChunkOffsets[s.cdBrIndex + 1] - s.cdChunkOffsets[s.cdBrIndex];
+      int remChunkLength = chunkLength - s.cdBrOffset;
+      int length = s.cdBrLength - s.cdBrCopied;
+      if (length > remChunkLength) {
+        length = remChunkLength;
+      }
+      if (length > space) {
+        length = space;
+      }
+      Utils.copyBytes(
+          s.ringBuffer, pos, s.cdChunks[s.cdBrIndex], s.cdBrOffset, s.cdBrOffset + length);
+      pos += length;
+      s.cdBrOffset += length;
+      s.cdBrCopied += length;
+      if (length == remChunkLength) {
+        s.cdBrIndex++;
+        s.cdBrOffset = 0;
+      }
+      if (pos >= fence) {
+        break;
+      }
+    }
+    return pos - origPos;
   }
 
   /**
@@ -1110,7 +1231,7 @@ final class Decode {
           }
 
           if (s.distance > s.maxDistance) {
-            s.runningState = TRANSFORM;
+            s.runningState = USE_DICTIONARY;
             continue;
           }
 
@@ -1164,35 +1285,16 @@ final class Decode {
           }
           continue;
 
-        case TRANSFORM:
-          // This check is done here to unburden the hot loop.
-          if (s.distance > MAX_ALLOWED_DISTANCE) {
-            throw new BrotliRuntimeException("Invalid backward reference"); // COV_NF_LINE
-          }
-          if (s.copyLength >= MIN_WORD_LENGTH
-              && s.copyLength <= MAX_WORD_LENGTH) {
-            int offset = DICTIONARY_OFFSETS_BY_LENGTH[s.copyLength];
-            int wordId = s.distance - s.maxDistance - 1;
-            int shift = DICTIONARY_SIZE_BITS_BY_LENGTH[s.copyLength];
-            int mask = (1 << shift) - 1;
-            int wordIdx = wordId & mask;
-            int transformIdx = wordId >>> shift;
-            offset += wordIdx * s.copyLength;
-            if (transformIdx < Transform.NUM_RFC_TRANSFORMS) {
-              int len = Transform.transformDictionaryWord(ringBuffer, s.pos, Dictionary.getData(),
-                  offset, s.copyLength, Transform.RFC_TRANSFORMS, transformIdx);
-              s.pos += len;
-              s.metaBlockLength -= len;
-              if (s.pos >= fence) {
-                s.nextRunningState = MAIN_LOOP;
-                s.runningState = INIT_WRITE;
-                continue;
-              }
-            } else {
-              throw new BrotliRuntimeException("Invalid backward reference"); // COV_NF_LINE
-            }
-          } else {
-            throw new BrotliRuntimeException("Invalid backward reference"); // COV_NF_LINE
+        case USE_DICTIONARY:
+          doUseDictionary(s, fence);
+          continue;
+
+        case COPY_FROM_COMPOUND_DICTIONARY:
+          s.pos += copyFromCompoundDictionary(s, fence);
+          if (s.pos >= fence) {
+            s.nextRunningState = COPY_FROM_COMPOUND_DICTIONARY;
+            s.runningState = INIT_WRITE;
+            return;
           }
           s.runningState = MAIN_LOOP;
           continue;
@@ -1207,7 +1309,6 @@ final class Decode {
           }
           s.runningState = BLOCK_START;
           continue;
-
 
         case COPY_UNCOMPRESSED:
           copyUncompressedData(s);

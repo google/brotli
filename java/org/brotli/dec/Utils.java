@@ -58,6 +58,10 @@ final class Utils {
     }
   }
 
+  static void copyBytes(byte[] dst, int target, byte[] src, int start, int end) {
+    System.arraycopy(src, start, dst, target, end - start);
+  }
+
   static void copyBytesWithin(byte[] bytes, int target, int start, int end) {
     System.arraycopy(bytes, start, bytes, target, end - start);
   }
