@@ -1,5 +1,6 @@
 # C
 *.o
+*.obj
 bin/
 buildfiles/
 **/obj/
