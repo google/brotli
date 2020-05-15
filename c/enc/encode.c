@@ -516,7 +516,7 @@ static BROTLI_BOOL ShouldCompress(
   /* TODO: find more precise minimal block overhead. */
   if (bytes <= 2) return BROTLI_FALSE;
   if (num_commands < (bytes >> 8) + 2) {
-    if (num_literals > 0.99 * (double)bytes) {
+    if ((double)num_literals > 0.99 * (double)bytes) {
       uint32_t literal_histo[256] = { 0 };
       static const uint32_t kSampleRate = 13;
       static const double kMinEntropy = 7.92;
@@ -1686,8 +1686,10 @@ static BROTLI_BOOL BrotliEncoderCompressStreamFast(
             &storage_ix, storage);
         if (BROTLI_IS_OOM(m)) return BROTLI_FALSE;
       }
-      *next_in += block_size;
-      *available_in -= block_size;
+      if (block_size != 0) {
+        *next_in += block_size;
+        *available_in -= block_size;
+      }
       if (inplace) {
         size_t out_bytes = storage_ix >> 3;
         BROTLI_DCHECK(out_bytes <= *available_out);

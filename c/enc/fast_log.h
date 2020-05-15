@@ -32,7 +32,7 @@ static BROTLI_INLINE uint32_t Log2FloorNonZero(size_t n) {
    computation.
 
    ", ".join(["%.16ff" % x for x in [0.0]+[log2(x) for x in range(1, 256)]]) */
-static const float kLog2Table[] = {
+static const double kLog2Table[] = {
   0.0000000000000000f, 0.0000000000000000f, 1.0000000000000000f,
   1.5849625007211563f, 2.0000000000000000f, 2.3219280948873622f,
   2.5849625007211561f, 2.8073549220576042f, 3.0000000000000000f,
@@ -123,8 +123,9 @@ static const float kLog2Table[] = {
 
 /* Visual Studio 2012 and Android API levels < 18 do not have the log2()
  * function defined, so we use log() and a multiplication instead. */
-#ifndef BROTLI_HAVE_LOG2
-#if ((defined(_MSC_VER) && _MSC_VER <= 1700) || (defined(__ANDROID_API__) && __ANDROID_API__ < 18))
+#if !defined(BROTLI_HAVE_LOG2)
+#if ((defined(_MSC_VER) && _MSC_VER <= 1700) || \
+     (defined(__ANDROID_API__) && __ANDROID_API__ < 18))
 #define BROTLI_HAVE_LOG2 0
 #else
 #define BROTLI_HAVE_LOG2 1

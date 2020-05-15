@@ -274,6 +274,10 @@ func TestReader(t *testing.T) {
 			"<%d bytes>",
 			got, len(content))
 	}
+	buf := make([]byte, 4)
+	if _, err := r.Read(buf); err != errReaderClosed {
+		t.Errorf("Read-after-Close returned %v, expected %v", err, errReaderClosed)
+	}
 }
 
 func TestDecode(t *testing.T) {

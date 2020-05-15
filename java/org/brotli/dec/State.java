@@ -60,7 +60,6 @@ final class State {
   int contextLookupOffset2;
   int distanceCode;
   int numDirectDistanceCodes;
-  int distancePostfixMask;
   int distancePostfixBits;
   int distance;
   int copyLength;
@@ -75,6 +74,18 @@ final class State {
   int ringBufferBytesReady;
   int isEager;
   int isLargeWindow;
+
+  // Compound dictionary
+  int cdNumChunks;
+  int cdTotalSize;
+  int cdBrIndex;
+  int cdBrOffset;
+  int cdBrLength;
+  int cdBrCopied;
+  byte[][] cdChunks;
+  int[] cdChunkOffsets;
+  int cdBlockBits;
+  byte[] cdBlockMap;
 
   InputStream input; // BitReader
 

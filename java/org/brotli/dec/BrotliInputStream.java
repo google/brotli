@@ -84,6 +84,10 @@ public class BrotliInputStream extends InputStream {
     }
   }
 
+  public void attachDictionaryChunk(byte[] data) {
+    Decode.attachDictionaryChunk(state, data);
+  }
+
   public void enableEagerOutput() {
     Decode.enableEagerOutput(state);
   }

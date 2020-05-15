@@ -65,7 +65,10 @@ public class SetDictionaryTest {
     FileChannel dictionaryChannel =
         new FileInputStream(System.getProperty("RFC_DICTIONARY")).getChannel();
     ByteBuffer dictionary = dictionaryChannel.map(FileChannel.MapMode.READ_ONLY, 0, 122784).load();
-    Dictionary.setData(dictionary);
+    int[] sizeBits = {
+      0, 0, 0, 0, 10, 10, 11, 11, 10, 10, 10, 10, 10, 9, 9, 8, 7, 7, 8, 7, 7, 6, 6, 5, 5
+    };
+    Dictionary.setData(dictionary, sizeBits);
 
     // Retry decoding of dictionary item.
     decoder = new BrotliInputStream(new ByteArrayInputStream(BASE_DICT_WORD));
