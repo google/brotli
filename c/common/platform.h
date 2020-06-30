@@ -359,7 +359,7 @@ static BROTLI_INLINE void BrotliUnalignedWrite64(void* p, uint64_t v) {
 typedef BROTLI_ALIGNED(1) uint64_t brotli_unaligned_uint64_t;
 
 static BROTLI_INLINE uint64_t BrotliUnalignedRead64(const void* p) {
-  return (uint64_t) ((brotli_unaligned_uint64_t*) p)[0];
+  return (uint64_t) ((const brotli_unaligned_uint64_t*) p)[0];
 }
 static BROTLI_INLINE void BrotliUnalignedWrite64(void* p, uint64_t v) {
   brotli_unaligned_uint64_t* dwords = (brotli_unaligned_uint64_t*) p;
