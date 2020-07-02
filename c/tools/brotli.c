@@ -803,6 +803,8 @@ static void InitializeBuffers(Context* context) {
   context->total_out = 0;
 }
 
+/* This method might give the false-negative result.
+   However, after an empty / incomplete read it should tell the truth. */
 static BROTLI_BOOL HasMoreInput(Context* context) {
   return feof(context->fin) ? BROTLI_FALSE : BROTLI_TRUE;
 }
@@ -883,7 +885,9 @@ static BROTLI_BOOL DecompressFile(Context* context, BrotliDecoderState* s) {
       if (!ProvideOutput(context)) return BROTLI_FALSE;
     } else if (result == BROTLI_DECODER_RESULT_SUCCESS) {
       if (!FlushOutput(context)) return BROTLI_FALSE;
-      if (context->available_in != 0 || HasMoreInput(context)) {
+      int has_more_input =
+          (context->available_in != 0) || (fgetc(context->fin) != EOF);
+      if (has_more_input) {
         fprintf(stderr, "corrupt input [%s]\n",
                 PrintablePath(context->current_input_path));
         return BROTLI_FALSE;
