@@ -6,6 +6,11 @@
 
 /* Command line interface for Brotli library. */
 
+/* Mute strerror/strcpy warnings. */
+#if !defined(_CRT_SECURE_NO_WARNINGS)
+#define _CRT_SECURE_NO_WARNINGS
+#endif
+
 #include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
