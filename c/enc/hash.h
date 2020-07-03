@@ -53,6 +53,7 @@ typedef struct HasherSearchResult {
   size_t distance;
   score_t score;
   int len_code_delta; /* == len_code - len */
+  BROTLI_BOOL used_stored;
 } HasherSearchResult;
 
 /* kHashMul32 multiplier has these properties:
@@ -148,6 +149,7 @@ static BROTLI_INLINE BROTLI_BOOL TestStaticDictionaryItem(
 
   matchlen =
       FindMatchLengthWithLimit(data, &dictionary->words->data[offset], len);
+
   if (matchlen + dictionary->cutoffTransformsCount <= len || matchlen == 0) {
     return BROTLI_FALSE;
   }

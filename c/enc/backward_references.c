@@ -124,14 +124,18 @@ void BrotliCreateBackwardReferences(size_t num_bytes,
     size_t position, const uint8_t* ringbuffer, size_t ringbuffer_mask,
     ContextLut literal_context_lut, const BrotliEncoderParams* params,
     Hasher* hasher, int* dist_cache, size_t* last_insert_len,
-    Command* commands, size_t* num_commands, size_t* num_literals) {
+    Command* commands, size_t* num_commands, size_t* num_literals,
+    BackwardReference** backward_references,
+    size_t* back_refs_position, size_t back_refs_size) {
   switch (params->hasher.type) {
 #define CASE_(N)                                                  \
     case N:                                                       \
       CreateBackwardReferencesNH ## N(num_bytes,                  \
           position, ringbuffer, ringbuffer_mask,                  \
           literal_context_lut, params, hasher, dist_cache,        \
-          last_insert_len, commands, num_commands, num_literals); \
+          last_insert_len, commands, num_commands, num_literals,  \
+          backward_references, back_refs_position,                \
+          back_refs_size);                                        \
       return;
     FOR_GENERIC_HASHERS(CASE_)
 #undef CASE_

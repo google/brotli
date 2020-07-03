@@ -195,7 +195,9 @@ static BROTLI_INLINE void FN(FindLongestMatch)(
     const int* BROTLI_RESTRICT distance_cache,
     const size_t cur_ix, const size_t max_length, const size_t max_backward,
     const size_t dictionary_distance, const size_t max_distance,
-    HasherSearchResult* BROTLI_RESTRICT out) {
+    HasherSearchResult* BROTLI_RESTRICT out,
+    BackwardReference** backward_references,
+    size_t* back_refs_position, size_t back_refs_size) {
   uint32_t* BROTLI_RESTRICT addr = FN(Addr)(self->extra);
   uint16_t* BROTLI_RESTRICT head = FN(Head)(self->extra);
   uint8_t* BROTLI_RESTRICT tiny_hashes = FN(TinyHash)(self->extra);
@@ -210,6 +212,49 @@ static BROTLI_INLINE void FN(FindLongestMatch)(
   const uint8_t tiny_hash = (uint8_t)(key);
   out->len = 0;
   out->len_code_delta = 0;
+
+  while (*back_refs_position < back_refs_size &&
+        (*backward_references)[*back_refs_position].position < cur_ix) {
+     ++(*back_refs_position);
+  }
+
+  /* If we have some backward reference stored for this position check it first
+     or if we have backward reference before that intersect with this position */
+  if (*back_refs_position < back_refs_size &&
+     ((*backward_references)[*back_refs_position].position == cur_ix ||
+     (*backward_references)[*back_refs_position].position + (*backward_references)[*back_refs_position].copy_len >= cur_ix + 3)) {
+
+     const size_t backward = (size_t)(*backward_references)[*back_refs_position].distance;
+     size_t prev_ix = (cur_ix - backward);
+     if (prev_ix < cur_ix && backward <= max_backward) {
+         prev_ix &= ring_buffer_mask;
+         {
+             const size_t len = FindMatchLengthWithLimit(&data[prev_ix],
+                                                         &data[cur_ix_masked],
+                                                         max_length);
+
+              if (len >= 2 && (*backward_references)[*back_refs_position].position == cur_ix) {
+                 score_t score = BackwardReferenceScore(len, backward);
+                 best_score = score;
+                 best_len = len;
+                 out->len = best_len;
+                 out->distance = backward;
+                 out->score = best_score;
+                 out->used_stored = BROTLI_TRUE;
+                 return;
+             } else if (len >= 2 && (*backward_references)[*back_refs_position].position != cur_ix){
+                score_t score = BackwardReferenceScore(len, backward);
+                best_score = score;
+                best_len = len;
+                out->len = best_len;
+                out->distance = backward;
+                out->score = best_score;
+                out->used_stored = BROTLI_TRUE;
+            }
+         }
+     }
+  }
+
   /* Try last distance first. */
   for (i = 0; i < NUM_LAST_DISTANCES_TO_CHECK; ++i) {
     const size_t backward = (size_t)distance_cache[i];

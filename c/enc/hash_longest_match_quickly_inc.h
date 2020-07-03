@@ -151,7 +151,9 @@ static BROTLI_INLINE void FN(FindLongestMatch)(
     const size_t ring_buffer_mask, const int* BROTLI_RESTRICT distance_cache,
     const size_t cur_ix, const size_t max_length, const size_t max_backward,
     const size_t dictionary_distance, const size_t max_distance,
-    HasherSearchResult* BROTLI_RESTRICT out) {
+    HasherSearchResult* BROTLI_RESTRICT out,
+    BackwardReference** backward_references,
+    size_t* back_refs_position, size_t back_refs_size) {
   uint32_t* BROTLI_RESTRICT buckets = self->buckets_;
   const size_t best_len_in = out->len;
   const size_t cur_ix_masked = cur_ix & ring_buffer_mask;
@@ -161,9 +163,45 @@ static BROTLI_INLINE void FN(FindLongestMatch)(
   score_t min_score = out->score;
   score_t best_score = out->score;
   size_t best_len = best_len_in;
+  out->len = 0;
+  out->len_code_delta = 0;
+  while (*back_refs_position < back_refs_size &&
+        (*backward_references)[*back_refs_position].position < cur_ix) {
+     ++(*back_refs_position);
+  }
+  // If we have some backward reference stored for that position check it first
+  if (*back_refs_position < back_refs_size &&
+     (*backward_references)[*back_refs_position].position == cur_ix) {
+     const size_t backward = (size_t)(*backward_references)[*back_refs_position].distance;
+     size_t prev_ix = (cur_ix - backward);
+     if (prev_ix < cur_ix && backward <= max_backward) {
+         prev_ix &= ring_buffer_mask;
+         {
+             const size_t len = FindMatchLengthWithLimit(&data[prev_ix],
+                                                         &data[cur_ix_masked],
+                                                         max_length);
+
+              if (len >= 2) {
+                 score_t score = BackwardReferenceScore(len, backward);
+                 out->len = best_len;
+                 out->distance = backward;
+                 out->score = best_score;
+                 out->used_stored = BROTLI_TRUE;
+                 if (BUCKET_SWEEP == 1) {
+                   buckets[key] = (uint32_t)cur_ix;
+                 } else {
+                   best_len = len;
+                   best_score = score;
+                   compare_char = data[cur_ix_masked + len];
+                 }
+                 return;
+             }
+         }
+     }
+  }
+
   size_t cached_backward = (size_t)distance_cache[0];
   size_t prev_ix = cur_ix - cached_backward;
-  out->len_code_delta = 0;
   if (prev_ix < cur_ix) {
     prev_ix &= (uint32_t)ring_buffer_mask;
     if (compare_char == data[prev_ix + best_len]) {

@@ -8,6 +8,7 @@
 
 #include <stdlib.h>  /* free, malloc */
 #include <string.h>  /* memcpy, memset */
+#include <stdio.h> /* fprintf */
 
 #include "../common/constants.h"
 #include "../common/context.h"
@@ -58,6 +59,20 @@ static const uint8_t kCodeLengthPrefixValue[16] = {
   0, 4, 3, 2, 0, 4, 3, 1, 0, 4, 3, 2, 0, 4, 3, 5,
 };
 
+BROTLI_BOOL SaveCommandsToFile(BrotliDecoderState* s) {
+    FILE *fptr = fopen("backward_references.txt", "w");
+    if (fptr == NULL) {
+        fclose(fptr);
+        return BROTLI_FALSE;
+    }
+    fprintf(fptr, "%zu\n", s->commands_size);
+    for (int i = 0; i < s->commands_size; ++i) {
+        fprintf(fptr, "%d %d %d\n", s->commands[i].position, s->commands[i].copy_len, s->commands[i].distance);
+    }
+    fclose(fptr);
+    return BROTLI_TRUE;
+}
+
 BROTLI_BOOL BrotliDecoderSetParameter(
     BrotliDecoderState* state, BrotliDecoderParameter p, uint32_t value) {
   if (state->state != BROTLI_STATE_UNINITED) return BROTLI_FALSE;
@@ -68,6 +83,10 @@ BROTLI_BOOL BrotliDecoderSetParameter(
 
     case BROTLI_DECODER_PARAM_LARGE_WINDOW:
       state->large_window = TO_BROTLI_BOOL(!!value);
+      return BROTLI_TRUE;
+
+    case BROTLI_DECODER_PARAM_SAVE_COMMANDS:
+      state->save_commands = TO_BROTLI_BOOL(!!value);
       return BROTLI_TRUE;
 
     default: return BROTLI_FALSE;
@@ -1736,7 +1755,6 @@ static BROTLI_INLINE BrotliDecoderErrorCode ProcessCommandsInternal(
   int i = s->loop_counter;
   BrotliDecoderErrorCode result = BROTLI_DECODER_SUCCESS;
   BrotliBitReader* br = &s->br;
-
   if (!CheckInputAmount(safe, br, 28)) {
     result = BROTLI_DECODER_NEEDS_MORE_INPUT;
     goto saveStateAndReturn;
@@ -1775,6 +1793,10 @@ CommandBegin:
   BROTLI_SAFE(ReadCommand(s, br, &i));
   BROTLI_LOG(("[ProcessCommandsInternal] pos = %d insert = %d copy = %d\n",
               pos, i, s->copy_length));
+  if (s->save_commands) {
+    s->commands[s->commands_size].insert_len = i;
+    s->commands[s->commands_size].copy_len = s->copy_length;
+  }
   if (i == 0) {
     goto CommandPostDecodeLiterals;
   }
@@ -1888,6 +1910,12 @@ CommandPostDecodeLiterals:
   if (s->max_distance != s->max_backward_distance) {
     s->max_distance =
         (pos < s->max_backward_distance) ? pos : s->max_backward_distance;
+  }
+  if (s->save_commands) {
+    s->commands[s->commands_size].distance = s->distance_code;
+    s->commands[s->commands_size].position = pos;
+    s->commands[s->commands_size].max_distance = s->max_distance;
+    ++s->commands_size;
   }
   i = s->copy_length;
   /* Apply copy of LZ77 back-reference, or static dictionary reference if
@@ -2070,6 +2098,10 @@ BrotliDecoderResult BrotliDecoderDecompressStream(
     size_t* available_out, uint8_t** next_out, size_t* total_out) {
   BrotliDecoderErrorCode result = BROTLI_DECODER_SUCCESS;
   BrotliBitReader* br = &s->br;
+  /* Will save a commands here to use for the recompression*/
+  if (s->save_commands && !s->commands) {
+    s->commands = (Command*)BROTLI_DECODER_ALLOC(s, sizeof(Command) * (int)((float)*available_in));
+  }
   /* Ensure that |total_out| is set, even if no data will ever be pushed out. */
   if (total_out) {
     *total_out = s->partial_pos_out;

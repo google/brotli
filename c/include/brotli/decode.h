@@ -139,7 +139,12 @@ typedef enum BrotliDecoderParameter {
   /**
    * Flag that determines if "Large Window Brotli" is used.
    */
-  BROTLI_DECODER_PARAM_LARGE_WINDOW = 1
+  BROTLI_DECODER_PARAM_LARGE_WINDOW = 1,
+  /**
+   * Flag that determines if need to collect commands during decompression and
+   * save then to file.
+   */
+  BROTLI_DECODER_PARAM_SAVE_COMMANDS = 2
 } BrotliDecoderParameter;
 
 /**

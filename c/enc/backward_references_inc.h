@@ -12,7 +12,9 @@ static BROTLI_NOINLINE void EXPORT_FN(CreateBackwardReferences)(
     const uint8_t* ringbuffer, size_t ringbuffer_mask,
     ContextLut literal_context_lut, const BrotliEncoderParams* params,
     Hasher* hasher, int* dist_cache, size_t* last_insert_len,
-    Command* commands, size_t* num_commands, size_t* num_literals) {
+    Command* commands, size_t* num_commands, size_t* num_literals,
+    BackwardReference** backward_references,
+    size_t* back_refs_position, size_t back_refs_size) {
   HASHER()* privat = &hasher->privat.FN(_);
   /* Set maximum distance, see section 9.1. of the spec. */
   const size_t max_backward_limit = BROTLI_MAX_BACKWARD_LIMIT(params->lgwin);
@@ -47,41 +49,50 @@ static BROTLI_NOINLINE void EXPORT_FN(CreateBackwardReferences)(
     sr.len_code_delta = 0;
     sr.distance = 0;
     sr.score = kMinScore;
+    sr.used_stored = BROTLI_FALSE;
     FN(FindLongestMatch)(privat, &params->dictionary,
         ringbuffer, ringbuffer_mask, dist_cache, position, max_length,
-        max_distance, dictionary_start + gap, params->dist.max_distance, &sr);
+        max_distance, dictionary_start + gap, params->dist.max_distance, &sr,
+        backward_references, back_refs_position, back_refs_size);
     if (sr.score > kMinScore) {
       /* Found a match. Let's look for something even better ahead. */
       int delayed_backward_references_in_row = 0;
       --max_length;
-      for (;; --max_length) {
-        const score_t cost_diff_lazy = 175;
-        HasherSearchResult sr2;
-        sr2.len = params->quality < MIN_QUALITY_FOR_EXTENSIVE_REFERENCE_SEARCH ?
-            BROTLI_MIN(size_t, sr.len - 1, max_length) : 0;
-        sr2.len_code_delta = 0;
-        sr2.distance = 0;
-        sr2.score = kMinScore;
-        max_distance = BROTLI_MIN(size_t, position + 1, max_backward_limit);
-        dictionary_start = BROTLI_MIN(size_t,
-            position + 1 + position_offset, max_backward_limit);
-        FN(FindLongestMatch)(privat,
-            &params->dictionary,
-            ringbuffer, ringbuffer_mask, dist_cache, position + 1, max_length,
-            max_distance, dictionary_start + gap, params->dist.max_distance,
-            &sr2);
-        if (sr2.score >= sr.score + cost_diff_lazy) {
-          /* Ok, let's just write one byte for now and start a match from the
-             next byte. */
-          ++position;
-          ++insert_length;
-          sr = sr2;
-          if (++delayed_backward_references_in_row < 4 &&
-              position + FN(HashTypeLength)() < pos_end) {
-            continue;
+      if (!sr.used_stored) {
+          for (;; --max_length) {
+            const score_t cost_diff_lazy = 175;
+            HasherSearchResult sr2;
+            sr2.len = params->quality < MIN_QUALITY_FOR_EXTENSIVE_REFERENCE_SEARCH ?
+                BROTLI_MIN(size_t, sr.len - 1, max_length) : 0;
+            sr2.len_code_delta = 0;
+            sr2.distance = 0;
+            sr2.score = kMinScore;
+            sr2.used_stored = BROTLI_FALSE;
+            max_distance = BROTLI_MIN(size_t, position + 1, max_backward_limit);
+            dictionary_start = BROTLI_MIN(size_t,
+                position + 1 + position_offset, max_backward_limit);
+            FN(FindLongestMatch)(privat,
+                &params->dictionary,
+                ringbuffer, ringbuffer_mask, dist_cache, position + 1, max_length,
+                max_distance, dictionary_start + gap, params->dist.max_distance,
+                &sr2, backward_references, back_refs_position, back_refs_size);
+            if (sr2.used_stored) {
+              sr = sr2;
+              break;
+            }
+            if (sr2.score >= sr.score + cost_diff_lazy) {
+              /* Ok, let's just write one byte for now and start a match from the
+                 next byte. */
+              ++position;
+              ++insert_length;
+              sr = sr2;
+              if (++delayed_backward_references_in_row < 4 &&
+                  position + FN(HashTypeLength)() < pos_end) {
+                continue;
+              }
+            }
+            break;
           }
-        }
-        break;
       }
       apply_random_heuristics =
           position + 2 * sr.len + random_heuristics_window_size;
