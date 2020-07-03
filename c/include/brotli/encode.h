@@ -56,6 +56,13 @@ typedef enum BrotliEncoderMode {
   BROTLI_MODE_FONT = 2
 } BrotliEncoderMode;
 
+typedef struct BackwardReference {
+    int position;
+    int copy_len;
+    int distance;
+    // int max_distance;
+} BackwardReference;
+
 /** Default value for ::BROTLI_PARAM_QUALITY parameter. */
 #define BROTLI_DEFAULT_QUALITY 11
 /** Default value for ::BROTLI_PARAM_LGWIN parameter. */
@@ -313,7 +320,9 @@ BROTLI_ENC_API BROTLI_BOOL BrotliEncoderCompress(
     int quality, int lgwin, BrotliEncoderMode mode, size_t input_size,
     const uint8_t input_buffer[BROTLI_ARRAY_PARAM(input_size)],
     size_t* encoded_size,
-    uint8_t encoded_buffer[BROTLI_ARRAY_PARAM(*encoded_size)]);
+    uint8_t encoded_buffer[BROTLI_ARRAY_PARAM(*encoded_size)],
+    BackwardReference** backward_references,
+    size_t back_refs_size);
 
 /**
  * Compresses input stream to output stream.

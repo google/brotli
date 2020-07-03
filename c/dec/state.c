@@ -32,6 +32,7 @@ BROTLI_BOOL BrotliDecoderStateInit(BrotliDecoderState* s,
   BrotliInitBitReader(&s->br);
   s->state = BROTLI_STATE_UNINITED;
   s->large_window = 0;
+  s->save_commands = 0;
   s->substate_metablock_header = BROTLI_STATE_METABLOCK_HEADER_NONE;
   s->substate_uncompressed = BROTLI_STATE_UNCOMPRESSED_NONE;
   s->substate_decode_uint8 = BROTLI_STATE_DECODE_UINT8_NONE;
@@ -42,6 +43,9 @@ BROTLI_BOOL BrotliDecoderStateInit(BrotliDecoderState* s,
   s->pos = 0;
   s->rb_roundtrips = 0;
   s->partial_pos_out = 0;
+
+  s->commands_size = 0;
+  s->commands = NULL;
 
   s->block_type_trees = NULL;
   s->block_len_trees = NULL;
