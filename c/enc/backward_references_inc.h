@@ -76,16 +76,16 @@ static BROTLI_NOINLINE void EXPORT_FN(CreateBackwardReferences)(
                 ringbuffer, ringbuffer_mask, dist_cache, position + 1, max_length,
                 max_distance, dictionary_start + gap, params->dist.max_distance,
                 &sr2, backward_references, back_refs_position, back_refs_size);
-            if (sr2.used_stored) {
-              sr = sr2;
-              break;
-            }
-            if (sr2.score >= sr.score + cost_diff_lazy) {
+            if (sr2.score >= sr.score + cost_diff_lazy || sr2.used_stored) {
               /* Ok, let's just write one byte for now and start a match from the
                  next byte. */
               ++position;
               ++insert_length;
               sr = sr2;
+              if (sr2.used_stored) {
+                ++delayed_backward_references_in_row;
+                break;
+              }
               if (++delayed_backward_references_in_row < 4 &&
                   position + FN(HashTypeLength)() < pos_end) {
                 continue;
