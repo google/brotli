@@ -15,6 +15,7 @@
 #include "../common/constants.h"
 #include "../common/dictionary.h"
 #include "../common/platform.h"
+#include "../common/transform.h"
 #include <brotli/types.h>
 #include "./encoder_dict.h"
 #include "./fast_log.h"
@@ -22,6 +23,7 @@
 #include "./memory.h"
 #include "./quality.h"
 #include "./static_dict.h"
+#include "../dec/bit_reader.h"
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
@@ -197,6 +199,56 @@ static BROTLI_INLINE void SearchInStaticDictionary(
       }
     }
   }
+}
+
+static BROTLI_INLINE BROTLI_BOOL GetStaticDictReference(const size_t cur_ix, const int distance,
+                                                        const int copy_len, const size_t max_backward,
+                                                        const BrotliEncoderDictionary* dictionary,
+                                                        const size_t max_distance, const uint8_t* data,
+                                                        HasherSearchResult* BROTLI_RESTRICT out) {
+  if (distance > BROTLI_MAX_ALLOWED_DISTANCE) {
+    BROTLI_LOG(("Invalid backward reference. pos: %d distance: %d "
+        "len: %d \n", cur_ix, distance, copy_len));
+    return BROTLI_FALSE;
+  }
+  if (copy_len >= BROTLI_MIN_DICTIONARY_WORD_LENGTH &&
+      copy_len <= BROTLI_MAX_DICTIONARY_WORD_LENGTH) {
+    int address = distance - (int)max_backward - 1;
+    const BrotliDictionary* words = dictionary->words;
+    size_t offset = dictionary->words->offsets_by_length[copy_len];
+    uint32_t shift = dictionary->words->size_bits_by_length[copy_len];
+    int mask = (int)BitMask(shift);
+    int word_idx = address & mask;
+    int transform_idx = address >> shift;
+    offset += word_idx * copy_len;
+    if (transform_idx < (int)dictionary->num_transforms) {
+      const uint8_t* word = &words->data[offset];
+      const BrotliTransforms* transforms = BrotliGetTransforms();
+      uint8_t* string = (uint8_t*)malloc(sizeof(uint8_t)*copy_len*10);
+      size_t matchlen = BrotliTransformDictionaryWord(string, word, copy_len, transforms, transform_idx);
+      if (memcmp(data, string, matchlen)!=0) {
+        return BROTLI_FALSE;
+      }
+      score_t score = BackwardReferenceScore(matchlen, distance);
+      // if (score < out->score) {
+      //   return BROTLI_FALSE;
+      // }
+      out->len = matchlen;
+      out->len_code_delta = (int)copy_len - (int)matchlen;
+      out->distance = distance;
+      out->score = score;
+
+    } else {
+      BROTLI_LOG(("Invalid backward reference. pos: %d distance: %d "
+          "len: %d\n", cur_ix, distance, copy_len));
+      return BROTLI_FALSE;
+    }
+  } else {
+    BROTLI_LOG(("Invalid backward reference. pos: %d distance: %d "
+        "len: %d\n",  cur_ix, distance, copy_len));
+    return BROTLI_FALSE;
+  }
+  return BROTLI_TRUE;
 }
 
 typedef struct BackwardMatch {

@@ -137,7 +137,7 @@ static BROTLI_NOINLINE void EXPORT_FN(CreateBackwardReferences)(
          match lookups. Unsuccessful match lookups are very very expensive
          and this kind of a heuristic speeds up compression quite
          a lot. */
-      if (position > apply_random_heuristics) {
+      if (position > apply_random_heuristics && back_refs_size == 0) {
         /* Going through uncompressible data, jump. */
         if (position >
             apply_random_heuristics + 4 * random_heuristics_window_size) {
