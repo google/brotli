@@ -549,9 +549,9 @@ static BROTLI_INLINE uint32_t BrotliBsf64Msvc(uint64_t x) {
 #define BROTLI_BSR32(x) (31u ^ (uint32_t)__builtin_clz(x))
 #elif BROTLI_MSVC_VERSION_CHECK(12, 0, 0)
 static BROTLI_INLINE uint32_t BrotliBsr32Msvc(uint32_t x) {
-  uint32_t msb;
+  unsigned long msb;
   _BitScanReverse(&msb, x);
-  return msb;
+  return (uint32_t)msb;
 }
 #define BROTLI_BSR32 BrotliBsr32Msvc
 #endif /* __builtin_clz */
