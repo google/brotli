@@ -52,8 +52,8 @@ static BROTLI_NOINLINE void EXPORT_FN(CreateBackwardReferences)(
     sr.used_stored = BROTLI_FALSE;
     FN(FindLongestMatch)(privat, &params->dictionary,
         ringbuffer, ringbuffer_mask, dist_cache, position, max_length,
-        max_distance, dictionary_start + gap, params->dist.max_distance, &sr,
-        backward_references, back_refs_position, back_refs_size);
+        max_distance, dictionary_start + gap, params->dist.max_distance,
+        backward_references, back_refs_position, back_refs_size, &sr);
     if (sr.score > kMinScore) {
       /* Found a match. Let's look for something even better ahead. */
       int delayed_backward_references_in_row = 0;
@@ -75,7 +75,7 @@ static BROTLI_NOINLINE void EXPORT_FN(CreateBackwardReferences)(
                 &params->dictionary,
                 ringbuffer, ringbuffer_mask, dist_cache, position + 1, max_length,
                 max_distance, dictionary_start + gap, params->dist.max_distance,
-                &sr2, backward_references, back_refs_position, back_refs_size);
+                backward_references, back_refs_position, back_refs_size, &sr2);
             if (sr2.score >= sr.score + cost_diff_lazy || sr2.used_stored) {
               /* Ok, let's just write one byte for now and start a match from the
                  next byte. */

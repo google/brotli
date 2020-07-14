@@ -205,9 +205,7 @@ static BROTLI_INLINE size_t FN(FindAllMatches)(
     const size_t ring_buffer_mask, const size_t cur_ix,
     const size_t max_length, const size_t max_backward,
     const size_t dictionary_distance, const BrotliEncoderParams* params,
-    BackwardMatch* matches,
-    BackwardReference** backward_references,
-    size_t* back_refs_position, size_t back_refs_size) {
+    BackwardMatch* matches) {
   BackwardMatch* const orig_matches = matches;
   const size_t cur_ix_masked = cur_ix & ring_buffer_mask;
   size_t best_len = 1;
@@ -216,97 +214,53 @@ static BROTLI_INLINE size_t FN(FindAllMatches)(
   size_t stop = cur_ix - short_match_max_backward;
   uint32_t dict_matches[BROTLI_MAX_STATIC_DICTIONARY_MATCH_LEN + 1];
   size_t i;
-  if (back_refs_size != 0) {
-    while (*back_refs_position < back_refs_size &&
-          (*backward_references)[*back_refs_position].position < cur_ix) {
-       ++(*back_refs_position);
+  if (cur_ix < short_match_max_backward) { stop = 0; }
+  for (i = cur_ix - 1; i > stop && best_len <= 2; --i) {
+    size_t prev_ix = i;
+    const size_t backward = cur_ix - prev_ix;
+    if (BROTLI_PREDICT_FALSE(backward > max_backward)) {
+      break;
     }
-    /* If we have backward references stored then use them and don't try to find all the matches*/
-    if (*back_refs_position < back_refs_size &&
-       (*backward_references)[*back_refs_position].position == cur_ix) {
-       const size_t backward = (size_t)(*backward_references)[*back_refs_position].distance;
-       size_t prev_ix = (cur_ix - backward);
-       if (prev_ix < cur_ix && backward <= max_backward) {
-           prev_ix &= ring_buffer_mask;
-           {
-               const size_t len = FindMatchLengthWithLimit(&data[prev_ix],
-                                                           &data[cur_ix_masked],
-                                                           max_length);
-               if (len >= 2) {
-                 best_len = len;
-                 InitBackwardMatch(matches++, backward, len);
-               }
-           }
-       }
+    prev_ix &= ring_buffer_mask;
+    if (data[cur_ix_masked] != data[prev_ix] ||
+        data[cur_ix_masked + 1] != data[prev_ix + 1]) {
+      continue;
     }
-  } else {
-      if (cur_ix < short_match_max_backward) { stop = 0; }
-      for (i = cur_ix - 1; i > stop && best_len <= 2; --i) {
-        size_t prev_ix = i;
-        const size_t backward = cur_ix - prev_ix;
-        if (BROTLI_PREDICT_FALSE(backward > max_backward)) {
-          break;
-        }
-        prev_ix &= ring_buffer_mask;
-        if (data[cur_ix_masked] != data[prev_ix] ||
-            data[cur_ix_masked + 1] != data[prev_ix + 1]) {
-          continue;
-        }
-        {
-          const size_t len =
-              FindMatchLengthWithLimit(&data[prev_ix], &data[cur_ix_masked],
-                                       max_length);
-          if (len > best_len) {
-            best_len = len;
-            InitBackwardMatch(matches++, backward, len);
-          }
-        }
+    {
+      const size_t len =
+          FindMatchLengthWithLimit(&data[prev_ix], &data[cur_ix_masked],
+                                   max_length);
+      if (len > best_len) {
+        best_len = len;
+        InitBackwardMatch(matches++, backward, len);
       }
+    }
   }
-  if (best_len < max_length && back_refs_size == 0) {
+  if (best_len < max_length) {
     matches = FN(StoreAndFindMatches)(self, data, cur_ix,
         ring_buffer_mask, max_length, max_backward, &best_len, matches);
   }
-  if (back_refs_size == 0 ||
-    (*back_refs_position < back_refs_size && (*backward_references)[*back_refs_position].position == cur_ix &&
-    (*backward_references)[*back_refs_position].distance > max_backward)) {
-    for (i = 0; i <= BROTLI_MAX_STATIC_DICTIONARY_MATCH_LEN; ++i) {
-      dict_matches[i] = kInvalidMatch;
-    }
-    {
-      size_t minlen = BROTLI_MAX(size_t, 4, best_len + 1);
-      if (BrotliFindAllStaticDictionaryMatches(dictionary,
-          &data[cur_ix_masked], minlen, max_length, &dict_matches[0])) {
-        size_t maxlen = BROTLI_MIN(
-            size_t, BROTLI_MAX_STATIC_DICTIONARY_MATCH_LEN, max_length);
-        size_t l;
-
-        if (back_refs_size != 0) {
-          int stored_distance = (*backward_references)[*back_refs_position].distance;
-          for (l = minlen; l <= maxlen; ++l) {
-            uint32_t dict_id = dict_matches[l];
-            if (dict_id < kInvalidMatch) {
-              size_t distance = dictionary_distance + (dict_id >> 5) + 1;
-              if (distance <= params->dist.max_distance && distance == stored_distance) {
-                InitDictionaryBackwardMatch(matches++, distance, l, dict_id & 31);
-              }
-            }
-          }
-        } else {
-          for (l = minlen; l <= maxlen; ++l) {
-            uint32_t dict_id = dict_matches[l];
-            if (dict_id < kInvalidMatch) {
-              size_t distance = dictionary_distance + (dict_id >> 5) + 1;
-              if (distance <= params->dist.max_distance) {
-                InitDictionaryBackwardMatch(matches++, distance, l, dict_id & 31);
-              }
-            }
+  for (i = 0; i <= BROTLI_MAX_STATIC_DICTIONARY_MATCH_LEN; ++i) {
+    dict_matches[i] = kInvalidMatch;
+  }
+  {
+    size_t minlen = BROTLI_MAX(size_t, 4, best_len + 1);
+    if (BrotliFindAllStaticDictionaryMatches(dictionary,
+        &data[cur_ix_masked], minlen, max_length, &dict_matches[0])) {
+      size_t maxlen = BROTLI_MIN(
+          size_t, BROTLI_MAX_STATIC_DICTIONARY_MATCH_LEN, max_length);
+      size_t l;
+      for (l = minlen; l <= maxlen; ++l) {
+        uint32_t dict_id = dict_matches[l];
+        if (dict_id < kInvalidMatch) {
+          size_t distance = dictionary_distance + (dict_id >> 5) + 1;
+          if (distance <= params->dist.max_distance) {
+            InitDictionaryBackwardMatch(matches++, distance, l, dict_id & 31);
           }
         }
       }
     }
   }
-
   return (size_t)(matches - orig_matches);
 }
 

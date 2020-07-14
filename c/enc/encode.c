@@ -1080,8 +1080,7 @@ static BROTLI_BOOL EncodeData(
         data, mask, literal_context_lut, &s->params,
         &s->hasher_, s->dist_cache_,
         &s->last_insert_len_, &s->commands_[s->num_commands_],
-        &s->num_commands_, &s->num_literals_, &s->backward_references_,
-        &s->back_refs_position_, s->back_refs_size_);
+        &s->num_commands_, &s->num_literals_);
     if (BROTLI_IS_OOM(m)) return BROTLI_FALSE;
   } else if (s->params.quality == HQ_ZOPFLIFICATION_QUALITY) {
     BROTLI_DCHECK(s->params.hasher.type == 10);
@@ -1089,8 +1088,7 @@ static BROTLI_BOOL EncodeData(
         data, mask, literal_context_lut, &s->params,
         &s->hasher_, s->dist_cache_,
         &s->last_insert_len_, &s->commands_[s->num_commands_],
-        &s->num_commands_, &s->num_literals_, &s->backward_references_,
-        &s->back_refs_position_, s->back_refs_size_);
+        &s->num_commands_, &s->num_literals_);
     if (BROTLI_IS_OOM(m)) return BROTLI_FALSE;
   } else {
     BrotliCreateBackwardReferences(bytes, wrapped_last_processed_pos,
@@ -1294,7 +1292,7 @@ static BROTLI_BOOL BrotliCompressBufferQuality10(
                                input_buffer, mask);
       path_size = BrotliZopfliComputeShortestPath(m, block_size, block_start,
           input_buffer, mask, literal_context_lut, &params, dist_cache, &hasher,
-          nodes, backward_references, &back_refs_position, back_refs_size);
+          nodes);
       if (BROTLI_IS_OOM(m)) goto oom;
       /* We allocate a command buffer in the first iteration of this loop that
          will be likely big enough for the whole metablock, so that for most
