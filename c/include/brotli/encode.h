@@ -60,7 +60,7 @@ typedef struct BackwardReference {
     int position;
     int copy_len;
     int distance;
-    // int max_distance;
+    int max_distance;
 } BackwardReference;
 
 /** Default value for ::BROTLI_PARAM_QUALITY parameter. */

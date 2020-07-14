@@ -230,9 +230,6 @@ static BROTLI_INLINE BROTLI_BOOL GetStaticDictReference(const size_t cur_ix, con
         return BROTLI_FALSE;
       }
       score_t score = BackwardReferenceScore(matchlen, distance);
-      // if (score < out->score) {
-      //   return BROTLI_FALSE;
-      // }
       out->len = matchlen;
       out->len_code_delta = (int)copy_len - (int)matchlen;
       out->distance = distance;
