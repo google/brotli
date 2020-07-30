@@ -42,6 +42,25 @@ typedef enum {
   BROTLI_DECODER_RESULT_NEEDS_MORE_OUTPUT = 3
 } BrotliDecoderResult;
 
+typedef struct BlockSplitFromDecoder {
+  size_t num_types;
+  size_t num_types_prev_metablocks;
+  size_t num_blocks;
+  uint8_t* types;
+  uint32_t* positions_begin;
+  uint32_t* positions_end;
+
+  size_t types_alloc_size;
+  size_t positions_alloc_size;
+} BlockSplitFromDecoder;
+
+typedef struct BackwardReferenceFromDecoder {
+    int position;
+    int copy_len;
+    int distance;
+    int max_distance;
+} BackwardReferenceFromDecoder;
+
 /**
  * Template that evaluates items of ::BrotliDecoderErrorCode.
  *
@@ -144,7 +163,7 @@ typedef enum BrotliDecoderParameter {
    * Flag that determines if need to collect commands during decompression and
    * save then to file.
    */
-  BROTLI_DECODER_PARAM_SAVE_COMMANDS = 2
+  BROTLI_DECODER_PARAM_SAVE_INFO = 2
 } BrotliDecoderParameter;
 
 /**
@@ -208,7 +227,12 @@ BROTLI_DEC_API BrotliDecoderResult BrotliDecoderDecompress(
     size_t encoded_size,
     const uint8_t encoded_buffer[BROTLI_ARRAY_PARAM(encoded_size)],
     size_t* decoded_size,
-    uint8_t decoded_buffer[BROTLI_ARRAY_PARAM(*decoded_size)]);
+    uint8_t decoded_buffer[BROTLI_ARRAY_PARAM(*decoded_size)],
+    BROTLI_BOOL save_info_for_recompression,
+    BackwardReferenceFromDecoder** backward_references,
+    size_t* backward_references_size,
+    BlockSplitFromDecoder* literals_block_splits,
+    BlockSplitFromDecoder* insert_copy_length_block_splits);
 
 /**
  * Decompresses the input stream to the output stream.

@@ -18,6 +18,7 @@
 #include "./histogram.h"
 #include "./memory.h"
 #include "./quality.h"
+#include "../include/brotli/encode.h"
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
@@ -72,6 +73,189 @@ static void CopyLiteralsToByteArray(const Command* cmds,
     from_pos = (from_pos + insert_len + CommandCopyLen(&cmds[i])) & mask;
   }
 }
+
+void BrotliSplitBlockCommandsFromStored(MemoryManager* m,
+                                        const Command* cmds,
+                                        const size_t num_commands,
+                                        const size_t pos,
+                                        const size_t mask,
+                                        BlockSplit* cmd_split,
+                                        BlockSplitFromDecoder* cmd_split_decoder,
+                                        size_t* cur_block_decoder) {
+
+    BROTLI_ENSURE_CAPACITY(
+        m, uint8_t, cmd_split->types, cmd_split->types_alloc_size,
+        cmd_split_decoder->num_blocks);
+    BROTLI_ENSURE_CAPACITY(
+        m, uint32_t, cmd_split->lengths, cmd_split->lengths_alloc_size,
+        cmd_split_decoder->num_blocks);
+    size_t cur_pos = pos;
+    cmd_split->num_blocks = 0;
+    cmd_split->num_types = 0;
+    size_t cur_length = 0;
+    int* types_mapping = (int*)malloc(sizeof(int) * cmd_split_decoder->num_types);
+    for (int i = 0; i < cmd_split_decoder->num_types; ++i) {
+      types_mapping[i] = -1;
+    }
+
+    for (int i = 0; i < num_commands; ++i) {
+      const Command cmd = cmds[i];
+      if (cur_pos >= cmd_split_decoder->positions_end[*cur_block_decoder] &&
+            cur_length > 0) {
+        if (types_mapping[cmd_split_decoder->types[*cur_block_decoder]] == -1) {
+          types_mapping[cmd_split_decoder->types[*cur_block_decoder]] =
+                                                          cmd_split->num_types;
+        }
+        cmd_split->types[cmd_split->num_blocks] =
+                    types_mapping[cmd_split_decoder->types[*cur_block_decoder]];
+        cmd_split->lengths[cmd_split->num_blocks] = cur_length;
+        cur_length = 0;
+        cmd_split->num_types = BROTLI_MAX(uint8_t, cmd_split->num_types,
+                                  cmd_split->types[cmd_split->num_blocks] + 1);
+        cmd_split->num_blocks++;
+        (*cur_block_decoder)++;
+      }
+      while (cur_pos >= cmd_split_decoder->positions_end[*cur_block_decoder]) {
+        cur_length = 0;
+        (*cur_block_decoder)++;
+      }
+
+      if (cur_pos >= cmd_split_decoder->positions_begin[*cur_block_decoder] &&
+          cur_pos < cmd_split_decoder->positions_end[*cur_block_decoder]) {
+        cur_length++;
+      } else {
+        // TODO: log that back refs are wrong
+      }
+      cur_pos += cmds[i].insert_len_ + CommandCopyLen(&cmds[i]);
+    }
+
+    if (cur_length > 0) {
+      if (types_mapping[cmd_split_decoder->types[*cur_block_decoder]] == -1) {
+        types_mapping[cmd_split_decoder->types[*cur_block_decoder]] =
+                                                            cmd_split->num_types;
+      }
+      cmd_split->types[cmd_split->num_blocks] =
+                    types_mapping[cmd_split_decoder->types[*cur_block_decoder]];
+      cmd_split->lengths[cmd_split->num_blocks] = cur_length;
+      cmd_split->num_types = BROTLI_MAX(uint8_t, cmd_split->num_types,
+                                    cmd_split->types[cmd_split->num_blocks] + 1);
+      cmd_split->num_blocks++;
+    }
+}
+
+
+
+void BrotliSplitBlockLiteralsFromStored(MemoryManager* m,
+                                        const Command* cmds,
+                                        const size_t num_commands,
+                                        const size_t pos,
+                                        const size_t mask,
+                                        BlockSplit* literal_split,
+                                        BlockSplitFromDecoder* literal_split_decoder,
+                                        size_t* cur_block_decoder) {
+  BROTLI_ENSURE_CAPACITY(
+      m, uint8_t, literal_split->types, literal_split->types_alloc_size,
+      literal_split_decoder->num_blocks);
+  BROTLI_ENSURE_CAPACITY(
+      m, uint32_t, literal_split->lengths, literal_split->lengths_alloc_size,
+      literal_split_decoder->num_blocks);
+  size_t cur_pos = pos;
+  literal_split->num_blocks = 0;
+  literal_split->num_types = 0;
+  size_t cur_length = 0;
+  int* types_mapping = (int*)malloc(sizeof(int) *
+                                              literal_split_decoder->num_types);
+  for (int i = 0; i < literal_split_decoder->num_types; ++i) {
+    types_mapping[i] = -1;
+  }
+
+  int i = 0;
+  while (i < num_commands) {
+    if (cur_pos >= literal_split_decoder->positions_end[*cur_block_decoder]) {
+      if (cur_length > 0) {
+        if (types_mapping[literal_split_decoder->types[*cur_block_decoder]] == -1) {
+          types_mapping[literal_split_decoder->types[*cur_block_decoder]] =
+                                                      literal_split->num_types;
+        }
+        literal_split->types[literal_split->num_blocks] =
+            types_mapping[literal_split_decoder->types[*cur_block_decoder]];
+        literal_split->lengths[literal_split->num_blocks] = cur_length;
+        cur_length = 0;
+        literal_split->num_types = BROTLI_MAX(uint8_t, literal_split->num_types,
+                          literal_split->types[literal_split->num_blocks] + 1);
+        literal_split->num_blocks++;
+      }
+      (*cur_block_decoder)++;
+
+    }
+    while (cur_pos >= literal_split_decoder->positions_end[*cur_block_decoder]) {
+      (*cur_block_decoder)++;
+    }
+    if (cur_pos < literal_split_decoder->positions_begin[*cur_block_decoder]) {
+      if (cur_pos + cmds[i].insert_len_ <=
+                  literal_split_decoder->positions_end[*cur_block_decoder]) {
+        cur_length += cur_pos + cmds[i].insert_len_ -
+                  literal_split_decoder->positions_begin[*cur_block_decoder];
+        cur_pos += cmds[i].insert_len_ + CommandCopyLen(&cmds[i]);
+        i++;
+      } else {
+        cur_length += literal_split_decoder->positions_end[*cur_block_decoder] -
+                      literal_split_decoder->positions_begin[*cur_block_decoder];
+        if (cur_length > 0) {
+          if (types_mapping[literal_split_decoder->types[*cur_block_decoder]] == -1) {
+            types_mapping[literal_split_decoder->types[*cur_block_decoder]] =
+                                                        literal_split->num_types;
+          }
+          literal_split->types[literal_split->num_blocks] =
+              types_mapping[literal_split_decoder->types[*cur_block_decoder]];
+          literal_split->lengths[literal_split->num_blocks] = cur_length;
+          cur_length = 0;
+          literal_split->num_types = BROTLI_MAX(uint8_t, literal_split->num_types,
+                            literal_split->types[literal_split->num_blocks] + 1);
+          literal_split->num_blocks++;
+        }
+        (*cur_block_decoder)++;
+      }
+    } else if (cur_pos < literal_split_decoder->positions_end[*cur_block_decoder]) {
+      if (cur_pos + cmds[i].insert_len_ <=
+                literal_split_decoder->positions_end[*cur_block_decoder]) {
+        cur_length += cmds[i].insert_len_;
+        cur_pos += cmds[i].insert_len_ + CommandCopyLen(&cmds[i]);
+        i++;
+      } else {
+        cur_length += literal_split_decoder->positions_end[*cur_block_decoder]
+                                                                      - cur_pos;
+        if (cur_length > 0) {
+          if (types_mapping[literal_split_decoder->types[*cur_block_decoder]] == -1) {
+            types_mapping[literal_split_decoder->types[*cur_block_decoder]] =
+                                                        literal_split->num_types;
+          }
+          literal_split->types[literal_split->num_blocks] =
+                  types_mapping[literal_split_decoder->types[*cur_block_decoder]];
+          literal_split->lengths[literal_split->num_blocks] = cur_length;
+          cur_length = 0;
+          literal_split->num_types = BROTLI_MAX(uint8_t, literal_split->num_types,
+                            literal_split->types[literal_split->num_blocks] + 1);
+          literal_split->num_blocks++;
+        }
+        (*cur_block_decoder)++;
+      }
+    }
+  }
+  if (cur_length > 0) {
+    if (types_mapping[literal_split_decoder->types[*cur_block_decoder]] == -1) {
+      types_mapping[literal_split_decoder->types[*cur_block_decoder]] =
+                                                        literal_split->num_types;
+    }
+    literal_split->types[literal_split->num_blocks] =
+                types_mapping[literal_split_decoder->types[*cur_block_decoder]];
+    literal_split->lengths[literal_split->num_blocks] = cur_length;
+    literal_split->num_types = BROTLI_MAX(uint8_t, literal_split->num_types,
+                            literal_split->types[literal_split->num_blocks] + 1);
+    literal_split->num_blocks++;
+  }
+}
+
 
 static BROTLI_INLINE uint32_t MyRand(uint32_t* seed) {
   /* Initial seed should be 7. In this case, loop length is (1 << 29). */
@@ -128,20 +312,33 @@ void BrotliSplitBlock(MemoryManager* m,
                       const BrotliEncoderParams* params,
                       BlockSplit* literal_split,
                       BlockSplit* insert_and_copy_split,
-                      BlockSplit* dist_split) {
+                      BlockSplit* dist_split,
+                      BlockSplitFromDecoder* literals_block_splits_decoder,
+                      size_t* current_block_literals,
+                      BlockSplitFromDecoder* cmds_block_splits_decoder,
+                      size_t* current_block_cmds) {
+
   {
     size_t literals_count = CountLiterals(cmds, num_commands);
     uint8_t* literals = BROTLI_ALLOC(m, uint8_t, literals_count);
     if (BROTLI_IS_OOM(m) || BROTLI_IS_NULL(literals)) return;
     /* Create a continuous array of literals. */
     CopyLiteralsToByteArray(cmds, num_commands, data, pos, mask, literals);
+
     /* Create the block split on the array of literals.
-       Literal histograms have alphabet size 256. */
-    SplitByteVectorLiteral(
-        m, literals, literals_count,
-        kSymbolsPerLiteralHistogram, kMaxLiteralHistograms,
-        kLiteralStrideLength, kLiteralBlockSwitchCost, params,
-        literal_split);
+-       Literal histograms have alphabet size 256. */
+    if (literals_block_splits_decoder == NULL) {
+      SplitByteVectorLiteral(
+          m, literals, literals_count,
+          kSymbolsPerLiteralHistogram, kMaxLiteralHistograms,
+          kLiteralStrideLength, kLiteralBlockSwitchCost, params,
+          literal_split);
+    } else {
+      BrotliSplitBlockLiteralsFromStored(m, cmds, num_commands, pos, mask,
+                                         literal_split,
+                                         literals_block_splits_decoder,
+                                         current_block_literals);
+    }
     if (BROTLI_IS_OOM(m)) return;
     BROTLI_FREE(m, literals);
   }
@@ -154,12 +351,20 @@ void BrotliSplitBlock(MemoryManager* m,
     for (i = 0; i < num_commands; ++i) {
       insert_and_copy_codes[i] = cmds[i].cmd_prefix_;
     }
+
     /* Create the block split on the array of command prefixes. */
-    SplitByteVectorCommand(
-        m, insert_and_copy_codes, num_commands,
-        kSymbolsPerCommandHistogram, kMaxCommandHistograms,
-        kCommandStrideLength, kCommandBlockSwitchCost, params,
-        insert_and_copy_split);
+    if (cmds_block_splits_decoder == NULL) {
+      SplitByteVectorCommand(
+          m, insert_and_copy_codes, num_commands,
+          kSymbolsPerCommandHistogram, kMaxCommandHistograms,
+          kCommandStrideLength, kCommandBlockSwitchCost, params,
+          insert_and_copy_split);
+    } else {
+      BrotliSplitBlockCommandsFromStored(m, cmds, num_commands, pos, mask,
+                                         insert_and_copy_split,
+                                         cmds_block_splits_decoder,
+                                         current_block_cmds);
+    }
     if (BROTLI_IS_OOM(m)) return;
     /* TODO: reuse for distances? */
     BROTLI_FREE(m, insert_and_copy_codes);
@@ -178,16 +383,23 @@ void BrotliSplitBlock(MemoryManager* m,
       }
     }
     /* Create the block split on the array of distance prefixes. */
-    SplitByteVectorDistance(
-        m, distance_prefixes, j,
-        kSymbolsPerDistanceHistogram, kMaxCommandHistograms,
-        kCommandStrideLength, kDistanceBlockSwitchCost, params,
-        dist_split);
+    if (literals_block_splits_decoder == NULL) {
+      SplitByteVectorDistance(
+          m, distance_prefixes, j,
+          kSymbolsPerDistanceHistogram, kMaxCommandHistograms,
+          kCommandStrideLength, kDistanceBlockSwitchCost, params,
+          dist_split);
+    } else {
+      SplitByteVectorDistance(
+          m, distance_prefixes, j,
+          kSymbolsPerDistanceHistogram, 1,
+          kCommandStrideLength, kDistanceBlockSwitchCost, params,
+          dist_split);
+    }
     if (BROTLI_IS_OOM(m)) return;
     BROTLI_FREE(m, distance_prefixes);
   }
 }
-
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }  /* extern "C" */

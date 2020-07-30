@@ -14,6 +14,7 @@
 
 #include <brotli/port.h>
 #include <brotli/types.h>
+#include "decode.h"
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
@@ -56,12 +57,6 @@ typedef enum BrotliEncoderMode {
   BROTLI_MODE_FONT = 2
 } BrotliEncoderMode;
 
-typedef struct BackwardReference {
-    int position;
-    int copy_len;
-    int distance;
-    int max_distance;
-} BackwardReference;
 
 /** Default value for ::BROTLI_PARAM_QUALITY parameter. */
 #define BROTLI_DEFAULT_QUALITY 11
@@ -321,8 +316,10 @@ BROTLI_ENC_API BROTLI_BOOL BrotliEncoderCompress(
     const uint8_t input_buffer[BROTLI_ARRAY_PARAM(input_size)],
     size_t* encoded_size,
     uint8_t encoded_buffer[BROTLI_ARRAY_PARAM(*encoded_size)],
-    BackwardReference** backward_references,
-    size_t back_refs_size);
+    BackwardReferenceFromDecoder** backward_references,
+    size_t back_refs_size, BlockSplitFromDecoder* literals_block_splits,
+    BlockSplitFromDecoder* insert_copy_length_block_splits);
+
 
 /**
  * Compresses input stream to output stream.

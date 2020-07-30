@@ -23,6 +23,7 @@ typedef struct FN(BlockSplitter) {
   double split_threshold_;
 
   size_t num_blocks_;
+  size_t num_types_;
   BlockSplit* split_;  /* not owned */
   HistogramType* histograms_;  /* not owned */
   size_t* histograms_size_;  /* not owned */
@@ -46,7 +47,7 @@ static void FN(InitBlockSplitter)(
     MemoryManager* m, FN(BlockSplitter)* self, size_t alphabet_size,
     size_t min_block_size, double split_threshold, size_t num_symbols,
     BlockSplit* split, HistogramType** histograms, size_t* histograms_size) {
-  size_t max_num_blocks = num_symbols / min_block_size + 1;
+  size_t max_num_blocks = BROTLI_MAX(size_t, 1024, num_symbols / min_block_size + 1);
   /* We have to allocate one more histogram than the maximum number of block
      types for the current histogram when the meta-block is too big. */
   size_t max_num_types =
@@ -135,7 +136,9 @@ static void FN(BlockSplitterFinishBlock)(
         FN(HistogramClear)(&histograms[self->curr_histogram_ix_]);
       self->block_size_ = 0;
       self->merge_last_count_ = 0;
+
       self->target_block_size_ = self->min_block_size_;
+
     } else if (diff[1] < diff[0] - 20.0) {
       /* Combine this block with second last block. */
       split->lengths[self->num_blocks_] = (uint32_t)self->block_size_;
