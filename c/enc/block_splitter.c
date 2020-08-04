@@ -93,6 +93,8 @@ void BrotliSplitBlockCommandsFromStored(MemoryManager* m,
     cmd_split->num_blocks = 0;
     cmd_split->num_types = 0;
     size_t cur_length = 0;
+    /* Mapping of the types from decoder (they increase with each metablock)
+       to the appropriate types */
     int* types_mapping = (int*)malloc(sizeof(int) * cmd_split_decoder->num_types);
     for (int i = 0; i < cmd_split_decoder->num_types; ++i) {
       types_mapping[i] = -1;
@@ -100,12 +102,19 @@ void BrotliSplitBlockCommandsFromStored(MemoryManager* m,
 
     for (int i = 0; i < num_commands; ++i) {
       const Command cmd = cmds[i];
+      /* If current command lies after the current block
+         that means we've finished the current block.
+         If some commands have fallen inside current block before
+         then need to save it*/
       if (cur_pos >= cmd_split_decoder->positions_end[*cur_block_decoder] &&
             cur_length > 0) {
+        /* If we haven't seen this decoder block type before
+          then save a mapping of it to a current num_types */
         if (types_mapping[cmd_split_decoder->types[*cur_block_decoder]] == -1) {
           types_mapping[cmd_split_decoder->types[*cur_block_decoder]] =
                                                           cmd_split->num_types;
         }
+        /* Map the decoder block type to an appropriate type */
         cmd_split->types[cmd_split->num_blocks] =
                     types_mapping[cmd_split_decoder->types[*cur_block_decoder]];
         cmd_split->lengths[cmd_split->num_blocks] = cur_length;
@@ -115,20 +124,23 @@ void BrotliSplitBlockCommandsFromStored(MemoryManager* m,
         cmd_split->num_blocks++;
         (*cur_block_decoder)++;
       }
+      /* Go through decoder blocks until a block with cur_pos inside is found */
       while (cur_pos >= cmd_split_decoder->positions_end[*cur_block_decoder]) {
         cur_length = 0;
         (*cur_block_decoder)++;
       }
-
+      /* If command lies inside current block then
+         increase an amount of commands inside current block*/
       if (cur_pos >= cmd_split_decoder->positions_begin[*cur_block_decoder] &&
           cur_pos < cmd_split_decoder->positions_end[*cur_block_decoder]) {
         cur_length++;
       } else {
         // TODO: log that back refs are wrong
       }
+      /* Shift cur_pos by the amount of symbols representing a command */
       cur_pos += cmds[i].insert_len_ + CommandCopyLen(&cmds[i]);
     }
-
+    /* Save the last in metablock block */
     if (cur_length > 0) {
       if (types_mapping[cmd_split_decoder->types[*cur_block_decoder]] == -1) {
         types_mapping[cmd_split_decoder->types[*cur_block_decoder]] =
@@ -163,6 +175,8 @@ void BrotliSplitBlockLiteralsFromStored(MemoryManager* m,
   literal_split->num_blocks = 0;
   literal_split->num_types = 0;
   size_t cur_length = 0;
+  /* Mapping of the types from decoder (they increase with each metablock)
+     to the appropriate types */
   int* types_mapping = (int*)malloc(sizeof(int) *
                                               literal_split_decoder->num_types);
   for (int i = 0; i < literal_split_decoder->num_types; ++i) {
@@ -171,12 +185,22 @@ void BrotliSplitBlockLiteralsFromStored(MemoryManager* m,
 
   int i = 0;
   while (i < num_commands) {
+    /* Considering an interval of literals for current command:
+       from cur_pos to cur_pos + insert_len*/
+
+    /* If current literals interval lies after the current block
+      that means we've finished the current block.
+      If some literals have fallen inside current block before
+      then need to save it*/
     if (cur_pos >= literal_split_decoder->positions_end[*cur_block_decoder]) {
       if (cur_length > 0) {
+        /* If we haven't seen this decoder block type before
+          then save a mapping of it to a current num_types */
         if (types_mapping[literal_split_decoder->types[*cur_block_decoder]] == -1) {
           types_mapping[literal_split_decoder->types[*cur_block_decoder]] =
                                                       literal_split->num_types;
         }
+        /* Map the decoder block type to an appropriate type */
         literal_split->types[literal_split->num_blocks] =
             types_mapping[literal_split_decoder->types[*cur_block_decoder]];
         literal_split->lengths[literal_split->num_blocks] = cur_length;
@@ -188,17 +212,26 @@ void BrotliSplitBlockLiteralsFromStored(MemoryManager* m,
       (*cur_block_decoder)++;
 
     }
+    /* Go through decoder blocks until a block with cur_pos inside is found */
     while (cur_pos >= literal_split_decoder->positions_end[*cur_block_decoder]) {
       (*cur_block_decoder)++;
     }
+    /* Means that the first part of literals interval is already saved
+       as a part of the previous block,
+       now only need to look at the second part */
     if (cur_pos < literal_split_decoder->positions_begin[*cur_block_decoder]) {
+      /* If literals interval ends inside the current block
+         then increase an amount of literals for the current block */
       if (cur_pos + cmds[i].insert_len_ <=
                   literal_split_decoder->positions_end[*cur_block_decoder]) {
         cur_length += cur_pos + cmds[i].insert_len_ -
                   literal_split_decoder->positions_begin[*cur_block_decoder];
         cur_pos += cmds[i].insert_len_ + CommandCopyLen(&cmds[i]);
         i++;
-      } else {
+      }
+      /* If literals interval ends after the current block
+         then we've finished the block and need to save it */
+      else {
         cur_length += literal_split_decoder->positions_end[*cur_block_decoder] -
                       literal_split_decoder->positions_begin[*cur_block_decoder];
         if (cur_length > 0) {
@@ -216,13 +249,21 @@ void BrotliSplitBlockLiteralsFromStored(MemoryManager* m,
         }
         (*cur_block_decoder)++;
       }
-    } else if (cur_pos < literal_split_decoder->positions_end[*cur_block_decoder]) {
+    }
+    /* If literals interval starts inside the current block
+       then look where it ends*/
+    else if (cur_pos < literal_split_decoder->positions_end[*cur_block_decoder]) {
+      /* If literals interval ends inside the current block
+         then increase an amount of literals for the current block */
       if (cur_pos + cmds[i].insert_len_ <=
                 literal_split_decoder->positions_end[*cur_block_decoder]) {
         cur_length += cmds[i].insert_len_;
         cur_pos += cmds[i].insert_len_ + CommandCopyLen(&cmds[i]);
         i++;
-      } else {
+      }
+      /* If literals interval ends after the current block
+         then we've finished the block and need to save it */
+      else {
         cur_length += literal_split_decoder->positions_end[*cur_block_decoder]
                                                                       - cur_pos;
         if (cur_length > 0) {
@@ -242,6 +283,7 @@ void BrotliSplitBlockLiteralsFromStored(MemoryManager* m,
       }
     }
   }
+  /* Save the last in metablock block */
   if (cur_length > 0) {
     if (types_mapping[literal_split_decoder->types[*cur_block_decoder]] == -1) {
       types_mapping[literal_split_decoder->types[*cur_block_decoder]] =
@@ -326,7 +368,8 @@ void BrotliSplitBlock(MemoryManager* m,
     CopyLiteralsToByteArray(cmds, num_commands, data, pos, mask, literals);
 
     /* Create the block split on the array of literals.
--       Literal histograms have alphabet size 256. */
+-       Literal histograms have alphabet size 256.
+       If have block splits from decoder then use them. */
     if (literals_block_splits_decoder == NULL) {
       SplitByteVectorLiteral(
           m, literals, literals_count,
@@ -352,7 +395,8 @@ void BrotliSplitBlock(MemoryManager* m,
       insert_and_copy_codes[i] = cmds[i].cmd_prefix_;
     }
 
-    /* Create the block split on the array of command prefixes. */
+    /* Create the block split on the array of command prefixes.
+       If have block splits from decoder then use them. */
     if (cmds_block_splits_decoder == NULL) {
       SplitByteVectorCommand(
           m, insert_and_copy_codes, num_commands,

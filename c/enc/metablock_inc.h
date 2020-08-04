@@ -183,4 +183,58 @@ static void FN(BlockSplitterAddSymbol)(FN(BlockSplitter)* self, size_t symbol) {
   }
 }
 
+/* Merge the current block according to it's known block type */
+static void FN(BlockSplitterStoredFinishBlock)(
+    FN(BlockSplitter)* self, BROTLI_BOOL is_final) {
+  BlockSplit* split = self->split_;
+  HistogramType* histograms = self->histograms_;
+  if (self->num_blocks_ == 0) {
+    /* Create a first block */
+    ++self->num_blocks_;
+    ++self->num_types_;
+    ++self->curr_histogram_ix_;
+    if (self->curr_histogram_ix_ < *self->histograms_size_)
+      FN(HistogramClear)(&histograms[self->curr_histogram_ix_]);
+    self->block_size_ = 0;
+  } else if (self->block_size_ > 0) {
+    uint8_t current_type = split->types[self->num_blocks_];
+    if (current_type == (uint8_t)self->num_types_) {
+      /* Create a new block type */
+      ++self->num_blocks_;
+      ++self->num_types_;
+      ++self->curr_histogram_ix_;
+      if (self->curr_histogram_ix_ < *self->histograms_size_)
+        FN(HistogramClear)(&histograms[self->curr_histogram_ix_]);
+      self->block_size_ = 0;
+      self->merge_last_count_ = 0;
+    } else {
+      /* Merge with the blocks of the same current_type block type */
+      HistogramType combined_histo;
+      combined_histo = histograms[self->curr_histogram_ix_];
+      FN(HistogramAddHistogram)(&combined_histo,
+          &histograms[current_type]);
+      histograms[current_type] = combined_histo;
+      ++self->num_blocks_;
+      self->block_size_ = 0;
+      FN(HistogramClear)(&histograms[self->curr_histogram_ix_]);
+      self->merge_last_count_ = 0;
+    }
+
+  }
+  if (is_final) {
+    *self->histograms_size_ = split->num_types;
+  }
+}
+
+/* Adds the next symbol to the current histogram. When the current histogram
+   reaches the block length, merge the block according to it's block type. */
+static void FN(BlockSplitterStoredAddSymbol)(FN(BlockSplitter)* self, size_t symbol) {
+  FN(HistogramAdd)(&self->histograms_[self->curr_histogram_ix_], symbol);
+
+  ++self->block_size_;
+  if (self->block_size_ == self->split_->lengths[self->num_blocks_]) {
+    FN(BlockSplitterStoredFinishBlock)(self, /* is_final = */ BROTLI_FALSE);
+  }
+}
+
 #undef HistogramType

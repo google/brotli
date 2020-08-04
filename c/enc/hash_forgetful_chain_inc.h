@@ -327,13 +327,15 @@ static BROTLI_INLINE void FN(FindLongestMatch)(
   out->len = 0;
   out->len_code_delta = 0;
 
+  /* Find a next position in backward_references that is >= cur_ix
+     backward_references array is sorted by positions */
   while (*back_refs_position < back_refs_size &&
         (*backward_references)[*back_refs_position].position < cur_ix) {
      ++(*back_refs_position);
   }
   if (back_refs_size != 0) {
-    /* If we have some backward reference stored for this position check it first
-       or if we have backward reference before that intersect with this position */
+    /* If we have some backward reference from decoder for this position
+       check it first */
     if (*back_refs_position < back_refs_size &&
        (*backward_references)[*back_refs_position].position == cur_ix) {
        const size_t backward = (size_t)(*backward_references)[*back_refs_position].distance;
@@ -344,6 +346,8 @@ static BROTLI_INLINE void FN(FindLongestMatch)(
                size_t len = FindMatchLengthWithLimit(&data[prev_ix],
                                                      &data[cur_ix_masked],
                                                      max_length);
+               /* Cut the found copy_len so it's no longer then copy_len
+                  from decoder */
                if (len > (*backward_references)[*back_refs_position].copy_len) {
                  len = (*backward_references)[*back_refs_position].copy_len;
                }
@@ -360,6 +364,9 @@ static BROTLI_INLINE void FN(FindLongestMatch)(
        }
     }
     else {
+      /* If we don't have backward reference for cur_ix position
+        try finding a reference in a usual way and cut copy_len
+        so it doesn't intersect with the next reference position */
       /* Try last distance first. */
       for (i = 0; i < NUM_LAST_DISTANCES_TO_CHECK; ++i) {
         const size_t backward = (size_t)distance_cache[i];
@@ -374,6 +381,7 @@ static BROTLI_INLINE void FN(FindLongestMatch)(
           size_t len = FindMatchLengthWithLimit(&data[prev_ix],
                                                       &data[cur_ix_masked],
                                                       max_length);
+          /* Cut the copy_len */
           if (*back_refs_position < back_refs_size && cur_ix + len > (*backward_references)[*back_refs_position].position) {
             len = (*backward_references)[*back_refs_position].position - cur_ix;
           }
@@ -415,6 +423,7 @@ static BROTLI_INLINE void FN(FindLongestMatch)(
             size_t len = FindMatchLengthWithLimit(&data[prev_ix],
                                                         &data[cur_ix_masked],
                                                         max_length);
+            /* Cut the copy_len */
             if (*back_refs_position < back_refs_size && cur_ix + len > (*backward_references)[*back_refs_position].position) {
               len = (*backward_references)[*back_refs_position].position - cur_ix;
             }
@@ -514,6 +523,8 @@ static BROTLI_INLINE void FN(FindLongestMatch)(
           self->common, &data[cur_ix_masked], max_length, dictionary_distance,
           max_distance, out, BROTLI_FALSE);
     } else {
+      /* If we have a reference to static dict from decoder for cur_ix position
+         find a dict word and transformation by copy_len and distance */
       if (*back_refs_position < back_refs_size && (*backward_references)[*back_refs_position].position == cur_ix &&
          (*backward_references)[*back_refs_position].distance > (*backward_references)[*back_refs_position].max_distance) {
         BROTLI_BOOL is_ok = GetStaticDictReference(cur_ix, (*backward_references)[*back_refs_position].distance,

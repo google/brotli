@@ -142,6 +142,7 @@ void BrotliDecoderStateMetablockBegin(BrotliDecoderState* s) {
   s->distance_hgroup.codes = NULL;
   s->distance_hgroup.htrees = NULL;
 
+  /* If needed save the start of a first in metablock block */
   if (s->save_info_for_recompression) {
     s->literals_block_splits.types[s->literals_block_splits.num_blocks] = s->literals_block_splits.num_types_prev_metablocks;
     s->literals_block_splits.positions_begin[s->literals_block_splits.num_blocks] = s->pos;
@@ -160,7 +161,10 @@ void BrotliDecoderStateCleanupAfterMetablock(BrotliDecoderState* s) {
   BROTLI_DECODER_FREE(s, s->literal_hgroup.htrees);
   BROTLI_DECODER_FREE(s, s->insert_copy_hgroup.htrees);
   BROTLI_DECODER_FREE(s, s->distance_hgroup.htrees);
+
+  /* If needed save the end of a last in metablock block */
   if (s->save_info_for_recompression) {
+    /* Save the end only if previously saved a start */
     if (s->saved_position_literals_begin) {
       s->literals_block_splits.positions_end[s->literals_block_splits.num_blocks] = s->pos;
       s->literals_block_splits.num_blocks++;

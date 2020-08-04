@@ -1218,15 +1218,17 @@ static BROTLI_INLINE BROTLI_BOOL DecodeLiteralBlockSwitchInternal(
   if (!DecodeBlockTypeAndLength(safe, s, 0)) {
     return BROTLI_FALSE;
   }
+  /* If needed save the end of a previous block and the start of a new block */
   if (s->save_info_for_recompression) {
+    /* Save the end only if previously saved a start */
     if (s->saved_position_literals_begin) {
       s->literals_block_splits.positions_end[s->literals_block_splits.num_blocks] = position;
       s->literals_block_splits.num_blocks++;
-      s->literals_block_splits.types[s->literals_block_splits.num_blocks] =
-                  s->block_type_rb[0 * 2 + 1] +
-                  s->literals_block_splits.num_types_prev_metablocks;
     }
     s->literals_block_splits.positions_begin[s->literals_block_splits.num_blocks] = position;
+    s->literals_block_splits.types[s->literals_block_splits.num_blocks] =
+                s->block_type_rb[0 * 2 + 1] +
+                s->literals_block_splits.num_types_prev_metablocks;
     s->literals_block_splits.num_types =
                         BROTLI_MAX(size_t, s->literals_block_splits.num_types,
                         s->literals_block_splits.types[s->literals_block_splits.num_blocks] + 1);
@@ -1252,15 +1254,17 @@ static BROTLI_INLINE BROTLI_BOOL DecodeCommandBlockSwitchInternal(
     return BROTLI_FALSE;
   }
   s->htree_command = s->insert_copy_hgroup.htrees[s->block_type_rb[3]];
+  /* If needed save the start of a previous block and the start of a new block */
   if (s->save_info_for_recompression) {
+    /* Save the end only if previously saved a start */
     if (s->saved_position_lengths_begin) {
       s->insert_copy_length_block_splits.positions_end[s->insert_copy_length_block_splits.num_blocks] = position;
       s->insert_copy_length_block_splits.num_blocks++;
-      s->insert_copy_length_block_splits.types[s->insert_copy_length_block_splits.num_blocks] =
-                  s->block_type_rb[3] +
-                  s->insert_copy_length_block_splits.num_types_prev_metablocks;
     }
     s->insert_copy_length_block_splits.positions_begin[s->insert_copy_length_block_splits.num_blocks] = position;
+    s->insert_copy_length_block_splits.types[s->insert_copy_length_block_splits.num_blocks] =
+                s->block_type_rb[3] +
+                s->insert_copy_length_block_splits.num_types_prev_metablocks;
     s->insert_copy_length_block_splits.num_types =
         BROTLI_MAX(size_t, s->insert_copy_length_block_splits.num_types,
         s->insert_copy_length_block_splits.types[s->insert_copy_length_block_splits.num_blocks] + 1);
@@ -1821,6 +1825,7 @@ CommandBegin:
   BROTLI_SAFE(ReadCommand(s, br, &i));
   BROTLI_LOG(("[ProcessCommandsInternal] pos = %d insert = %d copy = %d\n",
               pos, i, s->copy_length));
+  /* Save backward reference info if needed */
   if (s->save_info_for_recompression) {
     s->commands[s->commands_size].copy_len = s->copy_length;
   }
@@ -1938,6 +1943,7 @@ CommandPostDecodeLiterals:
     s->max_distance =
         (pos < s->max_backward_distance) ? pos : s->max_backward_distance;
   }
+  /* Save backward reference info if needed */
   if (s->save_info_for_recompression) {
     s->commands[s->commands_size].distance = s->distance_code;
     s->commands[s->commands_size].position = pos;
@@ -2139,7 +2145,7 @@ BrotliDecoderResult BrotliDecoderDecompressStream(
     size_t* available_out, uint8_t** next_out, size_t* total_out) {
   BrotliDecoderErrorCode result = BROTLI_DECODER_SUCCESS;
   BrotliBitReader* br = &s->br;
-  /* Will save a commands here to use for the recompression*/
+  /* Will save a commands here to use for the recompression */
   if (s->save_info_for_recompression && !s->commands) {
     s->commands = (BackwardReferenceFromDecoder*)BROTLI_DECODER_ALLOC(
          s, sizeof(BackwardReferenceFromDecoder) * (int)((float)*available_in));
