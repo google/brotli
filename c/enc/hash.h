@@ -201,6 +201,8 @@ static BROTLI_INLINE void SearchInStaticDictionary(
   }
 }
 
+/* By the distance and copy_len finds a word, transformation,
+   matchlen and len_code_delta */
 static BROTLI_INLINE BROTLI_BOOL GetStaticDictReference(const size_t cur_ix, const int distance,
                                                         const int copy_len, const size_t max_backward,
                                                         const BrotliEncoderDictionary* dictionary,

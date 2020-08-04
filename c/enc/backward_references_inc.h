@@ -58,6 +58,8 @@ static BROTLI_NOINLINE void EXPORT_FN(CreateBackwardReferences)(
       /* Found a match. Let's look for something even better ahead. */
       int delayed_backward_references_in_row = 0;
       --max_length;
+      /* If a reference from backward_references array was found
+         then just take it */
       if (!sr.used_stored) {
           for (;; --max_length) {
             const score_t cost_diff_lazy = 175;
@@ -82,6 +84,8 @@ static BROTLI_NOINLINE void EXPORT_FN(CreateBackwardReferences)(
               ++position;
               ++insert_length;
               sr = sr2;
+              /* If a reference from backward_references array was found
+                 then just take it */
               if (sr2.used_stored) {
                 ++delayed_backward_references_in_row;
                 break;

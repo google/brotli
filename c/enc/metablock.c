@@ -543,6 +543,7 @@ static void ContextBlockSplitterStoredFinishBlockLiterals(
   const size_t num_contexts = self->num_contexts_;
   HistogramLiteral* histograms = self->histograms_;
   if (self->num_blocks_ == 0) {
+    /* Create a first block */
     ++self->num_blocks_;
     ++self->num_types_;
     self->curr_histogram_ix_ += num_contexts;
@@ -552,20 +553,17 @@ static void ContextBlockSplitterStoredFinishBlockLiterals(
     }
     self->block_size_ = 0;
   } else if (self->block_size_ > 0) {
-    /* Try merging the set of histograms for the current block type with the
-       respective set of histograms for the last and second last block types.
-       Decide over the split based on the total reduction of entropy across
-       all contexts. */
     uint8_t current_type = split->types[self->num_blocks_];
     if (current_type >= split->num_types) {
       current_type = 0;
     }
 
     if (current_type == (uint8_t)self->num_types_) {
+      /* If max_block_types_ amount is reached merge with a block of type 0 */
       if (self->num_types_ >= self->max_block_types_) {
         current_type = 0;
         split->types[self->num_blocks_] = 0;
-        /*Merge with some of the previous blocks*/
+        /* Merge with the blocks of the same 0 block type */
         HistogramLiteral* combined_histo =
             BROTLI_ALLOC(m, HistogramLiteral, num_contexts);
         double combined_entropy[BROTLI_MAX_STATIC_CONTEXTS];
@@ -592,6 +590,7 @@ static void ContextBlockSplitterStoredFinishBlockLiterals(
         self->merge_last_count_ = 0;
         BROTLI_FREE(m, combined_histo);
       } else {
+        /* Create a new block type */
         ++self->num_blocks_;
         ++self->num_types_;
         self->curr_histogram_ix_ += num_contexts;
@@ -604,7 +603,7 @@ static void ContextBlockSplitterStoredFinishBlockLiterals(
         self->merge_last_count_ = 0;
       }
     } else {
-      /*Merge with some of the previous blocks*/
+      /* Merge with the blocks of the same current_type block type */
       HistogramLiteral* combined_histo =
           BROTLI_ALLOC(m, HistogramLiteral, num_contexts);
       double combined_entropy[BROTLI_MAX_STATIC_CONTEXTS];
@@ -636,106 +635,107 @@ static void ContextBlockSplitterStoredFinishBlockLiterals(
   }
 }
 
-static void BlockSplitterStoredFinishBlockCommands(
-    BlockSplitterCommand* self, BROTLI_BOOL is_final) {
-  BlockSplit* split = self->split_;
-  HistogramCommand* histograms = self->histograms_;
-  if (self->num_blocks_ == 0) {
-    ++self->num_blocks_;
-    ++self->num_types_;
-    ++self->curr_histogram_ix_;
-    if (self->curr_histogram_ix_ < *self->histograms_size_)
-      HistogramClearCommand(&histograms[self->curr_histogram_ix_]);
-    self->block_size_ = 0;
-  } else if (self->block_size_ > 0) {
-    uint8_t current_type = split->types[self->num_blocks_];
-    if (current_type == (uint8_t)self->num_types_) {
-      ++self->num_blocks_;
-      ++self->num_types_;
-      ++self->curr_histogram_ix_;
-      if (self->curr_histogram_ix_ < *self->histograms_size_)
-        HistogramClearCommand(&histograms[self->curr_histogram_ix_]);
-      self->block_size_ = 0;
-      self->merge_last_count_ = 0;
-    } else {
-      /*Merge with some of the previous blocks*/
-      HistogramCommand combined_histo;
-      combined_histo = histograms[self->curr_histogram_ix_];
-      HistogramAddHistogramCommand(&combined_histo,
-          &histograms[current_type]);
-      histograms[current_type] = combined_histo;
+// static void BlockSplitterStoredFinishBlockCommands(
+//     BlockSplitterCommand* self, BROTLI_BOOL is_final) {
+//   BlockSplit* split = self->split_;
+//   HistogramCommand* histograms = self->histograms_;
+//   if (self->num_blocks_ == 0) {
+//     /* Create a first block */
+//     ++self->num_blocks_;
+//     ++self->num_types_;
+//     ++self->curr_histogram_ix_;
+//     if (self->curr_histogram_ix_ < *self->histograms_size_)
+//       HistogramClearCommand(&histograms[self->curr_histogram_ix_]);
+//     self->block_size_ = 0;
+//   } else if (self->block_size_ > 0) {
+//     uint8_t current_type = split->types[self->num_blocks_];
+//     if (current_type == (uint8_t)self->num_types_) {
+//       ++self->num_blocks_;
+//       ++self->num_types_;
+//       ++self->curr_histogram_ix_;
+//       if (self->curr_histogram_ix_ < *self->histograms_size_)
+//         HistogramClearCommand(&histograms[self->curr_histogram_ix_]);
+//       self->block_size_ = 0;
+//       self->merge_last_count_ = 0;
+//     } else {
+//       /*Merge with some of the previous blocks*/
+//       HistogramCommand combined_histo;
+//       combined_histo = histograms[self->curr_histogram_ix_];
+//       HistogramAddHistogramCommand(&combined_histo,
+//           &histograms[current_type]);
+//       histograms[current_type] = combined_histo;
+//
+//       ++self->num_blocks_;
+//       self->block_size_ = 0;
+//       HistogramClearCommand(&histograms[self->curr_histogram_ix_]);
+//       self->merge_last_count_ = 0;
+//     }
+//
+//   }
+//   if (is_final) {
+//     *self->histograms_size_ = split->num_types;
+//   }
+// }
 
-      ++self->num_blocks_;
-      self->block_size_ = 0;
-      HistogramClearCommand(&histograms[self->curr_histogram_ix_]);
-      self->merge_last_count_ = 0;
-    }
+// static void BlockSplitterStoredFinishBlockLiterals(
+//     BlockSplitterLiteral* self, BROTLI_BOOL is_final) {
+//   BlockSplit* split = self->split_;
+//   HistogramLiteral* histograms = self->histograms_;
+//   if (self->num_blocks_ == 0) {
+//     ++self->num_blocks_;
+//     ++self->num_types_;
+//     ++self->curr_histogram_ix_;
+//     if (self->curr_histogram_ix_ < *self->histograms_size_)
+//       HistogramClearLiteral(&histograms[self->curr_histogram_ix_]);
+//     self->block_size_ = 0;
+//   } else if (self->block_size_ > 0) {
+//     uint8_t current_type = split->types[self->num_blocks_];
+//     if (current_type == (uint8_t)self->num_types_) {
+//       ++self->num_blocks_;
+//       ++self->num_types_;
+//       ++self->curr_histogram_ix_;
+//       if (self->curr_histogram_ix_ < *self->histograms_size_)
+//         HistogramClearLiteral(&histograms[self->curr_histogram_ix_]);
+//       self->block_size_ = 0;
+//       self->merge_last_count_ = 0;
+//     } else {
+//       /*Merge with some of the previous blocks*/
+//       HistogramLiteral combined_histo;
+//       combined_histo = histograms[self->curr_histogram_ix_];
+//       HistogramAddHistogramLiteral(&combined_histo,
+//           &histograms[current_type]);
+//       histograms[current_type] = combined_histo;
+//       ++self->num_blocks_;
+//       self->block_size_ = 0;
+//       HistogramClearLiteral(&histograms[self->curr_histogram_ix_]);
+//       self->merge_last_count_ = 0;
+//     }
+//
+//   }
+//   if (is_final) {
+//     *self->histograms_size_ = split->num_types;
+//   }
+// }
 
-  }
-  if (is_final) {
-    *self->histograms_size_ = split->num_types;
-  }
-}
-
-static void BlockSplitterStoredFinishBlockLiterals(
-    BlockSplitterLiteral* self, BROTLI_BOOL is_final) {
-  BlockSplit* split = self->split_;
-  HistogramLiteral* histograms = self->histograms_;
-  if (self->num_blocks_ == 0) {
-    ++self->num_blocks_;
-    ++self->num_types_;
-    ++self->curr_histogram_ix_;
-    if (self->curr_histogram_ix_ < *self->histograms_size_)
-      HistogramClearLiteral(&histograms[self->curr_histogram_ix_]);
-    self->block_size_ = 0;
-  } else if (self->block_size_ > 0) {
-    uint8_t current_type = split->types[self->num_blocks_];
-    if (current_type == (uint8_t)self->num_types_) {
-      ++self->num_blocks_;
-      ++self->num_types_;
-      ++self->curr_histogram_ix_;
-      if (self->curr_histogram_ix_ < *self->histograms_size_)
-        HistogramClearLiteral(&histograms[self->curr_histogram_ix_]);
-      self->block_size_ = 0;
-      self->merge_last_count_ = 0;
-    } else {
-      /*Merge with some of the previous blocks*/
-      HistogramLiteral combined_histo;
-      combined_histo = histograms[self->curr_histogram_ix_];
-      HistogramAddHistogramLiteral(&combined_histo,
-          &histograms[current_type]);
-      histograms[current_type] = combined_histo;
-      ++self->num_blocks_;
-      self->block_size_ = 0;
-      HistogramClearLiteral(&histograms[self->curr_histogram_ix_]);
-      self->merge_last_count_ = 0;
-    }
-
-  }
-  if (is_final) {
-    *self->histograms_size_ = split->num_types;
-  }
-}
-
-static void BlockSplitterStoredAddSymbolCommand(BlockSplitterCommand* self,
-                                                size_t symbol) {
-
-  HistogramAddCommand(&self->histograms_[self->curr_histogram_ix_], symbol);
-  ++self->block_size_;
-
-  if (self->block_size_ == self->split_->lengths[self->num_blocks_]) {
-    BlockSplitterStoredFinishBlockCommands(self, /* is_final = */ BROTLI_FALSE);
-  }
-}
-
-static void BlockSplitterStoredAddSymbolLiterals(BlockSplitterLiteral* self, size_t symbol) {
-  HistogramAddLiteral(&self->histograms_[self->curr_histogram_ix_], symbol);
-
-  ++self->block_size_;
-  if (self->block_size_ == self->split_->lengths[self->num_blocks_]) {
-    BlockSplitterStoredFinishBlockLiterals(self, /* is_final = */ BROTLI_FALSE);
-  }
-}
+// static void BlockSplitterStoredAddSymbolCommand(BlockSplitterCommand* self,
+//                                                 size_t symbol) {
+//
+//   HistogramAddCommand(&self->histograms_[self->curr_histogram_ix_], symbol);
+//   ++self->block_size_;
+//
+//   if (self->block_size_ == self->split_->lengths[self->num_blocks_]) {
+//     BlockSplitterStoredFinishBlockCommands(self, /* is_final = */ BROTLI_FALSE);
+//   }
+// }
+//
+// static void BlockSplitterStoredAddSymbolLiterals(BlockSplitterLiteral* self, size_t symbol) {
+//   HistogramAddLiteral(&self->histograms_[self->curr_histogram_ix_], symbol);
+//
+//   ++self->block_size_;
+//   if (self->block_size_ == self->split_->lengths[self->num_blocks_]) {
+//     BlockSplitterStoredFinishBlockLiterals(self, /* is_final = */ BROTLI_FALSE);
+//   }
+// }
 
 static void ContextBlockSplitterStoredAddSymbolLiterals(
     ContextBlockSplitter* self, MemoryManager* m,
@@ -779,6 +779,7 @@ static BROTLI_INLINE void BrotliBuildMetaBlockGreedyInternal(
         num_literals, &mb->literal_split, &mb->literal_histograms,
         &mb->literal_histograms_size);
   }
+  /* If have block splits for literals from decoder then save it in a split */
   if (literals_block_splits_decoder != NULL) {
     if (num_contexts == 1) {
       lit_blocks.plain.num_types_ = 0;
@@ -806,6 +807,7 @@ static BROTLI_INLINE void BrotliBuildMetaBlockGreedyInternal(
       &mb->distance_histograms_size);
   if (BROTLI_IS_OOM(m)) return;
 
+  /* If have block splits for commands from decoder then save it in a split */
   if (cmds_block_splits_decoder != NULL) {
     cmd_blocks.num_types_ = 0;
     BrotliSplitBlockCommandsFromStored(m, commands, n_commands, pos, mask,
@@ -827,7 +829,9 @@ static BROTLI_INLINE void BrotliBuildMetaBlockGreedyInternal(
       uint8_t literal = ringbuffer[pos & mask];
       if (num_contexts == 1) {
         if (literals_block_splits_decoder != NULL) {
-          BlockSplitterStoredAddSymbolLiterals(&lit_blocks.plain, literal);
+          /* For usage of stored block splits need to combine blocks
+             accordingly to their already known block types */
+          BlockSplitterStoredAddSymbolLiteral(&lit_blocks.plain, literal);
         } else {
           BlockSplitterAddSymbolLiteral(&lit_blocks.plain, literal);
         }
@@ -835,6 +839,8 @@ static BROTLI_INLINE void BrotliBuildMetaBlockGreedyInternal(
         size_t context =
             BROTLI_CONTEXT(prev_byte, prev_byte2, literal_context_lut);
         if (literals_block_splits_decoder != NULL) {
+          /* For usage of stored block splits need to combine blocks
+             accordingly to their already known block types */
           ContextBlockSplitterStoredAddSymbolLiterals(&lit_blocks.ctx, m, literal,
                                                       static_context_map[context]);
         } else {
@@ -859,7 +865,7 @@ static BROTLI_INLINE void BrotliBuildMetaBlockGreedyInternal(
 
   if (num_contexts == 1) {
     if (literals_block_splits_decoder != NULL) {
-      BlockSplitterStoredFinishBlockLiterals(
+      BlockSplitterStoredFinishBlockLiteral(
         &lit_blocks.plain, /* is_final = */ BROTLI_TRUE);
     } else {
       BlockSplitterFinishBlockLiteral(
@@ -878,7 +884,7 @@ static BROTLI_INLINE void BrotliBuildMetaBlockGreedyInternal(
   }
 
   if (cmds_block_splits_decoder != NULL) {
-    BlockSplitterStoredFinishBlockCommands(&cmd_blocks, /* is_final = */ BROTLI_TRUE);
+    BlockSplitterStoredFinishBlockCommand(&cmd_blocks, /* is_final = */ BROTLI_TRUE);
   } else {
     BlockSplitterFinishBlockCommand(&cmd_blocks, /* is_final = */ BROTLI_TRUE);
   }

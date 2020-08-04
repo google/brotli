@@ -253,8 +253,11 @@ BROTLI_INTERNAL void FN(BrotliClusterHistograms)(
   uint32_t* cluster_size = BROTLI_ALLOC(m, uint32_t, in_size);
   uint32_t* clusters = BROTLI_ALLOC(m, uint32_t, in_size);
   size_t num_clusters = 0;
-  const size_t max_input_histograms = 16;
-  size_t pairs_capacity = max_input_histograms / 4;
+  const size_t max_input_histograms = 64;
+  size_t pairs_capacity = max_input_histograms * max_input_histograms / 2;
+  // const size_t max_input_histograms = 16;
+  // size_t pairs_capacity = max_input_histograms / 4;
+
   /* For the first pass of clustering, we allow all pairs. */
   HistogramPair* pairs = BROTLI_ALLOC(m, HistogramPair, pairs_capacity + 1);
   size_t i;
@@ -293,7 +296,9 @@ BROTLI_INTERNAL void FN(BrotliClusterHistograms)(
   {
     /* For the second pass, we limit the total number of histogram pairs.
        After this limit is reached, we only keep searching for the best pair. */
-    size_t max_num_pairs = num_clusters;
+    size_t max_num_pairs = BROTLI_MIN(size_t,
+        64 * num_clusters, (num_clusters / 2) * num_clusters);
+    // size_t max_num_pairs = num_clusters;
     BROTLI_ENSURE_CAPACITY(
         m, HistogramPair, pairs, pairs_capacity, max_num_pairs + 1);
     if (BROTLI_IS_OOM(m)) return;
