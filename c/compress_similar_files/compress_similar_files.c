@@ -282,7 +282,7 @@ BROTLI_BOOL BrotliEncoderCompressSimilarDeletion(
   return BrotliEncoderCompress(quality, lgwin, mode,
                                removed_data_size, removed_data,
                                encoded_size, encoded_buffer,
-                               &new_backward_references,
+                               new_backward_references,
                                new_backward_references_size,
                                &new_literals_block_splits,
                                &new_insert_copy_length_block_splits);

@@ -7,7 +7,6 @@
 #ifndef BROTLI_TEST_HELPER
 #define BROTLI_TEST_HELPER
 
-#include "../third_party/Unity/src/unity.h"
 #include <brotli/encode.h>
 #include <brotli/decode.h>
 #include "../enc/block_splitter.c"
@@ -61,12 +60,13 @@ int CountUniqueElements(uint8_t* array, size_t length) {
      return unique_count;
 }
 
-bool BrotliDecompress(const unsigned char* input_data, size_t input_size, unsigned char* output_data,
-                        size_t* output_buffer_size, bool save_commands,
-                        BackwardReferenceFromDecoder** backward_references,
-                        size_t* back_refs_size,
-                        BlockSplitFromDecoder* literals_block_splits,
-                        BlockSplitFromDecoder* insert_copy_length_block_splits) {
+bool BrotliDecompress(const unsigned char* input_data, size_t input_size,
+                      unsigned char* output_data,
+                      size_t* output_buffer_size, bool save_commands,
+                      BackwardReferenceFromDecoder** backward_references,
+                      size_t* back_refs_size,
+                      BlockSplitFromDecoder* literals_block_splits,
+                      BlockSplitFromDecoder* insert_copy_length_block_splits) {
   BROTLI_BOOL save_brotli_commands = BROTLI_FALSE;
   if (save_commands) {
     save_brotli_commands = BROTLI_TRUE;
@@ -80,11 +80,12 @@ bool BrotliDecompress(const unsigned char* input_data, size_t input_size, unsign
   return true;
 }
 
-size_t BrotliCompress(int level, int window, const unsigned char* input_data, size_t input_size,
-                      unsigned char* output_data, size_t* output_buffer_size,
-                      BackwardReferenceFromDecoder** backward_references, size_t back_refs_size,
-                      BlockSplitFromDecoder* literals_block_splits,
-                      BlockSplitFromDecoder* insert_copy_length_block_splits) {
+size_t BrotliCompress(
+    int level, int window, const unsigned char* input_data, size_t input_size,
+    unsigned char* output_data, size_t* output_buffer_size,
+    const BackwardReferenceFromDecoder* backward_references, size_t back_refs_size,
+    const BlockSplitFromDecoder* literals_block_splits,
+    const BlockSplitFromDecoder* insert_copy_length_block_splits) {
   if (!BrotliEncoderCompress(level, window, BROTLI_MODE_GENERIC, input_size, input_data,
                              output_buffer_size, output_data, backward_references,
                              back_refs_size, literals_block_splits,
@@ -109,7 +110,7 @@ bool BrotliCompressDecompress(const unsigned char* input_data, size_t input_size
   BlockSplitFromDecoder* insert_copy_length_block_splits_ = NULL;
   if (!BrotliCompress(level, window, input_data, input_size,
                       compressed_data, &compressed_buffer_size,
-                      &backward_references_, back_refs_size_,
+                      backward_references_, back_refs_size_,
                       literals_block_splits_,
                       insert_copy_length_block_splits_)) {
     return false;
@@ -120,6 +121,40 @@ bool BrotliCompressDecompress(const unsigned char* input_data, size_t input_size
                         decompressed_data, &decopressed_size, true,
                         backward_references, back_refs_size,
                         literals_block_splits, insert_copy_length_block_splits)) {
+    return false;
+  }
+  return true;
+}
+
+bool BrotliCompressDecompressReusage(const unsigned char* input_data,
+                 size_t input_size, int level,
+                 BackwardReferenceFromDecoder* backward_references,
+                 size_t back_refs_size,
+                 BlockSplitFromDecoder* literals_block_splits,
+                 BlockSplitFromDecoder* insert_copy_length_block_splits,
+                 unsigned char** decompressed_data,
+                 size_t* decopressed_size) {
+  size_t compressed_buffer_size = input_size * 3;
+  unsigned char* compressed_data = (unsigned char*) malloc(compressed_buffer_size);
+  int window = MinWindowLargerThanFile(input_size, DEFAULT_WINDOW);
+  if (!BrotliCompress(level, window, input_data, input_size,
+                      compressed_data, &compressed_buffer_size,
+                      backward_references, back_refs_size,
+                      literals_block_splits,
+                      insert_copy_length_block_splits)) {
+    return false;
+  }
+  *decopressed_size = input_size;
+  *decompressed_data = (unsigned char*) malloc(*decopressed_size);
+  BackwardReferenceFromDecoder* backward_references_;
+  size_t back_refs_size_;
+  BlockSplitFromDecoder literals_block_splits_;
+  BlockSplitFromDecoder insert_copy_length_block_splits_;
+  if (!BrotliDecompress(compressed_data, compressed_buffer_size,
+                        *decompressed_data, decopressed_size, true,
+                        &backward_references_, &back_refs_size_,
+                        &literals_block_splits_,
+                        &insert_copy_length_block_splits_)) {
     return false;
   }
   return true;
@@ -154,11 +189,12 @@ bool GetBlockSplits(const unsigned char* input_data, size_t input_size,
   return true;
 }
 
-bool GetNewBackwardReferences(const unsigned char* input_data, size_t input_size,
-                             int level, int start, int end,
-                             BackwardReferenceFromDecoder** new_backward_references,
-                             size_t* new_backward_references_size,
-                             unsigned char** removed_data, size_t* removed_data_size) {
+bool GetNewBackwardReferences(
+               const unsigned char* input_data, size_t input_size,
+               int level, int start, int end,
+               BackwardReferenceFromDecoder** new_backward_references,
+               size_t* new_backward_references_size,
+               unsigned char** removed_data, size_t* removed_data_size) {
   BlockSplitFromDecoder literals_block_splits;
   BlockSplitFromDecoder insert_copy_length_block_splits;
   BackwardReferenceFromDecoder* backward_references;

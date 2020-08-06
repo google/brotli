@@ -94,7 +94,6 @@ typedef struct {
   BROTLI_BOOL test_integrity;
   BROTLI_BOOL decompress;
   BROTLI_BOOL large_window;
-  BROTLI_BOOL save_info_for_recompression;
   const char* output_path;
   const char* suffix;
   int not_input_indices[MAX_OPTIONS];
@@ -427,12 +426,6 @@ static Command ParseParams(Context* params) {
           return COMMAND_INVALID;
         }
         params->verbosity = 1;
-      } else if (strcmp("save-info", arg) == 0) {
-        if (params->save_info_for_recompression > 0) {
-          fprintf(stderr, "argument --save-info / -v already set\n");
-          return COMMAND_INVALID;
-        }
-        params->save_info_for_recompression = 1;
       } else if (strcmp("version", arg) == 0) {
         /* Don't parse further. */
         return COMMAND_VERSION;
@@ -574,8 +567,6 @@ static void PrintHelp(const char* name, BROTLI_BOOL error) {
 "                              with brotli RFC 7932 and may not be\n"
 "                              decodable with regular brotli decoders\n",
           BROTLI_MIN_WINDOW_BITS, BROTLI_LARGE_MAX_WINDOW_BITS);
-  fprintf(media,
-"  --save-info                 whether to save backward references during decompression\n");
   fprintf(media,
 "  -S SUF, --suffix=SUF        output file suffix (default:'%s')\n",
           DEFAULT_SUFFIX);
@@ -927,11 +918,7 @@ static BROTLI_BOOL DecompressFiles(Context* context) {
        fragmentation (new builds decode streams that old builds don't),
        it is better from used experience perspective. */
     BrotliDecoderSetParameter(s, BROTLI_DECODER_PARAM_LARGE_WINDOW, 1u);
-    if (context->save_info_for_recompression) {
-      BrotliDecoderSetParameter(s, BROTLI_DECODER_PARAM_SAVE_INFO, 1u);
-    } else {
-      BrotliDecoderSetParameter(s, BROTLI_DECODER_PARAM_SAVE_INFO, 0u);
-    }
+    BrotliDecoderSetParameter(s, BROTLI_DECODER_PARAM_LARGE_WINDOW, 0u);
     is_ok = OpenFiles(context);
     if (is_ok && !context->current_input_path &&
         !context->force_overwrite && isatty(STDIN_FILENO)) {
@@ -939,9 +926,6 @@ static BROTLI_BOOL DecompressFiles(Context* context) {
       is_ok = BROTLI_FALSE;
     }
     if (is_ok) is_ok = DecompressFile(context, s);
-    if (context->save_info_for_recompression) {
-      SaveCommandsToFile(s);
-    }
     BrotliDecoderDestroyInstance(s);
     if (!CloseFiles(context, is_ok)) is_ok = BROTLI_FALSE;
     if (!is_ok) return BROTLI_FALSE;
@@ -1051,7 +1035,6 @@ int main(int argc, char** argv) {
   context.write_to_stdout = BROTLI_FALSE;
   context.decompress = BROTLI_FALSE;
   context.large_window = BROTLI_FALSE;
-  context.save_info_for_recompression = BROTLI_FALSE;
   context.output_path = NULL;
   context.suffix = DEFAULT_SUFFIX;
   for (i = 0; i < MAX_OPTIONS; ++i) context.not_input_indices[i] = 0;

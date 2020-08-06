@@ -13,7 +13,7 @@ static BROTLI_NOINLINE void EXPORT_FN(CreateBackwardReferences)(
     ContextLut literal_context_lut, const BrotliEncoderParams* params,
     Hasher* hasher, int* dist_cache, size_t* last_insert_len,
     Command* commands, size_t* num_commands, size_t* num_literals,
-    BackwardReferenceFromDecoder** backward_references,
+    const BackwardReferenceFromDecoder* backward_references,
     size_t* back_refs_position, size_t back_refs_size) {
   HASHER()* privat = &hasher->privat.FN(_);
   /* Set maximum distance, see section 9.1. of the spec. */

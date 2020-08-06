@@ -250,6 +250,35 @@ static BROTLI_INLINE BROTLI_BOOL GetStaticDictReference(const size_t cur_ix, con
   return BROTLI_TRUE;
 }
 
+static BROTLI_INLINE void FindBackwardReferenceFromDecoder(
+              const uint8_t* BROTLI_RESTRICT data, const size_t ring_buffer_mask,
+              const size_t cur_ix, const size_t cur_ix_masked, const size_t max_length,
+              const BackwardReferenceFromDecoder* backward_references,
+              size_t* back_refs_position, const size_t back_refs_size,
+              HasherSearchResult* BROTLI_RESTRICT out) {
+    const size_t backward = (size_t)backward_references[*back_refs_position].distance;
+    size_t prev_ix = (cur_ix - backward);
+    if (prev_ix < cur_ix && backward <= backward_references[*back_refs_position].max_distance) {
+        prev_ix &= ring_buffer_mask;
+        {
+            size_t len = FindMatchLengthWithLimit(&data[prev_ix],
+                                                  &data[cur_ix_masked],
+                                                  max_length);
+            /* Cut the found copy_len so it's no longer then copy_len
+               from decoder */
+            if (len > backward_references[*back_refs_position].copy_len) {
+              len = backward_references[*back_refs_position].copy_len;
+            }
+            score_t score = BackwardReferenceScore(len, backward);
+            out->len = len;
+            out->distance = backward;
+            out->score = score;
+            out->used_stored = BROTLI_TRUE;
+            return;
+        }
+    }
+}
+
 typedef struct BackwardMatch {
   uint32_t distance;
   uint32_t length_and_code;

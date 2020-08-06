@@ -71,21 +71,22 @@ static BROTLI_INLINE void DestroyMetaBlockSplit(
    The distance parameters are dynamically selected based on the commands
    which get recomputed under the new distance parameters. The new distance
    parameters are stored into *params. */
-BROTLI_INTERNAL void BrotliBuildMetaBlock(MemoryManager* m,
-                                          const uint8_t* ringbuffer,
-                                          const size_t pos,
-                                          const size_t mask,
-                                          BrotliEncoderParams* params,
-                                          uint8_t prev_byte,
-                                          uint8_t prev_byte2,
-                                          Command* cmds,
-                                          size_t num_commands,
-                                          ContextType literal_context_mode,
-                                          BlockSplitFromDecoder* literals_block_splits,
-                                          size_t* current_block_literals,
-                                          BlockSplitFromDecoder* cmds_block_splits,
-                                          size_t* current_block_cmds,
-                                          MetaBlockSplit* mb);
+BROTLI_INTERNAL void BrotliBuildMetaBlock(
+                            MemoryManager* m,
+                            const uint8_t* ringbuffer,
+                            const size_t pos,
+                            const size_t mask,
+                            BrotliEncoderParams* params,
+                            uint8_t prev_byte,
+                            uint8_t prev_byte2,
+                            Command* cmds,
+                            size_t num_commands,
+                            ContextType literal_context_mode,
+                            const BlockSplitFromDecoder* literals_block_splits,
+                            size_t* current_block_literals,
+                            const BlockSplitFromDecoder* cmds_block_splits,
+                            size_t* current_block_cmds,
+                            MetaBlockSplit* mb);
 
 /* Uses a fast greedy block splitter that tries to merge current block with the
    last or the second last block and uses a static context clustering which
@@ -95,8 +96,9 @@ BROTLI_INTERNAL void BrotliBuildMetaBlockGreedy(
     uint8_t prev_byte, uint8_t prev_byte2, ContextLut literal_context_lut,
     size_t num_contexts, const uint32_t* static_context_map,
     const Command* commands, size_t n_commands,
-    BlockSplitFromDecoder* literals_block_splits, size_t* current_block_litarals,
-    BlockSplitFromDecoder* cmds_block_splits, size_t* current_block_cmds,
+    const BlockSplitFromDecoder* literals_block_splits,
+    size_t* current_block_litarals,
+    const BlockSplitFromDecoder* cmds_block_splits, size_t* current_block_cmds,
     MetaBlockSplit* mb);
 
 BROTLI_INTERNAL void BrotliOptimizeHistograms(uint32_t num_distance_codes,

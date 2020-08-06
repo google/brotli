@@ -113,8 +113,8 @@ static BROTLI_INLINE void FN(FindLongestMatch)(
     const int* BROTLI_RESTRICT distance_cache, const size_t cur_ix,
     const size_t max_length, const size_t max_backward,
     const size_t dictionary_distance, const size_t max_distance,
-    BackwardReferenceFromDecoder** backward_references,
-    size_t* back_refs_position, size_t back_refs_size,
+    const BackwardReferenceFromDecoder* backward_references,
+    size_t* back_refs_position, const size_t back_refs_size,
     HasherSearchResult* BROTLI_RESTRICT out) {
   FN_A(FindLongestMatch)(&self->ha, dictionary, data, ring_buffer_mask,
       distance_cache, cur_ix, max_length, max_backward, dictionary_distance,

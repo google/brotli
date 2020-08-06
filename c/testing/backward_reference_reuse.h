@@ -24,7 +24,7 @@ bool TestReusageRateSameFile(unsigned char* input_data, size_t input_size, int l
   BlockSplitFromDecoder* insert_copy_length_block_splits_ = NULL;
   if (!BrotliCompress(level, window, input_data, input_size,
                       compressed_data, &compressed_buffer_size,
-                      &backward_references, back_refs_size,
+                      backward_references, back_refs_size,
                       literals_block_splits_,
                       insert_copy_length_block_splits_)) {
     return false;
@@ -84,7 +84,7 @@ bool TestReusageRateNewFile(unsigned char* input_data, size_t input_size, int le
   BlockSplitFromDecoder* insert_copy_length_block_splits_ = NULL;
   if (!BrotliCompress(level, window, removed_data, removed_data_size,
                       compressed_data, &compressed_buffer_size,
-                      &backward_references, back_refs_size,
+                      backward_references, back_refs_size,
                       literals_block_splits_,
                       insert_copy_length_block_splits_)) {
     return false;

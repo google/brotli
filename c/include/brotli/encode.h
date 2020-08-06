@@ -316,9 +316,10 @@ BROTLI_ENC_API BROTLI_BOOL BrotliEncoderCompress(
     const uint8_t input_buffer[BROTLI_ARRAY_PARAM(input_size)],
     size_t* encoded_size,
     uint8_t encoded_buffer[BROTLI_ARRAY_PARAM(*encoded_size)],
-    BackwardReferenceFromDecoder** backward_references,
-    size_t back_refs_size, BlockSplitFromDecoder* literals_block_splits,
-    BlockSplitFromDecoder* insert_copy_length_block_splits);
+    const BackwardReferenceFromDecoder* backward_references,
+    const size_t back_refs_size,
+    const BlockSplitFromDecoder* literals_block_splits,
+    const BlockSplitFromDecoder* insert_copy_length_block_splits);
 
 
 /**
