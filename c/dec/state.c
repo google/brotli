@@ -46,23 +46,23 @@ BROTLI_BOOL BrotliDecoderStateInit(BrotliDecoderState* s,
   s->commands = NULL;
   s->commands_size = 0;
   if (s->save_info_for_recompression) {
-    s->literals_block_splits.types = (uint8_t*)BROTLI_DECODER_ALLOC(s, sizeof(uint8_t) * 10000);
-    s->literals_block_splits.positions_begin = (uint32_t*)BROTLI_DECODER_ALLOC(s, sizeof(uint32_t) * 10000);
-    s->literals_block_splits.positions_end = (uint32_t*)BROTLI_DECODER_ALLOC(s, sizeof(uint32_t) * 10000);
+    s->literals_block_splits.types = (uint8_t*)BROTLI_DECODER_ALLOC(s, sizeof(uint8_t) * 20000);
+    s->literals_block_splits.positions_begin = (uint32_t*)BROTLI_DECODER_ALLOC(s, sizeof(uint32_t) * 20000);
+    s->literals_block_splits.positions_end = (uint32_t*)BROTLI_DECODER_ALLOC(s, sizeof(uint32_t) * 20000);
     s->literals_block_splits.num_types = 0;
     s->literals_block_splits.num_types_prev_metablocks = 0;
     s->literals_block_splits.num_blocks = 0;
-    s->literals_block_splits.types_alloc_size = 10000;
-    s->literals_block_splits.positions_alloc_size = 10000;
+    s->literals_block_splits.types_alloc_size = 20000;
+    s->literals_block_splits.positions_alloc_size = 20000;
 
-    s->insert_copy_length_block_splits.types = (uint8_t*)BROTLI_DECODER_ALLOC(s, sizeof(uint8_t) * 10000);
-    s->insert_copy_length_block_splits.positions_begin = (uint32_t*)BROTLI_DECODER_ALLOC(s, sizeof(uint32_t) * 10000);
-    s->insert_copy_length_block_splits.positions_end = (uint32_t*)BROTLI_DECODER_ALLOC(s, sizeof(uint32_t) * 10000);
+    s->insert_copy_length_block_splits.types = (uint8_t*)BROTLI_DECODER_ALLOC(s, sizeof(uint8_t) * 20000);
+    s->insert_copy_length_block_splits.positions_begin = (uint32_t*)BROTLI_DECODER_ALLOC(s, sizeof(uint32_t) * 20000);
+    s->insert_copy_length_block_splits.positions_end = (uint32_t*)BROTLI_DECODER_ALLOC(s, sizeof(uint32_t) * 20000);
     s->insert_copy_length_block_splits.num_types = 0;
     s->insert_copy_length_block_splits.num_types_prev_metablocks = 0;
     s->insert_copy_length_block_splits.num_blocks = 0;
-    s->insert_copy_length_block_splits.types_alloc_size = 10000;
-    s->insert_copy_length_block_splits.positions_alloc_size = 10000;
+    s->insert_copy_length_block_splits.types_alloc_size = 20000;
+    s->insert_copy_length_block_splits.positions_alloc_size = 20000;
   }
 
 

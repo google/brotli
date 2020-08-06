@@ -6,6 +6,9 @@
 
 /* Block split point selection utilities. */
 
+#ifndef BROTLI_BLOCK_SPLITTER_C
+#define BROTLI_BLOCK_SPLITTER_C
+
 #include "./block_splitter.h"
 
 #include <string.h>  /* memcpy, memset */
@@ -99,7 +102,6 @@ void BrotliSplitBlockCommandsFromStored(MemoryManager* m,
     for (int i = 0; i < cmd_split_decoder->num_types; ++i) {
       types_mapping[i] = -1;
     }
-
     for (int i = 0; i < num_commands; ++i) {
       const Command cmd = cmds[i];
       /* If current command lies after the current block
@@ -114,14 +116,21 @@ void BrotliSplitBlockCommandsFromStored(MemoryManager* m,
           types_mapping[cmd_split_decoder->types[*cur_block_decoder]] =
                                                           cmd_split->num_types;
         }
-        /* Map the decoder block type to an appropriate type */
-        cmd_split->types[cmd_split->num_blocks] =
+        /* If the same block type as for a previous block then merge them */
+        if (cmd_split->num_blocks > 0 &&
+            types_mapping[cmd_split_decoder->types[*cur_block_decoder]] ==
+              cmd_split->types[cmd_split->num_blocks - 1]) {
+            cmd_split->lengths[cmd_split->num_blocks - 1] += cur_length;
+        } else {
+          /* Map the decoder block type to an appropriate type */
+          cmd_split->types[cmd_split->num_blocks] =
                     types_mapping[cmd_split_decoder->types[*cur_block_decoder]];
-        cmd_split->lengths[cmd_split->num_blocks] = cur_length;
-        cur_length = 0;
-        cmd_split->num_types = BROTLI_MAX(uint8_t, cmd_split->num_types,
+          cmd_split->lengths[cmd_split->num_blocks] = cur_length;
+          cmd_split->num_types = BROTLI_MAX(uint8_t, cmd_split->num_types,
                                   cmd_split->types[cmd_split->num_blocks] + 1);
-        cmd_split->num_blocks++;
+          cmd_split->num_blocks++;
+        }
+        cur_length = 0;
         (*cur_block_decoder)++;
       }
       /* Go through decoder blocks until a block with cur_pos inside is found */
@@ -146,12 +155,19 @@ void BrotliSplitBlockCommandsFromStored(MemoryManager* m,
         types_mapping[cmd_split_decoder->types[*cur_block_decoder]] =
                                                             cmd_split->num_types;
       }
-      cmd_split->types[cmd_split->num_blocks] =
-                    types_mapping[cmd_split_decoder->types[*cur_block_decoder]];
-      cmd_split->lengths[cmd_split->num_blocks] = cur_length;
-      cmd_split->num_types = BROTLI_MAX(uint8_t, cmd_split->num_types,
-                                    cmd_split->types[cmd_split->num_blocks] + 1);
-      cmd_split->num_blocks++;
+      /* If the same block type as for a previous block then merge them */
+      if (cmd_split->num_blocks > 0 &&
+          types_mapping[cmd_split_decoder->types[*cur_block_decoder]] ==
+            cmd_split->types[cmd_split->num_blocks - 1]) {
+          cmd_split->lengths[cmd_split->num_blocks - 1] += cur_length;
+      } else {
+        cmd_split->types[cmd_split->num_blocks] =
+                      types_mapping[cmd_split_decoder->types[*cur_block_decoder]];
+        cmd_split->lengths[cmd_split->num_blocks] = cur_length;
+        cmd_split->num_types = BROTLI_MAX(uint8_t, cmd_split->num_types,
+                                      cmd_split->types[cmd_split->num_blocks] + 1);
+        cmd_split->num_blocks++;
+      }
     }
 }
 
@@ -178,7 +194,7 @@ void BrotliSplitBlockLiteralsFromStored(MemoryManager* m,
   /* Mapping of the types from decoder (they increase with each metablock)
      to the appropriate types */
   int* types_mapping = (int*)malloc(sizeof(int) *
-                                              literal_split_decoder->num_types);
+                                            literal_split_decoder->num_types);
   for (int i = 0; i < literal_split_decoder->num_types; ++i) {
     types_mapping[i] = -1;
   }
@@ -200,14 +216,21 @@ void BrotliSplitBlockLiteralsFromStored(MemoryManager* m,
           types_mapping[literal_split_decoder->types[*cur_block_decoder]] =
                                                       literal_split->num_types;
         }
-        /* Map the decoder block type to an appropriate type */
-        literal_split->types[literal_split->num_blocks] =
-            types_mapping[literal_split_decoder->types[*cur_block_decoder]];
-        literal_split->lengths[literal_split->num_blocks] = cur_length;
+        /* If the same block type as for a previous block then merge them */
+        if (literal_split->num_blocks > 0 &&
+            types_mapping[literal_split_decoder->types[*cur_block_decoder]] ==
+              literal_split->types[literal_split->num_blocks - 1]) {
+          literal_split->lengths[literal_split->num_blocks - 1] += cur_length;
+        } else {
+          /* Map the decoder block type to an appropriate type */
+          literal_split->types[literal_split->num_blocks] =
+              types_mapping[literal_split_decoder->types[*cur_block_decoder]];
+          literal_split->lengths[literal_split->num_blocks] = cur_length;
+          literal_split->num_types = BROTLI_MAX(uint8_t, literal_split->num_types,
+                            literal_split->types[literal_split->num_blocks] + 1);
+          literal_split->num_blocks++;
+        }
         cur_length = 0;
-        literal_split->num_types = BROTLI_MAX(uint8_t, literal_split->num_types,
-                          literal_split->types[literal_split->num_blocks] + 1);
-        literal_split->num_blocks++;
       }
       (*cur_block_decoder)++;
 
@@ -239,13 +262,20 @@ void BrotliSplitBlockLiteralsFromStored(MemoryManager* m,
             types_mapping[literal_split_decoder->types[*cur_block_decoder]] =
                                                         literal_split->num_types;
           }
-          literal_split->types[literal_split->num_blocks] =
-              types_mapping[literal_split_decoder->types[*cur_block_decoder]];
-          literal_split->lengths[literal_split->num_blocks] = cur_length;
+          /* If the same block type as for a previous block then merge them */
+          if (literal_split->num_blocks > 0 &&
+              types_mapping[literal_split_decoder->types[*cur_block_decoder]] ==
+                literal_split->types[literal_split->num_blocks - 1]) {
+            literal_split->lengths[literal_split->num_blocks - 1] += cur_length;
+          } else {
+            literal_split->types[literal_split->num_blocks] =
+                types_mapping[literal_split_decoder->types[*cur_block_decoder]];
+            literal_split->lengths[literal_split->num_blocks] = cur_length;
+            literal_split->num_types = BROTLI_MAX(uint8_t, literal_split->num_types,
+                              literal_split->types[literal_split->num_blocks] + 1);
+            literal_split->num_blocks++;
+          }
           cur_length = 0;
-          literal_split->num_types = BROTLI_MAX(uint8_t, literal_split->num_types,
-                            literal_split->types[literal_split->num_blocks] + 1);
-          literal_split->num_blocks++;
         }
         (*cur_block_decoder)++;
       }
@@ -271,13 +301,20 @@ void BrotliSplitBlockLiteralsFromStored(MemoryManager* m,
             types_mapping[literal_split_decoder->types[*cur_block_decoder]] =
                                                         literal_split->num_types;
           }
-          literal_split->types[literal_split->num_blocks] =
-                  types_mapping[literal_split_decoder->types[*cur_block_decoder]];
-          literal_split->lengths[literal_split->num_blocks] = cur_length;
+          /* If the same block type as for a previous block then merge them */
+          if (literal_split->num_blocks > 0 &&
+              types_mapping[literal_split_decoder->types[*cur_block_decoder]] ==
+                literal_split->types[literal_split->num_blocks - 1]) {
+            literal_split->lengths[literal_split->num_blocks - 1] += cur_length;
+          } else {
+            literal_split->types[literal_split->num_blocks] =
+                    types_mapping[literal_split_decoder->types[*cur_block_decoder]];
+            literal_split->lengths[literal_split->num_blocks] = cur_length;
+            literal_split->num_types = BROTLI_MAX(uint8_t, literal_split->num_types,
+                              literal_split->types[literal_split->num_blocks] + 1);
+            literal_split->num_blocks++;
+          }
           cur_length = 0;
-          literal_split->num_types = BROTLI_MAX(uint8_t, literal_split->num_types,
-                            literal_split->types[literal_split->num_blocks] + 1);
-          literal_split->num_blocks++;
         }
         (*cur_block_decoder)++;
       }
@@ -289,12 +326,19 @@ void BrotliSplitBlockLiteralsFromStored(MemoryManager* m,
       types_mapping[literal_split_decoder->types[*cur_block_decoder]] =
                                                         literal_split->num_types;
     }
-    literal_split->types[literal_split->num_blocks] =
-                types_mapping[literal_split_decoder->types[*cur_block_decoder]];
-    literal_split->lengths[literal_split->num_blocks] = cur_length;
-    literal_split->num_types = BROTLI_MAX(uint8_t, literal_split->num_types,
-                            literal_split->types[literal_split->num_blocks] + 1);
-    literal_split->num_blocks++;
+    /* If the same block type as for a previous block then merge them */
+    if (literal_split->num_blocks > 0 &&
+        types_mapping[literal_split_decoder->types[*cur_block_decoder]] ==
+          literal_split->types[literal_split->num_blocks - 1]) {
+      literal_split->lengths[literal_split->num_blocks - 1] += cur_length;
+    } else {
+      literal_split->types[literal_split->num_blocks] =
+                  types_mapping[literal_split_decoder->types[*cur_block_decoder]];
+      literal_split->lengths[literal_split->num_blocks] = cur_length;
+      literal_split->num_types = BROTLI_MAX(uint8_t, literal_split->num_types,
+                              literal_split->types[literal_split->num_blocks] + 1);
+      literal_split->num_blocks++;
+    }
   }
 }
 
@@ -448,3 +492,5 @@ void BrotliSplitBlock(MemoryManager* m,
 #if defined(__cplusplus) || defined(c_plusplus)
 }  /* extern "C" */
 #endif
+
+#endif  /* BROTLI_BLOCK_SPLITTER_C */

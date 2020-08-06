@@ -4,6 +4,9 @@
    See file LICENSE for detail or copy at https://opensource.org/licenses/MIT
 */
 
+#ifndef BROTLI_COMPRESS_SIMILAR
+#define BROTLI_COMPRESS_SIMILAR
+
 #include <brotli/encode.h>
 #include <brotli/decode.h>
 #include <stdlib.h>
@@ -284,3 +287,5 @@ BROTLI_BOOL BrotliEncoderCompressSimilarDeletion(
                                &new_literals_block_splits,
                                &new_insert_copy_length_block_splits);
 }
+
+#endif  /* BROTLI_COMPRESS_SIMILAR */
