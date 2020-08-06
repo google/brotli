@@ -166,8 +166,8 @@ static BROTLI_INLINE void FN(FindLongestMatch)(
     const int* BROTLI_RESTRICT distance_cache, const size_t cur_ix,
     const size_t max_length, const size_t max_backward,
     const size_t dictionary_distance, const size_t max_distance,
-    BackwardReferenceFromDecoder** backward_references,
-    size_t* back_refs_position, size_t back_refs_size,
+    const BackwardReferenceFromDecoder* backward_references,
+    size_t* back_refs_position, const size_t back_refs_size,
     HasherSearchResult* BROTLI_RESTRICT out) {
   uint16_t* BROTLI_RESTRICT num = self->num_;
   uint32_t* BROTLI_RESTRICT buckets = self->buckets_;
@@ -180,134 +180,25 @@ static BROTLI_INLINE void FN(FindLongestMatch)(
   out->len = 0;
   out->len_code_delta = 0;
   /* Find a next position in backward_references that is >= cur_ix
-     backward_references array is sorted by positions */
+     backward_references array is sorted by positions.
+     Will go through backward_references only once. */
   while (*back_refs_position < back_refs_size &&
-         (*backward_references)[*back_refs_position].position < cur_ix) {
+         backward_references[*back_refs_position].position < cur_ix) {
       ++(*back_refs_position);
   }
-  if (back_refs_size != 0) {
-    /* If we have some backward reference from decoder for this position
-       check it first */
-    if (*back_refs_position < back_refs_size &&
-       (*backward_references)[*back_refs_position].position == cur_ix) {
-        const size_t backward = (size_t)(*backward_references)[*back_refs_position].distance;
-        size_t prev_ix = (cur_ix - backward);
-        if (prev_ix < cur_ix && backward <= (*backward_references)[*back_refs_position].max_distance) {
-            prev_ix &= ring_buffer_mask;
-            {
-                size_t len = FindMatchLengthWithLimit(&data[prev_ix],
-                                                          &data[cur_ix_masked],
-                                                          max_length);
-                /* Cut the found copy_len so it's no longer then copy_len
-                   from decoder */
-                if (len > (*backward_references)[*back_refs_position].copy_len) {
-                  len = (*backward_references)[*back_refs_position].copy_len;
-                }
-                score_t score = BackwardReferenceScore(len, backward);
-                best_score = score;
-                best_len = len;
-                out->len = best_len;
-                out->distance = backward;
-                out->score = best_score;
-                out->used_stored = BROTLI_TRUE;
-                return;
-            }
-        }
-    }
-    else {
-      /* If we don't have backward reference for cur_ix position
-        try finding a reference in a usual way and cut copy_len
-        so it doesn't intersect with the next reference position */
-      /* Try last distance first. */
-      for (i = 0; i < (size_t)self->num_last_distances_to_check_; ++i) {
-        const size_t backward = (size_t)distance_cache[i];
-        size_t prev_ix = (size_t)(cur_ix - backward);
-        if (prev_ix >= cur_ix) {
-          continue;
-        }
-        if (BROTLI_PREDICT_FALSE(backward > max_backward)) {
-          continue;
-        }
-        prev_ix &= ring_buffer_mask;
-
-        if (cur_ix_masked + best_len > ring_buffer_mask ||
-            prev_ix + best_len > ring_buffer_mask ||
-            data[cur_ix_masked + best_len] != data[prev_ix + best_len]) {
-          continue;
-        }
-        {
-          size_t len = FindMatchLengthWithLimit(&data[prev_ix],
-                                                      &data[cur_ix_masked],
-                                                      max_length);
-          /* Cut the copy_len */
-          if (*back_refs_position < back_refs_size && cur_ix + len > (*backward_references)[*back_refs_position].position) {
-            len = (*backward_references)[*back_refs_position].position - cur_ix;
-          }
-          if (len >= 3 || (len == 2 && i < 2)) {
-            /* Comparing for >= 2 does not change the semantics, but just saves for
-               a few unnecessary binary logarithms in backward reference score,
-               since we are not interested in such short matches. */
-            score_t score = BackwardReferenceScoreUsingLastDistance(len);
-            if (best_score < score) {
-              if (i != 0) score -= BackwardReferencePenaltyUsingLastDistance(i);
-              if (best_score < score) {
-                best_score = score;
-                best_len = len;
-                out->len = best_len;
-                out->distance = backward;
-                out->score = best_score;
-              }
-            }
-          }
-        }
-      }
-      {
-        const uint32_t key = FN(HashBytes)(
-            &data[cur_ix_masked], self->hash_mask_, self->hash_shift_);
-        uint32_t* BROTLI_RESTRICT bucket = &buckets[key << self->block_bits_];
-        const size_t down =
-            (num[key] > self->block_size_) ?
-            (num[key] - self->block_size_) : 0u;
-        for (i = num[key]; i > down;) {
-          size_t prev_ix = bucket[--i & self->block_mask_];
-          const size_t backward = cur_ix - prev_ix;
-          if (BROTLI_PREDICT_FALSE(backward > max_backward)) {
-            break;
-          }
-          prev_ix &= ring_buffer_mask;
-          if (cur_ix_masked + best_len > ring_buffer_mask ||
-              prev_ix + best_len > ring_buffer_mask ||
-              data[cur_ix_masked + best_len] != data[prev_ix + best_len]) {
-            continue;
-          }
-          {
-            size_t len = FindMatchLengthWithLimit(&data[prev_ix],
-                                                        &data[cur_ix_masked],
-                                                        max_length);
-            /* Cut the copy_len */
-            if (*back_refs_position < back_refs_size && cur_ix + len > (*backward_references)[*back_refs_position].position) {
-              len = (*backward_references)[*back_refs_position].position - cur_ix;
-            }
-            if (len >= 4) {
-              /* Comparing for >= 3 does not change the semantics, but just saves
-                 for a few unnecessary binary logarithms in backward reference
-                 score, since we are not interested in such short matches. */
-              score_t score = BackwardReferenceScore(len, backward);
-              if (best_score < score) {
-                best_score = score;
-                best_len = len;
-                out->len = best_len;
-                out->distance = backward;
-                out->score = best_score;
-              }
-            }
-          }
-        }
-        bucket[num[key] & self->block_mask_] = (uint32_t)cur_ix;
-        ++num[key];
-      }
-    }
-  } else {
+  /* If we have some backward reference from decoder for this position
+     check it first */
+  if (back_refs_size != 0 && *back_refs_position < back_refs_size &&
+     backward_references[*back_refs_position].position == cur_ix) {
+     FindBackwardReferenceFromDecoder(data, ring_buffer_mask,
+                                     cur_ix, cur_ix_masked, max_length,
+                                     backward_references, back_refs_position,
+                                     back_refs_size, out);
+     if (out->used_stored) {
+       return;
+     }
+  }
+  else {
     /* Try last distance first. */
     for (i = 0; i < (size_t)self->num_last_distances_to_check_; ++i) {
       const size_t backward = (size_t)distance_cache[i];
@@ -326,9 +217,15 @@ static BROTLI_INLINE void FN(FindLongestMatch)(
         continue;
       }
       {
-        const size_t len = FindMatchLengthWithLimit(&data[prev_ix],
-                                                    &data[cur_ix_masked],
-                                                    max_length);
+        size_t len = FindMatchLengthWithLimit(&data[prev_ix],
+                                              &data[cur_ix_masked],
+                                              max_length);
+        /* If have a backward_references array cut the copy_len so
+           it won't intersect with any other stored references */
+        if (back_refs_size > 0 && *back_refs_position < back_refs_size &&
+            cur_ix + len > backward_references[*back_refs_position].position) {
+          len = backward_references[*back_refs_position].position - cur_ix;
+        }
         if (len >= 3 || (len == 2 && i < 2)) {
           /* Comparing for >= 2 does not change the semantics, but just saves for
              a few unnecessary binary logarithms in backward reference score,
@@ -367,9 +264,15 @@ static BROTLI_INLINE void FN(FindLongestMatch)(
           continue;
         }
         {
-          const size_t len = FindMatchLengthWithLimit(&data[prev_ix],
-                                                      &data[cur_ix_masked],
-                                                      max_length);
+          size_t len = FindMatchLengthWithLimit(&data[prev_ix],
+                                                &data[cur_ix_masked],
+                                                max_length);
+          /* If have a backward_references array cut the copy_len so
+             it won't intersect with any other stored references */
+          if (back_refs_size > 0 && *back_refs_position < back_refs_size &&
+              cur_ix + len > backward_references[*back_refs_position].position) {
+            len = backward_references[*back_refs_position].position - cur_ix;
+          }
           if (len >= 4) {
             /* Comparing for >= 3 does not change the semantics, but just saves
                for a few unnecessary binary logarithms in backward reference
@@ -397,10 +300,10 @@ static BROTLI_INLINE void FN(FindLongestMatch)(
     } else {
       /* If we have a reference to static dict from decoder for cur_ix position
          find a dict word and transformation by copy_len and distance */
-      if (*back_refs_position < back_refs_size && (*backward_references)[*back_refs_position].position == cur_ix &&
-         (*backward_references)[*back_refs_position].distance > (*backward_references)[*back_refs_position].max_distance) {
-        BROTLI_BOOL is_ok = GetStaticDictReference(cur_ix, (*backward_references)[*back_refs_position].distance,
-                                                   (*backward_references)[*back_refs_position].copy_len, max_backward,
+      if (*back_refs_position < back_refs_size && backward_references[*back_refs_position].position == cur_ix &&
+         backward_references[*back_refs_position].distance > backward_references[*back_refs_position].max_distance) {
+        BROTLI_BOOL is_ok = GetStaticDictReference(cur_ix, backward_references[*back_refs_position].distance,
+                                                   backward_references[*back_refs_position].copy_len, max_backward,
                                                    dictionary, max_distance, &data[cur_ix_masked], out);
         out->used_stored = BROTLI_TRUE;
       }

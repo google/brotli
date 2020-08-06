@@ -77,15 +77,15 @@ static void CopyLiteralsToByteArray(const Command* cmds,
   }
 }
 
-void BrotliSplitBlockCommandsFromStored(MemoryManager* m,
-                                        const Command* cmds,
-                                        const size_t num_commands,
-                                        const size_t pos,
-                                        const size_t mask,
-                                        BlockSplit* cmd_split,
-                                        BlockSplitFromDecoder* cmd_split_decoder,
-                                        size_t* cur_block_decoder) {
-
+void BrotliSplitBlockCommandsFromStored(
+                        MemoryManager* m,
+                        const Command* cmds,
+                        const size_t num_commands,
+                        const size_t pos,
+                        const size_t mask,
+                        BlockSplit* cmd_split,
+                        const BlockSplitFromDecoder* cmd_split_decoder,
+                        size_t* cur_block_decoder) {
     BROTLI_ENSURE_CAPACITY(
         m, uint8_t, cmd_split->types, cmd_split->types_alloc_size,
         cmd_split_decoder->num_blocks);
@@ -173,14 +173,15 @@ void BrotliSplitBlockCommandsFromStored(MemoryManager* m,
 
 
 
-void BrotliSplitBlockLiteralsFromStored(MemoryManager* m,
-                                        const Command* cmds,
-                                        const size_t num_commands,
-                                        const size_t pos,
-                                        const size_t mask,
-                                        BlockSplit* literal_split,
-                                        BlockSplitFromDecoder* literal_split_decoder,
-                                        size_t* cur_block_decoder) {
+void BrotliSplitBlockLiteralsFromStored(
+                            MemoryManager* m,
+                            const Command* cmds,
+                            const size_t num_commands,
+                            const size_t pos,
+                            const size_t mask,
+                            BlockSplit* literal_split,
+                            const BlockSplitFromDecoder* literal_split_decoder,
+                            size_t* cur_block_decoder) {
   BROTLI_ENSURE_CAPACITY(
       m, uint8_t, literal_split->types, literal_split->types_alloc_size,
       literal_split_decoder->num_blocks);
@@ -399,9 +400,9 @@ void BrotliSplitBlock(MemoryManager* m,
                       BlockSplit* literal_split,
                       BlockSplit* insert_and_copy_split,
                       BlockSplit* dist_split,
-                      BlockSplitFromDecoder* literals_block_splits_decoder,
+                      const BlockSplitFromDecoder* literals_block_splits_decoder,
                       size_t* current_block_literals,
-                      BlockSplitFromDecoder* cmds_block_splits_decoder,
+                      const BlockSplitFromDecoder* cmds_block_splits_decoder,
                       size_t* current_block_cmds) {
 
   {

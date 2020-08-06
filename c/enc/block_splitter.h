@@ -33,38 +33,41 @@ BROTLI_INTERNAL void BrotliInitBlockSplit(BlockSplit* self);
 BROTLI_INTERNAL void BrotliDestroyBlockSplit(MemoryManager* m,
                                              BlockSplit* self);
 
-BROTLI_INTERNAL void BrotliSplitBlock(MemoryManager* m,
-                                      const Command* cmds,
-                                      const size_t num_commands,
-                                      const uint8_t* data,
-                                      const size_t offset,
-                                      const size_t mask,
-                                      const BrotliEncoderParams* params,
-                                      BlockSplit* literal_split,
-                                      BlockSplit* insert_and_copy_split,
-                                      BlockSplit* dist_split,
-                                      BlockSplitFromDecoder* literals_block_splits_decoder,
-                                      size_t* current_block_literals,
-                                      BlockSplitFromDecoder* cmds_block_splits_decoder,
-                                      size_t* current_block_cmds);
+BROTLI_INTERNAL void BrotliSplitBlock(
+                    MemoryManager* m,
+                    const Command* cmds,
+                    const size_t num_commands,
+                    const uint8_t* data,
+                    const size_t offset,
+                    const size_t mask,
+                    const BrotliEncoderParams* params,
+                    BlockSplit* literal_split,
+                    BlockSplit* insert_and_copy_split,
+                    BlockSplit* dist_split,
+                    const BlockSplitFromDecoder* literals_block_splits_decoder,
+                    size_t* current_block_literals,
+                    const BlockSplitFromDecoder* cmds_block_splits_decoder,
+                    size_t* current_block_cmds);
 
-BROTLI_INTERNAL void BrotliSplitBlockLiteralsFromStored(MemoryManager* m,
-                                                        const Command* cmds,
-                                                        const size_t num_commands,
-                                                        const size_t pos,
-                                                        const size_t mask,
-                                                        BlockSplit* literal_split,
-                                                        BlockSplitFromDecoder* literal_split_decoder,
-                                                        size_t* cur_block_decoder);
+BROTLI_INTERNAL void BrotliSplitBlockLiteralsFromStored(
+                        MemoryManager* m,
+                        const Command* cmds,
+                        const size_t num_commands,
+                        const size_t pos,
+                        const size_t mask,
+                        BlockSplit* literal_split,
+                        const BlockSplitFromDecoder* literal_split_decoder,
+                        size_t* cur_block_decoder);
 
-BROTLI_INTERNAL void BrotliSplitBlockCommandsFromStored(MemoryManager* m,
-                                                        const Command* cmds,
-                                                        const size_t num_commands,
-                                                        const size_t pos,
-                                                        const size_t mask,
-                                                        BlockSplit* cmd_split,
-                                                        BlockSplitFromDecoder* cmd_split_decoder,
-                                                        size_t* cur_block_decoder);
+BROTLI_INTERNAL void BrotliSplitBlockCommandsFromStored(
+                        MemoryManager* m,
+                        const Command* cmds,
+                        const size_t num_commands,
+                        const size_t pos,
+                        const size_t mask,
+                        BlockSplit* cmd_split,
+                        const BlockSplitFromDecoder* cmd_split_decoder,
+                        size_t* cur_block_decoder);
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }  /* extern "C" */

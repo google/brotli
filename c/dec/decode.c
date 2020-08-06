@@ -59,20 +59,6 @@ static const uint8_t kCodeLengthPrefixValue[16] = {
   0, 4, 3, 2, 0, 4, 3, 1, 0, 4, 3, 2, 0, 4, 3, 5,
 };
 
-BROTLI_BOOL SaveCommandsToFile(BrotliDecoderState* s) {
-    FILE *fptr = fopen("backward_references.txt", "w");
-    if (fptr == NULL) {
-        fclose(fptr);
-        return BROTLI_FALSE;
-    }
-    fprintf(fptr, "%zu\n", s->commands_size);
-    for (int i = 0; i < s->commands_size; ++i) {
-        fprintf(fptr, "%d %d %d %d\n", s->commands[i].position, s->commands[i].copy_len, s->commands[i].distance, s->commands[i].max_distance);
-    }
-    fclose(fptr);
-    return BROTLI_TRUE;
-}
-
 BROTLI_BOOL BrotliDecoderSetParameter(
     BrotliDecoderState* state, BrotliDecoderParameter p, uint32_t value) {
   if (state->state != BROTLI_STATE_UNINITED) return BROTLI_FALSE;
@@ -86,8 +72,8 @@ BROTLI_BOOL BrotliDecoderSetParameter(
       return BROTLI_TRUE;
 
     case BROTLI_DECODER_PARAM_SAVE_INFO:
-      state->save_info_for_recompression = TO_BROTLI_BOOL(!!value);
-      return BROTLI_TRUE;
+     state->save_info_for_recompression = TO_BROTLI_BOOL(!!value);
+     return BROTLI_TRUE;
 
     default: return BROTLI_FALSE;
   }

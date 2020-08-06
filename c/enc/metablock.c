@@ -124,20 +124,20 @@ static BROTLI_BOOL ComputeDistanceCost(const Command* cmds,
 }
 
 void BrotliBuildMetaBlock(MemoryManager* m,
-                          const uint8_t* ringbuffer,
-                          const size_t pos,
-                          const size_t mask,
-                          BrotliEncoderParams* params,
-                          uint8_t prev_byte,
-                          uint8_t prev_byte2,
-                          Command* cmds,
-                          size_t num_commands,
-                          ContextType literal_context_mode,
-                          BlockSplitFromDecoder* literals_block_splits_decoder,
-                          size_t* current_block_literals,
-                          BlockSplitFromDecoder* cmds_block_splits_decoder,
-                          size_t* current_block_cmds,
-                          MetaBlockSplit* mb) {
+                      const uint8_t* ringbuffer,
+                      const size_t pos,
+                      const size_t mask,
+                      BrotliEncoderParams* params,
+                      uint8_t prev_byte,
+                      uint8_t prev_byte2,
+                      Command* cmds,
+                      size_t num_commands,
+                      ContextType literal_context_mode,
+                      const BlockSplitFromDecoder* literals_block_splits_decoder,
+                      size_t* current_block_literals,
+                      const BlockSplitFromDecoder* cmds_block_splits_decoder,
+                      size_t* current_block_cmds,
+                      MetaBlockSplit* mb) {
   static const size_t kMaxNumberOfHistograms = 256;
   HistogramDistance* distance_histograms;
   HistogramLiteral* literal_histograms;
@@ -653,9 +653,9 @@ static BROTLI_INLINE void BrotliBuildMetaBlockGreedyInternal(
     uint8_t prev_byte, uint8_t prev_byte2, ContextLut literal_context_lut,
     const size_t num_contexts, const uint32_t* static_context_map,
     const Command* commands, size_t n_commands,
-    BlockSplitFromDecoder* literals_block_splits_decoder,
+    const BlockSplitFromDecoder* literals_block_splits_decoder,
     size_t* current_block_literals,
-    BlockSplitFromDecoder* cmds_block_splits_decoder,
+    const BlockSplitFromDecoder* cmds_block_splits_decoder,
     size_t* current_block_cmds, MetaBlockSplit* mb) {
   union {
     BlockSplitterLiteral plain;
@@ -804,9 +804,9 @@ void BrotliBuildMetaBlockGreedy(MemoryManager* m,
                                 const uint32_t* static_context_map,
                                 const Command* commands,
                                 size_t n_commands,
-                                BlockSplitFromDecoder* literals_block_splits,
+                                const BlockSplitFromDecoder* literals_block_splits,
                                 size_t* current_block_literals,
-                                BlockSplitFromDecoder* cmds_block_splits,
+                                const BlockSplitFromDecoder* cmds_block_splits,
                                 size_t* current_block_cmds,
                                 MetaBlockSplit* mb) {
   if (num_contexts == 1) {
