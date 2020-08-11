@@ -1804,7 +1804,7 @@ CommandBegin:
     goto saveStateAndReturn;
   }
   if (BROTLI_PREDICT_FALSE(s->block_length[1] == 0)) {
-    BROTLI_SAFE(DecodeCommandBlockSwitch(s, pos));
+    BROTLI_SAFE(DecodeCommandBlockSwitch(s, pos + (s->rb_roundtrips << s->window_bits)));
     goto CommandBegin;
   }
   /* Read the insert/copy length in the command. */
@@ -1836,7 +1836,7 @@ CommandInner:
         goto saveStateAndReturn;
       }
       if (BROTLI_PREDICT_FALSE(s->block_length[0] == 0)) {
-        BROTLI_SAFE(DecodeLiteralBlockSwitch(s, pos));
+        BROTLI_SAFE(DecodeLiteralBlockSwitch(s,  pos + (s->rb_roundtrips << s->window_bits)));
         PreloadSymbol(safe, s->literal_htree, br, &bits, &value);
         if (!s->trivial_literal_context) goto CommandInner;
       }
@@ -1872,7 +1872,7 @@ CommandInner:
         goto saveStateAndReturn;
       }
       if (BROTLI_PREDICT_FALSE(s->block_length[0] == 0)) {
-        BROTLI_SAFE(DecodeLiteralBlockSwitch(s, pos));
+        BROTLI_SAFE(DecodeLiteralBlockSwitch(s, pos + (s->rb_roundtrips << s->window_bits)));
         if (s->trivial_literal_context) goto CommandInner;
       }
       context = BROTLI_CONTEXT(p1, p2, s->context_lookup);
@@ -1932,7 +1932,7 @@ CommandPostDecodeLiterals:
   /* Save backward reference info if needed */
   if (s->save_info_for_recompression) {
     s->commands[s->commands_size].distance = s->distance_code;
-    s->commands[s->commands_size].position = pos;
+    s->commands[s->commands_size].position = pos + (s->rb_roundtrips << s->window_bits);
     s->commands[s->commands_size].max_distance = s->max_distance;
     ++s->commands_size;
   }

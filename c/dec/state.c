@@ -46,23 +46,23 @@ BROTLI_BOOL BrotliDecoderStateInit(BrotliDecoderState* s,
   s->commands = NULL;
   s->commands_size = 0;
   if (s->save_info_for_recompression) {
-    s->literals_block_splits.types = (uint8_t*)BROTLI_DECODER_ALLOC(s, sizeof(uint8_t) * 20000);
-    s->literals_block_splits.positions_begin = (uint32_t*)BROTLI_DECODER_ALLOC(s, sizeof(uint32_t) * 20000);
-    s->literals_block_splits.positions_end = (uint32_t*)BROTLI_DECODER_ALLOC(s, sizeof(uint32_t) * 20000);
+    s->literals_block_splits.types = (uint8_t*)BROTLI_DECODER_ALLOC(s, sizeof(uint8_t) * 10000);
+    s->literals_block_splits.positions_begin = (uint32_t*)BROTLI_DECODER_ALLOC(s, sizeof(uint32_t) * 10000);
+    s->literals_block_splits.positions_end = (uint32_t*)BROTLI_DECODER_ALLOC(s, sizeof(uint32_t) * 10000);
     s->literals_block_splits.num_types = 0;
     s->literals_block_splits.num_types_prev_metablocks = 0;
     s->literals_block_splits.num_blocks = 0;
-    s->literals_block_splits.types_alloc_size = 20000;
-    s->literals_block_splits.positions_alloc_size = 20000;
+    s->literals_block_splits.types_alloc_size = 10000;
+    s->literals_block_splits.positions_alloc_size = 10000;
 
-    s->insert_copy_length_block_splits.types = (uint8_t*)BROTLI_DECODER_ALLOC(s, sizeof(uint8_t) * 20000);
-    s->insert_copy_length_block_splits.positions_begin = (uint32_t*)BROTLI_DECODER_ALLOC(s, sizeof(uint32_t) * 20000);
-    s->insert_copy_length_block_splits.positions_end = (uint32_t*)BROTLI_DECODER_ALLOC(s, sizeof(uint32_t) * 20000);
+    s->insert_copy_length_block_splits.types = (uint8_t*)BROTLI_DECODER_ALLOC(s, sizeof(uint8_t) * 10000);
+    s->insert_copy_length_block_splits.positions_begin = (uint32_t*)BROTLI_DECODER_ALLOC(s, sizeof(uint32_t) * 10000);
+    s->insert_copy_length_block_splits.positions_end = (uint32_t*)BROTLI_DECODER_ALLOC(s, sizeof(uint32_t) * 10000);
     s->insert_copy_length_block_splits.num_types = 0;
     s->insert_copy_length_block_splits.num_types_prev_metablocks = 0;
     s->insert_copy_length_block_splits.num_blocks = 0;
-    s->insert_copy_length_block_splits.types_alloc_size = 20000;
-    s->insert_copy_length_block_splits.positions_alloc_size = 20000;
+    s->insert_copy_length_block_splits.types_alloc_size = 10000;
+    s->insert_copy_length_block_splits.positions_alloc_size = 10000;
   }
 
 
@@ -145,11 +145,11 @@ void BrotliDecoderStateMetablockBegin(BrotliDecoderState* s) {
   /* If needed save the start of a first in metablock block */
   if (s->save_info_for_recompression) {
     s->literals_block_splits.types[s->literals_block_splits.num_blocks] = s->literals_block_splits.num_types_prev_metablocks;
-    s->literals_block_splits.positions_begin[s->literals_block_splits.num_blocks] = s->pos;
+    s->literals_block_splits.positions_begin[s->literals_block_splits.num_blocks] = s->pos + (s->rb_roundtrips << s->window_bits);
     s->saved_position_literals_begin = BROTLI_TRUE;
 
     s->insert_copy_length_block_splits.types[s->insert_copy_length_block_splits.num_blocks] = s->insert_copy_length_block_splits.num_types_prev_metablocks;
-    s->insert_copy_length_block_splits.positions_begin[s->insert_copy_length_block_splits.num_blocks] = s->pos;
+    s->insert_copy_length_block_splits.positions_begin[s->insert_copy_length_block_splits.num_blocks] = s->pos + (s->rb_roundtrips << s->window_bits);
     s->saved_position_lengths_begin = BROTLI_TRUE;
   }
 }
@@ -166,13 +166,13 @@ void BrotliDecoderStateCleanupAfterMetablock(BrotliDecoderState* s) {
   if (s->save_info_for_recompression) {
     /* Save the end only if previously saved a start */
     if (s->saved_position_literals_begin) {
-      s->literals_block_splits.positions_end[s->literals_block_splits.num_blocks] = s->pos;
+      s->literals_block_splits.positions_end[s->literals_block_splits.num_blocks] = s->pos + (s->rb_roundtrips << s->window_bits);
       s->literals_block_splits.num_blocks++;
       s->literals_block_splits.num_types_prev_metablocks = s->literals_block_splits.num_types;
       s->saved_position_literals_begin = BROTLI_FALSE;
     }
     if (s->saved_position_lengths_begin) {
-      s->insert_copy_length_block_splits.positions_end[s->insert_copy_length_block_splits.num_blocks] = s->pos;
+      s->insert_copy_length_block_splits.positions_end[s->insert_copy_length_block_splits.num_blocks] = s->pos + (s->rb_roundtrips << s->window_bits);
       s->insert_copy_length_block_splits.num_blocks++;
       s->insert_copy_length_block_splits.num_types_prev_metablocks = s->insert_copy_length_block_splits.num_types;
       s->saved_position_lengths_begin = BROTLI_FALSE;
