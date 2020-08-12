@@ -1811,10 +1811,6 @@ CommandBegin:
   BROTLI_SAFE(ReadCommand(s, br, &i));
   BROTLI_LOG(("[ProcessCommandsInternal] pos = %d insert = %d copy = %d\n",
               pos, i, s->copy_length));
-  /* Save backward reference info if needed */
-  if (s->save_info_for_recompression) {
-    s->commands[s->commands_size].copy_len = s->copy_length;
-  }
   if (i == 0) {
     goto CommandPostDecodeLiterals;
   }
@@ -1931,6 +1927,7 @@ CommandPostDecodeLiterals:
   }
   /* Save backward reference info if needed */
   if (s->save_info_for_recompression) {
+    s->commands[s->commands_size].copy_len = s->copy_length;
     s->commands[s->commands_size].distance = s->distance_code;
     s->commands[s->commands_size].position = pos + (s->rb_roundtrips << s->window_bits);
     s->commands[s->commands_size].max_distance = s->max_distance;
@@ -2135,6 +2132,7 @@ BrotliDecoderResult BrotliDecoderDecompressStream(
   if (s->save_info_for_recompression && !s->commands) {
     s->commands = (BackwardReferenceFromDecoder*)BROTLI_DECODER_ALLOC(
          s, sizeof(BackwardReferenceFromDecoder) * (int)((float)*available_in));
+    s->commands_alloc_size = *available_in;
   }
   /* Ensure that |total_out| is set, even if no data will ever be pushed out. */
   if (total_out) {

@@ -4,7 +4,7 @@
    See file LICENSE for detail or copy at https://opensource.org/licenses/MIT
 */
 
-#include "../compress_similar_files/compress_similar_files.c"
+#include "../compress_similar_files/compress_similar_files.h"
 #include "helper.h"
 #include <stdbool.h>
 #include <stdio.h>
@@ -62,7 +62,7 @@ bool TestReusageRateSameFile(unsigned char* input_data, size_t input_size, int l
       }
     }
   }
-  if ((float)count_equal / (float)back_refs_size < 0.97) {
+  if ((float)count_equal / (float)back_refs_size < 0.9) {
     return false;
   }
   return true;
@@ -122,7 +122,7 @@ bool TestReusageRateNewFile(unsigned char* input_data, size_t input_size, int le
       }
     }
   }
-  if ((float)count_equal / (float)back_refs_size < 0.97) {
+  if ((float)count_equal / (float)back_refs_size < 0.9) {
     return false;
   }
   return true;

@@ -151,7 +151,7 @@ bool BrotliCompressDecompressReusage(const unsigned char* input_data,
   BlockSplitFromDecoder literals_block_splits_;
   BlockSplitFromDecoder insert_copy_length_block_splits_;
   if (!BrotliDecompress(compressed_data, compressed_buffer_size,
-                        *decompressed_data, decopressed_size, true,
+                        *decompressed_data, decopressed_size, false,
                         &backward_references_, &back_refs_size_,
                         &literals_block_splits_,
                         &insert_copy_length_block_splits_)) {

@@ -249,6 +249,7 @@ struct BrotliDecoderStateStruct {
 
   BackwardReferenceFromDecoder* commands;
   size_t commands_size;
+  size_t commands_alloc_size;
 
   BlockSplitFromDecoder literals_block_splits;
   BROTLI_BOOL saved_position_literals_begin;

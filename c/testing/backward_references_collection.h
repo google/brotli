@@ -5,7 +5,7 @@
 */
 
 
-#include "../compress_similar_files/compress_similar_files.c"
+#include "../compress_similar_files/compress_similar_files.h"
 #include "helper.h"
 #include <stdbool.h>
 #include <stdio.h>
