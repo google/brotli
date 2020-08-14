@@ -45,6 +45,17 @@ bool TestAdjacentTypes(const BlockSplitFromDecoder* block_splits) {
  return true;
 }
 
+bool TestIncreasingTypes(const BlockSplitFromDecoder* block_splits) {
+ int cur_max_type = -1;
+ for (int i = 0; i < block_splits->num_blocks; ++i) {
+   if (block_splits->types[i] > cur_max_type + 1) {
+     return false;
+   }
+   cur_max_type = MAX(cur_max_type, block_splits->types[i]);
+ }
+ return true;
+}
+
 bool TestNumTypes(const BlockSplitFromDecoder* block_splits) {
  if (CountUniqueElements(block_splits->types, block_splits->num_blocks)
             != block_splits->num_types) {

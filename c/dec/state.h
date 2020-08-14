@@ -111,6 +111,9 @@ digraph States {
 
  */
 
+#define BROTLI_INIT_STORED_BLOCK_SPLITS 300
+#define BROTLI_INIT_STORED_BACK_REFS 5000
+
 typedef enum {
   BROTLI_STATE_UNINITED,
   BROTLI_STATE_LARGE_WINDOW_BITS,
@@ -233,7 +236,6 @@ typedef struct BrotliMetablockBodyArena {
   uint8_t dist_extra_bits[544];
   uint32_t dist_offset[544];
 } BrotliMetablockBodyArena;
-
 
 struct BrotliDecoderStateStruct {
   BrotliRunningState state;
@@ -361,6 +363,10 @@ BROTLI_INTERNAL void BrotliDecoderStateCleanupAfterMetablock(
 BROTLI_INTERNAL BROTLI_BOOL BrotliDecoderHuffmanTreeGroupInit(
     BrotliDecoderState* s, HuffmanTreeGroup* group, uint32_t alphabet_size_max,
     uint32_t alphabet_size_limit, uint32_t ntrees);
+
+BROTLI_INTERNAL BROTLI_BOOL BrotliEnsureCapacityBlockSplits(
+  BrotliDecoderState* s, BlockSplitFromDecoder* block_splits,
+  size_t requested_size);
 
 #define BROTLI_DECODER_ALLOC(S, L) S->alloc_func(S->memory_manager_opaque, L)
 

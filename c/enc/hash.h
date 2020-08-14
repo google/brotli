@@ -43,6 +43,7 @@ typedef struct {
 } HasherCommon;
 
 #define score_t size_t
+#define EXCEED_COPY_LEN_RATE 10
 
 static const uint32_t kCutoffTransformsCount = 10;
 /*   0,  12,   27,    23,    42,    63,    56,    48,    59,    64 */
@@ -151,7 +152,6 @@ static BROTLI_INLINE BROTLI_BOOL TestStaticDictionaryItem(
 
   matchlen =
       FindMatchLengthWithLimit(data, &dictionary->words->data[offset], len);
-
   if (matchlen + dictionary->cutoffTransformsCount <= len || matchlen == 0) {
     return BROTLI_FALSE;
   }
@@ -226,17 +226,18 @@ static BROTLI_INLINE BROTLI_BOOL GetStaticDictReference(const size_t cur_ix, con
     if (transform_idx < (int)dictionary->num_transforms) {
       const uint8_t* word = &words->data[offset];
       const BrotliTransforms* transforms = BrotliGetTransforms();
-      uint8_t* string = (uint8_t*)malloc(sizeof(uint8_t)*copy_len*10);
+      /* String can be sometimes longer then copy_len */
+      uint8_t* string = (uint8_t*)malloc(sizeof(uint8_t) * copy_len * EXCEED_COPY_LEN_RATE);
       size_t matchlen = BrotliTransformDictionaryWord(string, word, copy_len, transforms, transform_idx);
-      if (memcmp(data, string, matchlen)!=0) {
+      if (memcmp(data, string, matchlen) != 0) {
         return BROTLI_FALSE;
       }
+      free(string);
       score_t score = BackwardReferenceScore(matchlen, distance);
       out->len = matchlen;
       out->len_code_delta = (int)copy_len - (int)matchlen;
       out->distance = distance;
       out->score = score;
-
     } else {
       BROTLI_LOG(("Invalid backward reference. pos: %d distance: %d "
           "len: %d\n", cur_ix, distance, copy_len));
@@ -256,9 +257,13 @@ static BROTLI_INLINE void FindBackwardReferenceFromDecoder(
               const BackwardReferenceFromDecoder* backward_references,
               size_t* back_refs_position, const size_t back_refs_size,
               HasherSearchResult* BROTLI_RESTRICT out) {
+    if (*back_refs_position >= back_refs_size) {
+      return;
+    }
     const size_t backward = (size_t)backward_references[*back_refs_position].distance;
     size_t prev_ix = (cur_ix - backward);
-    if (prev_ix < cur_ix && backward <= backward_references[*back_refs_position].max_distance) {
+    if (prev_ix < cur_ix &&
+        backward <= backward_references[*back_refs_position].max_distance) {
         prev_ix &= ring_buffer_mask;
         {
             size_t len = FindMatchLengthWithLimit(&data[prev_ix],

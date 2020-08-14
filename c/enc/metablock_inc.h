@@ -56,6 +56,7 @@ static void FN(InitBlockSplitter)(
   self->min_block_size_ = min_block_size;
   self->split_threshold_ = split_threshold;
   self->num_blocks_ = 0;
+  self->num_types_ = 0;
   self->split_ = split;
   self->histograms_size_ = histograms_size;
   self->target_block_size_ = min_block_size;
@@ -136,9 +137,7 @@ static void FN(BlockSplitterFinishBlock)(
         FN(HistogramClear)(&histograms[self->curr_histogram_ix_]);
       self->block_size_ = 0;
       self->merge_last_count_ = 0;
-
       self->target_block_size_ = self->min_block_size_;
-
     } else if (diff[1] < diff[0] - 20.0) {
       /* Combine this block with second last block. */
       split->lengths[self->num_blocks_] = (uint32_t)self->block_size_;
@@ -183,6 +182,7 @@ static void FN(BlockSplitterAddSymbol)(FN(BlockSplitter)* self, size_t symbol) {
   }
 }
 
+
 /* Merge the current block according to it's known block type */
 static void FN(BlockSplitterStoredFinishBlock)(
     FN(BlockSplitter)* self, BROTLI_BOOL is_final) {
@@ -198,7 +198,14 @@ static void FN(BlockSplitterStoredFinishBlock)(
     self->block_size_ = 0;
   } else if (self->block_size_ > 0) {
     uint8_t current_type = split->types[self->num_blocks_];
-    if (current_type == (uint8_t)self->num_types_) {
+     /* If max_block_types_ amount is reached merge with a block of type 0 */
+    if (((size_t)current_type == self->num_types_ &&
+        self->num_types_ >= BROTLI_MAX_NUMBER_OF_BLOCK_TYPES) ||
+        (size_t)current_type > self->num_types_) {
+        current_type = 0;
+    }
+
+    if ((size_t)current_type == self->num_types_) {
       /* Create a new block type */
       ++self->num_blocks_;
       ++self->num_types_;
@@ -219,10 +226,11 @@ static void FN(BlockSplitterStoredFinishBlock)(
       FN(HistogramClear)(&histograms[self->curr_histogram_ix_]);
       self->merge_last_count_ = 0;
     }
-
   }
   if (is_final) {
+    split->num_types = self->num_types_;
     *self->histograms_size_ = split->num_types;
+    split->num_blocks = self->num_blocks_;
   }
 }
 

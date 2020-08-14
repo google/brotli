@@ -27,8 +27,10 @@ bool TestReusageRateSameFile(unsigned char* input_data, size_t input_size, int l
                       backward_references, back_refs_size,
                       literals_block_splits_,
                       insert_copy_length_block_splits_)) {
+    free(compressed_data);
     return false;
   }
+
   size_t decopressed_size = input_size;
   unsigned char* decompressed_data = (unsigned char*) malloc(decopressed_size);
   BackwardReferenceFromDecoder* backward_references_used;
@@ -39,8 +41,14 @@ bool TestReusageRateSameFile(unsigned char* input_data, size_t input_size, int l
                         decompressed_data, &decopressed_size, true,
                         &backward_references_used, &back_refs_size_used,
                         &literals_block_splits, &insert_copy_length_block_splits)) {
+    free(compressed_data);
+    free(decompressed_data);
     return false;
   }
+  free(compressed_data);
+  free(decompressed_data);
+  FreeBlockSplits(&literals_block_splits);
+  FreeBlockSplits(&insert_copy_length_block_splits);
 
   /* Check the reuse rate */
   int index_stored = 0;
@@ -62,7 +70,10 @@ bool TestReusageRateSameFile(unsigned char* input_data, size_t input_size, int l
       }
     }
   }
-  if ((float)count_equal / (float)back_refs_size < 0.9) {
+  free(backward_references);
+  free(backward_references_used);
+  /* Usually > 0.95 */
+  if ((float)count_equal / (float)back_refs_size < 0.8) {
     return false;
   }
   return true;
@@ -87,6 +98,8 @@ bool TestReusageRateNewFile(unsigned char* input_data, size_t input_size, int le
                       backward_references, back_refs_size,
                       literals_block_splits_,
                       insert_copy_length_block_splits_)) {
+    free(removed_data);
+    free(compressed_data);
     return false;
   }
   size_t decopressed_size = removed_data_size;
@@ -99,8 +112,16 @@ bool TestReusageRateNewFile(unsigned char* input_data, size_t input_size, int le
                         decompressed_data, &decopressed_size, true,
                         &backward_references_used, &back_refs_size_used,
                         &literals_block_splits, &insert_copy_length_block_splits)) {
+    free(removed_data);
+    free(compressed_data);
+    free(decompressed_data);
     return false;
   }
+  free(removed_data);
+  free(compressed_data);
+  free(decompressed_data);
+  FreeBlockSplits(&literals_block_splits);
+  FreeBlockSplits(&insert_copy_length_block_splits);
 
   /* Check the reuse rate */
   int index_stored = 0;
@@ -122,7 +143,10 @@ bool TestReusageRateNewFile(unsigned char* input_data, size_t input_size, int le
       }
     }
   }
-  if ((float)count_equal / (float)back_refs_size < 0.9) {
+  free(backward_references);
+  free(backward_references_used);
+  /* Usually > 0.95 */
+  if ((float)count_equal / (float)back_refs_size < 0.8) {
     return false;
   }
   return true;

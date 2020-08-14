@@ -19,13 +19,10 @@ bool TestSkipBlocksAndMergeSaveTypes() {
   uint8_t types[6] = {0, 1, 0, 2, 1, 0};
   uint32_t positions_begin[6] = {0, 520, 562, 700, 1020, 1500};
   uint32_t positions_end[6] = {520, 562, 700, 1020, 1500, 2100};
-
-  block_splits.types = (uint8_t*) malloc(sizeof(uint8_t) * 10);
-  block_splits.positions_begin = (uint32_t*) malloc(sizeof(uint8_t) * 10);
-  block_splits.positions_end = (uint32_t*) malloc(sizeof(uint8_t) * 10);
   block_splits.types = types;
   block_splits.positions_begin = positions_begin;
   block_splits.positions_end = positions_end;
+
   MemoryManager m;
   BrotliInitMemoryManager(&m, 0, 0, 0);
   Command* cmds = (Command* )malloc(sizeof(Command) * 10);
@@ -128,6 +125,7 @@ bool TestSkipBlocksAndMergeSaveTypes() {
   if (count_litarals != num_literals) {
     return false;
   }
+  free(cmds);
   return true;
 }
 
@@ -138,13 +136,10 @@ bool TestSimple() {
   uint8_t types[2] = {0, 1};
   uint32_t positions_begin[2] = {0, 520};
   uint32_t positions_end[2] = {520, 562};
-
-  block_splits.types = (uint8_t*) malloc(sizeof(uint8_t) * 10);
-  block_splits.positions_begin = (uint32_t*) malloc(sizeof(uint8_t) * 10);
-  block_splits.positions_end = (uint32_t*) malloc(sizeof(uint8_t) * 10);
   block_splits.types = types;
   block_splits.positions_begin = positions_begin;
   block_splits.positions_end = positions_end;
+
   MemoryManager m;
   BrotliInitMemoryManager(&m, 0, 0, 0);
   Command* cmds = (Command* )malloc(sizeof(Command) * 10);
@@ -199,7 +194,6 @@ bool TestSimple() {
   if (count_cmds != num_commands) {
     return false;
   }
-
   /* Check literals split */
   /* Check adjacent types */
   for (int i = 1; i < lit_split.num_blocks; ++i) {
@@ -230,6 +224,7 @@ bool TestSimple() {
   if (count_litarals != num_literals) {
     return false;
   }
+  free(cmds);
   return true;
 }
 
@@ -240,13 +235,10 @@ bool TestOneBlockType() {
   uint8_t types[1] = {0};
   uint32_t positions_begin[1] = {0};
   uint32_t positions_end[1] = {520};
-
-  block_splits.types = (uint8_t*) malloc(sizeof(uint8_t) * 10);
-  block_splits.positions_begin = (uint32_t*) malloc(sizeof(uint8_t) * 10);
-  block_splits.positions_end = (uint32_t*) malloc(sizeof(uint8_t) * 10);
   block_splits.types = types;
   block_splits.positions_begin = positions_begin;
   block_splits.positions_end = positions_end;
+
   MemoryManager m;
   BrotliInitMemoryManager(&m, 0, 0, 0);
   Command* cmds = (Command* )malloc(sizeof(Command) * 10);
@@ -275,7 +267,6 @@ bool TestOneBlockType() {
   lit_split.lengths_alloc_size = 10;
   BrotliSplitBlockLiteralsFromStored(&m, cmds, num_commands, 0, 0, &lit_split,
                                       &block_splits, &cur_block_decoder);
-
   /* Check commands split */
   /* Check adjacent types */
   for (int i = 1; i < cmd_split.num_blocks; ++i) {
@@ -333,5 +324,6 @@ bool TestOneBlockType() {
   if (count_litarals != num_literals) {
     return false;
   }
+  free(cmds);
   return true;
 }

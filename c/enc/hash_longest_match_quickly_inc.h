@@ -136,7 +136,6 @@ static BROTLI_INLINE void FN(PrepareDistanceCache)(
   BROTLI_UNUSED(distance_cache);
 }
 
-
 /* Find a longest backward match of &data[cur_ix & ring_buffer_mask]
    up to the length of max_length and stores the position cur_ix in the
    hash table.
@@ -164,11 +163,9 @@ static BROTLI_INLINE void FN(FindLongestMatch)(
   score_t min_score = out->score;
   score_t best_score = out->score;
   size_t best_len = best_len_in;
-  out->len = 0;
-  out->len_code_delta = 0;
-
   size_t cached_backward = (size_t)distance_cache[0];
   size_t prev_ix = cur_ix - cached_backward;
+  out->len_code_delta = 0;
   if (prev_ix < cur_ix) {
     prev_ix &= (uint32_t)ring_buffer_mask;
     if (compare_char == data[prev_ix + best_len]) {

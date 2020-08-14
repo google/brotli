@@ -4,7 +4,6 @@
    See file LICENSE for detail or copy at https://opensource.org/licenses/MIT
 */
 
-
 #include "../compress_similar_files/compress_similar_files.h"
 #include "helper.h"
 #include <stdbool.h>
@@ -51,13 +50,11 @@ bool TestFirstLastPosition(BackwardReferenceFromDecoder* backward_references,
   /* Check that the first position is > 0 */
   if (backward_references_size > 0 &&
       backward_references[0].position < 0) {
-    printf("backward_references[0].position=%d\n", backward_references[0].position);
     return false;
   }
   /* Check that the last position is < input_size */
   if (backward_references_size > 0 &&
       backward_references[backward_references_size - 1].position >= input_size) {
-    printf("backward_references[back_refs_size - 1].position=%d, %zu\n", backward_references[backward_references_size - 1].position, input_size);
     return false;
   }
   return true;

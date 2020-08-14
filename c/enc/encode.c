@@ -7,7 +7,6 @@
 /* Implementation of Brotli compressor. */
 
 #include <brotli/encode.h>
-// #include <../dec/decode.c>
 
 #include <stdlib.h>  /* free, malloc */
 #include <string.h>  /* memcpy, memset */
@@ -964,7 +963,6 @@ static void ExtendLastCommand(BrotliEncoderState* s, uint32_t* bytes,
   }
 }
 
-
 /*
    Processes the accumulated input data and sets |*out_size| to the length of
    the new output meta-block, or to zero if no new output meta-block has been
@@ -1055,6 +1053,7 @@ static BROTLI_BOOL EncodeData(
     *out_size = storage_ix >> 3;
     return BROTLI_TRUE;
   }
+
   {
     /* Theoretical max number of commands is 1 per 2 bytes. */
     size_t newsize = s->num_commands_ + bytes / 2 + 1;
@@ -1111,6 +1110,7 @@ static BROTLI_BOOL EncodeData(
         &s->num_commands_, &s->num_literals_, s->backward_references_,
         &s->back_refs_position_, s->back_refs_size_);
   }
+
   {
     const size_t max_length = MaxMetablockSize(&s->params);
     const size_t max_literals = max_length / 8;

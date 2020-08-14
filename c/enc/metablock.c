@@ -187,6 +187,7 @@ void BrotliBuildMetaBlock(MemoryManager* m,
   }
   RecomputeDistancePrefixes(cmds, num_commands,
                             &orig_params.dist, &params->dist);
+
   BrotliSplitBlock(m, cmds, num_commands,
                    ringbuffer, pos, mask, params,
                    &mb->literal_split,
@@ -218,17 +219,20 @@ void BrotliBuildMetaBlock(MemoryManager* m,
       BROTLI_ALLOC(m, HistogramDistance, distance_histograms_size);
   if (BROTLI_IS_OOM(m) || BROTLI_IS_NULL(distance_histograms)) return;
   ClearHistogramsDistance(distance_histograms, distance_histograms_size);
+
   BROTLI_DCHECK(mb->command_histograms == 0);
   mb->command_histograms_size = mb->command_split.num_types;
   mb->command_histograms =
       BROTLI_ALLOC(m, HistogramCommand, mb->command_histograms_size);
   if (BROTLI_IS_OOM(m) || BROTLI_IS_NULL(mb->command_histograms)) return;
   ClearHistogramsCommand(mb->command_histograms, mb->command_histograms_size);
+
   BrotliBuildHistogramsWithContext(cmds, num_commands,
       &mb->literal_split, &mb->command_split, &mb->distance_split,
       ringbuffer, pos, mask, prev_byte, prev_byte2, literal_context_modes,
       literal_histograms, mb->command_histograms, distance_histograms);
   BROTLI_FREE(m, literal_context_modes);
+
   BROTLI_DCHECK(mb->literal_context_map == 0);
   mb->literal_context_map_size =
       mb->literal_split.num_types << BROTLI_LITERAL_CONTEXT_BITS;
@@ -245,7 +249,6 @@ void BrotliBuildMetaBlock(MemoryManager* m,
   BrotliClusterHistogramsLiteral(m, literal_histograms, literal_histograms_size,
       kMaxNumberOfHistograms, mb->literal_histograms,
       &mb->literal_histograms_size, mb->literal_context_map);
-
   if (BROTLI_IS_OOM(m)) return;
   BROTLI_FREE(m, literal_histograms);
 
@@ -260,6 +263,7 @@ void BrotliBuildMetaBlock(MemoryManager* m,
       }
     }
   }
+
   BROTLI_DCHECK(mb->distance_context_map == 0);
   mb->distance_context_map_size =
       mb->distance_split.num_types << BROTLI_DISTANCE_CONTEXT_BITS;
@@ -344,7 +348,6 @@ static void InitContextBlockSplitter(
 
   self->alphabet_size_ = alphabet_size;
   self->num_contexts_ = num_contexts;
-
   self->max_block_types_ = BROTLI_MAX_NUMBER_OF_BLOCK_TYPES / num_contexts;
   self->min_block_size_ = min_block_size;
   self->split_threshold_ = split_threshold;
@@ -554,59 +557,28 @@ static void ContextBlockSplitterStoredFinishBlockLiterals(
     self->block_size_ = 0;
   } else if (self->block_size_ > 0) {
     uint8_t current_type = split->types[self->num_blocks_];
-    if (current_type >= split->num_types) {
+    /* If max_block_types_ amount is reached merge with a block of type 0 */
+    if (((size_t)current_type == self->num_types_ &&
+      self->num_types_ >= self->max_block_types_) ||
+      (size_t)current_type > self->num_types_) {
       current_type = 0;
     }
 
     if (current_type == (uint8_t)self->num_types_) {
-      /* If max_block_types_ amount is reached merge with a block of type 0 */
-      if (self->num_types_ >= self->max_block_types_) {
-        current_type = 0;
-        split->types[self->num_blocks_] = 0;
-        /* Merge with the blocks of the same 0 block type */
-        HistogramLiteral* combined_histo =
-            BROTLI_ALLOC(m, HistogramLiteral, num_contexts);
-        double combined_entropy[BROTLI_MAX_STATIC_CONTEXTS];
-        size_t i;
-        if (BROTLI_IS_OOM(m) || BROTLI_IS_NULL(combined_histo)) return;
-
-        for (i = 0; i < num_contexts; ++i) {
-          size_t curr_histo_ix = self->curr_histogram_ix_ + i;
-          combined_histo[i] = histograms[curr_histo_ix];
-          HistogramAddHistogramLiteral(&combined_histo[i],
-              &histograms[current_type * num_contexts + i]);
-          combined_entropy[i] = BitsEntropy(
-              &combined_histo[i].data_[0], self->alphabet_size_);
-        }
-
-        for (i = 0; i < num_contexts; ++i) {
-          histograms[current_type * num_contexts + i] =
-              combined_histo[i];
-          HistogramClearLiteral(&histograms[self->curr_histogram_ix_ + i]);
-        }
-        ++self->num_blocks_;
-        split->num_types = self->num_types_;
-        self->block_size_ = 0;
-        self->merge_last_count_ = 0;
-        BROTLI_FREE(m, combined_histo);
-      } else {
-        /* Create a new block type */
-        ++self->num_blocks_;
-        ++self->num_types_;
-        self->curr_histogram_ix_ += num_contexts;
-        if (self->curr_histogram_ix_ < *self->histograms_size_) {
-          ClearHistogramsLiteral(
-              &self->histograms_[self->curr_histogram_ix_], self->num_contexts_);
-        }
-
-        self->block_size_ = 0;
-        self->merge_last_count_ = 0;
+      /* Create a new block type */
+      ++self->num_blocks_;
+      ++self->num_types_;
+      self->curr_histogram_ix_ += num_contexts;
+      if (self->curr_histogram_ix_ < *self->histograms_size_) {
+        ClearHistogramsLiteral(
+            &self->histograms_[self->curr_histogram_ix_], self->num_contexts_);
       }
+      self->block_size_ = 0;
+      self->merge_last_count_ = 0;
     } else {
       /* Merge with the blocks of the same current_type block type */
       HistogramLiteral* combined_histo =
           BROTLI_ALLOC(m, HistogramLiteral, num_contexts);
-      double combined_entropy[BROTLI_MAX_STATIC_CONTEXTS];
       size_t i;
       if (BROTLI_IS_OOM(m) || BROTLI_IS_NULL(combined_histo)) return;
 
@@ -615,8 +587,6 @@ static void ContextBlockSplitterStoredFinishBlockLiterals(
         combined_histo[i] = histograms[curr_histo_ix];
         HistogramAddHistogramLiteral(&combined_histo[i],
             &histograms[current_type * num_contexts + i]);
-        combined_entropy[i] = BitsEntropy(
-            &combined_histo[i].data_[0], self->alphabet_size_);
       }
       split->types[self->num_blocks_] = current_type;
       for (i = 0; i < num_contexts; ++i) {
@@ -631,7 +601,9 @@ static void ContextBlockSplitterStoredFinishBlockLiterals(
     }
   }
   if (is_final) {
+    split->num_types = self->num_types_;
     *self->histograms_size_ = split->num_types * num_contexts;
+    split->num_blocks = self->num_blocks_;
   }
 }
 
@@ -646,7 +618,6 @@ static void ContextBlockSplitterStoredAddSymbolLiterals(
     if (BROTLI_IS_OOM(m)) return;
   }
 }
-
 
 static BROTLI_INLINE void BrotliBuildMetaBlockGreedyInternal(
     MemoryManager* m, const uint8_t* ringbuffer, size_t pos, size_t mask,
@@ -668,6 +639,7 @@ static BROTLI_INLINE void BrotliBuildMetaBlockGreedyInternal(
   for (i = 0; i < n_commands; ++i) {
     num_literals += commands[i].insert_len_;
   }
+
   if (num_contexts == 1) {
     InitBlockSplitterLiteral(m, &lit_blocks.plain, 256, 512, 400.0,
         num_literals, &mb->literal_split, &mb->literal_histograms,
@@ -713,7 +685,6 @@ static BROTLI_INLINE void BrotliBuildMetaBlockGreedyInternal(
                                        cmds_block_splits_decoder,
                                        current_block_cmds);
   }
-
 
   for (i = 0; i < n_commands; ++i) {
     const Command cmd = commands[i];
@@ -769,7 +740,6 @@ static BROTLI_INLINE void BrotliBuildMetaBlockGreedyInternal(
       BlockSplitterFinishBlockLiteral(
           &lit_blocks.plain, /* is_final = */ BROTLI_TRUE);
     }
-
   } else {
     if (literals_block_splits_decoder != NULL) {
       ContextBlockSplitterStoredFinishBlockLiterals(

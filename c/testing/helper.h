@@ -113,6 +113,7 @@ bool BrotliCompressDecompress(const unsigned char* input_data, size_t input_size
                       backward_references_, back_refs_size_,
                       literals_block_splits_,
                       insert_copy_length_block_splits_)) {
+    free(compressed_data);
     return false;
   }
   size_t decopressed_size = input_size;
@@ -121,8 +122,10 @@ bool BrotliCompressDecompress(const unsigned char* input_data, size_t input_size
                         decompressed_data, &decopressed_size, true,
                         backward_references, back_refs_size,
                         literals_block_splits, insert_copy_length_block_splits)) {
+    free(compressed_data);
     return false;
   }
+  free(compressed_data);
   return true;
 }
 
@@ -142,6 +145,7 @@ bool BrotliCompressDecompressReusage(const unsigned char* input_data,
                       backward_references, back_refs_size,
                       literals_block_splits,
                       insert_copy_length_block_splits)) {
+    free(compressed_data);
     return false;
   }
   *decopressed_size = input_size;
@@ -155,8 +159,10 @@ bool BrotliCompressDecompressReusage(const unsigned char* input_data,
                         &backward_references_, &back_refs_size_,
                         &literals_block_splits_,
                         &insert_copy_length_block_splits_)) {
+    free(compressed_data);
     return false;
   }
+  free(compressed_data);
   return true;
 }
 
@@ -170,8 +176,12 @@ bool GetBackwardReferences(const unsigned char* input_data, size_t input_size,
                                 backward_references, backward_references_size,
                                 &literals_block_splits,
                                 &insert_copy_length_block_splits)) {
+    FreeBlockSplits(&literals_block_splits);
+    FreeBlockSplits(&insert_copy_length_block_splits);
     return false;
   }
+  FreeBlockSplits(&literals_block_splits);
+  FreeBlockSplits(&insert_copy_length_block_splits);
   return true;
 }
 
@@ -184,8 +194,10 @@ bool GetBlockSplits(const unsigned char* input_data, size_t input_size,
                                 &backward_references, &back_refs_size,
                                 literals_block_splits,
                                 insert_copy_length_block_splits)) {
+    free(backward_references);
     return false;
   }
+  free(backward_references);
   return true;
 }
 
@@ -203,8 +215,12 @@ bool GetNewBackwardReferences(
                                 &backward_references, &back_refs_size,
                                 &literals_block_splits,
                                 &insert_copy_length_block_splits)) {
+    FreeBlockSplits(&literals_block_splits);
+    FreeBlockSplits(&insert_copy_length_block_splits);
     return false;
   }
+  FreeBlockSplits(&literals_block_splits);
+  FreeBlockSplits(&insert_copy_length_block_splits);
 
   *removed_data = (unsigned char*) malloc(input_size);
   *removed_data_size = 0;
@@ -234,6 +250,7 @@ bool GetNewBlockSplits(const unsigned char* input_data, size_t input_size,
                                 &backward_references, &back_refs_size,
                                 &literals_block_splits,
                                 &insert_copy_length_block_splits)) {
+    free(backward_references);
     return false;
   }
   RemoveBlockSplittingPart(&literals_block_splits, start, end,

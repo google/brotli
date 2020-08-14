@@ -20,9 +20,6 @@ bool TestBlocksHistograms() {
   uint32_t positions_begin[4] = {0, 73, 158, 230};
   uint32_t positions_end[4] = {73, 158, 230, 256};
 
-  lit_block_splits.types = (uint8_t*) malloc(sizeof(uint8_t) * 10);
-  lit_block_splits.positions_begin = (uint32_t*) malloc(sizeof(uint8_t) * 10);
-  lit_block_splits.positions_end = (uint32_t*) malloc(sizeof(uint8_t) * 10);
   lit_block_splits.types = types;
   lit_block_splits.positions_begin = positions_begin;
   lit_block_splits.positions_end = positions_end;
@@ -34,9 +31,6 @@ bool TestBlocksHistograms() {
   uint32_t positions_begin_cmd[3] = {0, 151, 180};
   uint32_t positions_end_cmd[3] = {151, 180, 256};
 
-  cmd_block_splits.types = (uint8_t*) malloc(sizeof(uint8_t) * 10);
-  cmd_block_splits.positions_begin = (uint32_t*) malloc(sizeof(uint8_t) * 10);
-  cmd_block_splits.positions_end = (uint32_t*) malloc(sizeof(uint8_t) * 10);
   cmd_block_splits.types = types_cmd;
   cmd_block_splits.positions_begin = positions_begin_cmd;
   cmd_block_splits.positions_end = positions_end_cmd;
@@ -84,6 +78,8 @@ bool TestBlocksHistograms() {
       &lit_block_splits, &lit_cur_block,
       &cmd_block_splits, &cmd_cur_block, &mb);
 
+  free(cmds);
+
   /* Check the literals histogram sizes */
   if (mb.literal_histograms_size != 2) {
     return false;
@@ -128,5 +124,6 @@ bool TestBlocksHistograms() {
   if (mb.command_histograms[2].data_[342] != 1) {
     return false;
   }
+
   return true;
 }

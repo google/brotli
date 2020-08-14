@@ -57,7 +57,6 @@ typedef enum BrotliEncoderMode {
   BROTLI_MODE_FONT = 2
 } BrotliEncoderMode;
 
-
 /** Default value for ::BROTLI_PARAM_QUALITY parameter. */
 #define BROTLI_DEFAULT_QUALITY 11
 /** Default value for ::BROTLI_PARAM_LGWIN parameter. */
@@ -320,7 +319,6 @@ BROTLI_ENC_API BROTLI_BOOL BrotliEncoderCompress(
     const size_t back_refs_size,
     const BlockSplitFromDecoder* literals_block_splits,
     const BlockSplitFromDecoder* insert_copy_length_block_splits);
-
 
 /**
  * Compresses input stream to output stream.

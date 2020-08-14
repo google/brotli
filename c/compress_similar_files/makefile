@@ -18,9 +18,6 @@ LDLIBS=-lstdc++ -lbrotlienc -lbrotlidec -lz
 
 all: example
 
-#example.o: example.cc
-#    g++ -std=c++11 -c example.cc
-
 example: example.o
 
 clean:

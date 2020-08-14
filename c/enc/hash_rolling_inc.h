@@ -157,7 +157,6 @@ static BROTLI_INLINE void FN(FindLongestMatch)(
     const BackwardReferenceFromDecoder* backward_references,
     size_t* back_refs_position, const size_t back_refs_size,
     HasherSearchResult* BROTLI_RESTRICT out) {
-
   const size_t cur_ix_masked = cur_ix & ring_buffer_mask;
   size_t pos;
 

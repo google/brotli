@@ -8,7 +8,6 @@
 
 #include <stdlib.h>  /* free, malloc */
 #include <string.h>  /* memcpy, memset */
-#include <stdio.h> /* fprintf */ ///!!!!
 
 #include "../common/constants.h"
 #include "../common/context.h"
@@ -130,7 +129,6 @@ static BROTLI_NOINLINE BrotliDecoderResult SaveErrorCode(
       return BROTLI_DECODER_RESULT_NEEDS_MORE_OUTPUT;
 
     default:
-
       return BROTLI_DECODER_RESULT_ERROR;
   }
 }
@@ -1211,9 +1209,13 @@ static BROTLI_INLINE BROTLI_BOOL DecodeLiteralBlockSwitchInternal(
       s->literals_block_splits.positions_end[s->literals_block_splits.num_blocks] = position;
       s->literals_block_splits.num_blocks++;
     }
+    BrotliEnsureCapacityBlockSplits(s, &s->literals_block_splits,
+                                    s->literals_block_splits.num_blocks + 1);
     s->literals_block_splits.positions_begin[s->literals_block_splits.num_blocks] = position;
+    /* block_type_rb[1] stores a new block type for literals
+       as tree_type = 0, 2 * tree_type + 1 = 1  */
     s->literals_block_splits.types[s->literals_block_splits.num_blocks] =
-                s->block_type_rb[0 * 2 + 1] +
+                s->block_type_rb[1] +
                 s->literals_block_splits.num_types_prev_metablocks;
     s->literals_block_splits.num_types =
                         BROTLI_MAX(size_t, s->literals_block_splits.num_types,
@@ -1247,7 +1249,11 @@ static BROTLI_INLINE BROTLI_BOOL DecodeCommandBlockSwitchInternal(
       s->insert_copy_length_block_splits.positions_end[s->insert_copy_length_block_splits.num_blocks] = position;
       s->insert_copy_length_block_splits.num_blocks++;
     }
+    BrotliEnsureCapacityBlockSplits(s, &s->insert_copy_length_block_splits,
+                                    s->insert_copy_length_block_splits.num_blocks + 1);
     s->insert_copy_length_block_splits.positions_begin[s->insert_copy_length_block_splits.num_blocks] = position;
+    /* block_type_rb[3] stores a new block type for insert and copy lengths
+       as tree_type = 1, 2 * tree_type + 1 = 3  */
     s->insert_copy_length_block_splits.types[s->insert_copy_length_block_splits.num_blocks] =
                 s->block_type_rb[3] +
                 s->insert_copy_length_block_splits.num_types_prev_metablocks;
@@ -1385,6 +1391,29 @@ static BROTLI_BOOL BROTLI_NOINLINE BrotliEnsureRingBuffer(
   s->ringbuffer_mask = s->new_ringbuffer_size - 1;
   s->ringbuffer_end = s->ringbuffer + s->ringbuffer_size;
 
+  return BROTLI_TRUE;
+}
+
+static BROTLI_BOOL BROTLI_NOINLINE BrotliEnsureCapacityCommands(
+    BrotliDecoderState* s, size_t requested_size) {
+  if (s->commands_alloc_size >= requested_size) {
+    return BROTLI_TRUE;
+  }
+  BackwardReferenceFromDecoder* old_commands = s->commands;
+  s->commands = (BackwardReferenceFromDecoder*)BROTLI_DECODER_ALLOC(
+       s, sizeof(BackwardReferenceFromDecoder) * requested_size * 2);
+
+  if (s->commands == 0) {
+    /* Restore previous value. */
+    s->commands = old_commands;
+    return BROTLI_FALSE;
+  }
+  if (!!old_commands) {
+    memcpy(s->commands, old_commands,
+           s->commands_size * sizeof(BackwardReferenceFromDecoder));
+    BROTLI_DECODER_FREE(s, old_commands);
+  }
+  s->commands_alloc_size = requested_size * 2;
   return BROTLI_TRUE;
 }
 
@@ -1927,6 +1956,7 @@ CommandPostDecodeLiterals:
   }
   /* Save backward reference info if needed */
   if (s->save_info_for_recompression) {
+    BrotliEnsureCapacityCommands(s, s->commands_size + 1);
     s->commands[s->commands_size].copy_len = s->copy_length;
     s->commands[s->commands_size].distance = s->distance_code;
     s->commands[s->commands_size].position = pos + (s->rb_roundtrips << s->window_bits);
@@ -2090,7 +2120,6 @@ BrotliDecoderResult BrotliDecoderDecompress(
   size_t available_out = *decoded_size;
   uint8_t* next_out = decoded_buffer;
   s.save_info_for_recompression = save_info_for_recompression;
-
   if (!BrotliDecoderStateInit(&s, 0, 0, 0)) {
     return BROTLI_DECODER_RESULT_ERROR;
   }
@@ -2107,7 +2136,6 @@ BrotliDecoderResult BrotliDecoderDecompress(
     *literals_block_splits = s.literals_block_splits;
     *insert_copy_length_block_splits = s.insert_copy_length_block_splits;
   }
-
 
   return result;
 }
@@ -2131,8 +2159,8 @@ BrotliDecoderResult BrotliDecoderDecompressStream(
   /* Will save a commands here to use for the recompression */
   if (s->save_info_for_recompression && !s->commands) {
     s->commands = (BackwardReferenceFromDecoder*)BROTLI_DECODER_ALLOC(
-         s, sizeof(BackwardReferenceFromDecoder) * (int)((float)*available_in));
-    s->commands_alloc_size = *available_in;
+         s, sizeof(BackwardReferenceFromDecoder) * BROTLI_INIT_STORED_BACK_REFS);
+    s->commands_alloc_size = BROTLI_INIT_STORED_BACK_REFS;
   }
   /* Ensure that |total_out| is set, even if no data will ever be pushed out. */
   if (total_out) {
