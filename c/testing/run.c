@@ -69,6 +69,9 @@ int main() {
                           input_data, input_size));
     RunTest(Concat(part_name, files[i], ": TestSortedPositions"),
         TestSortedPositions(backward_references, back_refs_size));
+    free(input_data);
+    free(output_data);
+    free(backward_references);
   }
 
   /* Check block splits collection */
@@ -98,6 +101,8 @@ int main() {
         TestIncreasingPositions(&literals_block_splits));
     RunTest(Concat(part_name, files[i], ": TestAdjacentTypes"),
         TestAdjacentTypes(&literals_block_splits));
+    RunTest(Concat(part_name, files[i], ": TestIncreasingTypes"),
+        TestIncreasingTypes(&literals_block_splits));
     RunTest(Concat(part_name, files[i], ": TestNumTypes"),
         TestNumTypes(&literals_block_splits));
     part_name = "Commands block splits collection for ";
@@ -107,8 +112,14 @@ int main() {
         TestIncreasingPositions(&insert_copy_length_block_splits));
     RunTest(Concat(part_name, files[i], ": TestAdjacentTypes"),
         TestAdjacentTypes(&insert_copy_length_block_splits));
+    RunTest(Concat(part_name, files[i], ": TestIncreasingTypes"),
+        TestIncreasingTypes(&insert_copy_length_block_splits));
     RunTest(Concat(part_name, files[i], ": TestNumTypes"),
         TestNumTypes(&insert_copy_length_block_splits));
+    free(input_data);
+    free(output_data);
+    FreeBlockSplits(&literals_block_splits);
+    FreeBlockSplits(&insert_copy_length_block_splits);
   }
 
   /* Check backward reference adjustments */
@@ -140,6 +151,10 @@ int main() {
                           removed_data, removed_data_size));
     RunTest(Concat(part_name, files[i], ": TestSortedPositions"),
       TestSortedPositions(new_backward_references, new_backward_references_size));
+    free(input_data);
+    free(removed_data);
+    free(output_data);
+    free(new_backward_references);
   }
 
   /* Check block splits adjustments */
@@ -168,6 +183,8 @@ int main() {
       TestIncreasingPositions(&new_literals_block_splits));
     RunTest(Concat(part_name, files[i], ": TestAdjacentTypes"),
       TestAdjacentTypes(&new_literals_block_splits));
+    RunTest(Concat(part_name, files[i], ": TestIncreasingTypes"),
+        TestIncreasingTypes(&new_literals_block_splits));
     RunTest(Concat(part_name, files[i], ": TestNumTypes"),
       TestNumTypes(&new_literals_block_splits));
     part_name = "Commands block splits adjustment for ";
@@ -177,8 +194,14 @@ int main() {
       TestIncreasingPositions(&new_commands_block_splits));
     RunTest(Concat(part_name, files[i], ": TestAdjacentTypes"),
       TestAdjacentTypes(&new_commands_block_splits));
+    RunTest(Concat(part_name, files[i], ": TestIncreasingTypes"),
+        TestIncreasingTypes(&new_commands_block_splits));
     RunTest(Concat(part_name, files[i], ": TestNumTypes"),
       TestNumTypes(&new_commands_block_splits));
+    free(input_data);
+    free(removed_data);
+    FreeBlockSplits(&new_commands_block_splits);
+    FreeBlockSplits(&new_literals_block_splits);
   }
 
   /* Check block splits mapping */
@@ -206,9 +229,11 @@ int main() {
       TestReusageRateSameFile(input_data, input_size, 9));
     RunTest(Concat(part_name, files[i], ": TestReusageRateNewFile"),
       TestReusageRateNewFile(input_data, input_size, 9));
+    free(input_data);
   }
 
   /* Check that overall results are decompressible */
+  part_name = "Decompressible for ";
   for (int i = 0; i < 2; ++i) {
     FILE* infile = OpenFile(files[i], "rb");
 
@@ -220,7 +245,7 @@ int main() {
     ReadData(infile, &input_data, &input_size);
     fclose(infile);
 
-    BackwardReferenceFromDecoder* new_backward_references = NULL;
+    BackwardReferenceFromDecoder* new_backward_references;
     size_t new_backward_references_size = 0;
     unsigned char* removed_data = (unsigned char*) malloc(input_size);
     size_t removed_data_size = 0;
@@ -233,6 +258,7 @@ int main() {
                       &new_literals_block_splits,
                       &new_commands_block_splits,
                       &removed_data, &removed_data_size);
+
     size_t decompressed_size = removed_data_size * 2;
     unsigned char* decompressed_data = (unsigned char*) malloc(decompressed_size);
     BrotliCompressDecompressReusage(removed_data, removed_data_size, 9,
@@ -241,10 +267,15 @@ int main() {
                                     &new_literals_block_splits,
                                     &new_commands_block_splits,
                                     &decompressed_data, &decompressed_size);
-    RunTest("TestCheckDecompressible",
-      TestEqualTexts(removed_data, removed_data_size, decompressed_data,
+    RunTest(Concat(part_name, files[i], ": TestCheckDecompressible"),
+            TestEqualTexts(removed_data, removed_data_size, decompressed_data,
                      decompressed_size));
+    free(input_data);
+    free(decompressed_data);
+    free(removed_data);
+    free(new_backward_references);
+    FreeBlockSplits(&new_literals_block_splits);
+    FreeBlockSplits(&new_commands_block_splits);
   }
-
   return 0;
 }
