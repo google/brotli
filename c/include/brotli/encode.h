@@ -14,6 +14,7 @@
 
 #include <brotli/port.h>
 #include <brotli/types.h>
+#include "decode.h"
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
@@ -313,7 +314,11 @@ BROTLI_ENC_API BROTLI_BOOL BrotliEncoderCompress(
     int quality, int lgwin, BrotliEncoderMode mode, size_t input_size,
     const uint8_t input_buffer[BROTLI_ARRAY_PARAM(input_size)],
     size_t* encoded_size,
-    uint8_t encoded_buffer[BROTLI_ARRAY_PARAM(*encoded_size)]);
+    uint8_t encoded_buffer[BROTLI_ARRAY_PARAM(*encoded_size)],
+    const BackwardReferenceFromDecoder* backward_references,
+    const size_t back_refs_size,
+    const BlockSplitFromDecoder* literals_block_splits,
+    const BlockSplitFromDecoder* insert_copy_length_block_splits);
 
 /**
  * Compresses input stream to output stream.

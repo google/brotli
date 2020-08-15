@@ -23,6 +23,7 @@ typedef struct FN(BlockSplitter) {
   double split_threshold_;
 
   size_t num_blocks_;
+  size_t num_types_;
   BlockSplit* split_;  /* not owned */
   HistogramType* histograms_;  /* not owned */
   size_t* histograms_size_;  /* not owned */
@@ -46,7 +47,7 @@ static void FN(InitBlockSplitter)(
     MemoryManager* m, FN(BlockSplitter)* self, size_t alphabet_size,
     size_t min_block_size, double split_threshold, size_t num_symbols,
     BlockSplit* split, HistogramType** histograms, size_t* histograms_size) {
-  size_t max_num_blocks = num_symbols / min_block_size + 1;
+  size_t max_num_blocks = BROTLI_MAX(size_t, 1024, num_symbols / min_block_size + 1);
   /* We have to allocate one more histogram than the maximum number of block
      types for the current histogram when the meta-block is too big. */
   size_t max_num_types =
@@ -55,6 +56,7 @@ static void FN(InitBlockSplitter)(
   self->min_block_size_ = min_block_size;
   self->split_threshold_ = split_threshold;
   self->num_blocks_ = 0;
+  self->num_types_ = 0;
   self->split_ = split;
   self->histograms_size_ = histograms_size;
   self->target_block_size_ = min_block_size;
@@ -177,6 +179,69 @@ static void FN(BlockSplitterAddSymbol)(FN(BlockSplitter)* self, size_t symbol) {
   ++self->block_size_;
   if (self->block_size_ == self->target_block_size_) {
     FN(BlockSplitterFinishBlock)(self, /* is_final = */ BROTLI_FALSE);
+  }
+}
+
+
+/* Merge the current block according to it's known block type */
+static void FN(BlockSplitterStoredFinishBlock)(
+    FN(BlockSplitter)* self, BROTLI_BOOL is_final) {
+  BlockSplit* split = self->split_;
+  HistogramType* histograms = self->histograms_;
+  if (self->num_blocks_ == 0) {
+    /* Create a first block */
+    ++self->num_blocks_;
+    ++self->num_types_;
+    ++self->curr_histogram_ix_;
+    if (self->curr_histogram_ix_ < *self->histograms_size_)
+      FN(HistogramClear)(&histograms[self->curr_histogram_ix_]);
+    self->block_size_ = 0;
+  } else if (self->block_size_ > 0) {
+    uint8_t current_type = split->types[self->num_blocks_];
+     /* If max_block_types_ amount is reached merge with a block of type 0 */
+    if (((size_t)current_type == self->num_types_ &&
+        self->num_types_ >= BROTLI_MAX_NUMBER_OF_BLOCK_TYPES) ||
+        (size_t)current_type > self->num_types_) {
+        current_type = 0;
+    }
+
+    if ((size_t)current_type == self->num_types_) {
+      /* Create a new block type */
+      ++self->num_blocks_;
+      ++self->num_types_;
+      ++self->curr_histogram_ix_;
+      if (self->curr_histogram_ix_ < *self->histograms_size_)
+        FN(HistogramClear)(&histograms[self->curr_histogram_ix_]);
+      self->block_size_ = 0;
+      self->merge_last_count_ = 0;
+    } else {
+      /* Merge with the blocks of the same current_type block type */
+      HistogramType combined_histo;
+      combined_histo = histograms[self->curr_histogram_ix_];
+      FN(HistogramAddHistogram)(&combined_histo,
+          &histograms[current_type]);
+      histograms[current_type] = combined_histo;
+      ++self->num_blocks_;
+      self->block_size_ = 0;
+      FN(HistogramClear)(&histograms[self->curr_histogram_ix_]);
+      self->merge_last_count_ = 0;
+    }
+  }
+  if (is_final) {
+    split->num_types = self->num_types_;
+    *self->histograms_size_ = split->num_types;
+    split->num_blocks = self->num_blocks_;
+  }
+}
+
+/* Adds the next symbol to the current histogram. When the current histogram
+   reaches the block length, merge the block according to it's block type. */
+static void FN(BlockSplitterStoredAddSymbol)(FN(BlockSplitter)* self, size_t symbol) {
+  FN(HistogramAdd)(&self->histograms_[self->curr_histogram_ix_], symbol);
+
+  ++self->block_size_;
+  if (self->block_size_ == self->split_->lengths[self->num_blocks_]) {
+    FN(BlockSplitterStoredFinishBlock)(self, /* is_final = */ BROTLI_FALSE);
   }
 }
 

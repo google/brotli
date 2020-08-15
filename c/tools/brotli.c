@@ -908,7 +908,7 @@ static BROTLI_BOOL DecompressFile(Context* context, BrotliDecoderState* s) {
               PrintablePath(context->current_input_path));
       return BROTLI_FALSE;
     }
-
+    
     result = BrotliDecoderDecompressStream(s, &context->available_in,
         &context->next_in, &context->available_out, &context->next_out, 0);
   }
@@ -926,6 +926,7 @@ static BROTLI_BOOL DecompressFiles(Context* context) {
        fragmentation (new builds decode streams that old builds don't),
        it is better from used experience perspective. */
     BrotliDecoderSetParameter(s, BROTLI_DECODER_PARAM_LARGE_WINDOW, 1u);
+    BrotliDecoderSetParameter(s, BROTLI_DECODER_PARAM_LARGE_WINDOW, 0u);
     is_ok = OpenFiles(context);
     if (is_ok && !context->current_input_path &&
         !context->force_overwrite && isatty(STDIN_FILENO)) {

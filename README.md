@@ -19,6 +19,25 @@ https://groups.google.com/forum/#!forum/brotli
 [![AppVeyor Build Status](https://ci.appveyor.com/api/projects/status/github/google/brotli?branch=master&svg=true)](https://ci.appveyor.com/project/szabadka/brotli)
 [![Fuzzing Status](https://oss-fuzz-build-logs.storage.googleapis.com/badges/brotli.svg)](https://oss-fuzz-build-logs.storage.googleapis.com/index.html#brotli)
 
+### **How to use for recompression**
+
+`BrotliEncoderCompressSimilarDeletion` inside `compress\_similar\_files\compress\_similar\_files.h` is a main function to use for recompression.
+It takes:
+* Input compressed data
+* _start_ and _end_ positions of the area to delete (indexed as in uncompressed input data)
+* A buffer for output data
+* Some other parameters as in original main compression Brotli function `BrotliEncoderCompress`, e.g. level.
+As a result, an output buffer contains a compressed file for file which is uncompressed input file without [start, end) range.
+
+An example of use is in the file `compress\_similar\_files\example.cc`.
+To build and run `example.cc` do the following inside `compress\_similar\_files` directory:
+
+    make
+    ./example level file_name start end
+
+An explanation of how it works is in `recompression_doc.md`
+
+
 ### Build instructions
 
 #### Vcpkg

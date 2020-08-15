@@ -15,6 +15,21 @@
 extern "C" {
 #endif
 
+void InitBlockSplitStored(BrotliDecoderState* s,
+                          BlockSplitFromDecoder* block_split) {
+  block_split->types = (uint8_t*)BROTLI_DECODER_ALLOC(
+                        s, sizeof(uint8_t) * BROTLI_INIT_STORED_BLOCK_SPLITS);
+  block_split->positions_begin = (uint32_t*)BROTLI_DECODER_ALLOC(
+                       s, sizeof(uint32_t) * BROTLI_INIT_STORED_BLOCK_SPLITS);
+  block_split->positions_end = (uint32_t*)BROTLI_DECODER_ALLOC(
+                       s, sizeof(uint32_t) * BROTLI_INIT_STORED_BLOCK_SPLITS);
+  block_split->num_types = 0;
+  block_split->num_types_prev_metablocks = 0;
+  block_split->num_blocks = 0;
+  block_split->types_alloc_size = BROTLI_INIT_STORED_BLOCK_SPLITS;
+  block_split->positions_alloc_size = BROTLI_INIT_STORED_BLOCK_SPLITS;
+}
+
 BROTLI_BOOL BrotliDecoderStateInit(BrotliDecoderState* s,
     brotli_alloc_func alloc_func, brotli_free_func free_func, void* opaque) {
   if (!alloc_func) {
@@ -42,6 +57,17 @@ BROTLI_BOOL BrotliDecoderStateInit(BrotliDecoderState* s,
   s->pos = 0;
   s->rb_roundtrips = 0;
   s->partial_pos_out = 0;
+
+  s->commands = NULL;
+  s->commands_size = 0;
+  s->commands_alloc_size = 0;
+  if (s->save_info_for_recompression) {
+    InitBlockSplitStored(s, &s->literals_block_splits);
+    InitBlockSplitStored(s, &s->insert_copy_length_block_splits);
+  }
+
+  s->saved_position_literals_begin = BROTLI_FALSE;
+  s->saved_position_lengths_begin = BROTLI_FALSE;
 
   s->block_type_trees = NULL;
   s->block_len_trees = NULL;
@@ -115,6 +141,27 @@ void BrotliDecoderStateMetablockBegin(BrotliDecoderState* s) {
   s->insert_copy_hgroup.htrees = NULL;
   s->distance_hgroup.codes = NULL;
   s->distance_hgroup.htrees = NULL;
+
+  /* If needed save the start of a first in metablock block */
+  if (s->save_info_for_recompression) {
+    BrotliEnsureCapacityBlockSplits(s, &s->literals_block_splits,
+                                    s->literals_block_splits.num_blocks + 1);
+    s->literals_block_splits.types[s->literals_block_splits.num_blocks] = s->literals_block_splits.num_types_prev_metablocks;
+    s->literals_block_splits.positions_begin[s->literals_block_splits.num_blocks] = s->pos + (s->rb_roundtrips << s->window_bits);
+    s->saved_position_literals_begin = BROTLI_TRUE;
+    s->literals_block_splits.num_types =
+                        BROTLI_MAX(size_t, s->literals_block_splits.num_types,
+                        s->literals_block_splits.types[s->literals_block_splits.num_blocks] + 1);
+
+    BrotliEnsureCapacityBlockSplits(s, &s->insert_copy_length_block_splits,
+                                    s->insert_copy_length_block_splits.num_blocks + 1);
+    s->insert_copy_length_block_splits.types[s->insert_copy_length_block_splits.num_blocks] = s->insert_copy_length_block_splits.num_types_prev_metablocks;
+    s->insert_copy_length_block_splits.positions_begin[s->insert_copy_length_block_splits.num_blocks] = s->pos + (s->rb_roundtrips << s->window_bits);
+    s->saved_position_lengths_begin = BROTLI_TRUE;
+    s->insert_copy_length_block_splits.num_types =
+                        BROTLI_MAX(size_t, s->insert_copy_length_block_splits.num_types,
+                        s->insert_copy_length_block_splits.types[s->insert_copy_length_block_splits.num_blocks] + 1);
+  }
 }
 
 void BrotliDecoderStateCleanupAfterMetablock(BrotliDecoderState* s) {
@@ -124,6 +171,23 @@ void BrotliDecoderStateCleanupAfterMetablock(BrotliDecoderState* s) {
   BROTLI_DECODER_FREE(s, s->literal_hgroup.htrees);
   BROTLI_DECODER_FREE(s, s->insert_copy_hgroup.htrees);
   BROTLI_DECODER_FREE(s, s->distance_hgroup.htrees);
+
+  /* If needed save the end of a last in metablock block */
+  if (s->save_info_for_recompression) {
+    /* Save the end only if previously saved a start */
+    if (s->saved_position_literals_begin) {
+      s->literals_block_splits.positions_end[s->literals_block_splits.num_blocks] = s->pos + (s->rb_roundtrips << s->window_bits);
+      s->literals_block_splits.num_blocks++;
+      s->literals_block_splits.num_types_prev_metablocks = s->literals_block_splits.num_types;
+      s->saved_position_literals_begin = BROTLI_FALSE;
+    }
+    if (s->saved_position_lengths_begin) {
+      s->insert_copy_length_block_splits.positions_end[s->insert_copy_length_block_splits.num_blocks] = s->pos + (s->rb_roundtrips << s->window_bits);
+      s->insert_copy_length_block_splits.num_blocks++;
+      s->insert_copy_length_block_splits.num_types_prev_metablocks = s->insert_copy_length_block_splits.num_types;
+      s->saved_position_lengths_begin = BROTLI_FALSE;
+    }
+  }
 }
 
 void BrotliDecoderStateCleanup(BrotliDecoderState* s) {
@@ -150,6 +214,62 @@ BROTLI_BOOL BrotliDecoderHuffmanTreeGroupInit(BrotliDecoderState* s,
   group->htrees = p;
   group->codes = (HuffmanCode*)(&p[ntrees]);
   return !!p;
+}
+
+// TODO: write using templates
+BROTLI_BOOL BrotliEnsureCapacityBlockSplits(
+    BrotliDecoderState* s, BlockSplitFromDecoder* block_splits,
+    size_t requested_size) {
+  if (block_splits->types_alloc_size >= requested_size &&
+      block_splits->positions_alloc_size >= requested_size) {
+    return BROTLI_TRUE;
+  }
+  if (block_splits->types_alloc_size < requested_size) {
+      uint8_t* old_types = block_splits->types;
+      block_splits->types = (uint8_t*)BROTLI_DECODER_ALLOC(
+                            s, sizeof(uint8_t) * requested_size * 2);
+      if (block_splits->types == 0) {
+        /* Restore previous value. */
+        block_splits->types = old_types;
+        return BROTLI_FALSE;
+      }
+      if (!!old_types) {
+        memcpy(block_splits->types, old_types,
+               block_splits->num_blocks * sizeof(uint8_t));
+        BROTLI_DECODER_FREE(s, old_types);
+      }
+      block_splits->types_alloc_size = 2 * requested_size;
+  }
+  if (block_splits->positions_alloc_size < requested_size) {
+      /* Alloc for positions begin */
+      uint32_t* old_positions = block_splits->positions_begin;
+      block_splits->positions_begin = (uint32_t*)BROTLI_DECODER_ALLOC(
+                            s, sizeof(uint32_t) * requested_size * 2);
+      if (block_splits->positions_begin == 0) {
+        block_splits->positions_begin = old_positions;
+        return BROTLI_FALSE;
+      }
+      if (!!old_positions) {
+        memcpy(block_splits->positions_begin, old_positions,
+               block_splits->num_blocks * sizeof(uint32_t));
+        BROTLI_DECODER_FREE(s, old_positions);
+      }
+      /* Alloc for positions end */
+      old_positions = block_splits->positions_end;
+      block_splits->positions_end = (uint32_t*)BROTLI_DECODER_ALLOC(
+                            s, sizeof(uint32_t) * requested_size * 2);
+      if (block_splits->positions_end == 0) {
+        block_splits->positions_end = old_positions;
+        return BROTLI_FALSE;
+      }
+      if (!!old_positions) {
+        memcpy(block_splits->positions_end, old_positions,
+               block_splits->num_blocks * sizeof(uint32_t));
+        BROTLI_DECODER_FREE(s, old_positions);
+      }
+      block_splits->positions_alloc_size = 2 * requested_size;
+  }
+  return BROTLI_TRUE;
 }
 
 #if defined(__cplusplus) || defined(c_plusplus)

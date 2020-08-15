@@ -16,6 +16,7 @@
 #include <brotli/types.h>
 #include "./bit_reader.h"
 #include "./huffman.h"
+#include "../include/brotli/decode.h"
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
@@ -109,6 +110,9 @@ digraph States {
 
 
  */
+
+#define BROTLI_INIT_STORED_BLOCK_SPLITS 300
+#define BROTLI_INIT_STORED_BACK_REFS 5000
 
 typedef enum {
   BROTLI_STATE_UNINITED,
@@ -245,6 +249,14 @@ struct BrotliDecoderStateStruct {
   brotli_free_func free_func;
   void* memory_manager_opaque;
 
+  BackwardReferenceFromDecoder* commands;
+  size_t commands_size;
+  size_t commands_alloc_size;
+
+  BlockSplitFromDecoder literals_block_splits;
+  BROTLI_BOOL saved_position_literals_begin;
+  BlockSplitFromDecoder insert_copy_length_block_splits;
+  BROTLI_BOOL saved_position_lengths_begin;
   /* Temporary storage for remaining input. Brotli stream format is designed in
      a way, that 64 bits are enough to make progress in decoding. */
   union {
@@ -318,6 +330,7 @@ struct BrotliDecoderStateStruct {
   unsigned int should_wrap_ringbuffer : 1;
   unsigned int canny_ringbuffer_allocation : 1;
   unsigned int large_window : 1;
+  unsigned int save_info_for_recompression : 1;
   unsigned int size_nibbles : 8;
   uint32_t window_bits;
 
@@ -350,6 +363,10 @@ BROTLI_INTERNAL void BrotliDecoderStateCleanupAfterMetablock(
 BROTLI_INTERNAL BROTLI_BOOL BrotliDecoderHuffmanTreeGroupInit(
     BrotliDecoderState* s, HuffmanTreeGroup* group, uint32_t alphabet_size_max,
     uint32_t alphabet_size_limit, uint32_t ntrees);
+
+BROTLI_INTERNAL BROTLI_BOOL BrotliEnsureCapacityBlockSplits(
+  BrotliDecoderState* s, BlockSplitFromDecoder* block_splits,
+  size_t requested_size);
 
 #define BROTLI_DECODER_ALLOC(S, L) S->alloc_func(S->memory_manager_opaque, L)
 

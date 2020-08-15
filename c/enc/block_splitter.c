@@ -6,6 +6,9 @@
 
 /* Block split point selection utilities. */
 
+#ifndef BROTLI_BLOCK_SPLITTER_C
+#define BROTLI_BLOCK_SPLITTER_C
+
 #include "./block_splitter.h"
 
 #include <string.h>  /* memcpy, memset */
@@ -18,6 +21,7 @@
 #include "./histogram.h"
 #include "./memory.h"
 #include "./quality.h"
+#include "../include/brotli/encode.h"
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
@@ -71,6 +75,325 @@ static void CopyLiteralsToByteArray(const Command* cmds,
     }
     from_pos = (from_pos + insert_len + CommandCopyLen(&cmds[i])) & mask;
   }
+}
+
+/* Maps block splits for commands from <type, position_begin, position_end> to
+ * <types, length> by counting how many commands are inside
+ * [position_begin, position_end) range.
+ */
+void BrotliSplitBlockCommandsFromStored(
+                        MemoryManager* m,
+                        const Command* cmds,
+                        const size_t num_commands,
+                        const size_t pos,
+                        const size_t mask,
+                        BlockSplit* cmd_split,
+                        const BlockSplitFromDecoder* cmd_split_decoder,
+                        size_t* cur_block_decoder) {
+    BROTLI_ENSURE_CAPACITY(
+        m, uint8_t, cmd_split->types, cmd_split->types_alloc_size,
+        cmd_split_decoder->num_blocks);
+    BROTLI_ENSURE_CAPACITY(
+        m, uint32_t, cmd_split->lengths, cmd_split->lengths_alloc_size,
+        cmd_split_decoder->num_blocks);
+    size_t cur_pos = pos;
+    cmd_split->num_blocks = 0;
+    cmd_split->num_types = 0;
+    size_t cur_length = 0;
+    /* Mapping of the types from decoder (they increase with each metablock)
+       to the appropriate types
+       -1 value means that we don't have a mapping for it yet and need to create it */
+    int* types_mapping = BROTLI_ALLOC(m, int, cmd_split_decoder->num_types);
+    for (int i = 0; i < cmd_split_decoder->num_types; ++i) {
+      types_mapping[i] = -1;
+    }
+    for (int i = 0; i < num_commands; ++i) {
+      const Command cmd = cmds[i];
+      /* If blocks from decoder are finished take the rest as one last block.
+         It doesn't happen for normal input. */
+      if (*cur_block_decoder >= cmd_split_decoder->num_blocks) {
+        cur_length += num_commands - i;
+        break;
+      }
+      /* If current command lies after the current block
+         that means we've finished the current block.
+         If some commands have fallen inside current block before
+         then need to save it */
+      if (cur_pos >= cmd_split_decoder->positions_end[*cur_block_decoder] &&
+            cur_length > 0) {
+        /* If we haven't seen this decoder block type before
+          then save a mapping of it to a current num_types */
+        BROTLI_DCHECK(cmd_split_decoder->types[*cur_block_decoder] <
+                      cmd_split_decoder->num_types);
+        if (types_mapping[cmd_split_decoder->types[*cur_block_decoder]] == -1) {
+          types_mapping[cmd_split_decoder->types[*cur_block_decoder]] =
+                                                          cmd_split->num_types;
+        }
+        /* If the same block type as for a previous block then merge them */
+        if (cmd_split->num_blocks > 0 &&
+            types_mapping[cmd_split_decoder->types[*cur_block_decoder]] ==
+              cmd_split->types[cmd_split->num_blocks - 1]) {
+            cmd_split->lengths[cmd_split->num_blocks - 1] += cur_length;
+        } else {
+          /* Map the decoder block type to an appropriate type */
+          cmd_split->types[cmd_split->num_blocks] =
+                    types_mapping[cmd_split_decoder->types[*cur_block_decoder]];
+          cmd_split->lengths[cmd_split->num_blocks] = cur_length;
+          cmd_split->num_types = BROTLI_MAX(uint8_t, cmd_split->num_types,
+                                  cmd_split->types[cmd_split->num_blocks] + 1);
+          cmd_split->num_blocks++;
+        }
+        cur_length = 0;
+        (*cur_block_decoder)++;
+      }
+      /* Go through decoder blocks until a block with cur_pos inside is found.
+         Usualy 0-3 jumps. */
+      while (*cur_block_decoder < cmd_split_decoder->num_blocks &&
+             cur_pos >= cmd_split_decoder->positions_end[*cur_block_decoder]) {
+        cur_length = 0;
+        (*cur_block_decoder)++;
+      }
+      /* If block from decoder are finished take the rest as one last block.
+         It doesn't happen for normal input. */
+      if (*cur_block_decoder >= cmd_split_decoder->num_blocks) {
+        cur_length += num_commands - i;
+        break;
+      }
+      /* If command lies inside current block then
+         increase an amount of commands inside current block*/
+      if (cur_pos >= cmd_split_decoder->positions_begin[*cur_block_decoder] &&
+          cur_pos < cmd_split_decoder->positions_end[*cur_block_decoder]) {
+        cur_length++;
+      } else {
+        BROTLI_LOG("Error in block splits to reuse");
+      }
+      /* Shift cur_pos by the amount of symbols representing a command */
+      cur_pos += cmds[i].insert_len_ + CommandCopyLen(&cmds[i]);
+    }
+    /* Save the last in metablock block */
+    if (cur_length > 0 && *cur_block_decoder < cmd_split_decoder->num_blocks) {
+      BROTLI_DCHECK(cmd_split_decoder->types[*cur_block_decoder] <
+                    cmd_split_decoder->num_types);
+      if (types_mapping[cmd_split_decoder->types[*cur_block_decoder]] == -1) {
+        types_mapping[cmd_split_decoder->types[*cur_block_decoder]] =
+                                                            cmd_split->num_types;
+      }
+      /* If the same block type as for a previous block then merge them */
+      if (cmd_split->num_blocks > 0 &&
+          types_mapping[cmd_split_decoder->types[*cur_block_decoder]] ==
+            cmd_split->types[cmd_split->num_blocks - 1]) {
+          cmd_split->lengths[cmd_split->num_blocks - 1] += cur_length;
+      } else {
+        cmd_split->types[cmd_split->num_blocks] =
+                      types_mapping[cmd_split_decoder->types[*cur_block_decoder]];
+        cmd_split->lengths[cmd_split->num_blocks] = cur_length;
+        cmd_split->num_types = BROTLI_MAX(uint8_t, cmd_split->num_types,
+                                      cmd_split->types[cmd_split->num_blocks] + 1);
+        cmd_split->num_blocks++;
+      }
+    }
+    /* Save last block as 0 block type. Doesn't happen for normal input. */
+    else if (cur_length > 0) {
+      cmd_split->types[cmd_split->num_blocks] = 0;
+      cmd_split->lengths[cmd_split->num_blocks] = cur_length;
+      cmd_split->num_blocks++;
+    }
+    BROTLI_FREE(m, types_mapping);
+}
+
+/* Maps block splits for literals from <type, position_begin, position_end> to
+ * <types, length> by counting how many commands are inside
+ * [position_begin, position_end) range.
+ */
+void BrotliSplitBlockLiteralsFromStored(
+                            MemoryManager* m,
+                            const Command* cmds,
+                            const size_t num_commands,
+                            const size_t pos,
+                            const size_t mask,
+                            BlockSplit* literal_split,
+                            const BlockSplitFromDecoder* literal_split_decoder,
+                            size_t* cur_block_decoder) {
+  BROTLI_ENSURE_CAPACITY(
+      m, uint8_t, literal_split->types, literal_split->types_alloc_size,
+      literal_split_decoder->num_blocks);
+  BROTLI_ENSURE_CAPACITY(
+      m, uint32_t, literal_split->lengths, literal_split->lengths_alloc_size,
+      literal_split_decoder->num_blocks);
+  size_t cur_pos = pos;
+  literal_split->num_blocks = 0;
+  literal_split->num_types = 0;
+  size_t cur_length = 0;
+  /* Mapping of the types from decoder (they increase with each metablock)
+     to the appropriate types
+     -1 value means that we don't have a mapping for it yet and need to create it */
+  int* types_mapping = BROTLI_ALLOC(m, int, literal_split_decoder->num_types);
+  for (int i = 0; i < literal_split_decoder->num_types; ++i) {
+    types_mapping[i] = -1;
+  }
+  int i = 0;
+  while (i < num_commands) {
+    /* Considering an interval of literals for current command:
+       from cur_pos to cur_pos + insert_len*/
+
+    /* If blocks from decoder are finished take the rest as one last block.
+       It doesn't happen for normal input. */
+    if (*cur_block_decoder >= literal_split_decoder->num_blocks) {
+      cur_length += cmds[i].insert_len_;
+      i++;
+      continue;
+    }
+    /* If current literals interval lies after the current block
+      that means we've finished the current block.
+      If some literals have fallen inside current block before
+      then need to save it*/
+    if (cur_pos >= literal_split_decoder->positions_end[*cur_block_decoder]) {
+      if (cur_length > 0) {
+        /* If we haven't seen this decoder block type before
+          then save a mapping of it to a current num_types */
+        BROTLI_DCHECK(literal_split_decoder->types[*cur_block_decoder] <
+                      literal_split_decoder->num_types);
+        if (types_mapping[literal_split_decoder->types[*cur_block_decoder]] == -1) {
+          types_mapping[literal_split_decoder->types[*cur_block_decoder]] =
+                                                      literal_split->num_types;
+        }
+        /* If the same block type as for a previous block then merge them */
+        if (literal_split->num_blocks > 0 &&
+            types_mapping[literal_split_decoder->types[*cur_block_decoder]] ==
+              literal_split->types[literal_split->num_blocks - 1]) {
+          literal_split->lengths[literal_split->num_blocks - 1] += cur_length;
+        } else {
+          /* Map the decoder block type to an appropriate type */
+          literal_split->types[literal_split->num_blocks] =
+              types_mapping[literal_split_decoder->types[*cur_block_decoder]];
+          literal_split->lengths[literal_split->num_blocks] = cur_length;
+          literal_split->num_types = BROTLI_MAX(uint8_t, literal_split->num_types,
+                            literal_split->types[literal_split->num_blocks] + 1);
+          literal_split->num_blocks++;
+        }
+        cur_length = 0;
+      }
+      (*cur_block_decoder)++;
+    }
+    /* Go through decoder blocks until a block with cur_pos inside is found.
+       Usualy 0-3 jumps. */
+    while (cur_pos >= literal_split_decoder->positions_end[*cur_block_decoder]) {
+      (*cur_block_decoder)++;
+    }
+    /* Means that the first part of literals interval is already saved
+       as a part of the previous block,
+       now only need to look at the second part */
+    if (cur_pos < literal_split_decoder->positions_begin[*cur_block_decoder]) {
+      /* If literals interval ends inside the current block
+         then increase an amount of literals for the current block */
+      if (cur_pos + cmds[i].insert_len_ <=
+                  literal_split_decoder->positions_end[*cur_block_decoder]) {
+        cur_length += cur_pos + cmds[i].insert_len_ -
+                  literal_split_decoder->positions_begin[*cur_block_decoder];
+        cur_pos += cmds[i].insert_len_ + CommandCopyLen(&cmds[i]);
+        i++;
+      }
+      /* If literals interval ends after the current block
+         then we've finished the block and need to save it */
+      else {
+        cur_length += literal_split_decoder->positions_end[*cur_block_decoder] -
+                      literal_split_decoder->positions_begin[*cur_block_decoder];
+        if (cur_length > 0) {
+          BROTLI_DCHECK(literal_split_decoder->types[*cur_block_decoder] <
+                        literal_split_decoder->num_types);
+          if (types_mapping[literal_split_decoder->types[*cur_block_decoder]] == -1) {
+            types_mapping[literal_split_decoder->types[*cur_block_decoder]] =
+                                                        literal_split->num_types;
+          }
+          /* If the same block type as for a previous block then merge them */
+          if (literal_split->num_blocks > 0 &&
+              types_mapping[literal_split_decoder->types[*cur_block_decoder]] ==
+                literal_split->types[literal_split->num_blocks - 1]) {
+            literal_split->lengths[literal_split->num_blocks - 1] += cur_length;
+          } else {
+            literal_split->types[literal_split->num_blocks] =
+                types_mapping[literal_split_decoder->types[*cur_block_decoder]];
+            literal_split->lengths[literal_split->num_blocks] = cur_length;
+            literal_split->num_types = BROTLI_MAX(uint8_t, literal_split->num_types,
+                              literal_split->types[literal_split->num_blocks] + 1);
+            literal_split->num_blocks++;
+          }
+          cur_length = 0;
+        }
+        (*cur_block_decoder)++;
+      }
+    }
+    /* If literals interval starts inside the current block
+       then look where it ends*/
+    else if (cur_pos < literal_split_decoder->positions_end[*cur_block_decoder]) {
+      /* If literals interval ends inside the current block
+         then increase an amount of literals for the current block */
+      if (cur_pos + cmds[i].insert_len_ <=
+                literal_split_decoder->positions_end[*cur_block_decoder]) {
+        cur_length += cmds[i].insert_len_;
+        cur_pos += cmds[i].insert_len_ + CommandCopyLen(&cmds[i]);
+        i++;
+      }
+      /* If literals interval ends after the current block
+         then we've finished the block and need to save it */
+      else {
+        cur_length += literal_split_decoder->positions_end[*cur_block_decoder]
+                                                                      - cur_pos;
+        if (cur_length > 0) {
+          BROTLI_DCHECK(literal_split_decoder->types[*cur_block_decoder] <
+                        literal_split_decoder->num_types);
+          if (types_mapping[literal_split_decoder->types[*cur_block_decoder]] == -1) {
+            types_mapping[literal_split_decoder->types[*cur_block_decoder]] =
+                                                        literal_split->num_types;
+          }
+          /* If the same block type as for a previous block then merge them */
+          if (literal_split->num_blocks > 0 &&
+              types_mapping[literal_split_decoder->types[*cur_block_decoder]] ==
+                literal_split->types[literal_split->num_blocks - 1]) {
+            literal_split->lengths[literal_split->num_blocks - 1] += cur_length;
+          } else {
+            literal_split->types[literal_split->num_blocks] =
+                    types_mapping[literal_split_decoder->types[*cur_block_decoder]];
+            literal_split->lengths[literal_split->num_blocks] = cur_length;
+            literal_split->num_types = BROTLI_MAX(uint8_t, literal_split->num_types,
+                              literal_split->types[literal_split->num_blocks] + 1);
+            literal_split->num_blocks++;
+          }
+          cur_length = 0;
+        }
+        (*cur_block_decoder)++;
+      }
+    }
+  }
+  /* Save the last in metablock block */
+  if (cur_length > 0 && *cur_block_decoder < literal_split_decoder->num_blocks) {
+    BROTLI_DCHECK(literal_split_decoder->types[*cur_block_decoder] <
+                  literal_split_decoder->num_types);
+    if (types_mapping[literal_split_decoder->types[*cur_block_decoder]] == -1) {
+      types_mapping[literal_split_decoder->types[*cur_block_decoder]] =
+                                                        literal_split->num_types;
+    }
+    /* If the same block type as for a previous block then merge them */
+    if (literal_split->num_blocks > 0 &&
+        types_mapping[literal_split_decoder->types[*cur_block_decoder]] ==
+          literal_split->types[literal_split->num_blocks - 1]) {
+      literal_split->lengths[literal_split->num_blocks - 1] += cur_length;
+    } else {
+      literal_split->types[literal_split->num_blocks] =
+                  types_mapping[literal_split_decoder->types[*cur_block_decoder]];
+      literal_split->lengths[literal_split->num_blocks] = cur_length;
+      literal_split->num_types = BROTLI_MAX(uint8_t, literal_split->num_types,
+                              literal_split->types[literal_split->num_blocks] + 1);
+      literal_split->num_blocks++;
+    }
+  }
+  /* Save last block as 0 block type. Doesn't happen for normal input. */
+  else if (cur_length > 0) {
+    literal_split->types[literal_split->num_blocks] = 0;
+    literal_split->lengths[literal_split->num_blocks] = cur_length;
+    literal_split->num_blocks++;
+  }
+  BROTLI_FREE(m, types_mapping);
 }
 
 static BROTLI_INLINE uint32_t MyRand(uint32_t* seed) {
@@ -128,7 +451,12 @@ void BrotliSplitBlock(MemoryManager* m,
                       const BrotliEncoderParams* params,
                       BlockSplit* literal_split,
                       BlockSplit* insert_and_copy_split,
-                      BlockSplit* dist_split) {
+                      BlockSplit* dist_split,
+                      const BlockSplitFromDecoder* literals_block_splits_decoder,
+                      size_t* current_block_literals,
+                      const BlockSplitFromDecoder* cmds_block_splits_decoder,
+                      size_t* current_block_cmds) {
+
   {
     size_t literals_count = CountLiterals(cmds, num_commands);
     uint8_t* literals = BROTLI_ALLOC(m, uint8_t, literals_count);
@@ -136,12 +464,20 @@ void BrotliSplitBlock(MemoryManager* m,
     /* Create a continuous array of literals. */
     CopyLiteralsToByteArray(cmds, num_commands, data, pos, mask, literals);
     /* Create the block split on the array of literals.
-       Literal histograms have alphabet size 256. */
-    SplitByteVectorLiteral(
-        m, literals, literals_count,
-        kSymbolsPerLiteralHistogram, kMaxLiteralHistograms,
-        kLiteralStrideLength, kLiteralBlockSwitchCost, params,
-        literal_split);
+-       Literal histograms have alphabet size 256.
+       If have block splits from decoder then use them. */
+    if (literals_block_splits_decoder == NULL) {
+      SplitByteVectorLiteral(
+          m, literals, literals_count,
+          kSymbolsPerLiteralHistogram, kMaxLiteralHistograms,
+          kLiteralStrideLength, kLiteralBlockSwitchCost, params,
+          literal_split);
+    } else {
+      BrotliSplitBlockLiteralsFromStored(m, cmds, num_commands, pos, mask,
+                                         literal_split,
+                                         literals_block_splits_decoder,
+                                         current_block_literals);
+    }
     if (BROTLI_IS_OOM(m)) return;
     BROTLI_FREE(m, literals);
   }
@@ -154,12 +490,20 @@ void BrotliSplitBlock(MemoryManager* m,
     for (i = 0; i < num_commands; ++i) {
       insert_and_copy_codes[i] = cmds[i].cmd_prefix_;
     }
-    /* Create the block split on the array of command prefixes. */
-    SplitByteVectorCommand(
-        m, insert_and_copy_codes, num_commands,
-        kSymbolsPerCommandHistogram, kMaxCommandHistograms,
-        kCommandStrideLength, kCommandBlockSwitchCost, params,
-        insert_and_copy_split);
+    /* Create the block split on the array of command prefixes.
+       If have block splits from decoder then use them. */
+    if (cmds_block_splits_decoder == NULL) {
+      SplitByteVectorCommand(
+          m, insert_and_copy_codes, num_commands,
+          kSymbolsPerCommandHistogram, kMaxCommandHistograms,
+          kCommandStrideLength, kCommandBlockSwitchCost, params,
+          insert_and_copy_split);
+    } else {
+      BrotliSplitBlockCommandsFromStored(m, cmds, num_commands, pos, mask,
+                                         insert_and_copy_split,
+                                         cmds_block_splits_decoder,
+                                         current_block_cmds);
+    }
     if (BROTLI_IS_OOM(m)) return;
     /* TODO: reuse for distances? */
     BROTLI_FREE(m, insert_and_copy_codes);
@@ -178,17 +522,26 @@ void BrotliSplitBlock(MemoryManager* m,
       }
     }
     /* Create the block split on the array of distance prefixes. */
-    SplitByteVectorDistance(
-        m, distance_prefixes, j,
-        kSymbolsPerDistanceHistogram, kMaxCommandHistograms,
-        kCommandStrideLength, kDistanceBlockSwitchCost, params,
-        dist_split);
+    if (literals_block_splits_decoder == NULL) {
+      SplitByteVectorDistance(
+          m, distance_prefixes, j,
+          kSymbolsPerDistanceHistogram, kMaxCommandHistograms,
+          kCommandStrideLength, kDistanceBlockSwitchCost, params,
+          dist_split);
+    } else {
+      SplitByteVectorDistance(
+          m, distance_prefixes, j,
+          kSymbolsPerDistanceHistogram, 1,
+          kCommandStrideLength, kDistanceBlockSwitchCost, params,
+          dist_split);
+    }
     if (BROTLI_IS_OOM(m)) return;
     BROTLI_FREE(m, distance_prefixes);
   }
 }
 
-
 #if defined(__cplusplus) || defined(c_plusplus)
 }  /* extern "C" */
 #endif
+
+#endif  /* BROTLI_BLOCK_SPLITTER_C */
