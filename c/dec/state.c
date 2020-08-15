@@ -272,8 +272,6 @@ BROTLI_BOOL BrotliEnsureCapacityBlockSplits(
   return BROTLI_TRUE;
 }
 
-
-
 #if defined(__cplusplus) || defined(c_plusplus)
 }  /* extern "C" */
 #endif

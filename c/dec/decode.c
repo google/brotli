@@ -1802,6 +1802,7 @@ static BROTLI_INLINE BrotliDecoderErrorCode ProcessCommandsInternal(
   int i = s->loop_counter;
   BrotliDecoderErrorCode result = BROTLI_DECODER_SUCCESS;
   BrotliBitReader* br = &s->br;
+
   if (!CheckInputAmount(safe, br, 28)) {
     result = BROTLI_DECODER_NEEDS_MORE_INPUT;
     goto saveStateAndReturn;

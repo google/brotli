@@ -6,6 +6,11 @@
 
 /* Command line interface for Brotli library. */
 
+/* Mute strerror/strcpy warnings. */
+#if !defined(_CRT_SECURE_NO_WARNINGS)
+#define _CRT_SECURE_NO_WARNINGS
+#endif
+
 #include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
@@ -803,6 +808,8 @@ static void InitializeBuffers(Context* context) {
   context->total_out = 0;
 }
 
+/* This method might give the false-negative result.
+   However, after an empty / incomplete read it should tell the truth. */
 static BROTLI_BOOL HasMoreInput(Context* context) {
   return feof(context->fin) ? BROTLI_FALSE : BROTLI_TRUE;
 }
@@ -901,6 +908,7 @@ static BROTLI_BOOL DecompressFile(Context* context, BrotliDecoderState* s) {
               PrintablePath(context->current_input_path));
       return BROTLI_FALSE;
     }
+    
     result = BrotliDecoderDecompressStream(s, &context->available_in,
         &context->next_in, &context->available_out, &context->next_out, 0);
   }

@@ -1086,6 +1086,7 @@ static BROTLI_BOOL EncodeData(
   if (s->num_commands_ && s->last_insert_len_ == 0) {
     ExtendLastCommand(s, &bytes, &wrapped_last_processed_pos);
   }
+  
   if (s->params.quality == ZOPFLIFICATION_QUALITY) {
     BROTLI_DCHECK(s->params.hasher.type == 10);
     BrotliCreateZopfliBackwardReferences(m, bytes, wrapped_last_processed_pos,
