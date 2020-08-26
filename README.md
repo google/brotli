@@ -1,5 +1,11 @@
 <p align="center"><img src="https://brotli.org/brotli.svg" alt="Brotli" width="64"></p>
 
+# SECURITY NOTE
+
+Please consider updating brotli to version 1.0.8 (latest).
+
+Version 1.0.8 contains a fix to "integer overflow" problem. This happens when "one-shot" decoding API is used (or input chunk for streaming API is not limited), input size (chunk size) is larger than 2GiB, and input contains uncompressed blocks. After the overflow happens, `memcpy` is invoked with a gigantic `num` value, that will likely cause the crash.
+
 ### Introduction
 
 Brotli is a generic-purpose lossless compression algorithm that compresses data
