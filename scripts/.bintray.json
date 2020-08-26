@@ -5,7 +5,7 @@
         "subject": "eustas"
     },
 
-    "version": {"name": "snapshot"},
+    "version": {"name": "latest"},
 
     "files": [
         {

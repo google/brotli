@@ -92,8 +92,9 @@ matrix:
     ###
     ## PGI Community Edition on Linux
     ###
-    - os: linux
-      env: BUILD_SYSTEM=cmake C_COMPILER=pgcc CXX_COMPILER=pgc++
+    # Installer is currently broken
+    #- os: linux
+    #  env: BUILD_SYSTEM=cmake C_COMPILER=pgcc CXX_COMPILER=pgc++
 
     ###
     ## Python 2.7 and 3.6 builds on Linux

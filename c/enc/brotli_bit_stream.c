@@ -34,33 +34,18 @@ extern "C" {
   BROTLI_DISTANCE_ALPHABET_SIZE(0, 0, BROTLI_LARGE_MAX_DISTANCE_BITS)
 /* MAX_SIMPLE_DISTANCE_ALPHABET_SIZE == 140 */
 
-/* Represents the range of values belonging to a prefix code:
-   [offset, offset + 2^nbits) */
-typedef struct PrefixCodeRange {
-  uint32_t offset;
-  uint32_t nbits;
-} PrefixCodeRange;
-
-static const PrefixCodeRange
-    kBlockLengthPrefixCode[BROTLI_NUM_BLOCK_LEN_SYMBOLS] = {
-  { 1, 2}, { 5, 2}, { 9, 2}, {13, 2}, {17, 3}, { 25, 3}, { 33, 3},
-  {41, 3}, {49, 4}, {65, 4}, {81, 4}, {97, 4}, {113, 5}, {145, 5},
-  {177, 5}, { 209,  5}, { 241,  6}, { 305,  6}, { 369,  7}, {  497,  8},
-  {753, 9}, {1265, 10}, {2289, 11}, {4337, 12}, {8433, 13}, {16625, 24}
-};
-
 static BROTLI_INLINE uint32_t BlockLengthPrefixCode(uint32_t len) {
   uint32_t code = (len >= 177) ? (len >= 753 ? 20 : 14) : (len >= 41 ? 7 : 0);
   while (code < (BROTLI_NUM_BLOCK_LEN_SYMBOLS - 1) &&
-      len >= kBlockLengthPrefixCode[code + 1].offset) ++code;
+      len >= _kBrotliPrefixCodeRanges[code + 1].offset) ++code;
   return code;
 }
 
 static BROTLI_INLINE void GetBlockLengthPrefixCode(uint32_t len, size_t* code,
     uint32_t* n_extra, uint32_t* extra) {
   *code = BlockLengthPrefixCode(len);
-  *n_extra = kBlockLengthPrefixCode[*code].nbits;
-  *extra = len - kBlockLengthPrefixCode[*code].offset;
+  *n_extra = _kBrotliPrefixCodeRanges[*code].nbits;
+  *extra = len - _kBrotliPrefixCodeRanges[*code].offset;
 }
 
 typedef struct BlockTypeCodeCalculator {

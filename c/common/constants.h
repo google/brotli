@@ -13,6 +13,7 @@
 #define BROTLI_COMMON_CONSTANTS_H_
 
 #include "./platform.h"
+#include <brotli/port.h>
 #include <brotli/types.h>
 
 /* Specification: 7.3. Encoding of the context map */
@@ -83,6 +84,10 @@
    alphabet size is limited to corresponding size
    (see kLargeWindowDistanceCodeLimits). */
 #define BROTLI_MAX_ALLOWED_DISTANCE 0x7FFFFFFC
+
+
+/* Specification: 4. Encoding of Literal Insertion Lengths and Copy Lengths */
+#define BROTLI_NUM_INS_COPY_CODES 24
 
 /* 7.1. Context modes and context ID lookup for literals */
 /* "context IDs for literals are in the range of 0..63" */
@@ -180,5 +185,16 @@ BROTLI_UNUSED_FUNCTION BrotliDistanceCodeLimit BrotliCalculateDistanceCodeLimit(
     return result;
   }
 }
+
+/* Represents the range of values belonging to a prefix code:
+   [offset, offset + 2^nbits) */
+typedef struct {
+  uint16_t offset;
+  uint8_t nbits;
+} BrotliPrefixCodeRange;
+
+/* "Soft-private", it is exported, but not "advertised" as API. */
+BROTLI_COMMON_API extern const BrotliPrefixCodeRange
+    _kBrotliPrefixCodeRanges[BROTLI_NUM_BLOCK_LEN_SYMBOLS];
 
 #endif  /* BROTLI_COMMON_CONSTANTS_H_ */

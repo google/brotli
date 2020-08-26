@@ -24,7 +24,6 @@
 #define BROTLI_COMMON_PLATFORM_H_
 
 #include <string.h>  /* memcpy */
-#include <stdlib.h>  /* malloc, free */
 
 #include <brotli/port.h>
 #include <brotli/types.h>
@@ -557,16 +556,10 @@ static BROTLI_INLINE uint32_t BrotliBsr32Msvc(uint32_t x) {
 #endif /* __builtin_clz */
 
 /* Default brotli_alloc_func */
-static void* BrotliDefaultAllocFunc(void* opaque, size_t size) {
-  BROTLI_UNUSED(opaque);
-  return malloc(size);
-}
+BROTLI_COMMON_API void* BrotliDefaultAllocFunc(void* opaque, size_t size);
 
 /* Default brotli_free_func */
-static void BrotliDefaultFreeFunc(void* opaque, void* address) {
-  BROTLI_UNUSED(opaque);
-  free(address);
-}
+BROTLI_COMMON_API void BrotliDefaultFreeFunc(void* opaque, void* address);
 
 BROTLI_UNUSED_FUNCTION void BrotliSuppressUnusedFunctions(void) {
   BROTLI_UNUSED(&BrotliSuppressUnusedFunctions);
