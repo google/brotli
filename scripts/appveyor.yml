@@ -106,6 +106,6 @@ deploy:
   subject: eustas
   repo: brotli
   package: bin
-  version: snapshot
+  version: latest
   publish: true
   override: true
