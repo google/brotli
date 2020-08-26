@@ -178,20 +178,23 @@ int main(int argc, char* argv[]) {
   FILE* fin = fopen(argv[1], "r");
   FILE* fout = fopen(argv[2], "wb");
 
-  uint8_t** pixel = new uint8_t*[height];
-  int** histo = new int*[height];
-  for (int i = 0; i < height; i++) {
-    pixel[i] = new uint8_t[width];
-    histo[i] = new int[width];
+  if (fin != nullptr && fout != nullptr) {
+    uint8_t** pixel = new uint8_t*[height];
+    int** histo = new int*[height];
+    for (int i = 0; i < height; i++) {
+      pixel[i] = new uint8_t[width];
+      histo[i] = new int[width];
+    }
+
+    BuildHistogram(fin, histo);
+
+    ConvertToPixels(histo, pixel);
+
+    DrawPixels(pixel, fout);
   }
 
-  BuildHistogram(fin, histo);
-  fclose(fin);
-
-  ConvertToPixels(histo, pixel);
-
-  DrawPixels(pixel, fout);
-  fclose(fout);
+  if (fin) fclose(fin);
+  if (fout) fclose(fout);
 
   return 0;
 }

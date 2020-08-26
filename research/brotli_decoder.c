@@ -38,6 +38,7 @@ void cleanup(Context* ctx) {
 
 void fail(Context* ctx, const char* message) {
   fprintf(stderr, "%s\n", message);
+  cleanup(ctx);
   exit(1);
 }
 
