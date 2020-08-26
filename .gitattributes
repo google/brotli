@@ -24,8 +24,19 @@ WORKSPACE !export-ignore
 # Add sources
 c !export-ignore
 c/** !export-ignore
-c/common/dictionary.bin*  export-ignore
+c/common/dictionary.bin* export-ignore
 c/fuzz export-ignore
+scripts !export-ignore
+scripts/sources.lst !export-ignore
+scripts/libbrotli*.pc.in !export-ignore
+tests !export-ignore
+tests/*.sh !export-ignore
+tests/*.cmake !export-ignore
+tests/testdata !export-ignore
+tests/testdata/empty !export-ignore
+tests/testdata/empty.compressed !export-ignore
+tests/testdata/ukkonooa !export-ignore
+tests/testdata/ukkonooa.compressed !export-ignore
 
 # Add man pages
 docs !export-ignore

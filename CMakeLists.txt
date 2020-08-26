@@ -303,17 +303,21 @@ if(NOT BROTLI_DISABLE_TESTS)
     set(OUTPUT_FILE "${CMAKE_CURRENT_BINARY_DIR}/${OUTPUT_NAME}")
     set(INPUT_FILE "${CMAKE_CURRENT_SOURCE_DIR}/${INPUT}")
 
-    foreach(quality 1 6 9 11)
-      add_test(NAME "${BROTLI_TEST_PREFIX}roundtrip/${INPUT}/${quality}"
-        COMMAND "${CMAKE_COMMAND}"
-          -DBROTLI_WRAPPER=${BROTLI_WRAPPER}
-          -DBROTLI_WRAPPER_LD_PREFIX=${BROTLI_WRAPPER_LD_PREFIX}
-          -DBROTLI_CLI=$<TARGET_FILE:brotli>
-          -DQUALITY=${quality}
-          -DINPUT=${INPUT_FILE}
-          -DOUTPUT=${OUTPUT_FILE}.${quality}
-          -P ${CMAKE_CURRENT_SOURCE_DIR}/tests/run-roundtrip-test.cmake)
-    endforeach()
+    if (EXISTS "${INPUT_FILE}")
+      foreach(quality 1 6 9 11)
+        add_test(NAME "${BROTLI_TEST_PREFIX}roundtrip/${INPUT}/${quality}"
+          COMMAND "${CMAKE_COMMAND}"
+            -DBROTLI_WRAPPER=${BROTLI_WRAPPER}
+            -DBROTLI_WRAPPER_LD_PREFIX=${BROTLI_WRAPPER_LD_PREFIX}
+            -DBROTLI_CLI=$<TARGET_FILE:brotli>
+            -DQUALITY=${quality}
+            -DINPUT=${INPUT_FILE}
+            -DOUTPUT=${OUTPUT_FILE}.${quality}
+            -P ${CMAKE_CURRENT_SOURCE_DIR}/tests/run-roundtrip-test.cmake)
+      endforeach()
+    else()
+      message(WARNING "Test file ${INPUT} does not exist.")
+    endif()
   endforeach()
 
   file(GLOB_RECURSE
