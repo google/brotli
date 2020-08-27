@@ -19,6 +19,8 @@ MANIFEST.in !export-ignore
 premake5.lua !export-ignore
 README !export-ignore
 README.md !export-ignore
+setup.py !export-ignore
+setup.cfg !export-ignore
 WORKSPACE !export-ignore
 
 # Add sources
@@ -26,9 +28,22 @@ c !export-ignore
 c/** !export-ignore
 c/common/dictionary.bin* export-ignore
 c/fuzz export-ignore
+
+# Add man pages
+docs !export-ignore
+docs/** !export-ignore
+docs/brotli-comparison-study-2015-09-22.pdf export-ignore
+
+# Add python bindings + tests
+python !export-ignore
+python/** !export-ignore
+
+# Add more build files.
 scripts !export-ignore
 scripts/sources.lst !export-ignore
 scripts/libbrotli*.pc.in !export-ignore
+
+# Add testdata
 tests !export-ignore
 tests/*.sh !export-ignore
 tests/*.cmake !export-ignore
@@ -37,8 +52,3 @@ tests/testdata/empty !export-ignore
 tests/testdata/empty.compressed !export-ignore
 tests/testdata/ukkonooa !export-ignore
 tests/testdata/ukkonooa.compressed !export-ignore
-
-# Add man pages
-docs !export-ignore
-docs/** !export-ignore
-docs/brotli-comparison-study-2015-09-22.pdf export-ignore
