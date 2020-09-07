@@ -132,6 +132,8 @@ typedef struct {
      until 4GiB+ files are compressed / decompressed on 32-bit CPUs. */
   size_t total_in;
   size_t total_out;
+  clock_t start_time;
+  clock_t end_time;
 } Context;
 
 /* Parse up to 5 decimal digits. */
@@ -806,6 +808,9 @@ static void InitializeBuffers(Context* context) {
   context->next_out = context->output;
   context->total_in = 0;
   context->total_out = 0;
+  if (context->verbosity > 0) {
+    context->start_time = clock();
+  }
 }
 
 /* This method might give the false-negative result.
@@ -873,6 +878,7 @@ static void PrintFileProcessingProgress(Context* context) {
   PrintBytes(context->total_in);
   fprintf(stderr, " -> ");
   PrintBytes(context->total_out);
+  fprintf(stderr, " in %1.2f sec", (double)(context->end_time - context->start_time) / CLOCKS_PER_SEC);
 }
 
 static BROTLI_BOOL DecompressFile(Context* context, BrotliDecoderState* s) {
@@ -898,6 +904,7 @@ static BROTLI_BOOL DecompressFile(Context* context, BrotliDecoderState* s) {
         return BROTLI_FALSE;
       }
       if (context->verbosity > 0) {
+        context->end_time = clock();
         fprintf(stderr, "Decompressed ");
         PrintFileProcessingProgress(context);
         fprintf(stderr, "\n");
@@ -966,6 +973,7 @@ static BROTLI_BOOL CompressFile(Context* context, BrotliEncoderState* s) {
     if (BrotliEncoderIsFinished(s)) {
       if (!FlushOutput(context)) return BROTLI_FALSE;
       if (context->verbosity > 0) {
+        context->end_time = clock();
         fprintf(stderr, "Compressed ");
         PrintFileProcessingProgress(context);
         fprintf(stderr, "\n");
