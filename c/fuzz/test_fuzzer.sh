@@ -13,12 +13,12 @@ mkdir bin
 cd bin
 
 cmake $BROTLI -DCMAKE_C_COMPILER="$CC" \
-    -DBUILD_TESTING=OFF -DENABLE_SANITIZER=address
-make -j$(nproc) brotlidec-static
+    -DBUILD_TESTING=OFF -DBUILD_SHARED_LIBS=OFF -DENABLE_SANITIZER=address
+make -j$(nproc) brotlidec
 
 ${CC} -o run_decode_fuzzer -std=c99 -fsanitize=address -I$SRC/include \
     $SRC/fuzz/decode_fuzzer.c $SRC/fuzz/run_decode_fuzzer.c \
-    ./libbrotlidec-static.a ./libbrotlicommon-static.a
+    ./libbrotlidec.a ./libbrotlicommon.a
 
 mkdir decode_corpora
 unzip $BROTLI/java/org/brotli/integration/fuzz_data.zip -d decode_corpora
