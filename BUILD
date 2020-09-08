@@ -123,7 +123,10 @@ cc_library(
     srcs = [":enc_sources"],
     hdrs = [":enc_headers"],
     copts = STRICT_C_OPTIONS,
-    linkopts = ["-lm"],
+    linkopts = select({
+        ":msvc": [],
+        "//conditions:default": ["-lm"],
+    }),
     deps = [":brotlicommon"],
 )
 
