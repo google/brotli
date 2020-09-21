@@ -12,6 +12,8 @@ include python/_brotli.cc
 include python/bro.py
 include python/brotli.py
 include python/README.md
+include python/tests/*
 include README.md
 include setup.py
+include tests/testdata/*
 include c/tools/brotli.c
