@@ -97,7 +97,7 @@ matrix:
     #  env: BUILD_SYSTEM=cmake C_COMPILER=pgcc CXX_COMPILER=pgc++
 
     ###
-    ## Python 2.7 and 3.6 builds on Linux
+    ## Python builds on Linux
     ###
     - os: linux
       language: python
@@ -113,6 +113,30 @@ matrix:
     - os: linux
       language: python
       python: 3.6
+      env: BUILD_SYSTEM=python C_COMPILER=gcc-5 CXX_COMPILER=g++-5
+      addons:
+        apt:
+          sources:
+          - ubuntu-toolchain-r-test
+          packages:
+          - gcc-5
+          - g++-5
+
+    - os: linux
+      language: python
+      python: 3.7
+      env: BUILD_SYSTEM=python C_COMPILER=gcc-5 CXX_COMPILER=g++-5
+      addons:
+        apt:
+          sources:
+          - ubuntu-toolchain-r-test
+          packages:
+          - gcc-5
+          - g++-5
+
+    - os: linux
+      language: python
+      python: 3.8
       env: BUILD_SYSTEM=python C_COMPILER=gcc-5 CXX_COMPILER=g++-5
       addons:
         apt:
