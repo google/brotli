@@ -1704,7 +1704,7 @@ class Layout:
         """Read literal context modes.
         LSB6: lower 6 bits of last char
         MSB6: upper 6 bits of last char
-        UTF8: rougly dependent on categories:
+        UTF8: roughly dependent on categories:
             upper 4 bits depend on category of last char:
                 control/whitespace/space/ punctuation/quote/%/open/close/
                 comma/period/=/digits/ VOWEL/CONSONANT/vowel/consonant
