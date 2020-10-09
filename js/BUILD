@@ -25,6 +25,7 @@ closure_js_library(
     srcs = ["decode.js"],
     suppress = [
         "JSC_DUP_VAR_DECLARATION",
+        "JSC_INVALID_OCTAL_LITERAL",
         "JSC_USELESS_BLOCK",
     ],
     deps = [":polyfill"],

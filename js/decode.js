@@ -2241,7 +2241,7 @@
 
   /**
    * @param {!Int8Array} bytes
-   * @param {Options=}
+   * @param {Options=} options
    * @return {!Int8Array}
    */
   function decode(bytes, options) {
