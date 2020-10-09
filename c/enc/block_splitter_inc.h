@@ -141,8 +141,9 @@ static size_t FN(FindBlocks)(const DataType* data, const size_t length,
       }
     }
   }
+
+  byte_ix = length - 1;
   {  /* Trace back from the last position and switch at the marked places. */
-    byte_ix = length - 1;
     size_t ix = byte_ix * bitmap_len;
     uint8_t cur_id = block_id[byte_ix];
     while (byte_ix > 0) {
