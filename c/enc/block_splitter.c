@@ -30,6 +30,7 @@ static const double kCommandBlockSwitchCost = 13.5;
 static const double kDistanceBlockSwitchCost = 14.6;
 static const size_t kLiteralStrideLength = 70;
 static const size_t kCommandStrideLength = 40;
+static const size_t kDistanceStrideLength = 40;
 static const size_t kSymbolsPerLiteralHistogram = 544;
 static const size_t kSymbolsPerCommandHistogram = 530;
 static const size_t kSymbolsPerDistanceHistogram = 544;
@@ -119,6 +120,8 @@ void BrotliDestroyBlockSplit(MemoryManager* m, BlockSplit* self) {
   BROTLI_FREE(m, self->lengths);
 }
 
+/* Extracts literals, command distance and prefix codes, then applies
+ * SplitByteVector to create partitioning. */
 void BrotliSplitBlock(MemoryManager* m,
                       const Command* cmds,
                       const size_t num_commands,
@@ -136,7 +139,9 @@ void BrotliSplitBlock(MemoryManager* m,
     /* Create a continuous array of literals. */
     CopyLiteralsToByteArray(cmds, num_commands, data, pos, mask, literals);
     /* Create the block split on the array of literals.
-       Literal histograms have alphabet size 256. */
+     * Literal histograms can have alphabet size up to 256.
+     * Though, to accomodate context modeling, less than half of maximum size
+     * is allowed. */
     SplitByteVectorLiteral(
         m, literals, literals_count,
         kSymbolsPerLiteralHistogram, kMaxLiteralHistograms,
@@ -144,6 +149,10 @@ void BrotliSplitBlock(MemoryManager* m,
         literal_split);
     if (BROTLI_IS_OOM(m)) return;
     BROTLI_FREE(m, literals);
+    /* NB: this might be a good place for injecting extra splitting without
+     *     increasing encoder complexity; however, output parition would be less
+     *     optimal than one produced with forced splitting inside
+     *     SplitByteVector (FindBlocks / ClusterBlocks). */
   }
 
   {
@@ -181,7 +190,7 @@ void BrotliSplitBlock(MemoryManager* m,
     SplitByteVectorDistance(
         m, distance_prefixes, j,
         kSymbolsPerDistanceHistogram, kMaxCommandHistograms,
-        kCommandStrideLength, kDistanceBlockSwitchCost, params,
+        kDistanceStrideLength, kDistanceBlockSwitchCost, params,
         dist_split);
     if (BROTLI_IS_OOM(m)) return;
     BROTLI_FREE(m, distance_prefixes);
