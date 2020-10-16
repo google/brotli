@@ -91,7 +91,7 @@ public class Decoder {
           }
           if (bytesRead == 0) {
             // No input data is currently available.
-            buffer = EMPTY_BUFER;
+            buffer = EMPTY_BUFFER;
             return 0;
           }
           decoder.push(bytesRead);
