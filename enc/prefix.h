@@ -13,7 +13,11 @@
 #include "../common/constants.h"
 #include <brotli/port.h>
 #include <brotli/types.h>
+#ifdef __VMS
+#include "fast_log.h"
+#else
 #include "./fast_log.h"
+#endif
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {

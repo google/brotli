@@ -6,19 +6,55 @@
 
 /* Block split point selection utilities. */
 
+#ifdef __VMS
+#include "block_splitter.h"
+#else
 #include "./block_splitter.h"
+#endif
 
 #include <assert.h>
 #include <string.h>  /* memcpy, memset */
 
+#ifdef __VMS
+#include "bit_cost.h"
+#else
 #include "./bit_cost.h"
+#endif
+#ifdef __VMS
+#include "cluster.h"
+#else
 #include "./cluster.h"
+#endif
+#ifdef __VMS
+#include "command.h"
+#else
 #include "./command.h"
+#endif
+#ifdef __VMS
+#include "fast_log.h"
+#else
 #include "./fast_log.h"
+#endif
+#ifdef __VMS
+#include "histogram.h"
+#else
 #include "./histogram.h"
+#endif
+#ifdef __VMS
+#include "memory.h"
+#else
 #include "./memory.h"
+#endif
+#ifdef __VMS
+#include "port.h"
+#else
 #include "./port.h"
+#endif
+#ifdef __VMS
+#include "quality.h"
+#else
 #include "./quality.h"
+#endif
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
@@ -92,19 +128,31 @@ static BROTLI_INLINE double BitCost(size_t count) {
 #define FN(X) X ## Literal
 #define DataType uint8_t
 /* NOLINTNEXTLINE(build/include) */
+#ifdef __VMS
+#include "block_splitter_inc.h"
+#else
 #include "./block_splitter_inc.h"
+#endif
 #undef DataType
 #undef FN
 
 #define FN(X) X ## Command
 #define DataType uint16_t
 /* NOLINTNEXTLINE(build/include) */
+#ifdef __VMS
+#include "block_splitter_inc.h"
+#else
 #include "./block_splitter_inc.h"
+#endif
 #undef FN
 
 #define FN(X) X ## Distance
 /* NOLINTNEXTLINE(build/include) */
+#ifdef __VMS
+#include "block_splitter_inc.h"
+#else
 #include "./block_splitter_inc.h"
+#endif
 #undef DataType
 #undef FN
 

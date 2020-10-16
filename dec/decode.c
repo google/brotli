@@ -16,13 +16,41 @@
 #include "../common/constants.h"
 #include "../common/dictionary.h"
 #include "../common/version.h"
+#ifdef __VMS
+#include "bit_reader.h"
+#else
 #include "./bit_reader.h"
+#endif
+#ifdef __VMS
+#include "context.h"
+#else
 #include "./context.h"
+#endif
+#ifdef __VMS
+#include "huffman.h"
+#else
 #include "./huffman.h"
+#endif
+#ifdef __VMS
+#include "port.h"
+#else
 #include "./port.h"
+#endif
+#ifdef __VMS
+#include "prefix.h"
+#else
 #include "./prefix.h"
+#endif
+#ifdef __VMS
+#include "state.h"
+#else
 #include "./state.h"
+#endif
+#ifdef __VMS
+#include "transform.h"
+#else
 #include "./transform.h"
+#endif
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {

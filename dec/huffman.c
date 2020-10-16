@@ -6,13 +6,21 @@
 
 /* Utilities for building Huffman decoding tables. */
 
+#ifdef __VMS
+#include "huffman.h"
+#else
 #include "./huffman.h"
+#endif
 
 #include <string.h>  /* memcpy, memset */
 
 #include "../common/constants.h"
 #include <brotli/types.h>
+#ifdef __VMS
+#include "port.h"
+#else
 #include "./port.h"
+#endif
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {

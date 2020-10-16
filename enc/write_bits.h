@@ -13,7 +13,11 @@
 #include <stdio.h>  /* printf */
 
 #include <brotli/types.h>
+#ifdef __VMS
+#include "port.h"
+#else
 #include "./port.h"
+#endif
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {

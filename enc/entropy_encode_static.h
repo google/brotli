@@ -12,7 +12,11 @@
 #include "../common/constants.h"
 #include <brotli/port.h>
 #include <brotli/types.h>
+#ifdef __VMS
+#include "write_bits.h"
+#else
 #include "./write_bits.h"
+#endif
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {

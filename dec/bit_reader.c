@@ -6,10 +6,18 @@
 
 /* Bit reading helpers */
 
+#ifdef __VMS
+#include "bit_reader.h"
+#else
 #include "./bit_reader.h"
+#endif
 
 #include <brotli/types.h>
+#ifdef __VMS
+#include "port.h"
+#else
 #include "./port.h"
+#endif
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {

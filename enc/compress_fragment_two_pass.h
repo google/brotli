@@ -14,8 +14,16 @@
 #define BROTLI_ENC_COMPRESS_FRAGMENT_TWO_PASS_H_
 
 #include <brotli/types.h>
+#ifdef __VMS
+#include "memory.h"
+#else
 #include "./memory.h"
+#endif
+#ifdef __VMS
+#include "port.h"
+#else
 #include "./port.h"
+#endif
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {

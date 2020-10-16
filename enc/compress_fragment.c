@@ -12,19 +12,51 @@
    Adapted from the CompressFragment() function in
    https://github.com/google/snappy/blob/master/snappy.cc */
 
+#ifdef __VMS
+#include "compress_fragment.h"
+#else
 #include "./compress_fragment.h"
+#endif
 
 #include <string.h>  /* memcmp, memcpy, memset */
 
 #include "../common/constants.h"
 #include <brotli/types.h>
+#ifdef __VMS
+#include "brotli_bit_stream.h"
+#else
 #include "./brotli_bit_stream.h"
+#endif
+#ifdef __VMS
+#include "entropy_encode.h"
+#else
 #include "./entropy_encode.h"
+#endif
+#ifdef __VMS
+#include "fast_log.h"
+#else
 #include "./fast_log.h"
+#endif
+#ifdef __VMS
+#include "find_match_length.h"
+#else
 #include "./find_match_length.h"
+#endif
+#ifdef __VMS
+#include "memory.h"
+#else
 #include "./memory.h"
+#endif
+#ifdef __VMS
+#include "port.h"
+#else
 #include "./port.h"
+#endif
+#ifdef __VMS
+#include "write_bits.h"
+#else
 #include "./write_bits.h"
+#endif
 
 
 #if defined(__cplusplus) || defined(c_plusplus)

@@ -6,7 +6,11 @@
 
 /* Heuristics for deciding about the UTF8-ness of strings. */
 
+#ifdef __VMS
+#include "utf8_util.h"
+#else
 #include "./utf8_util.h"
+#endif
 
 #include <brotli/types.h>
 

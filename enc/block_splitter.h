@@ -10,10 +10,26 @@
 #define BROTLI_ENC_BLOCK_SPLITTER_H_
 
 #include <brotli/types.h>
+#ifdef __VMS
+#include "command.h"
+#else
 #include "./command.h"
+#endif
+#ifdef __VMS
+#include "memory.h"
+#else
 #include "./memory.h"
+#endif
+#ifdef __VMS
+#include "port.h"
+#else
 #include "./port.h"
+#endif
+#ifdef __VMS
+#include "quality.h"
+#else
 #include "./quality.h"
+#endif
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {

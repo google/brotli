@@ -17,12 +17,36 @@
 #define BROTLI_ENC_BROTLI_BIT_STREAM_H_
 
 #include <brotli/types.h>
+#ifdef __VMS
+#include "command.h"
+#else
 #include "./command.h"
+#endif
+#ifdef __VMS
+#include "context.h"
+#else
 #include "./context.h"
+#endif
+#ifdef __VMS
+#include "entropy_encode.h"
+#else
 #include "./entropy_encode.h"
+#endif
+#ifdef __VMS
+#include "memory.h"
+#else
 #include "./memory.h"
+#endif
+#ifdef __VMS
+#include "metablock.h"
+#else
 #include "./metablock.h"
+#endif
+#ifdef __VMS
+#include "port.h"
+#else
 #include "./port.h"
+#endif
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {

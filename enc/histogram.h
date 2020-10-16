@@ -13,10 +13,26 @@
 
 #include "../common/constants.h"
 #include <brotli/types.h>
+#ifdef __VMS
+#include "block_splitter.h"
+#else
 #include "./block_splitter.h"
+#endif
+#ifdef __VMS
+#include "command.h"
+#else
 #include "./command.h"
+#endif
+#ifdef __VMS
+#include "context.h"
+#else
 #include "./context.h"
+#endif
+#ifdef __VMS
+#include "port.h"
+#else
 #include "./port.h"
+#endif
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
@@ -25,7 +41,11 @@ extern "C" {
 #define FN(X) X ## Literal
 #define DATA_SIZE BROTLI_NUM_LITERAL_SYMBOLS
 #define DataType uint8_t
+#ifdef __VMS
+#include "histogram_inc.h"  /* NOLINT(build/include) */
+#else
 #include "./histogram_inc.h"  /* NOLINT(build/include) */
+#endif
 #undef DataType
 #undef DATA_SIZE
 #undef FN
@@ -33,13 +53,21 @@ extern "C" {
 #define FN(X) X ## Command
 #define DataType uint16_t
 #define DATA_SIZE BROTLI_NUM_COMMAND_SYMBOLS
+#ifdef __VMS
+#include "histogram_inc.h"  /* NOLINT(build/include) */
+#else
 #include "./histogram_inc.h"  /* NOLINT(build/include) */
+#endif
 #undef DATA_SIZE
 #undef FN
 
 #define FN(X) X ## Distance
 #define DATA_SIZE BROTLI_NUM_DISTANCE_SYMBOLS
+#ifdef __VMS
+#include "histogram_inc.h"  /* NOLINT(build/include) */
+#else
 #include "./histogram_inc.h"  /* NOLINT(build/include) */
+#endif
 #undef DataType
 #undef DATA_SIZE
 #undef FN

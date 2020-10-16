@@ -6,11 +6,27 @@
 
 /* Build per-context histograms of literals, commands and distance codes. */
 
+#ifdef __VMS
+#include "histogram.h"
+#else
 #include "./histogram.h"
+#endif
 
+#ifdef __VMS
+#include "block_splitter.h"
+#else
 #include "./block_splitter.h"
+#endif
+#ifdef __VMS
+#include "command.h"
+#else
 #include "./command.h"
+#endif
+#ifdef __VMS
+#include "context.h"
+#else
 #include "./context.h"
+#endif
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {

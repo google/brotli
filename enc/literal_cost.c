@@ -7,12 +7,28 @@
 /* Literal cost model to allow backward reference replacement to be efficient.
 */
 
+#ifdef __VMS
+#include "literal_cost.h"
+#else
 #include "./literal_cost.h"
+#endif
 
 #include <brotli/types.h>
+#ifdef __VMS
+#include "fast_log.h"
+#else
 #include "./fast_log.h"
+#endif
+#ifdef __VMS
+#include "port.h"
+#else
 #include "./port.h"
+#endif
+#ifdef __VMS
+#include "utf8_util.h"
+#else
 #include "./utf8_util.h"
+#endif
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {

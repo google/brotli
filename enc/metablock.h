@@ -11,13 +11,41 @@
 #define BROTLI_ENC_METABLOCK_H_
 
 #include <brotli/types.h>
+#ifdef __VMS
+#include "block_splitter.h"
+#else
 #include "./block_splitter.h"
+#endif
+#ifdef __VMS
+#include "command.h"
+#else
 #include "./command.h"
+#endif
+#ifdef __VMS
+#include "context.h"
+#else
 #include "./context.h"
+#endif
+#ifdef __VMS
+#include "histogram.h"
+#else
 #include "./histogram.h"
+#endif
+#ifdef __VMS
+#include "memory.h"
+#else
 #include "./memory.h"
+#endif
+#ifdef __VMS
+#include "port.h"
+#else
 #include "./port.h"
+#endif
+#ifdef __VMS
+#include "quality.h"
+#else
 #include "./quality.h"
+#endif
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {

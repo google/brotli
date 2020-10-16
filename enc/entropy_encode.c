@@ -6,13 +6,21 @@
 
 /* Entropy encoding (Huffman) utilities. */
 
+#ifdef __VMS
+#include "entropy_encode.h"
+#else
 #include "./entropy_encode.h"
+#endif
 
 #include <string.h>  /* memset */
 
 #include "../common/constants.h"
 #include <brotli/types.h>
+#ifdef __VMS
+#include "port.h"
+#else
 #include "./port.h"
+#endif
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {

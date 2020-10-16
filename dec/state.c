@@ -4,12 +4,20 @@
    See file LICENSE for detail or copy at https://opensource.org/licenses/MIT
 */
 
+#ifdef __VMS
+#include "state.h"
+#else
 #include "./state.h"
+#endif
 
 #include <stdlib.h>  /* free, malloc */
 
 #include <brotli/types.h>
+#ifdef __VMS
+#include "huffman.h"
+#else
 #include "./huffman.h"
+#endif
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
