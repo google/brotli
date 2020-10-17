@@ -369,7 +369,7 @@ static int brotli_Compressor_init(brotli_Compressor *self, PyObject *args, PyObj
   static const char *kwlist[] = {"mode", "quality", "lgwin", "lgblock", NULL};
 
   ok = PyArg_ParseTupleAndKeywords(args, keywds, "|O&O&O&O&:Compressor",
-                    const_cast<char **>(kwlist),
+                    (char**) kwlist,
                     &mode_convertor, &mode,
                     &quality_convertor, &quality,
                     &lgwin_convertor, &lgwin,
@@ -431,7 +431,7 @@ static PyObject* brotli_Compressor_process(brotli_Compressor *self, PyObject *ar
   }
 
   ok = compress_stream(self->enc, BROTLI_OPERATION_PROCESS,
-                       &ret, static_cast<uint8_t*>(input.buf), input.len);
+                       &ret, (uint8_t*) input.buf, input.len);
 
 end:
   PyBuffer_Release(&input);
@@ -660,7 +660,7 @@ static int brotli_Decompressor_init(brotli_Decompressor *self, PyObject *args, P
   static const char *kwlist[] = {NULL};
 
   ok = PyArg_ParseTupleAndKeywords(args, keywds, "|:Decompressor",
-                    const_cast<char **>(kwlist));
+                    (char**) kwlist);
   if (!ok)
     return -1;
   if (!self->dec)
@@ -708,7 +708,7 @@ static PyObject* brotli_Decompressor_process(brotli_Decompressor *self, PyObject
     goto end;
   }
 
-  ok = decompress_stream(self->dec, &ret, static_cast<uint8_t*>(input.buf), input.len);
+  ok = decompress_stream(self->dec, &ret, (uint8_t*) input.buf, input.len);
 
 end:
   PyBuffer_Release(&input);
@@ -832,10 +832,10 @@ static PyObject* brotli_decompress(PyObject *self, PyObject *args, PyObject *key
 
 #if PY_MAJOR_VERSION >= 3
   ok = PyArg_ParseTupleAndKeywords(args, keywds, "y*|:decompress",
-                                   const_cast<char **>(kwlist), &input);
+                                   (char**) kwlist, &input);
 #else
   ok = PyArg_ParseTupleAndKeywords(args, keywds, "s*|:decompress",
-                                   const_cast<char **>(kwlist), &input);
+                                   (char**) kwlist, &input);
 #endif
 
   if (!ok)
@@ -850,7 +850,7 @@ static PyObject* brotli_decompress(PyObject *self, PyObject *args, PyObject *key
   BrotliDecoderState* state = BrotliDecoderCreateInstance(0, 0, 0);
 
   BrotliDecoderResult result = BROTLI_DECODER_RESULT_NEEDS_MORE_OUTPUT;
-  next_in = static_cast<uint8_t*>(input.buf);
+  next_in = (uint8_t*) input.buf;
   available_in = input.len;
   while (result == BROTLI_DECODER_RESULT_NEEDS_MORE_OUTPUT) {
     result = BrotliDecoderDecompressStream(state, &available_in, &next_in,
