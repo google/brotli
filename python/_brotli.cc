@@ -497,8 +497,7 @@ PyDoc_STRVAR(brotli_Compressor_finish_doc,
 "  brotli.error: If compression fails\n");
 
 static PyObject* brotli_Compressor_finish(brotli_Compressor *self) {
-  PyObject *ret = NULL;
-  std::vector<uint8_t> output;
+  PyObject *ret;
   BROTLI_BOOL ok = BROTLI_TRUE;
 
   if (!self->enc) {
@@ -507,16 +506,15 @@ static PyObject* brotli_Compressor_finish(brotli_Compressor *self) {
   }
 
   ok = compress_stream(self->enc, BROTLI_OPERATION_FINISH,
-                       &output, NULL, 0);
+                       &ret, NULL, 0);
 
   if (ok) {
     ok = BrotliEncoderIsFinished(self->enc);
   }
 
 end:
-  if (ok) {
-    ret = PyBytes_FromStringAndSize((char*)(output.empty() ? NULL : &output[0]), output.size());
-  } else {
+  if (!ok) {
+    ret = NULL;
     PyErr_SetString(BrotliError, "BrotliEncoderCompressStream failed while finishing the stream");
   }
 
