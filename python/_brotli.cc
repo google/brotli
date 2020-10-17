@@ -579,30 +579,45 @@ static PyTypeObject brotli_CompressorType = {
 };
 
 static BROTLI_BOOL decompress_stream(BrotliDecoderState* dec,
-                                     std::vector<uint8_t>* output,
+                                     PyObject **output,
                                      uint8_t* input, size_t input_length) {
   BROTLI_BOOL ok = BROTLI_TRUE;
-  Py_BEGIN_ALLOW_THREADS
-
   size_t available_in = input_length;
   const uint8_t* next_in = input;
-  size_t available_out = 0;
-  uint8_t* next_out = NULL;
+  size_t available_out;
+  uint8_t* next_out;
+  BlocksOutputBuffer buffer;
+
+  if (BlocksOutputBuffer_InitAndGrow(&buffer, &available_out, &next_out) < 0)
+    return BROTLI_FALSE;
+
+  Py_BEGIN_ALLOW_THREADS
 
   BrotliDecoderResult result = BROTLI_DECODER_RESULT_NEEDS_MORE_OUTPUT;
   while (result == BROTLI_DECODER_RESULT_NEEDS_MORE_OUTPUT) {
     result = BrotliDecoderDecompressStream(dec,
                                            &available_in, &next_in,
                                            &available_out, &next_out, NULL);
-    size_t buffer_length = 0; // Request all available output.
-    const uint8_t* buffer = BrotliDecoderTakeOutput(dec, &buffer_length);
-    if (buffer_length) {
-      (*output).insert((*output).end(), buffer, buffer + buffer_length);
+
+    if (available_out == 0) {
+      if (BlocksOutputBuffer_Grow(&buffer, &available_out, &next_out) < 0) {
+        result = BROTLI_DECODER_RESULT_ERROR;
+        break;
+      }
     }
   }
   ok = result != BROTLI_DECODER_RESULT_ERROR && !available_in;
 
   Py_END_ALLOW_THREADS
+
+  if (ok) {
+    *output = BlocksOutputBuffer_Finish(&buffer, available_out);
+    if (*output == NULL)
+      ok = BROTLI_FALSE;
+  } else {
+    BlocksOutputBuffer_CleanUp(&buffer);
+  }
+
   return ok;
 }
 
