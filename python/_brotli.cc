@@ -691,8 +691,7 @@ PyDoc_STRVAR(brotli_Decompressor_process_doc,
 "  brotli.error: If decompression fails\n");
 
 static PyObject* brotli_Decompressor_process(brotli_Decompressor *self, PyObject *args) {
-  PyObject* ret = NULL;
-  std::vector<uint8_t> output;
+  PyObject* ret;
   Py_buffer input;
   BROTLI_BOOL ok = BROTLI_TRUE;
 
@@ -710,13 +709,12 @@ static PyObject* brotli_Decompressor_process(brotli_Decompressor *self, PyObject
     goto end;
   }
 
-  ok = decompress_stream(self->dec, &output, static_cast<uint8_t*>(input.buf), input.len);
+  ok = decompress_stream(self->dec, &ret, static_cast<uint8_t*>(input.buf), input.len);
 
 end:
   PyBuffer_Release(&input);
-  if (ok) {
-    ret = PyBytes_FromStringAndSize((char*)(output.empty() ? NULL : &output[0]), output.size());
-  } else {
+  if (!ok) {
+    ret = NULL;
     PyErr_SetString(BrotliError, "BrotliDecoderDecompressStream failed while processing the stream");
   }
 
