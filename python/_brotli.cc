@@ -10,9 +10,203 @@
 #if PY_MAJOR_VERSION >= 3
 #define PyInt_Check PyLong_Check
 #define PyInt_AsLong PyLong_AsLong
+#else
+#define Py_ARRAY_LENGTH(array)  (sizeof(array) / sizeof((array)[0]))
 #endif
 
 static PyObject *BrotliError;
+
+
+/* -----------------------------------
+     BlocksOutputBuffer code
+   ----------------------------------- */
+typedef struct {
+    /* List of blocks */
+    PyObject *list;
+    /* Number of whole allocated size. */
+    Py_ssize_t allocated;
+} BlocksOutputBuffer;
+
+static const char unable_allocate_msg[] = "Unable to allocate output buffer.";
+
+/* Block size sequence */
+#define KB (1024)
+#define MB (1024*1024)
+static const Py_ssize_t BUFFER_BLOCK_SIZE[] =
+    { 32*KB, 64*KB, 256*KB, 1*MB, 4*MB, 8*MB, 16*MB, 16*MB,
+      32*MB, 32*MB, 32*MB, 32*MB, 64*MB, 64*MB, 128*MB, 128*MB,
+      256*MB };
+#undef KB
+#undef MB
+
+/* According to the block sizes defined by BUFFER_BLOCK_SIZE, the whole
+   allocated size growth step is:
+    1   32 KB       +32 KB
+    2   96 KB       +64 KB
+    3   352 KB      +256 KB
+    4   1.34 MB     +1 MB
+    5   5.34 MB     +4 MB
+    6   13.34 MB    +8 MB
+    7   29.34 MB    +16 MB
+    8   45.34 MB    +16 MB
+    9   77.34 MB    +32 MB
+    10  109.34 MB   +32 MB
+    11  141.34 MB   +32 MB
+    12  173.34 MB   +32 MB
+    13  237.34 MB   +64 MB
+    14  301.34 MB   +64 MB
+    15  429.34 MB   +128 MB
+    16  557.34 MB   +128 MB
+    17  813.34 MB   +256 MB
+    18  1069.34 MB  +256 MB
+    19  1325.34 MB  +256 MB
+    20  1581.34 MB  +256 MB
+    21  1837.34 MB  +256 MB
+    22  2093.34 MB  +256 MB
+    ...
+*/
+
+/* Initialize the buffer, and grow the buffer.
+   Return 0 on success
+   Return -1 on failure
+*/
+static int
+BlocksOutputBuffer_InitAndGrow(BlocksOutputBuffer *buffer,
+                               size_t *avail_out, uint8_t **next_out)
+{
+    PyObject *b;
+    const Py_ssize_t block_size = BUFFER_BLOCK_SIZE[0];
+
+    // Ensure .list was set to NULL
+    assert(buffer->list == NULL);
+
+    // The first block
+    b = PyBytes_FromStringAndSize(NULL, block_size);
+    if (b == NULL) {
+        return -1;
+    }
+
+    // Create list
+    buffer->list = PyList_New(1);
+    if (buffer->list == NULL) {
+        Py_DECREF(b);
+        return -1;
+    }
+    PyList_SET_ITEM(buffer->list, 0, b);
+
+    // Set variables
+    buffer->allocated = block_size;
+
+    *avail_out = block_size;
+    *next_out = (uint8_t*) PyBytes_AS_STRING(b);
+    return 0;
+}
+
+/* Grow the buffer. The avail_out must be 0, please check it before calling.
+   Return 0 on success
+   Return -1 on failure
+*/
+static int
+BlocksOutputBuffer_Grow(BlocksOutputBuffer *buffer,
+                        size_t *avail_out, uint8_t **next_out)
+{
+    PyObject *b;
+    const Py_ssize_t list_len = Py_SIZE(buffer->list);
+    Py_ssize_t block_size;
+
+    // Ensure no gaps in the data
+    assert(*avail_out == 0);
+
+    // Get block size
+    if (list_len < (Py_ssize_t) Py_ARRAY_LENGTH(BUFFER_BLOCK_SIZE)) {
+        block_size = BUFFER_BLOCK_SIZE[list_len];
+    } else {
+        block_size = BUFFER_BLOCK_SIZE[Py_ARRAY_LENGTH(BUFFER_BLOCK_SIZE) - 1];
+    }
+
+    // Check buffer->allocated overflow
+    if (block_size > PY_SSIZE_T_MAX - buffer->allocated) {
+        PyErr_SetString(PyExc_MemoryError, unable_allocate_msg);
+        return -1;
+    }
+
+    // Create the block
+    b = PyBytes_FromStringAndSize(NULL, block_size);
+    if (b == NULL) {
+        PyErr_SetString(PyExc_MemoryError, unable_allocate_msg);
+        return -1;
+    }
+    if (PyList_Append(buffer->list, b) < 0) {
+        Py_DECREF(b);
+        return -1;
+    }
+    Py_DECREF(b);
+
+    // Set variables
+    buffer->allocated += block_size;
+
+    *avail_out = block_size;
+    *next_out = (uint8_t*) PyBytes_AS_STRING(b);
+    return 0;
+}
+
+/* Finish the buffer.
+   Return a bytes object on success
+   Return NULL on failure
+*/
+static PyObject *
+BlocksOutputBuffer_Finish(BlocksOutputBuffer *buffer, size_t avail_out)
+{
+    PyObject *result, *block;
+    const Py_ssize_t list_len = Py_SIZE(buffer->list);
+
+    // Fast path for single block
+    if ((list_len == 1 && avail_out == 0) ||
+        (list_len == 2 && Py_SIZE(PyList_GET_ITEM(buffer->list, 1)) == (Py_ssize_t) avail_out))
+    {
+        block = PyList_GET_ITEM(buffer->list, 0);
+        Py_INCREF(block);
+
+        Py_CLEAR(buffer->list);
+        return block;
+    }
+
+    // Final bytes object
+    result = PyBytes_FromStringAndSize(NULL, buffer->allocated - avail_out);
+    if (result == NULL) {
+        PyErr_SetString(PyExc_MemoryError, unable_allocate_msg);
+        return NULL;
+    }
+
+    // Memory copy
+    if (list_len > 0) {
+        char *posi = PyBytes_AS_STRING(result);
+
+        // Blocks except the last one
+        Py_ssize_t i = 0;
+        for (; i < list_len-1; i++) {
+            block = PyList_GET_ITEM(buffer->list, i);
+            memcpy(posi, PyBytes_AS_STRING(block), Py_SIZE(block));
+            posi += Py_SIZE(block);
+        }
+        // The last block
+        block = PyList_GET_ITEM(buffer->list, i);
+        memcpy(posi, PyBytes_AS_STRING(block), Py_SIZE(block) - avail_out);
+    } else {
+        assert(Py_SIZE(result) == 0);
+    }
+
+    Py_CLEAR(buffer->list);
+    return result;
+}
+
+/* Clean up the buffer */
+static void
+BlocksOutputBuffer_OnError(BlocksOutputBuffer *buffer)
+{
+    Py_CLEAR(buffer->list);
+}
+
 
 static int as_bounded_int(PyObject *o, int* result, int lower_bound, int upper_bound) {
   long value = PyInt_AsLong(o);
