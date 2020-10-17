@@ -266,15 +266,19 @@ static int lgblock_convertor(PyObject *o, int *lgblock) {
 }
 
 static BROTLI_BOOL compress_stream(BrotliEncoderState* enc, BrotliEncoderOperation op,
-                                   std::vector<uint8_t>* output,
+                                   PyObject **output,
                                    uint8_t* input, size_t input_length) {
   BROTLI_BOOL ok = BROTLI_TRUE;
-  Py_BEGIN_ALLOW_THREADS
-
   size_t available_in = input_length;
   const uint8_t* next_in = input;
-  size_t available_out = 0;
-  uint8_t* next_out = NULL;
+  size_t available_out;
+  uint8_t* next_out;
+  BlocksOutputBuffer buffer;
+
+  if (BlocksOutputBuffer_InitAndGrow(&buffer, &available_out, &next_out) < 0)
+    return BROTLI_FALSE;
+
+  Py_BEGIN_ALLOW_THREADS
 
   while (ok) {
     ok = BrotliEncoderCompressStream(enc, op,
@@ -283,10 +287,11 @@ static BROTLI_BOOL compress_stream(BrotliEncoderState* enc, BrotliEncoderOperati
     if (!ok)
       break;
 
-    size_t buffer_length = 0; // Request all available output.
-    const uint8_t* buffer = BrotliEncoderTakeOutput(enc, &buffer_length);
-    if (buffer_length) {
-      (*output).insert((*output).end(), buffer, buffer + buffer_length);
+    if (available_out == 0) {
+      if (BlocksOutputBuffer_Grow(&buffer, &available_out, &next_out) < 0) {
+        ok = BROTLI_FALSE;
+        break;
+      }
     }
 
     if (available_in || BrotliEncoderHasMoreOutput(enc)) {
@@ -297,6 +302,15 @@ static BROTLI_BOOL compress_stream(BrotliEncoderState* enc, BrotliEncoderOperati
   }
 
   Py_END_ALLOW_THREADS
+
+  if (ok) {
+    *output = BlocksOutputBuffer_Finish(&buffer, available_out);
+    if (*output == NULL)
+      ok = BROTLI_FALSE;
+  } else {
+    BlocksOutputBuffer_CleanUp(&buffer);
+  }
+
   return ok;
 }
 
