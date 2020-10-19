@@ -5,6 +5,7 @@
 */
 
 #ifdef __VMS
+// remove dot
 #include "dictionary.h"
 #else
 #include "./dictionary.h"
