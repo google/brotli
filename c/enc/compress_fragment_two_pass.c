@@ -10,20 +10,52 @@
    second pass we emit them into the bit stream using prefix codes built based
    on the actual command and literal byte histograms. */
 
+#ifdef __VMS
+#include "compress_fragment_two_pass.h"
+#else
 #include "./compress_fragment_two_pass.h"
+#endif
 
 #include <string.h>  /* memcmp, memcpy, memset */
 
 #include "../common/constants.h"
 #include "../common/platform.h"
 #include <brotli/types.h>
+#ifdef __VMS
+#include "bit_cost.h"
+#else
 #include "./bit_cost.h"
+#endif
+#ifdef __VMS
+#include "brotli_bit_stream.h"
+#else
 #include "./brotli_bit_stream.h"
+#endif
+#ifdef __VMS
+#include "entropy_encode.h"
+#else
 #include "./entropy_encode.h"
+#endif
+#ifdef __VMS
+#include "fast_log.h"
+#else
 #include "./fast_log.h"
+#endif
+#ifdef __VMS
+#include "find_match_length.h"
+#else
 #include "./find_match_length.h"
+#endif
+#ifdef __VMS
+#include "memory.h"
+#else
 #include "./memory.h"
+#endif
+#ifdef __VMS
+#include "write_bits.h"
+#else
 #include "./write_bits.h"
+#endif
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {

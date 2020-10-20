@@ -4,13 +4,25 @@
    See file LICENSE for detail or copy at https://opensource.org/licenses/MIT
 */
 
+#ifdef __VMS
+#include "static_dict.h"
+#else
 #include "./static_dict.h"
+#endif
 
 #include "../common/dictionary.h"
 #include "../common/platform.h"
 #include "../common/transform.h"
+#ifdef __VMS
+#include "encoder_dict.h"
+#else
 #include "./encoder_dict.h"
+#endif
+#ifdef __VMS
+#include "find_match_length.h"
+#else
 #include "./find_match_length.h"
+#endif
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {

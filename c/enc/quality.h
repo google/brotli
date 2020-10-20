@@ -12,7 +12,11 @@
 
 #include "../common/platform.h"
 #include <brotli/encode.h>
+#ifdef __VMS
+#include "params.h"
+#else
 #include "./params.h"
+#endif
 
 #define FAST_ONE_PASS_COMPRESSION_QUALITY 0
 #define FAST_TWO_PASS_COMPRESSION_QUALITY 1

@@ -14,8 +14,16 @@
 #include "../common/platform.h"
 #include "../common/transform.h"
 #include <brotli/types.h>
+#ifdef __VMS
+#include "bit_reader.h"
+#else
 #include "./bit_reader.h"
+#endif
+#ifdef __VMS
+#include "huffman.h"
+#else
 #include "./huffman.h"
+#endif
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {

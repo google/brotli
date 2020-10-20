@@ -18,7 +18,11 @@
 #include <gflags/gflags.h>
 using gflags::ParseCommandLineFlags;
 
+#ifdef __VMS
+#include "read_dist.h"
+#else
 #include "./read_dist.h"
+#endif
 
 DEFINE_int32(height, 1000, "Height of the resulting histogam.");
 DEFINE_int32(width, 8000, "Width of the resulting histogam.");

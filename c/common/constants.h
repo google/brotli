@@ -12,7 +12,11 @@
 #ifndef BROTLI_COMMON_CONSTANTS_H_
 #define BROTLI_COMMON_CONSTANTS_H_
 
+#ifdef __VMS
+#include "platform.h"
+#else
 #include "./platform.h"
+#endif
 #include <brotli/port.h>
 #include <brotli/types.h>
 

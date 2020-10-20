@@ -4,7 +4,11 @@
    See file LICENSE for detail or copy at https://opensource.org/licenses/MIT
 */
 
+#ifdef __VMS
+#include "fast_log.h"
+#else
 #include "./fast_log.h"
+#endif
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {

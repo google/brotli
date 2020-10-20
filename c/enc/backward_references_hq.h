@@ -14,10 +14,26 @@
 #include "../common/dictionary.h"
 #include "../common/platform.h"
 #include <brotli/types.h>
+#ifdef __VMS
+#include "command.h"
+#else
 #include "./command.h"
+#endif
+#ifdef __VMS
+#include "hash.h"
+#else
 #include "./hash.h"
+#endif
+#ifdef __VMS
+#include "memory.h"
+#else
 #include "./memory.h"
+#endif
+#ifdef __VMS
+#include "quality.h"
+#else
 #include "./quality.h"
+#endif
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {

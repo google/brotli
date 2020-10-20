@@ -6,7 +6,11 @@
 
 #include <jni.h>
 
-#include "c/common/dictionary.h"
+#ifdef __VMS
+#include "common/dictionary.h"
+#else
+#include "./common/dictionary.h"
+#endif
 
 #ifdef __cplusplus
 extern "C" {

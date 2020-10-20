@@ -15,7 +15,11 @@
 
 #include "../common/platform.h"
 #include <brotli/types.h>
+#ifdef __VMS
+#include "memory.h"
+#else
 #include "./memory.h"
+#endif
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {

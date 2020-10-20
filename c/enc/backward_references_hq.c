@@ -6,7 +6,11 @@
 
 /* Function to find backward reference copies. */
 
+#ifdef __VMS
+#include "backward_references_hq.h"
+#else
 #include "./backward_references_hq.h"
+#endif
 
 #include <string.h>  /* memcpy, memset */
 
@@ -14,14 +18,46 @@
 #include "../common/context.h"
 #include "../common/platform.h"
 #include <brotli/types.h>
+#ifdef __VMS
+#include "command.h"
+#else
 #include "./command.h"
+#endif
+#ifdef __VMS
+#include "fast_log.h"
+#else
 #include "./fast_log.h"
+#endif
+#ifdef __VMS
+#include "find_match_length.h"
+#else
 #include "./find_match_length.h"
+#endif
+#ifdef __VMS
+#include "literal_cost.h"
+#else
 #include "./literal_cost.h"
+#endif
+#ifdef __VMS
+#include "memory.h"
+#else
 #include "./memory.h"
+#endif
+#ifdef __VMS
+#include "params.h"
+#else
 #include "./params.h"
+#endif
+#ifdef __VMS
+#include "prefix.h"
+#else
 #include "./prefix.h"
+#endif
+#ifdef __VMS
+#include "quality.h"
+#else
 #include "./quality.h"
+#endif
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {

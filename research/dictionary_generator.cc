@@ -5,9 +5,21 @@
 #include <fstream>
 #include <vector>
 
+#ifdef __VMS
+#include "deorummolae.h"
+#else
 #include "./deorummolae.h"
+#endif
+#ifdef __VMS
+#include "durchschlag.h"
+#else
 #include "./durchschlag.h"
+#endif
+#ifdef __VMS
+#include "sieve.h"
+#else
 #include "./sieve.h"
+#endif
 
 /* This isn't a definitive list of "--foo" arguments, only those that take an
  * additional "=#" integer parameter, like "--foo=20" or "--foo=32K".

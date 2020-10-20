@@ -84,6 +84,8 @@ class BuildExt(build_ext):
             if lang == 'c++':
                 if self.compiler.compiler_type == 'msvc':
                     extra_args.append('/EHsc')
+                if self.compiler.compiler_type == 'openvms':
+                    extra_args.append('/WARN=DISABLE=NOCTOBUTCONREFM')
 
             macros = ext.define_macros[:]
             if platform.system() == 'Darwin':

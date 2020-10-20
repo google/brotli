@@ -8,7 +8,11 @@
    compression algorithms here, just the right ordering of bits to match the
    specs. */
 
+#ifdef __VMS
+#include "brotli_bit_stream.h"
+#else
 #include "./brotli_bit_stream.h"
+#endif
 
 #include <string.h>  /* memcpy, memset */
 
@@ -16,12 +20,36 @@
 #include "../common/context.h"
 #include "../common/platform.h"
 #include <brotli/types.h>
+#ifdef __VMS
+#include "entropy_encode.h"
+#else
 #include "./entropy_encode.h"
+#endif
+#ifdef __VMS
+#include "entropy_encode_static.h"
+#else
 #include "./entropy_encode_static.h"
+#endif
+#ifdef __VMS
+#include "fast_log.h"
+#else
 #include "./fast_log.h"
+#endif
+#ifdef __VMS
+#include "histogram.h"
+#else
 #include "./histogram.h"
+#endif
+#ifdef __VMS
+#include "memory.h"
+#else
 #include "./memory.h"
+#endif
+#ifdef __VMS
+#include "write_bits.h"
+#else
 #include "./write_bits.h"
+#endif
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
@@ -914,17 +942,29 @@ static void StoreSymbolWithContext(BlockEncoder* self, size_t symbol,
 
 #define FN(X) X ## Literal
 /* NOLINTNEXTLINE(build/include) */
+#ifdef __VMS
+#include "block_encoder_inc.h"
+#else
 #include "./block_encoder_inc.h"
+#endif
 #undef FN
 
 #define FN(X) X ## Command
 /* NOLINTNEXTLINE(build/include) */
+#ifdef __VMS
+#include "block_encoder_inc.h"
+#else
 #include "./block_encoder_inc.h"
+#endif
 #undef FN
 
 #define FN(X) X ## Distance
 /* NOLINTNEXTLINE(build/include) */
+#ifdef __VMS
+#include "block_encoder_inc.h"
+#else
 #include "./block_encoder_inc.h"
+#endif
 #undef FN
 
 static void JumpToByteBoundary(size_t* storage_ix, uint8_t* storage) {

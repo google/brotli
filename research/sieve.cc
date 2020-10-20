@@ -1,4 +1,8 @@
+#ifdef __VMS
+#include "sieve.h"
+#else
 #include "./sieve.h"
+#endif
 
 /* Pointer to position in (combined corpus) text. */
 typedef uint32_t TextIdx;

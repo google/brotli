@@ -4,12 +4,24 @@
    See file LICENSE for detail or copy at https://opensource.org/licenses/MIT
 */
 
+#ifdef __VMS
+#include "encoder_dict.h"
+#else
 #include "./encoder_dict.h"
+#endif
 
 #include "../common/dictionary.h"
 #include "../common/transform.h"
+#ifdef __VMS
+#include "dictionary_hash.h"
+#else
 #include "./dictionary_hash.h"
+#endif
+#ifdef __VMS
+#include "hash.h"
+#else
 #include "./hash.h"
+#endif
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {

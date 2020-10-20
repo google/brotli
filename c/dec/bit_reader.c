@@ -6,7 +6,11 @@
 
 /* Bit reading helpers */
 
+#ifdef __VMS
+#include "bit_reader.h"
+#else
 #include "./bit_reader.h"
+#endif
 
 #include "../common/platform.h"
 #include <brotli/types.h>

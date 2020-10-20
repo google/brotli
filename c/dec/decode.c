@@ -15,10 +15,26 @@
 #include "../common/platform.h"
 #include "../common/transform.h"
 #include "../common/version.h"
+#ifdef __VMS
+#include "bit_reader.h"
+#else
 #include "./bit_reader.h"
+#endif
+#ifdef __VMS
+#include "huffman.h"
+#else
 #include "./huffman.h"
+#endif
+#ifdef __VMS
+#include "prefix.h"
+#else
 #include "./prefix.h"
+#endif
+#ifdef __VMS
+#include "state.h"
+#else
 #include "./state.h"
+#endif
 
 #if defined(BROTLI_TARGET_NEON)
 #include <arm_neon.h>

@@ -7,7 +7,11 @@
 /* Hash table on the 4-byte prefixes of static dictionary words. */
 
 #include "../common/platform.h"
+#ifdef __VMS
+#include "dictionary_hash.h"
+#else
 #include "./dictionary_hash.h"
+#endif
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {

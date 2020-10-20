@@ -1,4 +1,8 @@
+#ifdef __VMS
+#include "durchschlag.h"
+#else
 #include "./durchschlag.h"
+#endif
 
 #include <algorithm>
 #include <exception>  /* terminate */

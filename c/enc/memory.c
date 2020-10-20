@@ -7,7 +7,11 @@
 /* Algorithms for distributing the literals and commands of a metablock between
    block types and contexts. */
 
+#ifdef __VMS
+#include "memory.h"
+#else
 #include "./memory.h"
+#endif
 
 #include <stdlib.h>  /* exit, free, malloc */
 #include <string.h>  /* memcpy */
