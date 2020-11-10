@@ -7,6 +7,7 @@
 #if __CRTL_VER > 80400000
 #include <stdint.h>
 #else
+#include <inttypes.h>
 typedef signed char             int8_t;
 typedef signed short            int16_t;
 typedef signed int              int32_t;
