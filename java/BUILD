@@ -54,9 +54,9 @@ java_library(
 cc_binary(
     name = "brotli_jni.dll",
     srcs = [
-        "//org/brotli/wrapper/common:jni_src",
-        "//org/brotli/wrapper/dec:jni_src",
-        "//org/brotli/wrapper/enc:jni_src",
+        "@org_brotli//java/org/brotli/wrapper/common:jni_src",
+        "@org_brotli//java/org/brotli/wrapper/dec:jni_src",
+        "@org_brotli//java/org/brotli/wrapper/enc:jni_src",
         "@org_brotli//:common_headers",
         "@org_brotli//:common_sources",
         "@org_brotli//:dec_headers",
@@ -77,9 +77,9 @@ cc_binary(
 cc_binary(
     name = "brotli_jni_no_dictionary_data.dll",
     srcs = [
-        "//org/brotli/wrapper/common:jni_src",
-        "//org/brotli/wrapper/dec:jni_src",
-        "//org/brotli/wrapper/enc:jni_src",
+        "@org_brotli//java/org/brotli/wrapper/common:jni_src",
+        "@org_brotli//java/org/brotli/wrapper/dec:jni_src",
+        "@org_brotli//java/org/brotli/wrapper/enc:jni_src",
         "@org_brotli//:common_headers",
         "@org_brotli//:common_sources",
         "@org_brotli//:dec_headers",
