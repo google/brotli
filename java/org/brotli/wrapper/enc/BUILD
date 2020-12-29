@@ -27,9 +27,9 @@ java_library(
     srcs = glob(["*Test*.java"]),
     deps = [
         ":enc",
-        "@org_brotli//org/brotli/integration:brotli_jni_test_base",
-        "@org_brotli//org/brotli/integration:bundle_helper",
-        "@org_brotli//org/brotli/wrapper/dec",
+        "@org_brotli//java/org/brotli/integration:brotli_jni_test_base",
+        "@org_brotli//java/org/brotli/integration:bundle_helper",
+        "@org_brotli//java/org/brotli/wrapper/dec",
         "@maven//:junit_junit",
     ],
 )
