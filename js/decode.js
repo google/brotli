@@ -3,8 +3,10 @@
    Distributed under MIT license.
    See file LICENSE for detail or copy at https://opensource.org/licenses/MIT
 */
-
-(/** @return {function(!Int8Array):!Int8Array} */ function(zis) {
+(/**
+  * @param {!Object} zis
+  * @return {function(!Int8Array):!Int8Array}
+  */ function(zis) {
   /**
    * @constructor
    * @param {!Int8Array} bytes

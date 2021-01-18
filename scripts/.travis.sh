@@ -62,7 +62,8 @@ case "$1" in
 		bazel build -c opt ...:all &&
 		cd go && bazel test -c opt ...:all && cd .. &&
 		cd java && bazel test -c opt ...:all && cd .. &&
-		cd js && bazel test -c opt ...:all && cd .. &&
+		echo "bazelbuild/rules_closure seems to be dead; js build is skipped" &&
+		echo "cd js && bazel test -c opt ...:all && cd .." &&
 		cd research && bazel build -c opt ...:all && cd ..
 		;;
 	esac
