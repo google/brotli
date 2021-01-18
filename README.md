@@ -102,3 +102,5 @@ Hand ported [decoder / encoder](https://github.com/dominikhlbg/BrotliHaxe) in ha
 7Zip [plugin](https://github.com/mcmilk/7-Zip-Zstd)
 
 Dart [native bindings](https://github.com/thosakwe/brotli)
+
+Dart compression framework with [fast FFI-based Brotli implementation](https://pub.dev/documentation/es_compression/latest/brotli/brotli-library.html) with ready-to-use prebuilt binaries for Win/Linux/Mac
