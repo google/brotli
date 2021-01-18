@@ -62,10 +62,11 @@ final class DictionaryData {
   }
 
   static {
-    ByteBuffer dictionary = ByteBuffer.allocateDirect(122784);
-    int[] sizeBits = new int[25];
-    unpackDictionaryData(dictionary, DATA0, DATA1, SKIP_FLIP, sizeBits, SIZE_BITS_DATA);
-    Utils.flipBuffer(dictionary);
-    Dictionary.setData(dictionary.asReadOnlyBuffer(), sizeBits);
+    ByteBuffer dictionaryData = ByteBuffer.allocateDirect(122784);
+    int[] dictionarySizeBits = new int[25];
+    unpackDictionaryData(
+        dictionaryData, DATA0, DATA1, SKIP_FLIP, dictionarySizeBits, SIZE_BITS_DATA);
+    Utils.flipBuffer(dictionaryData);
+    Dictionary.setData(Utils.asReadOnlyBuffer(dictionaryData), dictionarySizeBits);
   }
 }

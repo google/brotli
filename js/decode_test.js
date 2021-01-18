@@ -9,6 +9,16 @@ function bytesToString(bytes) {
   return String.fromCharCode.apply(null, new Uint16Array(bytes));
 }
 
+/**
+ * @param {string} str
+ * @return {!Int8Array}
+ */
+function stringToBytes(str) {
+  var out = new Int8Array(str.length);
+  for (var i = 0; i < str.length; ++i) out[i] = str.charCodeAt(i);
+  return out;
+}
+
 function testMetadata() {
   assertEquals("", bytesToString(BrotliDecode(Int8Array.from([1, 11, 0, 42, 3]))));
 }
@@ -76,4 +86,12 @@ function testIntactDistanceRingBuffer0() {
   /** @type {!Int8Array} */
   var output = BrotliDecode(input);
   assertEquals("himselfself", bytesToString(output));
+}
+
+function testCompoundDictionary() {
+  var txt = "kot lomom kolol slona\n";
+  var dictionary = stringToBytes(txt);
+  var compressed = [0xa1, 0xa8, 0x00, 0xc0, 0x2f, 0x01, 0x10, 0xc4, 0x44, 0x09, 0x00];
+  assertEquals(txt.length, compressed.length * 2);
+  assertEquals(txt, bytesToString(BrotliDecode(Int8Array.from(compressed), {customDictionary: dictionary})));
 }

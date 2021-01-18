@@ -10,6 +10,7 @@
 #ifndef BROTLI_ENC_HASH_H_
 #define BROTLI_ENC_HASH_H_
 
+#include <stdlib.h>  /* exit */
 #include <string.h>  /* memcmp, memset */
 
 #include "../common/constants.h"
@@ -28,15 +29,28 @@ extern "C" {
 #endif
 
 typedef struct {
-  /* Dynamically allocated area; first member for quickest access. */
-  void* extra;
+  /**
+   * Dynamically allocated areas; regular hasher uses one or two allocations;
+   * "composite" hasher uses up to 4 allocations.
+   */
+  void* extra[4];
+
+  /**
+   * False before the fisrt invocation of HasherSetup (where "extra" memory)
+   * is allocated.
+   */
+  BROTLI_BOOL is_setup_;
 
   size_t dict_num_lookups;
   size_t dict_num_matches;
 
   BrotliHasherParams params;
 
-  /* False if hasher needs to be "prepared" before use. */
+  /**
+   * False if hasher needs to be "prepared" before use (before the first
+   * invocation of HasherSetup or after HasherReset). "preparation" is hasher
+   * data initialization (using input ringbuffer).
+   */
   BROTLI_BOOL is_prepared_;
 } HasherCommon;
 
@@ -391,42 +405,52 @@ typedef struct {
 
 /* MUST be invoked before any other method. */
 static BROTLI_INLINE void HasherInit(Hasher* hasher) {
-  hasher->common.extra = NULL;
+  hasher->common.is_setup_ = BROTLI_FALSE;
+  hasher->common.extra[0] = NULL;
+  hasher->common.extra[1] = NULL;
+  hasher->common.extra[2] = NULL;
+  hasher->common.extra[3] = NULL;
 }
 
 static BROTLI_INLINE void DestroyHasher(MemoryManager* m, Hasher* hasher) {
-  if (hasher->common.extra == NULL) return;
-  BROTLI_FREE(m, hasher->common.extra);
+  if (hasher->common.extra[0] != NULL) BROTLI_FREE(m, hasher->common.extra[0]);
+  if (hasher->common.extra[1] != NULL) BROTLI_FREE(m, hasher->common.extra[1]);
+  if (hasher->common.extra[2] != NULL) BROTLI_FREE(m, hasher->common.extra[2]);
+  if (hasher->common.extra[3] != NULL) BROTLI_FREE(m, hasher->common.extra[3]);
 }
 
 static BROTLI_INLINE void HasherReset(Hasher* hasher) {
   hasher->common.is_prepared_ = BROTLI_FALSE;
 }
 
-static BROTLI_INLINE size_t HasherSize(const BrotliEncoderParams* params,
-    BROTLI_BOOL one_shot, const size_t input_size) {
+static BROTLI_INLINE void HasherSize(const BrotliEncoderParams* params,
+    BROTLI_BOOL one_shot, const size_t input_size, size_t* alloc_size) {
   switch (params->hasher.type) {
-#define SIZE_(N)                                                      \
-    case N:                                                           \
-      return HashMemAllocInBytesH ## N(params, one_shot, input_size);
+#define SIZE_(N)                                                           \
+    case N:                                                                \
+      HashMemAllocInBytesH ## N(params, one_shot, input_size, alloc_size); \
+      break;
     FOR_ALL_HASHERS(SIZE_)
 #undef SIZE_
     default:
       break;
   }
-  return 0;  /* Default case. */
 }
 
 static BROTLI_INLINE void HasherSetup(MemoryManager* m, Hasher* hasher,
     BrotliEncoderParams* params, const uint8_t* data, size_t position,
     size_t input_size, BROTLI_BOOL is_last) {
   BROTLI_BOOL one_shot = (position == 0 && is_last);
-  if (hasher->common.extra == NULL) {
-    size_t alloc_size;
+  if (!hasher->common.is_setup_) {
+    size_t alloc_size[4] = {0};
+    size_t i;
     ChooseHasher(params, &params->hasher);
-    alloc_size = HasherSize(params, one_shot, input_size);
-    hasher->common.extra = BROTLI_ALLOC(m, uint8_t, alloc_size);
-    if (BROTLI_IS_OOM(m) || BROTLI_IS_NULL(hasher->common.extra)) return;
+    HasherSize(params, one_shot, input_size, alloc_size);
+    for (i = 0; i < 4; ++i) {
+      if (alloc_size[i] == 0) continue;
+      hasher->common.extra[i] = BROTLI_ALLOC(m, uint8_t, alloc_size[i]);
+      if (BROTLI_IS_OOM(m) || BROTLI_IS_NULL(hasher->common.extra[i])) return;
+    }
     hasher->common.params = params->hasher;
     switch (hasher->common.params.type) {
 #define INITIALIZE_(N)                        \
@@ -440,6 +464,7 @@ static BROTLI_INLINE void HasherSetup(MemoryManager* m, Hasher* hasher,
         break;
     }
     HasherReset(hasher);
+    hasher->common.is_setup_ = BROTLI_TRUE;
   }
 
   if (!hasher->common.is_prepared_) {

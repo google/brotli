@@ -211,7 +211,7 @@ final class BitReader {
     return limit - s.halfOffset;
   }
 
-  static void copyBytes(State s, byte[] data, int offset, int length) {
+  static void copyRawBytes(State s, byte[] data, int offset, int length) {
     if ((s.bitOffset & 7) != 0) {
       throw new BrotliRuntimeException("Unaligned copyBytes");
     }

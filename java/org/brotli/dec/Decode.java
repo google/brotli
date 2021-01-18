@@ -903,7 +903,7 @@ final class Decode {
     }
 
     int chunkLength = Math.min(s.ringBufferSize - s.pos, s.metaBlockLength);
-    BitReader.copyBytes(s, ringBuffer, s.pos, chunkLength);
+    BitReader.copyRawBytes(s, ringBuffer, s.pos, chunkLength);
     s.metaBlockLength -= chunkLength;
     s.pos += chunkLength;
     if (s.pos == s.ringBufferSize) {

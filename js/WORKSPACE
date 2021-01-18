@@ -1,12 +1,17 @@
 workspace(name = "org_brotli_js")
 
-load("@bazel_tools//tools/build_defs/repo:git.bzl", "git_repository")
+load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 
-git_repository(
+http_archive(
     name = "io_bazel_rules_closure",
-    commit = "29ec97e7c85d607ba9e41cab3993fbb13f812c4b",
-    remote = "https://github.com/bazelbuild/rules_closure.git",
+    sha256 = "d66deed38a0bb20581c15664f0ab62270af5940786855c7adc3087b27168b529",
+    strip_prefix = "rules_closure-0.11.0",
+    urls = [
+        "https://mirror.bazel.build/github.com/bazelbuild/rules_closure/archive/0.11.0.tar.gz",
+        "https://github.com/bazelbuild/rules_closure/archive/0.11.0.tar.gz",
+    ],
 )
 
-load("@io_bazel_rules_closure//closure:defs.bzl", "closure_repositories")
-closure_repositories()
+load("@io_bazel_rules_closure//closure:repositories.bzl", "rules_closure_dependencies", "rules_closure_toolchains")
+rules_closure_dependencies()
+rules_closure_toolchains()
