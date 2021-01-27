@@ -15,6 +15,11 @@
 #
 # This script generates literals used in Java code.
 
+try:
+  unichr  # Python 2
+except NameError
+  unichr = chr  # Python 3
+
 bin_path = "dictionary.bin"
 
 with open(bin_path, "rb") as raw:
