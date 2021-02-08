@@ -173,8 +173,8 @@ Java_org_brotli_wrapper_dec_DecoderJNI_nativePull(
     /* Bytes after stream end are not allowed. */
     context[1] = (handle->input_offset == handle->input_length) ? 1 : 0;
   } else {
-    /* Can proceed, or more data is required? */
-    context[1] = (handle->input_offset == handle->input_length) ? 2 : 4;
+    /* Pull decompressed data is ok */
+    context[1] = 4;
   }
   context[2] = hasMoreOutput ? 1 : 0;
   env->SetLongArrayRegion(ctx, 0, 3, context);
