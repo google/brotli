@@ -6,26 +6,6 @@
 // Package cbrotli compresses and decompresses data with C-Brotli library.
 package cbrotli
 
-/*
-#include <stddef.h>
-#include <stdint.h>
-
-#include <brotli/decode.h>
-
-static BrotliDecoderResult DecompressStream(BrotliDecoderState* s,
-                                            uint8_t* out, size_t out_len,
-                                            const uint8_t* in, size_t in_len,
-                                            size_t* bytes_written,
-                                            size_t* bytes_consumed) {
-  size_t in_remaining = in_len;
-  size_t out_remaining = out_len;
-  BrotliDecoderResult result = BrotliDecoderDecompressStream(
-      s, &in_remaining, &in, &out_remaining, &out, NULL);
-  *bytes_written = out_len - out_remaining;
-  *bytes_consumed = in_len - in_remaining;
-  return result;
-}
-*/
 import "C"
 
 import (
