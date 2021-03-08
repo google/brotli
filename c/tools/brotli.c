@@ -18,6 +18,7 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <sys/time.h>
 #include <time.h>
 
 #include "../common/constants.h"
@@ -650,7 +651,8 @@ static int64_t FileSize(const char* path) {
    fully featured implementation is way too hacky; add more hacks by request. */
 static void CopyStat(const char* input_path, const char* output_path) {
   struct stat statbuf;
-  struct utimbuf times;
+  struct timespec times[2];
+
   int res;
   if (input_path == 0 || output_path == 0) {
     return;
@@ -658,9 +660,17 @@ static void CopyStat(const char* input_path, const char* output_path) {
   if (stat(input_path, &statbuf) != 0) {
     return;
   }
-  times.actime = statbuf.st_atime;
-  times.modtime = statbuf.st_mtime;
-  utime(output_path, &times);
+
+  times[0].tv_sec = statbuf.st_atime;
+  times[1].tv_sec = statbuf.st_mtime;
+  times[0].tv_nsec = statbuf.st_atim.tv_nsec;
+  times[1].tv_nsec = statbuf.st_mtim.tv_nsec;
+
+  res = utimensat(AT_FDCWD, output_path, times, AT_SYMLINK_NOFOLLOW);
+  if (res != 0){
+    fprintf(stderr, "setting timestamp failed for [%s]: %s\n",
+            PrintablePath(output_path), strerror(errno));
+  }
   res = chmod(output_path, statbuf.st_mode & (S_IRWXU | S_IRWXG | S_IRWXO));
   if (res != 0) {
     fprintf(stderr, "setting access bits failed for [%s]: %s\n",
