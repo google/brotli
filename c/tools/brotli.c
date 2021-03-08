@@ -663,8 +663,14 @@ static void CopyStat(const char* input_path, const char* output_path) {
 
   times[0].tv_sec = statbuf.st_atime;
   times[1].tv_sec = statbuf.st_mtime;
+
+#if defined(__GLIBC__)
   times[0].tv_nsec = statbuf.st_atim.tv_nsec;
   times[1].tv_nsec = statbuf.st_mtim.tv_nsec;
+#elif defined(__APPLE__) && !defined(_POSIX_C_SOURCE)
+  times[0].tv_nsec = statbuf.st_atimespec.tv_nsec;
+  times[1].tv_nsec = statbuf.st_mtimespec.tv_nsec;
+#endif
 
   res = utimensat(AT_FDCWD, output_path, times, AT_SYMLINK_NOFOLLOW);
   if (res != 0){
