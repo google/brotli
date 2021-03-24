@@ -154,16 +154,20 @@ matrix:
     ## We'll just test 4.4 and the most recent version.
     ###
     - os: osx
+      osx_image: xcode12.2
       env: BUILD_SYSTEM=cmake C_COMPILER=gcc CXX_COMPILER=g++
     - os: osx
+      osx_image: xcode12.2
       env: BUILD_SYSTEM=cmake C_COMPILER=gcc-4.9 CXX_COMPILER=g++-4.9
     - os: osx
+      osx_image: xcode12.2
       env: BUILD_SYSTEM=cmake
 
     ###
     ## Python 2.7 OS X build (using the system /usr/bin/python)
     ###
     - os: osx
+      osx_image: xcode12.2
       env: BUILD_SYSTEM=python C_COMPILER=gcc CXX_COMPILER=g++
 
     ###
@@ -219,8 +223,8 @@ matrix:
             - bazel
 
     - os: osx
+      osx_image: xcode12.2
       env: BUILD_SYSTEM=bazel
-      osx_image: xcode11.3
       language: java
 
 before_install:
