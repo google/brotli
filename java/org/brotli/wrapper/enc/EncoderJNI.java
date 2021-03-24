@@ -29,7 +29,7 @@ class EncoderJNI {
     private final ByteBuffer inputBuffer;
     private boolean fresh = true;
 
-    Wrapper(int inputBufferSize, int quality, int lgwin)
+    Wrapper(int inputBufferSize, int quality, int lgwin, Encoder.Mode mode)
         throws IOException {
       if (inputBufferSize <= 0) {
         throw new IOException("buffer size must be positive");
@@ -37,6 +37,7 @@ class EncoderJNI {
       this.context[1] = inputBufferSize;
       this.context[2] = quality;
       this.context[3] = lgwin;
+      this.context[4] = mode != null ? mode.ordinal() : -1;
       this.inputBuffer = nativeCreate(this.context);
       if (this.context[0] == 0) {
         throw new IOException("failed to initialize native brotli encoder");
@@ -44,6 +45,7 @@ class EncoderJNI {
       this.context[1] = 1;
       this.context[2] = 0;
       this.context[3] = 0;
+      this.context[4] = 0;
     }
 
     void push(Operation op, int length) {

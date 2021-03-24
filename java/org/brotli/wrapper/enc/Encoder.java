@@ -23,17 +23,46 @@ public class Encoder {
   boolean closed;
 
   /**
+   * https://www.brotli.org/encode.html#aa6f
+   * See encode.h, typedef enum BrotliEncoderMode
+   *
+   * <strong>Important</strong>: The ordinal value of the
+   * modes should be the same as the constant values in encode.h
+   */
+  public enum Mode {
+    /**
+     * Default compression mode.
+     * In this mode compressor does not know anything in advance about the properties of the input.
+     */
+    GENERIC,
+    /**
+     * Compression mode for UTF-8 formatted text input.
+     */
+    TEXT,
+    /**
+     * Compression mode used in WOFF 2.0.
+     */
+    FONT;
+
+    public static Mode of(int value) {
+      return values()[value];
+    }
+  }
+
+  /**
    * Brotli encoder settings.
    */
   public static final class Parameters {
     private int quality = -1;
     private int lgwin = -1;
+    private Mode mode;
 
     public Parameters() { }
 
     private Parameters(Parameters other) {
       this.quality = other.quality;
       this.lgwin = other.lgwin;
+      this.mode = other.mode;
     }
 
     /**
@@ -57,6 +86,14 @@ public class Encoder {
       this.lgwin = lgwin;
       return this;
     }
+
+    /**
+     * @param mode compression mode, or {@code null} for default
+     */
+    public Parameters setMode(Mode mode) {
+      this.mode = mode;
+      return this;
+    }
   }
 
   /**
@@ -75,7 +112,7 @@ public class Encoder {
       throw new NullPointerException("destination can not be null");
     }
     this.destination = destination;
-    this.encoder = new EncoderJNI.Wrapper(inputBufferSize, params.quality, params.lgwin);
+    this.encoder = new EncoderJNI.Wrapper(inputBufferSize, params.quality, params.lgwin, params.mode);
     this.inputBuffer = this.encoder.getInputBuffer();
   }
 
@@ -163,7 +200,7 @@ public class Encoder {
       return empty;
     }
     /* data.length > 0 */
-    EncoderJNI.Wrapper encoder = new EncoderJNI.Wrapper(data.length, params.quality, params.lgwin);
+    EncoderJNI.Wrapper encoder = new EncoderJNI.Wrapper(data.length, params.quality, params.lgwin, params.mode);
     ArrayList<byte[]> output = new ArrayList<byte[]>();
     int totalOutputSize = 0;
     try {
