@@ -45,7 +45,7 @@ class EncoderJNI {
       this.context[1] = 1;
       this.context[2] = 0;
       this.context[3] = 0;
-      this.context[4] = -1;
+      this.context[4] = 0;
     }
 
     void push(Operation op, int length) {
