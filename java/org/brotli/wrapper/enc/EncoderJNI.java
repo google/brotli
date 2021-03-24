@@ -37,7 +37,7 @@ class EncoderJNI {
       this.context[1] = inputBufferSize;
       this.context[2] = quality;
       this.context[3] = lgwin;
-      this.context[4] = mode.value();
+      this.context[4] = mode != null ? mode.value() : -1;
       this.inputBuffer = nativeCreate(this.context);
       if (this.context[0] == 0) {
         throw new IOException("failed to initialize native brotli encoder");
@@ -45,7 +45,7 @@ class EncoderJNI {
       this.context[1] = 1;
       this.context[2] = 0;
       this.context[3] = 0;
-      this.context[4] = 0;
+      this.context[4] = -1;
     }
 
     void push(Operation op, int length) {

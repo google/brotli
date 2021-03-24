@@ -85,7 +85,7 @@ public class Encoder {
   public static final class Parameters {
     private int quality = -1;
     private int lgwin = -1;
-    private Mode mode = Mode.GENERIC;
+    private Mode mode;
 
     public Parameters() { }
 
@@ -121,9 +121,6 @@ public class Encoder {
      * @param mode compression mode, or {@code null} for default
      */
     public Parameters setMode(Mode mode) {
-      if (mode == null) {
-          this.mode = Mode.GENERIC;
-      }
       this.mode = mode;
       return this;
     }
