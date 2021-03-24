@@ -11,7 +11,6 @@ import java.nio.Buffer;
 import java.nio.ByteBuffer;
 import java.nio.channels.WritableByteChannel;
 import java.util.ArrayList;
-import java.util.Locale;
 
 /**
  * Base class for OutputStream / Channel implementations.
@@ -26,56 +25,27 @@ public class Encoder {
   /**
    * https://www.brotli.org/encode.html#aa6f
    * See encode.h, typedef enum BrotliEncoderMode
+   *
+   * <strong>Important</strong>: The ordinal value of the
+   * modes should be the same as the constant values in encode.h
    */
   public enum Mode {
     /**
      * Default compression mode.
      * In this mode compressor does not know anything in advance about the properties of the input.
      */
-    GENERIC(0),
+    GENERIC,
     /**
      * Compression mode for UTF-8 formatted text input.
      */
-    TEXT(1),
+    TEXT,
     /**
      * Compression mode used in WOFF 2.0.
      */
-    FONT(2);
-
-    private final int value;
-
-    Mode(int value) {
-      this.value = value;
-    }
-
-    public int value() {
-      return value;
-    }
+    FONT;
 
     public static Mode of(int value) {
-      switch (value) {
-        case 0:
-          return GENERIC;
-        case 1:
-          return TEXT;
-        case 2:
-          return FONT;
-        default:
-          throw new IllegalArgumentException("Unknown mode: " + value);
-      }
-    }
-
-    public static Mode of(String name) {
-      switch (name.toLowerCase(Locale.ROOT)) {
-        case "generic":
-          return GENERIC;
-        case "text":
-          return TEXT;
-        case "font":
-          return FONT;
-        default:
-          throw new IllegalArgumentException("Unknown mode: " + name);
-      }
+      return values()[value];
     }
   }
 
