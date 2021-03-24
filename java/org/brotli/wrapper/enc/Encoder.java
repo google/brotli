@@ -45,37 +45,37 @@ public class Encoder {
     private final int value;
 
     Mode(int value) {
-        this.value = value;
+      this.value = value;
     }
 
     public int value() {
-        return value;
+      return value;
     }
 
     public static Mode of(int value) {
-        switch (value) {
-            case 0:
-                return GENERIC;
-            case 1:
-                return TEXT;
-            case 2:
-                return FONT;
-            default:
-                throw new IllegalArgumentException("Unknown mode: " + value);
-        }
+      switch (value) {
+        case 0:
+          return GENERIC;
+        case 1:
+          return TEXT;
+        case 2:
+          return FONT;
+        default:
+          throw new IllegalArgumentException("Unknown mode: " + value);
+      }
     }
 
     public static Mode of(String name) {
-        switch (name.toLowerCase(Locale.ROOT)) {
-            case "generic":
-                return GENERIC;
-            case "text":
-                return TEXT;
-            case "font":
-                return FONT;
-            default:
-                throw new IllegalArgumentException("Unknown mode: " + name);
-        }
+      switch (name.toLowerCase(Locale.ROOT)) {
+        case "generic":
+          return GENERIC;
+        case "text":
+          return TEXT;
+        case "font":
+          return FONT;
+        default:
+          throw new IllegalArgumentException("Unknown mode: " + name);
+      }
     }
   }
 
