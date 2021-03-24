@@ -80,7 +80,7 @@ Java_org_brotli_wrapper_enc_EncoderJNI_nativeCreate(
       BrotliEncoderSetParameter(handle->state, BROTLI_PARAM_LGWIN, lgwin);
     }
     int mode = context[4];
-    if (mode >= -1) {
+    if (mode >= 0) {
       BrotliEncoderSetParameter(handle->state, BROTLI_PARAM_MODE, mode);
     }
   }
