@@ -6,8 +6,6 @@
 #include <brotli/decode.h>
 #include <brotli/encode.h>
 
-#include <vector>
-
 #if PY_MAJOR_VERSION >= 3
 #define PyInt_Check PyLong_Check
 #define PyInt_AsLong PyLong_AsLong
@@ -385,7 +383,7 @@ static int brotli_Compressor_init(brotli_Compressor *self, PyObject *args, PyObj
   static const char *kwlist[] = {"mode", "quality", "lgwin", "lgblock", NULL};
 
   ok = PyArg_ParseTupleAndKeywords(args, keywds, "|O&O&O&O&:Compressor",
-                    const_cast<char **>(kwlist),
+                    (char **) kwlist,
                     &mode_convertor, &mode,
                     &quality_convertor, &quality,
                     &lgwin_convertor, &lgwin,
@@ -685,7 +683,7 @@ static int brotli_Decompressor_init(brotli_Decompressor *self, PyObject *args, P
   static const char *kwlist[] = {NULL};
 
   ok = PyArg_ParseTupleAndKeywords(args, keywds, "|:Decompressor",
-                    const_cast<char **>(kwlist));
+                                   (char **) kwlist);
   if (!ok)
     return -1;
   if (!self->dec)
