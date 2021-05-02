@@ -428,36 +428,37 @@ PyDoc_STRVAR(brotli_Compressor_process_doc,
 "  brotli.error: If compression fails\n");
 
 static PyObject* brotli_Compressor_process(brotli_Compressor *self, PyObject *args) {
-  PyObject* ret = NULL;
-  std::vector<uint8_t> output;
+  PyObject* ret;
   Py_buffer input;
-  BROTLI_BOOL ok = BROTLI_TRUE;
+  int ok;
 
 #if PY_MAJOR_VERSION >= 3
-  ok = (BROTLI_BOOL)PyArg_ParseTuple(args, "y*:process", &input);
+  ok = PyArg_ParseTuple(args, "y*:process", &input);
 #else
-  ok = (BROTLI_BOOL)PyArg_ParseTuple(args, "s*:process", &input);
+  ok = PyArg_ParseTuple(args, "s*:process", &input);
 #endif
 
-  if (!ok)
+  if (!ok) {
     return NULL;
+  }
 
   if (!self->enc) {
-    ok = BROTLI_FALSE;
-    goto end;
+    goto error;
   }
 
-  ok = compress_stream(self->enc, BROTLI_OPERATION_PROCESS,
-                       &output, static_cast<uint8_t*>(input.buf), input.len);
+  ret = compress_stream(self->enc, BROTLI_OPERATION_PROCESS,
+                        (uint8_t*) input.buf, input.len);
+  if (ret != NULL) {
+    goto finally;
+  }
 
-end:
+error:
+  PyErr_SetString(BrotliError,
+                  "BrotliEncoderCompressStream failed while processing the stream");
+  ret = NULL;
+
+finally:
   PyBuffer_Release(&input);
-  if (ok) {
-    ret = PyBytes_FromStringAndSize((char*)(output.size() ? &output[0] : NULL), output.size());
-  } else {
-    PyErr_SetString(BrotliError, "BrotliEncoderCompressStream failed while processing the stream");
-  }
-
   return ret;
 }
 
