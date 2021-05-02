@@ -587,32 +587,49 @@ static PyTypeObject brotli_CompressorType = {
   brotli_Compressor_new,                 /* tp_new */
 };
 
-static BROTLI_BOOL decompress_stream(BrotliDecoderState* dec,
-                                     std::vector<uint8_t>* output,
-                                     uint8_t* input, size_t input_length) {
-  BROTLI_BOOL ok = BROTLI_TRUE;
-  Py_BEGIN_ALLOW_THREADS
-
+static PyObject* decompress_stream(BrotliDecoderState* dec,
+                                   uint8_t* input, size_t input_length) {
+  BrotliDecoderResult result;
   size_t available_in = input_length;
   const uint8_t* next_in = input;
-  size_t available_out = 0;
-  uint8_t* next_out = NULL;
+  size_t available_out;
+  uint8_t* next_out;
+  BlocksOutputBuffer buffer = {.list=NULL};
+  PyObject *output;
 
-  BrotliDecoderResult result = BROTLI_DECODER_RESULT_NEEDS_MORE_OUTPUT;
-  while (result == BROTLI_DECODER_RESULT_NEEDS_MORE_OUTPUT) {
+  if (BlocksOutputBuffer_InitAndGrow(&buffer, &available_out, &next_out) < 0) {
+    goto error;
+  }
+
+  while (1) {
+    Py_BEGIN_ALLOW_THREADS
     result = BrotliDecoderDecompressStream(dec,
                                            &available_in, &next_in,
                                            &available_out, &next_out, NULL);
-    size_t buffer_length = 0; // Request all available output.
-    const uint8_t* buffer = BrotliDecoderTakeOutput(dec, &buffer_length);
-    if (buffer_length) {
-      (*output).insert((*output).end(), buffer, buffer + buffer_length);
+    Py_END_ALLOW_THREADS
+
+    if (result == BROTLI_DECODER_RESULT_SUCCESS) {
+      break;
+    } else if (result == BROTLI_DECODER_RESULT_NEEDS_MORE_OUTPUT) {
+      if (available_out == 0) {
+        if (BlocksOutputBuffer_Grow(&buffer, &available_out, &next_out) < 0) {
+          goto error;
+        }
+      }
+    } else if (result == BROTLI_DECODER_RESULT_ERROR) {
+      goto error;
     }
   }
-  ok = result != BROTLI_DECODER_RESULT_ERROR && !available_in;
 
-  Py_END_ALLOW_THREADS
-  return ok;
+  output = BlocksOutputBuffer_Finish(&buffer, available_out);
+  if (output != NULL) {
+    goto final;
+  }
+
+error:
+  output = NULL;
+final:
+  return output;
 }
 
 PyDoc_STRVAR(brotli_Decompressor_doc,
