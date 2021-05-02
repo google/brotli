@@ -748,14 +748,9 @@ PyDoc_STRVAR(brotli_Decompressor_is_finished_doc,
 "  brotli.error: If decompression fails\n");
 
 static PyObject* brotli_Decompressor_is_finished(brotli_Decompressor *self) {
-  PyObject *ret = NULL;
-  std::vector<uint8_t> output;
-  BROTLI_BOOL ok = BROTLI_TRUE;
-
   if (!self->dec) {
-    ok = BROTLI_FALSE;
     PyErr_SetString(BrotliError, "BrotliDecoderState is NULL while checking is_finished");
-    goto end;
+    return NULL;
   }
 
   if (BrotliDecoderIsFinished(self->dec)) {
@@ -763,15 +758,6 @@ static PyObject* brotli_Decompressor_is_finished(brotli_Decompressor *self) {
   } else {
     Py_RETURN_FALSE;
   }
-
-end:
-  if (ok) {
-    ret = PyBytes_FromStringAndSize((char*)(output.empty() ? NULL : &output[0]), output.size());
-  } else {
-    PyErr_SetString(BrotliError, "BrotliDecoderDecompressStream failed while finishing the stream");
-  }
-
-  return ret;
 }
 
 static PyMemberDef brotli_Decompressor_members[] = {
