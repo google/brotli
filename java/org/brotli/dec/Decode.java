@@ -1127,13 +1127,13 @@ final class Decode {
           s.distanceCode = CMD_LOOKUP[cmdCode + 3];
           BitReader.fillBitWindow(s);
           {
-            int extraBits = insertAndCopyExtraBits & 0xFF;
-            s.insertLength = insertLengthOffset + BitReader.readBits(s, extraBits);
+            int insertLengthExtraBits = insertAndCopyExtraBits & 0xFF;
+            s.insertLength = insertLengthOffset + BitReader.readBits(s, insertLengthExtraBits);
           }
           BitReader.fillBitWindow(s);
           {
-            int extraBits = insertAndCopyExtraBits >> 8;
-            s.copyLength = copyLengthOffset + BitReader.readBits(s, extraBits);
+            int copyLengthExtraBits = insertAndCopyExtraBits >> 8;
+            s.copyLength = copyLengthOffset + BitReader.readBits(s, copyLengthExtraBits);
           }
 
           s.j = 0;
