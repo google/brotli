@@ -1470,8 +1470,9 @@ static size_t MakeUncompressedStream(
 
 BROTLI_BOOL BrotliEncoderCompress(
     int quality, int lgwin, BrotliEncoderMode mode, size_t input_size,
-    const uint8_t* input_buffer, size_t* encoded_size,
-    uint8_t* encoded_buffer) {
+    const uint8_t input_buffer[BROTLI_ARRAY_PARAM(input_size)],
+    size_t* encoded_size,
+    uint8_t encoded_buffer[BROTLI_ARRAY_PARAM(*encoded_size)]) {
   BrotliEncoderState* s;
   size_t out_size = *encoded_size;
   const uint8_t* input_start = input_buffer;
