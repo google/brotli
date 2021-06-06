@@ -405,7 +405,6 @@ transform_pc_file("scripts/libbrotlidec.pc.in" "${CMAKE_CURRENT_BINARY_DIR}/libb
 
 transform_pc_file("scripts/libbrotlienc.pc.in" "${CMAKE_CURRENT_BINARY_DIR}/libbrotlienc.pc" "${BROTLI_VERSION}")
 
-if(NOT BROTLI_EMSCRIPTEN)
 if(NOT BROTLI_BUNDLED_MODE)
   install(FILES "${CMAKE_CURRENT_BINARY_DIR}/libbrotlicommon.pc"
     DESTINATION "${CMAKE_INSTALL_LIBDIR}/pkgconfig")
@@ -414,7 +413,6 @@ if(NOT BROTLI_BUNDLED_MODE)
   install(FILES "${CMAKE_CURRENT_BINARY_DIR}/libbrotlienc.pc"
     DESTINATION "${CMAKE_INSTALL_LIBDIR}/pkgconfig")
 endif()  # BROTLI_BUNDLED_MODE
-endif()  # BROTLI_EMSCRIPTEN
 
 if (ENABLE_COVERAGE STREQUAL "yes")
   SETUP_TARGET_FOR_COVERAGE(coverage test coverage)
