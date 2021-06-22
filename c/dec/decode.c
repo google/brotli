@@ -2032,9 +2032,12 @@ static BROTLI_NOINLINE BrotliDecoderErrorCode SafeProcessCommands(
   return ProcessCommandsInternal(1, s);
 }
 
-BrotliDecoderResult BrotliDecoderDecompress(
-    size_t encoded_size, const uint8_t* encoded_buffer, size_t* decoded_size,
-    uint8_t* decoded_buffer) {
+
+BROTLI_DEC_API BrotliDecoderResult BrotliDecoderDecompress(
+    size_t encoded_size,
+    const uint8_t encoded_buffer[BROTLI_ARRAY_PARAM(encoded_size)],
+    size_t* decoded_size,
+    uint8_t decoded_buffer[BROTLI_ARRAY_PARAM(*decoded_size)]){
   BrotliDecoderState s;
   BrotliDecoderResult result;
   size_t total_out = 0;
