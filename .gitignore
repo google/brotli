@@ -17,3 +17,5 @@ __pycache__/
 *.txt.uncompressed
 *.br
 *.unbr
+
+.vscode

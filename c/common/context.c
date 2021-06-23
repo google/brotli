@@ -1,4 +1,8 @@
+#ifdef __VMS
+#include "context.h"
+#else
 #include "./context.h"
+#endif
 
 #include <brotli/types.h>
 

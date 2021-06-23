@@ -6,7 +6,11 @@
 
 #include <stdlib.h>
 
+#ifdef __VMS
+#include "platform.h"
+#else
 #include "./platform.h"
+#endif
 #include <brotli/types.h>
 
 /* Default brotli_alloc_func */

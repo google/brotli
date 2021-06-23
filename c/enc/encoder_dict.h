@@ -10,7 +10,11 @@
 #include "../common/dictionary.h"
 #include "../common/platform.h"
 #include <brotli/types.h>
+#ifdef __VMS
+#include "static_dict_lut.h"
+#else
 #include "./static_dict_lut.h"
+#endif
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {

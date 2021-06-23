@@ -1,9 +1,17 @@
+#ifdef __VMS
+#include "deorummolae.h"
+#else
 #include "./deorummolae.h"
+#endif
 
 #include <array>
 #include <cstdio>
 
+#ifdef __VMS
+#include "esaxx/sais.hxx"
+#else
 #include "./esaxx/sais.hxx"
+#endif
 
 /* Used for quick SA-entry to file mapping. Each file is padded to size that
    is a multiple of chunk size. */

@@ -10,7 +10,11 @@
 #define BROTLI_ENC_PARAMS_H_
 
 #include <brotli/encode.h>
+#ifdef __VMS
+#include "encoder_dict.h"
+#else
 #include "./encoder_dict.h"
+#endif
 
 typedef struct BrotliHasherParams {
   int type;

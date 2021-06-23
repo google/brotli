@@ -4,7 +4,11 @@
    See file LICENSE for detail or copy at https://opensource.org/licenses/MIT
 */
 
+#ifdef __VMS
+#include "command.h"
+#else
 #include "./command.h"
+#endif
 
 #include <brotli/types.h>
 

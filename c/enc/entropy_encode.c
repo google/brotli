@@ -6,7 +6,11 @@
 
 /* Entropy encoding (Huffman) utilities. */
 
+#ifdef __VMS
+#include "entropy_encode.h"
+#else
 #include "./entropy_encode.h"
+#endif
 
 #include <string.h>  /* memset */
 

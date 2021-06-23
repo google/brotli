@@ -4,8 +4,16 @@
    See file LICENSE for detail or copy at https://opensource.org/licenses/MIT
 */
 
+#ifdef __VMS
+#include "dictionary.h"
+#else
 #include "./dictionary.h"
+#endif
+#ifdef __VMS
+#include "platform.h"
+#else
 #include "./platform.h"
+#endif
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {

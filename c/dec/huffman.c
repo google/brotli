@@ -6,7 +6,11 @@
 
 /* Utilities for building Huffman decoding tables. */
 
+#ifdef __VMS
+#include "huffman.h"
+#else
 #include "./huffman.h"
+#endif
 
 #include <string.h>  /* memcpy, memset */
 

@@ -12,7 +12,11 @@
 #include "../common/dictionary.h"
 #include "../common/platform.h"
 #include <brotli/types.h>
+#ifdef __VMS
+#include "encoder_dict.h"
+#else
 #include "./encoder_dict.h"
+#endif
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {

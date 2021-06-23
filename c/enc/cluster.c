@@ -6,14 +6,34 @@
 
 /* Functions for clustering similar histograms together. */
 
+#ifdef __VMS
+#include "cluster.h"
+#else
 #include "./cluster.h"
+#endif
 
 #include "../common/platform.h"
 #include <brotli/types.h>
+#ifdef __VMS
+#include "bit_cost.h"  /* BrotliPopulationCost */
+#else
 #include "./bit_cost.h"  /* BrotliPopulationCost */
+#endif
+#ifdef __VMS
+#include "fast_log.h"
+#else
 #include "./fast_log.h"
+#endif
+#ifdef __VMS
+#include "histogram.h"
+#else
 #include "./histogram.h"
+#endif
+#ifdef __VMS
+#include "memory.h"
+#else
 #include "./memory.h"
+#endif
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
@@ -38,15 +58,27 @@ static BROTLI_INLINE double ClusterCostDiff(size_t size_a, size_t size_b) {
 #define CODE(X) X
 
 #define FN(X) X ## Literal
+#ifdef __VMS
+#include "cluster_inc.h"  /* NOLINT(build/include) */
+#else
 #include "./cluster_inc.h"  /* NOLINT(build/include) */
+#endif
 #undef FN
 
 #define FN(X) X ## Command
+#ifdef __VMS
+#include "cluster_inc.h"  /* NOLINT(build/include) */
+#else
 #include "./cluster_inc.h"  /* NOLINT(build/include) */
+#endif
 #undef FN
 
 #define FN(X) X ## Distance
+#ifdef __VMS
+#include "cluster_inc.h"  /* NOLINT(build/include) */
+#else
 #include "./cluster_inc.h"  /* NOLINT(build/include) */
+#endif
 #undef FN
 
 #undef CODE

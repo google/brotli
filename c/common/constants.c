@@ -4,7 +4,11 @@
    See file LICENSE for detail or copy at https://opensource.org/licenses/MIT
 */
 
+#ifdef __VMS
+#include "constants.h"
+#else
 #include "./constants.h"
+#endif
 
 const BrotliPrefixCodeRange
     _kBrotliPrefixCodeRanges[BROTLI_NUM_BLOCK_LEN_SYMBOLS] = {
