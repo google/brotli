@@ -48,7 +48,4 @@ tests !export-ignore
 tests/*.sh !export-ignore
 tests/*.cmake !export-ignore
 tests/testdata !export-ignore
-tests/testdata/empty !export-ignore
-tests/testdata/empty.compressed !export-ignore
-tests/testdata/ukkonooa !export-ignore
-tests/testdata/ukkonooa.compressed !export-ignore
+tests/testdata/** !export-ignore
