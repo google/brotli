@@ -63,3 +63,12 @@ if (!Int8Array.prototype.fill) {
 if (!Int32Array.prototype.fill) {
   Int32Array.prototype.fill = Array.prototype.fill;
 }
+
+if (!Int8Array.prototype.slice) {
+  Object.defineProperty(Int8Array.prototype, 'slice', {
+    value: function (begin, end)
+     {
+        return new Int8Array(Array.prototype.slice.call(this, begin, end));
+     }
+  });
+}

@@ -2915,7 +2915,7 @@ public class SynthTest {
       (byte) 0x12, (byte) 0x00, (byte) 0x00, (byte) 0x77, (byte) 0xda, (byte) 0xcc, (byte) 0xe1,
       (byte) 0x7b, (byte) 0xfa, (byte) 0x0f
     };
-    /* This lines is added manually. */
+    /* This line is added manually. */
     char[] expected = new char[16777216]; Arrays.fill(expected, '*');
     checkSynth(
     /*
