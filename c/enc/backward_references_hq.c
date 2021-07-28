@@ -73,6 +73,14 @@ static BROTLI_INLINE uint32_t ZopfliNodeCommandLength(const ZopfliNode* self) {
   return ZopfliNodeCopyLength(self) + (self->dcode_insert_length & 0x7FFFFFF);
 }
 
+/* Temporary data for ZopfliCostModelSetFromCommands. */
+typedef struct ZopfliCostModelArena {
+  uint32_t histogram_literal[BROTLI_NUM_LITERAL_SYMBOLS];
+  uint32_t histogram_cmd[BROTLI_NUM_COMMAND_SYMBOLS];
+  uint32_t histogram_dist[BROTLI_MAX_EFFECTIVE_DISTANCE_ALPHABET_SIZE];
+  float cost_literal[BROTLI_NUM_LITERAL_SYMBOLS];
+} ZopfliCostModelArena;
+
 /* Histogram based cost model for zopflification. */
 typedef struct ZopfliCostModel {
   /* The insert and copy length symbols. */
@@ -83,6 +91,12 @@ typedef struct ZopfliCostModel {
   float* literal_costs_;
   float min_cost_cmd_;
   size_t num_bytes_;
+
+  /* Temporary data. */
+  union {
+    size_t literal_histograms[3 * 256];
+    ZopfliCostModelArena arena;
+  };
 } ZopfliCostModel;
 
 static void InitZopfliCostModel(
@@ -139,18 +153,15 @@ static void ZopfliCostModelSetFromCommands(ZopfliCostModel* self,
                                            const Command* commands,
                                            size_t num_commands,
                                            size_t last_insert_len) {
-  uint32_t histogram_literal[BROTLI_NUM_LITERAL_SYMBOLS];
-  uint32_t histogram_cmd[BROTLI_NUM_COMMAND_SYMBOLS];
-  uint32_t histogram_dist[BROTLI_MAX_EFFECTIVE_DISTANCE_ALPHABET_SIZE];
-  float cost_literal[BROTLI_NUM_LITERAL_SYMBOLS];
+  ZopfliCostModelArena* arena = &self->arena;
   size_t pos = position - last_insert_len;
   float min_cost_cmd = kInfinity;
   size_t i;
   float* cost_cmd = self->cost_cmd_;
 
-  memset(histogram_literal, 0, sizeof(histogram_literal));
-  memset(histogram_cmd, 0, sizeof(histogram_cmd));
-  memset(histogram_dist, 0, sizeof(histogram_dist));
+  memset(arena->histogram_literal, 0, sizeof(arena->histogram_literal));
+  memset(arena->histogram_cmd, 0, sizeof(arena->histogram_cmd));
+  memset(arena->histogram_dist, 0, sizeof(arena->histogram_dist));
 
   for (i = 0; i < num_commands; i++) {
     size_t inslength = commands[i].insert_len_;
@@ -159,21 +170,21 @@ static void ZopfliCostModelSetFromCommands(ZopfliCostModel* self,
     size_t cmdcode = commands[i].cmd_prefix_;
     size_t j;
 
-    histogram_cmd[cmdcode]++;
-    if (cmdcode >= 128) histogram_dist[distcode]++;
+    arena->histogram_cmd[cmdcode]++;
+    if (cmdcode >= 128) arena->histogram_dist[distcode]++;
 
     for (j = 0; j < inslength; j++) {
-      histogram_literal[ringbuffer[(pos + j) & ringbuffer_mask]]++;
+      arena->histogram_literal[ringbuffer[(pos + j) & ringbuffer_mask]]++;
     }
 
     pos += inslength + copylength;
   }
 
-  SetCost(histogram_literal, BROTLI_NUM_LITERAL_SYMBOLS, BROTLI_TRUE,
-          cost_literal);
-  SetCost(histogram_cmd, BROTLI_NUM_COMMAND_SYMBOLS, BROTLI_FALSE,
+  SetCost(arena->histogram_literal, BROTLI_NUM_LITERAL_SYMBOLS, BROTLI_TRUE,
+          arena->cost_literal);
+  SetCost(arena->histogram_cmd, BROTLI_NUM_COMMAND_SYMBOLS, BROTLI_FALSE,
           cost_cmd);
-  SetCost(histogram_dist, self->distance_histogram_size, BROTLI_FALSE,
+  SetCost(arena->histogram_dist, self->distance_histogram_size, BROTLI_FALSE,
           self->cost_dist_);
 
   for (i = 0; i < BROTLI_NUM_COMMAND_SYMBOLS; ++i) {
@@ -188,7 +199,7 @@ static void ZopfliCostModelSetFromCommands(ZopfliCostModel* self,
     literal_costs[0] = 0.0;
     for (i = 0; i < num_bytes; ++i) {
       literal_carry +=
-          cost_literal[ringbuffer[(position + i) & ringbuffer_mask]];
+          arena->cost_literal[ringbuffer[(position + i) & ringbuffer_mask]];
       literal_costs[i + 1] = literal_costs[i] + literal_carry;
       literal_carry -= literal_costs[i + 1] - literal_costs[i];
     }
@@ -206,7 +217,8 @@ static void ZopfliCostModelSetFromLiteralCosts(ZopfliCostModel* self,
   size_t num_bytes = self->num_bytes_;
   size_t i;
   BrotliEstimateBitCostsForLiterals(position, num_bytes, ringbuffer_mask,
-                                    ringbuffer, &literal_costs[1]);
+                                    ringbuffer, self->literal_histograms,
+                                    &literal_costs[1]);
   literal_costs[0] = 0.0;
   for (i = 0; i < num_bytes; ++i) {
     literal_carry += literal_costs[i + 1];
@@ -661,21 +673,25 @@ size_t BrotliZopfliComputeShortestPath(MemoryManager* m, size_t num_bytes,
   const size_t stream_offset = params->stream_offset;
   const size_t max_backward_limit = BROTLI_MAX_BACKWARD_LIMIT(params->lgwin);
   const size_t max_zopfli_len = MaxZopfliLen(params);
-  ZopfliCostModel model;
   StartPosQueue queue;
-  BackwardMatch matches[2 * (MAX_NUM_MATCHES_H10 + 64)];
+  BackwardMatch* BROTLI_RESTRICT matches =
+      BROTLI_ALLOC(m, BackwardMatch, 2 * (MAX_NUM_MATCHES_H10 + 64));
   const size_t store_end = num_bytes >= StoreLookaheadH10() ?
       position + num_bytes - StoreLookaheadH10() + 1 : position;
   size_t i;
   size_t gap = 0;
   size_t lz_matches_offset = 0;
+  ZopfliCostModel* model = BROTLI_ALLOC(m, ZopfliCostModel, 1);
   BROTLI_UNUSED(literal_context_lut);
+  if (BROTLI_IS_OOM(m) || BROTLI_IS_NULL(model) || BROTLI_IS_NULL(matches)) {
+    return 0;
+  }
   nodes[0].length = 0;
   nodes[0].u.cost = 0;
-  InitZopfliCostModel(m, &model, &params->dist, num_bytes);
+  InitZopfliCostModel(m, model, &params->dist, num_bytes);
   if (BROTLI_IS_OOM(m)) return 0;
   ZopfliCostModelSetFromLiteralCosts(
-      &model, position, ringbuffer, ringbuffer_mask);
+      model, position, ringbuffer, ringbuffer_mask);
   InitStartPosQueue(&queue);
   for (i = 0; i + HashTypeLengthH10() - 1 < num_bytes; i++) {
     const size_t pos = position + i;
@@ -694,7 +710,7 @@ size_t BrotliZopfliComputeShortestPath(MemoryManager* m, size_t num_bytes,
       num_matches = 1;
     }
     skip = UpdateNodes(num_bytes, position, i, ringbuffer, ringbuffer_mask,
-        params, max_backward_limit, dist_cache, num_matches, matches, &model,
+        params, max_backward_limit, dist_cache, num_matches, matches, model,
         &queue, nodes);
     if (skip < BROTLI_LONG_COPY_QUICK_STEP) skip = 0;
     if (num_matches == 1 && BackwardMatchLength(&matches[0]) > max_zopfli_len) {
@@ -710,12 +726,14 @@ size_t BrotliZopfliComputeShortestPath(MemoryManager* m, size_t num_bytes,
         i++;
         if (i + HashTypeLengthH10() - 1 >= num_bytes) break;
         EvaluateNode(position + stream_offset, i, max_backward_limit, gap,
-            dist_cache, &model, &queue, nodes);
+            dist_cache, model, &queue, nodes);
         skip--;
       }
     }
   }
-  CleanupZopfliCostModel(m, &model);
+  CleanupZopfliCostModel(m, model);
+  BROTLI_FREE(m, model);
+  BROTLI_FREE(m, matches);
   return ComputeShortestPathFromNodes(num_bytes, nodes);
 }
 
@@ -753,14 +771,14 @@ void BrotliCreateHqZopfliBackwardReferences(MemoryManager* m, size_t num_bytes,
   size_t orig_last_insert_len;
   int orig_dist_cache[4];
   size_t orig_num_commands;
-  ZopfliCostModel model;
+  ZopfliCostModel* model = BROTLI_ALLOC(m, ZopfliCostModel, 1);
   ZopfliNode* nodes;
   BackwardMatch* matches = BROTLI_ALLOC(m, BackwardMatch, matches_size);
   size_t gap = 0;
   size_t shadow_matches = 0;
   BROTLI_UNUSED(literal_context_lut);
-  if (BROTLI_IS_OOM(m) || BROTLI_IS_NULL(num_matches) ||
-      BROTLI_IS_NULL(matches)) {
+  if (BROTLI_IS_OOM(m) || BROTLI_IS_NULL(model) ||
+      BROTLI_IS_NULL(num_matches) || BROTLI_IS_NULL(matches)) {
     return;
   }
   for (i = 0; i + HashTypeLengthH10() - 1 < num_bytes; ++i) {
@@ -810,15 +828,15 @@ void BrotliCreateHqZopfliBackwardReferences(MemoryManager* m, size_t num_bytes,
   orig_num_commands = *num_commands;
   nodes = BROTLI_ALLOC(m, ZopfliNode, num_bytes + 1);
   if (BROTLI_IS_OOM(m) || BROTLI_IS_NULL(nodes)) return;
-  InitZopfliCostModel(m, &model, &params->dist, num_bytes);
+  InitZopfliCostModel(m, model, &params->dist, num_bytes);
   if (BROTLI_IS_OOM(m)) return;
   for (i = 0; i < 2; i++) {
     BrotliInitZopfliNodes(nodes, num_bytes + 1);
     if (i == 0) {
       ZopfliCostModelSetFromLiteralCosts(
-          &model, position, ringbuffer, ringbuffer_mask);
+          model, position, ringbuffer, ringbuffer_mask);
     } else {
-      ZopfliCostModelSetFromCommands(&model, position, ringbuffer,
+      ZopfliCostModelSetFromCommands(model, position, ringbuffer,
           ringbuffer_mask, commands, *num_commands - orig_num_commands,
           orig_last_insert_len);
     }
@@ -827,12 +845,13 @@ void BrotliCreateHqZopfliBackwardReferences(MemoryManager* m, size_t num_bytes,
     *last_insert_len = orig_last_insert_len;
     memcpy(dist_cache, orig_dist_cache, 4 * sizeof(dist_cache[0]));
     *num_commands += ZopfliIterate(num_bytes, position, ringbuffer,
-        ringbuffer_mask, params, gap, dist_cache, &model, num_matches, matches,
+        ringbuffer_mask, params, gap, dist_cache, model, num_matches, matches,
         nodes);
     BrotliZopfliCreateCommands(num_bytes, position, nodes, dist_cache,
         last_insert_len, params, commands, num_literals);
   }
-  CleanupZopfliCostModel(m, &model);
+  CleanupZopfliCostModel(m, model);
+  BROTLI_FREE(m, model);
   BROTLI_FREE(m, nodes);
   BROTLI_FREE(m, matches);
   BROTLI_FREE(m, num_matches);

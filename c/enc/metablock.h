@@ -95,8 +95,8 @@ BROTLI_INTERNAL void BrotliBuildMetaBlockGreedy(
 BROTLI_INTERNAL void BrotliOptimizeHistograms(uint32_t num_distance_codes,
                                               MetaBlockSplit* mb);
 
-BROTLI_INTERNAL void BrotliInitDistanceParams(BrotliEncoderParams* params,
-    uint32_t npostfix, uint32_t ndirect);
+BROTLI_INTERNAL void BrotliInitDistanceParams(BrotliDistanceParams* params,
+    uint32_t npostfix, uint32_t ndirect, BROTLI_BOOL large_window);
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }  /* extern "C" */

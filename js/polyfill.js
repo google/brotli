@@ -5,8 +5,8 @@ if (!Int32Array.__proto__.from) {
       if (!obj['length']) {
         return new this(0);
       }
-      var typed_array = new this(obj.length);
-      for(var i = 0; i < typed_array.length; i++) {
+      let typed_array = new this(obj.length);
+      for (let i = 0; i < typed_array.length; i++) {
         typed_array[i] = obj[i];
       }
       return typed_array;
@@ -16,12 +16,12 @@ if (!Int32Array.__proto__.from) {
 
 if (!Array.prototype.copyWithin) {
   Array.prototype.copyWithin = function(target, start, end) {
-    var O = Object(this);
-    var len = O.length >>> 0;
-    var to = target | 0;
-    var from = start | 0;
-    var count = Math.min(Math.min(end | 0, len) - from, len - to);
-    var direction = 1;
+    let O = Object(this);
+    let len = O.length >>> 0;
+    let to = target | 0;
+    let from = start | 0;
+    let count = Math.min(Math.min(end | 0, len) - from, len - to);
+    let direction = 1;
     if (from < to && to < (from + count)) {
       direction = -1;
       from += count - 1;
@@ -41,8 +41,8 @@ if (!Array.prototype.fill) {
   Object.defineProperty(Array.prototype, 'fill', {
     value: function(value, start, end) {
       end = end | 0;
-      var O = Object(this);
-      var k = start | 0;
+      let O = Object(this);
+      let k = start | 0;
       while (k < end) {
         O[k] = value;
         k++;
@@ -66,9 +66,8 @@ if (!Int32Array.prototype.fill) {
 
 if (!Int8Array.prototype.slice) {
   Object.defineProperty(Int8Array.prototype, 'slice', {
-    value: function (begin, end)
-     {
-        return new Int8Array(Array.prototype.slice.call(this, begin, end));
-     }
+    value: function(begin, end) {
+      return new Int8Array(Array.prototype.slice.call(this, begin, end));
+    }
   });
 }

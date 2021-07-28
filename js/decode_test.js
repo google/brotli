@@ -20,22 +20,25 @@ function bytesToString(bytes) {
  * @return {!Int8Array}
  */
 function stringToBytes(str) {
-  var out = new Int8Array(str.length);
-  for (var i = 0; i < str.length; ++i) out[i] = str.charCodeAt(i);
+  let out = new Int8Array(str.length);
+  for (let i = 0; i < str.length; ++i) out[i] = str.charCodeAt(i);
   return out;
 }
 
 testSuite({
   testMetadata() {
-    assertEquals("", bytesToString(BrotliDecode(Int8Array.from([1, 11, 0, 42, 3]))));
+    assertEquals(
+        '', bytesToString(BrotliDecode(Int8Array.from([1, 11, 0, 42, 3]))));
   },
 
   testCompoundDictionary() {
-    var txt = "kot lomom kolol slona\n";
-    var dictionary = stringToBytes(txt);
-    var compressed = [0xa1, 0xa8, 0x00, 0xc0, 0x2f, 0x01, 0x10, 0xc4, 0x44, 0x09, 0x00];
+    const txt = 'kot lomom kolol slona\n';
+    const dictionary = stringToBytes(txt);
+    const compressed =
+        [0xa1, 0xa8, 0x00, 0xc0, 0x2f, 0x01, 0x10, 0xc4, 0x44, 0x09, 0x00];
     assertEquals(txt.length, compressed.length * 2);
-    var options = {"customDictionary": dictionary};
-    assertEquals(txt, bytesToString(BrotliDecode(Int8Array.from(compressed), options)));
+    const options = {'customDictionary': dictionary};
+    assertEquals(
+        txt, bytesToString(BrotliDecode(Int8Array.from(compressed), options)));
   }
 });
