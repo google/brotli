@@ -156,6 +156,15 @@ public class Decoder {
             totalOutputSize += chunk.length;
             break;
 
+          case NEEDS_MORE_INPUT:
+            // Give decoder a chance to process the remaining of the buffered byte.
+            decoder.push(0);
+            // If decoder still needs input, this means that stream is truncated.
+            if (decoder.getStatus() == DecoderJNI.Status.NEEDS_MORE_INPUT) {
+              throw new IOException("corrupted input");
+            }
+            break;
+
           default:
             throw new IOException("corrupted input");
         }

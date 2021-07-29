@@ -82,7 +82,7 @@ static BROTLI_INLINE void FN(HashMemAllocInBytes)(
   size_t alloc_size_b[4] = {0};
   FN_A(HashMemAllocInBytes)(params, one_shot, input_size, alloc_size_a);
   FN_B(HashMemAllocInBytes)(params, one_shot, input_size, alloc_size_b);
-  // Should never happen.
+  /* Should never happen. */
   if (alloc_size_a[2] != 0 || alloc_size_a[3] != 0) exit(EXIT_FAILURE);
   if (alloc_size_b[2] != 0 || alloc_size_b[3] != 0) exit(EXIT_FAILURE);
   alloc_size[0] = alloc_size_a[0];

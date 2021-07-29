@@ -35,7 +35,7 @@ BROTLI_INTERNAL void BrotliStoreHuffmanTree(const uint8_t* depths, size_t num,
     HuffmanTree* tree, size_t* storage_ix, uint8_t* storage);
 
 BROTLI_INTERNAL void BrotliBuildAndStoreHuffmanTreeFast(
-    MemoryManager* m, const uint32_t* histogram, const size_t histogram_total,
+    HuffmanTree* tree, const uint32_t* histogram, const size_t histogram_total,
     const size_t max_bits, uint8_t* depth, uint16_t* bits, size_t* storage_ix,
     uint8_t* storage);
 

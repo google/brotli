@@ -445,13 +445,15 @@ static BROTLI_INLINE void HasherSetup(MemoryManager* m, Hasher* hasher,
     size_t alloc_size[4] = {0};
     size_t i;
     ChooseHasher(params, &params->hasher);
+    hasher->common.params = params->hasher;
+    hasher->common.dict_num_lookups = 0;
+    hasher->common.dict_num_matches = 0;
     HasherSize(params, one_shot, input_size, alloc_size);
     for (i = 0; i < 4; ++i) {
       if (alloc_size[i] == 0) continue;
       hasher->common.extra[i] = BROTLI_ALLOC(m, uint8_t, alloc_size[i]);
       if (BROTLI_IS_OOM(m) || BROTLI_IS_NULL(hasher->common.extra[i])) return;
     }
-    hasher->common.params = params->hasher;
     switch (hasher->common.params.type) {
 #define INITIALIZE_(N)                        \
       case N:                                 \
@@ -478,10 +480,6 @@ static BROTLI_INLINE void HasherSetup(MemoryManager* m, Hasher* hasher,
       FOR_ALL_HASHERS(PREPARE_)
 #undef PREPARE_
       default: break;
-    }
-    if (position == 0) {
-      hasher->common.dict_num_lookups = 0;
-      hasher->common.dict_num_matches = 0;
     }
     hasher->common.is_prepared_ = BROTLI_TRUE;
   }
