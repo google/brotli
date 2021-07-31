@@ -68,6 +68,19 @@ The basic commands to build and install brotli are:
 
 You can use other [CMake](https://cmake.org/) configuration.
 
+#### Golang
+
+Build and install in C code before you use in a golang project,
+see the installation instructions above.
+
+When building the Golang app, you only need to pass ``-I <prefix>/include`` where
+``<prefix>`` is the localization of brotli header files, in *nix systems is  usually 
+in /usr/local.
+
+    CGO_FLAGS='-I <prefix>/include' CGO_FLAGS='-L <prefix>/lib' LD_LIBRARY_PATH='<prefix>/lib' go run main.go
+
+*Note*: There is no need to add "brotli" at the end of your CGO_FLAGS
+
 #### Premake5
 
 See [Premake5](https://premake.github.io/)
