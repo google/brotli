@@ -17,6 +17,7 @@ public class DecoderJNI {
   private static native void nativePush(long[] context, int length);
   private static native ByteBuffer nativePull(long[] context);
   private static native void nativeDestroy(long[] context);
+  private static native boolean nativeAttachDictionary(long[] context, ByteBuffer dictionary);
 
   public enum Status {
     ERROR,
@@ -38,6 +39,19 @@ public class DecoderJNI {
       if (this.context[0] == 0) {
         throw new IOException("failed to initialize native brotli decoder");
       }
+    }
+
+    public boolean attachDictionary(ByteBuffer dictionary) {
+      if (!dictionary.isDirect()) {
+        throw new IllegalArgumentException("only direct buffers allowed");
+      }
+      if (context[0] == 0) {
+        throw new IllegalStateException("brotli decoder is already destroyed");
+      }
+      if (!fresh) {
+        throw new IllegalStateException("decoding is already started");
+      }
+      return nativeAttachDictionary(context, dictionary);
     }
 
     public void push(int length) {

@@ -8,6 +8,7 @@ package org.brotli.wrapper.dec;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.ByteBuffer;
 import java.nio.channels.Channels;
 
 /**
@@ -32,6 +33,10 @@ public class BrotliInputStream extends InputStream {
 
   public BrotliInputStream(InputStream source) throws IOException {
     this(source, DEFAULT_BUFFER_SIZE);
+  }
+
+  public void attachDictionary(ByteBuffer dictionary) throws IOException {
+    decoder.attachDictionary(dictionary);
   }
 
   public void enableEagerOutput() {

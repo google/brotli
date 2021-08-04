@@ -21,6 +21,7 @@
 #include "./brotli_bit_stream.h"
 #include "./compress_fragment.h"
 #include "./compress_fragment_two_pass.h"
+#include "./dictionary_hash.h"
 #include "./encoder_dict.h"
 #include "./entropy_encode.h"
 #include "./fast_log.h"
@@ -746,13 +747,18 @@ static void BrotliEncoderInitParams(BrotliEncoderParams* params) {
   params->stream_offset = 0;
   params->size_hint = 0;
   params->disable_literal_context_modeling = BROTLI_FALSE;
-  BrotliInitEncoderDictionary(&params->dictionary);
+  BrotliInitSharedEncoderDictionary(&params->dictionary);
   params->dist.distance_postfix_bits = 0;
   params->dist.num_direct_distance_codes = 0;
   params->dist.alphabet_size_max =
       BROTLI_DISTANCE_ALPHABET_SIZE(0, 0, BROTLI_MAX_DISTANCE_BITS);
   params->dist.alphabet_size_limit = params->dist.alphabet_size_max;
   params->dist.max_distance = BROTLI_MAX_DISTANCE;
+}
+
+static void BrotliEncoderCleanupParams(MemoryManager* m,
+    BrotliEncoderParams* params) {
+  BrotliCleanupSharedEncoderDictionary(m, &params->dictionary);
 }
 
 static void BrotliEncoderInitState(BrotliEncoderState* s) {
@@ -825,6 +831,7 @@ static void BrotliEncoderCleanupState(BrotliEncoderState* s) {
   BROTLI_FREE(m, s->two_pass_arena_);
   BROTLI_FREE(m, s->command_buf_);
   BROTLI_FREE(m, s->literal_buf_);
+  BrotliEncoderCleanupParams(m, &s->params);
 }
 
 /* Deinitializes and frees BrotliEncoderState instance. */
@@ -922,6 +929,8 @@ static void ExtendLastCommand(BrotliEncoderState* s, uint32_t* bytes,
   uint64_t cmd_dist = (uint64_t)s->dist_cache_[0];
   uint32_t distance_code = CommandRestoreDistanceCode(last_command,
                                                       &s->params.dist);
+  const CompoundDictionary* dict = &s->params.dictionary.compound;
+  size_t compound_dictionary_size = dict->total_size;
   if (distance_code < BROTLI_NUM_DISTANCE_SHORT_CODES ||
       distance_code - (BROTLI_NUM_DISTANCE_SHORT_CODES - 1) == cmd_dist) {
     if (cmd_dist <= max_distance) {
@@ -932,6 +941,38 @@ static void ExtendLastCommand(BrotliEncoderState* s, uint32_t* bytes,
         (*wrapped_last_processed_pos)++;
       }
     } else {
+      if ((cmd_dist - max_distance - 1) < compound_dictionary_size &&
+          last_copy_len < cmd_dist - max_distance) {
+        size_t address =
+            compound_dictionary_size - (size_t)(cmd_dist - max_distance) +
+            (size_t)last_copy_len;
+        size_t br_index = 0;
+        size_t br_offset;
+        const uint8_t* chunk;
+        size_t chunk_length;
+        while (address >= dict->chunk_offsets[br_index + 1]) br_index++;
+        br_offset = address - dict->chunk_offsets[br_index];
+        chunk = dict->chunk_source[br_index];
+        chunk_length =
+            dict->chunk_offsets[br_index + 1] - dict->chunk_offsets[br_index];
+        while (*bytes != 0 && data[*wrapped_last_processed_pos & mask] ==
+               chunk[br_offset]) {
+          last_command->copy_len_++;
+          (*bytes)--;
+          (*wrapped_last_processed_pos)++;
+          if (++br_offset == chunk_length) {
+            br_index++;
+            br_offset = 0;
+            if (br_index != dict->num_chunks) {
+              chunk = dict->chunk_source[br_index];
+              chunk_length = dict->chunk_offsets[br_index + 1] -
+                  dict->chunk_offsets[br_index];
+            } else {
+              break;
+            }
+          }
+        }
+      }
     }
     /* The copy length is at most the metablock size, and thus expressible. */
     GetLengthCode(last_command->insert_len_,
@@ -969,6 +1010,7 @@ static BROTLI_BOOL EncodeData(
   data = s->ringbuffer_.buffer_;
   mask = s->ringbuffer_.mask_;
 
+  if (s->params.quality > s->params.dictionary.max_quality) return BROTLI_FALSE;
   /* Adding more blocks after "last" block is forbidden. */
   if (s->is_last_block_emitted_) return BROTLI_FALSE;
   if (is_last) s->is_last_block_emitted_ = BROTLI_TRUE;
@@ -1421,6 +1463,7 @@ static BROTLI_BOOL BrotliCompressBufferQuality10(
   *encoded_size = total_out_size;
   DestroyHasher(m, hasher);
   BROTLI_FREE(m, hasher);
+  BrotliEncoderCleanupParams(m, params);
   BROTLI_FREE(m, params);
   BrotliBootstrapFree(m, m);
   return ok;
@@ -1928,6 +1971,124 @@ const uint8_t* BrotliEncoderTakeOutput(BrotliEncoderState* s, size_t* size) {
 
 uint32_t BrotliEncoderVersion(void) {
   return BROTLI_VERSION;
+}
+
+BrotliEncoderPreparedDictionary* BrotliEncoderPrepareDictionary(
+    BrotliSharedDictionaryType type, size_t size, const uint8_t* data,
+    int quality,
+    brotli_alloc_func alloc_func, brotli_free_func free_func, void* opaque) {
+  ManagedDictionary* managed_dictionary = NULL;
+  if (type != BROTLI_SHARED_DICTIONARY_RAW &&
+      type != BROTLI_SHARED_DICTIONARY_SERIALIZED) {
+    return NULL;
+  }
+  managed_dictionary =
+      BrotliCreateManagedDictionary(alloc_func, free_func, opaque);
+  if (managed_dictionary == NULL) {
+    return NULL;
+  }
+  if (type == BROTLI_SHARED_DICTIONARY_RAW) {
+    managed_dictionary->dictionary = (uint32_t*)CreatePreparedDictionary(
+        &managed_dictionary->memory_manager_, data, size);
+  } else {
+    SharedEncoderDictionary* dict = (SharedEncoderDictionary*)BrotliAllocate(
+        &managed_dictionary->memory_manager_, sizeof(SharedEncoderDictionary));
+    managed_dictionary->dictionary = (uint32_t*)dict;
+    if (dict != NULL) {
+      BROTLI_BOOL ok = BrotliInitCustomSharedEncoderDictionary(
+          &managed_dictionary->memory_manager_, data, size, quality, dict);
+      if (!ok) {
+        BrotliFree(&managed_dictionary->memory_manager_, dict);
+        managed_dictionary->dictionary = NULL;
+      }
+    }
+  }
+  if (managed_dictionary->dictionary == NULL) {
+    BrotliDestroyManagedDictionary(managed_dictionary);
+    return NULL;
+  }
+  return (BrotliEncoderPreparedDictionary*)managed_dictionary;
+}
+
+void BrotliEncoderDestroyPreparedDictionary(
+    BrotliEncoderPreparedDictionary* dictionary) {
+  ManagedDictionary* dict = (ManagedDictionary*)dictionary;
+  if (!dictionary) return;
+  /* First field of dictionary structs. */
+  /* Only managed dictionaries are eligible for destruction by this method. */
+  if (dict->magic != kManagedDictionaryMagic) {
+    return;
+  }
+  if (dict->dictionary == NULL) {
+    /* This should never ever happen. */
+  } else if (*dict->dictionary == kPreparedDictionaryMagic) {
+    DestroyPreparedDictionary(
+        &dict->memory_manager_, (PreparedDictionary*)dict->dictionary);
+  } else if (*dict->dictionary == kSharedDictionaryMagic) {
+    BrotliCleanupSharedEncoderDictionary(&dict->memory_manager_,
+        (SharedEncoderDictionary*)dict->dictionary);
+    BrotliFree(&dict->memory_manager_, dict->dictionary);
+  } else {
+    /* This should never ever happen. */
+  }
+  dict->dictionary = NULL;
+  BrotliDestroyManagedDictionary(dict);
+}
+
+BROTLI_BOOL BrotliEncoderAttachPreparedDictionary(BrotliEncoderState* state,
+    const BrotliEncoderPreparedDictionary* dictionary) {
+  /* First field of dictionary structs */
+  const BrotliEncoderPreparedDictionary* dict = dictionary;
+  uint32_t magic = *((const uint32_t*)dict);
+  SharedEncoderDictionary* current = NULL;
+  if (magic == kManagedDictionaryMagic) {
+    /* Unwrap managed dictionary. */
+    ManagedDictionary* managed_dictionary = (ManagedDictionary*)dict;
+    magic = *managed_dictionary->dictionary;
+    dict = (BrotliEncoderPreparedDictionary*)managed_dictionary->dictionary;
+  }
+  current = &state->params.dictionary;
+  if (magic == kPreparedDictionaryMagic) {
+    const PreparedDictionary* prepared = (const PreparedDictionary*)dict;
+    if (!AttachPreparedDictionary(&current->compound, prepared)) {
+      return BROTLI_FALSE;
+    }
+  } else if (magic == kSharedDictionaryMagic) {
+    const SharedEncoderDictionary* attached =
+        (const SharedEncoderDictionary*)dict;
+    BROTLI_BOOL was_default = !current->contextual.context_based &&
+        current->contextual.num_dictionaries == 1 &&
+        current->contextual.dict[0]->hash_table_words ==
+        kStaticDictionaryHashWords &&
+        current->contextual.dict[0]->hash_table_lengths ==
+        kStaticDictionaryHashLengths;
+    BROTLI_BOOL new_default = !attached->contextual.context_based &&
+        attached->contextual.num_dictionaries == 1 &&
+        attached->contextual.dict[0]->hash_table_words ==
+        kStaticDictionaryHashWords &&
+        attached->contextual.dict[0]->hash_table_lengths ==
+        kStaticDictionaryHashLengths;
+    size_t i;
+    if (state->is_initialized_) return BROTLI_FALSE;
+    current->max_quality =
+        BROTLI_MIN(int, current->max_quality, attached->max_quality);
+    for (i = 0; i < attached->compound.num_chunks; i++) {
+      if (!AttachPreparedDictionary(&current->compound,
+          attached->compound.chunks[i])) {
+        return BROTLI_FALSE;
+      }
+    }
+    if (!new_default) {
+      if (!was_default) return BROTLI_FALSE;
+      /* Copy by value, but then set num_instances_ to 0 because their memory
+      is managed by attached, not by current */
+      current->contextual = attached->contextual;
+      current->contextual.num_instances_ = 0;
+    }
+  } else {
+    return BROTLI_FALSE;
+  }
+  return BROTLI_TRUE;
 }
 
 #if defined(__cplusplus) || defined(c_plusplus)

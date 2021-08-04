@@ -6,17 +6,20 @@
 
 package org.brotli.wrapper.enc;
 
+import org.brotli.enc.PreparedDictionary;
 import java.io.IOException;
 import java.nio.Buffer;
 import java.nio.ByteBuffer;
 import java.nio.channels.WritableByteChannel;
 import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Base class for OutputStream / Channel implementations.
  */
 public class Encoder {
   private final WritableByteChannel destination;
+  private final List<PreparedDictionary> dictionaries;
   private final EncoderJNI.Wrapper encoder;
   private ByteBuffer buffer;
   final ByteBuffer inputBuffer;
@@ -111,6 +114,7 @@ public class Encoder {
     if (destination == null) {
       throw new NullPointerException("destination can not be null");
     }
+    this.dictionaries = new ArrayList<PreparedDictionary>();
     this.destination = destination;
     this.encoder = new EncoderJNI.Wrapper(inputBufferSize, params.quality, params.lgwin, params.mode);
     this.inputBuffer = this.encoder.getInputBuffer();
@@ -123,6 +127,14 @@ public class Encoder {
       /* Ignore */
     }
     throw new IOException(message);
+  }
+
+  public void attachDictionary(PreparedDictionary dictionary) throws IOException {
+    if (!encoder.attachDictionary(dictionary.getData())) {
+      fail("failed to attach dictionary");
+    }
+    // Reference to native prepared dictionary wrapper should be held till the end of encoding.
+    dictionaries.add(dictionary);
   }
 
   /**
@@ -238,5 +250,16 @@ public class Encoder {
 
   public static byte[] compress(byte[] data) throws IOException {
     return compress(data, new Parameters());
+  }
+
+  /**
+   * Prepares raw or serialized dictionary for being used by encoder.
+   *
+   * @param dictionary raw / serialized dictionary data; MUST be direct
+   * @param sharedDictionaryType dictionary data type
+   */
+  public static PreparedDictionary prepareDictionary(ByteBuffer dictionary,
+      int sharedDictionaryType) {
+    return EncoderJNI.prepareDictionary(dictionary, sharedDictionaryType);
   }
 }

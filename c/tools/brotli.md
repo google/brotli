@@ -84,6 +84,9 @@ OPTIONS
     `(2**NUM - 16)`; 0 lets compressor decide over the optimal value; bigger
     windows size improve density; decoder might require up to window size
     memory to operate
+* `-D FILE`, `--dictionary=FILE`:
+    use FILE as raw (LZ77) dictionary; same dictionary MUST be used both for
+    compression and decompression
 * `-S SUF`, `--suffix=SUF`:
     output file suffix (default: `.br`)
 * `-V`, `--version`:
