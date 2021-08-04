@@ -18,6 +18,10 @@ java_library(
         ["*.java"],
         exclude = ["*Test*.java"],
     ),
+    deps = [
+        "//org/brotli/common:shared_dictionary",
+        "//org/brotli/enc:prepared_dictionary",
+    ],
     resource_jars = ["//:license"],
 )
 
@@ -27,8 +31,11 @@ java_library(
     srcs = glob(["*Test*.java"]),
     deps = [
         ":enc",
+        "//org/brotli/common:shared_dictionary",
+        "//org/brotli/enc:prepared_dictionary",
         "//org/brotli/integration:brotli_jni_test_base",
         "//org/brotli/integration:bundle_helper",
+        "//org/brotli/wrapper/common",
         "//org/brotli/wrapper/dec",
         "@maven//:junit_junit",
     ],

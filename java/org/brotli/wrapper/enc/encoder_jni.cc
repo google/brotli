@@ -15,6 +15,9 @@ namespace {
 typedef struct EncoderHandle {
   BrotliEncoderState* state;
 
+  jobject dictionary_refs[15];
+  size_t dictionary_count;
+
   uint8_t* input_start;
   size_t input_offset;
   size_t input_last;
@@ -53,6 +56,10 @@ Java_org_brotli_wrapper_enc_EncoderJNI_nativeCreate(
   ok = !!handle;
 
   if (ok) {
+    for (int i = 0; i < 15; ++i) {
+      handle->dictionary_refs[i] = nullptr;
+    }
+    handle->dictionary_count = 0;
     handle->input_offset = 0;
     handle->input_last = 0;
     handle->input_start = nullptr;
@@ -190,8 +197,88 @@ Java_org_brotli_wrapper_enc_EncoderJNI_nativeDestroy(
   env->GetLongArrayRegion(ctx, 0, 2, context);
   EncoderHandle* handle = getHandle(reinterpret_cast<void*>(context[0]));
   BrotliEncoderDestroyInstance(handle->state);
+  for (size_t i = 0; i < handle->dictionary_count; ++i) {
+    env->DeleteGlobalRef(handle->dictionary_refs[i]);
+  }
   delete[] handle->input_start;
   delete handle;
+}
+
+JNIEXPORT jboolean JNICALL
+Java_org_brotli_wrapper_enc_EncoderJNI_nativeAttachDictionary(
+    JNIEnv* env, jobject /*jobj*/, jlongArray ctx, jobject dictionary) {
+  jlong context[2];
+  env->GetLongArrayRegion(ctx, 0, 2, context);
+  EncoderHandle* handle = getHandle(reinterpret_cast<void*>(context[0]));
+  jobject ref = nullptr;
+  uint8_t* address = nullptr;
+
+  bool ok = true;
+  if (ok && !dictionary) {
+    ok = false;
+  }
+  if (ok && handle->dictionary_count >= 15) {
+    ok = false;
+  }
+  if (ok) {
+    ref = env->NewGlobalRef(dictionary);
+    ok = !!ref;
+  }
+  if (ok) {
+    handle->dictionary_refs[handle->dictionary_count] = ref;
+    handle->dictionary_count++;
+    address = static_cast<uint8_t*>(env->GetDirectBufferAddress(ref));
+    ok = !!address;
+  }
+  if (ok) {
+    ok = !!BrotliEncoderAttachPreparedDictionary(handle->state,
+        reinterpret_cast<BrotliEncoderPreparedDictionary*>(address));
+  }
+
+  return static_cast<jboolean>(ok);
+}
+
+JNIEXPORT void JNICALL
+Java_org_brotli_wrapper_enc_EncoderJNI_nativeDestroyDictionary(
+    JNIEnv* env, jobject /*jobj*/, jobject dictionary) {
+  if (!dictionary) {
+    return;
+  }
+  uint8_t* address =
+      static_cast<uint8_t*>(env->GetDirectBufferAddress(dictionary));
+  if (!address) {
+    return;
+  }
+  BrotliEncoderDestroyPreparedDictionary(
+      reinterpret_cast<BrotliEncoderPreparedDictionary*>(address));
+}
+
+JNIEXPORT jobject JNICALL
+Java_org_brotli_wrapper_enc_EncoderJNI_nativePrepareDictionary(
+    JNIEnv* env, jobject /*jobj*/, jobject dictionary, jlong type) {
+  if (!dictionary) {
+    return nullptr;
+  }
+  uint8_t* address =
+      static_cast<uint8_t*>(env->GetDirectBufferAddress(dictionary));
+  if (!address) {
+    return nullptr;
+  }
+  jlong capacity = env->GetDirectBufferCapacity(dictionary);
+  if ((capacity <= 0) || (capacity >= (1 << 30))) {
+    return nullptr;
+  }
+  BrotliSharedDictionaryType dictionary_type =
+      static_cast<BrotliSharedDictionaryType>(type);
+  size_t size = static_cast<size_t>(capacity);
+  BrotliEncoderPreparedDictionary* prepared_dictionary =
+      BrotliEncoderPrepareDictionary(dictionary_type, size, address,
+        BROTLI_MAX_QUALITY, nullptr, nullptr, nullptr);
+  if (!prepared_dictionary) {
+    return nullptr;
+  }
+  /* Size is 4 - just enough to check magic bytes. */
+  return env->NewDirectByteBuffer(prepared_dictionary, 4);
 }
 
 #ifdef __cplusplus

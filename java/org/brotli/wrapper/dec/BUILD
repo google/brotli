@@ -24,6 +24,7 @@ java_library(
         ":dec",
         "//org/brotli/integration:brotli_jni_test_base",
         "//org/brotli/integration:bundle_helper",
+        "//org/brotli/wrapper/enc",
         "@maven//:junit_junit",
     ],
 )
@@ -80,5 +81,18 @@ java_test(
         "-DTEST_BUNDLE=$(location :test_bundle)",
     ],
     test_class = "org.brotli.wrapper.dec.DecoderTest",
+    runtime_deps = [":test_lib"],
+)
+
+java_test(
+    name = "CornerCasesTest",
+    size = "large",
+    data = [
+        ":brotli_jni",  # Bazel JNI workaround
+    ],
+    jvm_flags = [
+        "-DBROTLI_JNI_LIBRARY=$(location :brotli_jni)",
+    ],
+    test_class = "org.brotli.wrapper.dec.CornerCasesTest",
     runtime_deps = [":test_lib"],
 )
