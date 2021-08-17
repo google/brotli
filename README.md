@@ -2,7 +2,7 @@
 
 # SECURITY NOTE
 
-Please consider updating brotli to version 1.0.9 (latest).
+Please consider updating brotli to version 1.0.9 or later.
 
 Version 1.0.9 contains a fix to "integer overflow" problem. This happens when "one-shot" decoding API is used (or input chunk for streaming API is not limited), input size (chunk size) is larger than 2GiB, and input contains uncompressed blocks. After the overflow happens, `memcpy` is invoked with a gigantic `num` value, that will likely cause the crash.
 
