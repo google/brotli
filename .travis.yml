@@ -166,9 +166,9 @@ matrix:
     - os: osx
       osx_image: xcode12.2
       env: BUILD_SYSTEM=cmake C_COMPILER=gcc CXX_COMPILER=g++
-    - os: osx
-      osx_image: xcode12.2
-      env: BUILD_SYSTEM=cmake C_COMPILER=gcc-4.9 CXX_COMPILER=g++-4.9
+    #- os: osx
+    #  osx_image: xcode12.2
+    #  env: BUILD_SYSTEM=cmake C_COMPILER=gcc-4.9 CXX_COMPILER=g++-4.9
     - os: osx
       osx_image: xcode12.2
       env: BUILD_SYSTEM=cmake

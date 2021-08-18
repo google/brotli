@@ -69,6 +69,8 @@ public class Encoder {
     }
 
     /**
+     * Setup encoder quality.
+     *
      * @param quality compression quality, or -1 for default
      */
     public Parameters setQuality(int quality) {
@@ -80,6 +82,8 @@ public class Encoder {
     }
 
     /**
+     * Setup encoder window size.
+     *
      * @param lgwin log2(LZ window size), or -1 for default
      */
     public Parameters setWindow(int lgwin) {
@@ -91,6 +95,8 @@ public class Encoder {
     }
 
     /**
+     * Setup encoder compression mode.
+     *
      * @param mode compression mode, or {@code null} for default
      */
     public Parameters setMode(Mode mode) {
@@ -116,7 +122,8 @@ public class Encoder {
     }
     this.dictionaries = new ArrayList<PreparedDictionary>();
     this.destination = destination;
-    this.encoder = new EncoderJNI.Wrapper(inputBufferSize, params.quality, params.lgwin, params.mode);
+    this.encoder =
+        new EncoderJNI.Wrapper(inputBufferSize, params.quality, params.lgwin, params.mode);
     this.inputBuffer = this.encoder.getInputBuffer();
   }
 
@@ -212,7 +219,8 @@ public class Encoder {
       return empty;
     }
     /* data.length > 0 */
-    EncoderJNI.Wrapper encoder = new EncoderJNI.Wrapper(data.length, params.quality, params.lgwin, params.mode);
+    EncoderJNI.Wrapper encoder =
+        new EncoderJNI.Wrapper(data.length, params.quality, params.lgwin, params.mode);
     ArrayList<byte[]> output = new ArrayList<byte[]>();
     int totalOutputSize = 0;
     try {

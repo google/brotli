@@ -7,7 +7,6 @@
 
 import _brotli
 
-
 # The library version.
 __version__ = _brotli.__version__
 

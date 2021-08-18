@@ -1238,7 +1238,7 @@ static size_t WriteMetadataHeader(
   return (storage_ix + 7u) >> 3;
 }
 
-static BROTLI_BOOL BrotliCompressBufferQuality10(
+static BROTLI_NOINLINE BROTLI_BOOL BrotliCompressBufferQuality10(
     int lgwin, size_t input_size, const uint8_t* input_buffer,
     size_t* encoded_size, uint8_t* encoded_buffer) {
   MemoryManager* m =

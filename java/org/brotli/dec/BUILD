@@ -1,6 +1,8 @@
 # Description:
 #   Java port of Brotli decoder.
 
+load(":build_defs.bzl", "brotli_java_test")
+
 package(default_visibility = ["//visibility:public"])
 
 licenses(["notice"])  # MIT
@@ -14,13 +16,14 @@ java_library(
     name = "dec",
     srcs = glob(
         ["*.java"],
-        exclude = ["*Test*.java"],
+        exclude = [
+            "Decoder.java",
+            "*Test*.java",
+        ],
     ),
     proguard_specs = ["proguard.pgcfg"],
     resource_jars = ["//:license"],
 )
-
-load(":build_defs.bzl", "brotli_java_test")
 
 brotli_java_test(
     name = "BitReaderTest",

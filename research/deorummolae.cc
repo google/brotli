@@ -3,7 +3,7 @@
 #include <array>
 #include <cstdio>
 
-#include "./esaxx/sais.hxx"
+#include "third_party/esaxx/sais.hxx"
 
 /* Used for quick SA-entry to file mapping. Each file is padded to size that
    is a multiple of chunk size. */
