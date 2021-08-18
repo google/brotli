@@ -247,9 +247,10 @@
 #define BROTLI_PUBLIC
 #endif
 
-#if defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L) && \
-    !defined(__STDC_NO_VLA__) && !defined(__cplusplus) &&         \
-    !defined(__PGI) && !defined(__PGIC__) && !defined(__TINYC__)
+#if defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L) &&   \
+    !defined(__STDC_NO_VLA__) && !defined(__cplusplus) &&           \
+    !defined(__PGI) && !defined(__PGIC__) && !defined(__TINYC__) && \
+    !defined(__clang__)
 #define BROTLI_ARRAY_PARAM(name) (name)
 #else
 #define BROTLI_ARRAY_PARAM(name)

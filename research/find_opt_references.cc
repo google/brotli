@@ -19,7 +19,8 @@
 #include <gflags/gflags.h>
 using gflags::ParseCommandLineFlags;
 
-#include "./esaxx/sais.hxx"
+#include "third_party/absl/flags/flag.h"
+#include "third_party/esaxx/sais.hxx"
 
 DEFINE_bool(advanced, false, "Advanced searching mode: finds all longest "
     "matches at positions that are not covered by matches of length at least "
@@ -91,7 +92,7 @@ inline void PrintReference(sarray_type* sarray, lcp_type* lcp, size_t size,
 inline void GoLeft(sarray_type* sarray, lcp_type* lcp, int idx, int left_ix,
                    int left_lcp, entry_type* entry) {
   entry->first = left_lcp;
-  if (left_lcp > FLAGS_long_length) return;
+  if (left_lcp > absl::GetFlag(FLAGS_long_length)) return;
   for (; left_ix >= 0; --left_ix) {
     if (lcp[left_ix] < left_lcp) break;
     if (sarray[left_ix] < idx) {
@@ -103,7 +104,7 @@ inline void GoLeft(sarray_type* sarray, lcp_type* lcp, int idx, int left_ix,
 inline void GoRight(sarray_type* sarray, lcp_type* lcp, int idx, size_t size,
                     int right_ix, int right_lcp, entry_type* entry) {
   entry->first = right_lcp;
-  if (right_lcp > FLAGS_long_length) return;
+  if (right_lcp > absl::GetFlag(FLAGS_long_length)) return;
   for (; right_ix < size - 1; ++right_ix) {
     if (lcp[right_ix] < right_lcp) break;
     if (sarray[right_ix] < idx) {
@@ -129,8 +130,8 @@ inline void StoreReference(sarray_type* sarray, lcp_type* lcp, size_t size,
 
 void ProcessReferences(sarray_type* sarray, lcp_type* lcp, size_t size,
                        uint32_t* pos, const Fn& process_output) {
-  int min_length = FLAGS_min_length;
-  for (int idx = FLAGS_skip; idx < size; ++idx) {
+  int min_length = absl::GetFlag(FLAGS_min_length);
+  for (int idx = absl::GetFlag(FLAGS_skip); idx < size; ++idx) {
     int left_lcp = -1;
     int left_ix;
     for (left_ix = pos[idx] - 1; left_ix >= 0; --left_ix) {
@@ -162,7 +163,7 @@ void ProcessReferences(sarray_type* sarray, lcp_type* lcp, size_t size,
 }
 
 void ProcessEntries(entry_type* entries, size_t size, FILE* fout) {
-  int long_length = FLAGS_long_length;
+  int long_length = absl::GetFlag(FLAGS_long_length);
   std::vector<std::pair<int, int> > segments;
   size_t idx;
   for (idx = 0; idx < size;) {
@@ -195,7 +196,7 @@ void ProcessEntries(entry_type* entries, size_t size, FILE* fout) {
 }
 
 int main(int argc, char* argv[]) {
-  ParseCommandLineFlags(&argc, &argv, true);
+  base::ParseCommandLine(&argc, &argv);
   if (argc != 3) {
     printf("usage: %s input_file output_file\n", argv[0]);
     return 1;
@@ -235,7 +236,7 @@ int main(int argc, char* argv[]) {
   using std::placeholders::_7;
   using std::placeholders::_8;
   entry_type* entries;
-  if (FLAGS_advanced) {
+  if (absl::GetFlag(FLAGS_advanced)) {
     entries = new entry_type[input_size];
     for (size_t i = 0; i < input_size; ++i) entries[i].first = -1;
   }
@@ -243,10 +244,10 @@ int main(int argc, char* argv[]) {
   Fn store = std::bind(StoreReference, _1, _2, _3, _4, _5, _6, _7, _8, entries);
 
   ProcessReferences(sarray, lcp, input_size, pos,
-                    FLAGS_advanced ? store : print);
+                    absl::GetFlag(FLAGS_advanced) ? store : print);
   printf("References processed.\n");
 
-  if (FLAGS_advanced) {
+  if (absl::GetFlag(FLAGS_advanced)) {
     int good_cnt = 0;
     uint64_t avg_cnt = 0;
     for (size_t i = 0; i < input_size; ++i) {

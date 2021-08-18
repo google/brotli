@@ -18,6 +18,7 @@
 #include <gflags/gflags.h>
 using gflags::ParseCommandLineFlags;
 
+#include "third_party/absl/flags/flag.h"
 #include "./read_dist.h"
 
 DEFINE_int32(height, 1000, "Height of the resulting histogam.");
@@ -32,7 +33,7 @@ DEFINE_bool(linear, false, "True if using linear distance mapping.");
 DEFINE_uint64(skip, 0, "Number of bytes to skip.");
 
 inline double DistanceTransform(double x) {
-  static bool linear = FLAGS_linear;
+  static bool linear = absl::GetFlag(FLAGS_linear);
   if (linear) {
     return x;
   } else {
@@ -48,14 +49,12 @@ inline double DensityTransform(double x) {
   return sqrt(255 * 255 - z * z);
 }
 
-inline int GetMaxDistance() {
-  return FLAGS_max_distance;
-}
+inline int GetMaxDistance() { return absl::GetFlag(FLAGS_max_distance); }
 
 void AdjustPosition(int* pos) {
   static uint32_t offset = 0;
   static int last = 0;
-  static uint32_t window_size = (1 << FLAGS_brotli_window);
+  static uint32_t window_size = (1 << absl::GetFlag(FLAGS_brotli_window));
   assert(*pos >= 0 && *pos < window_size);
   if (*pos < last) {
     offset += window_size;
@@ -65,10 +64,10 @@ void AdjustPosition(int* pos) {
 }
 
 void BuildHistogram(FILE* fin, int** histo) {
-  int height = FLAGS_height;
-  int width = FLAGS_width;
-  int skip = FLAGS_skip;
-  size_t min_distance = FLAGS_min_distance;
+  int height = absl::GetFlag(FLAGS_height);
+  int width = absl::GetFlag(FLAGS_width);
+  int skip = absl::GetFlag(FLAGS_skip);
+  size_t min_distance = absl::GetFlag(FLAGS_min_distance);
 
   printf("height = %d, width = %d\n", height, width);
 
@@ -78,7 +77,7 @@ void BuildHistogram(FILE* fin, int** histo) {
     }
   }
 
-  int max_pos = FLAGS_size - skip;
+  int max_pos = absl::GetFlag(FLAGS_size) - skip;
   double min_dist = min_distance > 0 ? DistanceTransform(min_distance) : 0;
   double max_dist = DistanceTransform(GetMaxDistance()) - min_dist;
   int copy, pos, distance, x, y;
@@ -86,7 +85,7 @@ void BuildHistogram(FILE* fin, int** histo) {
   while (ReadBackwardReference(fin, &copy, &pos, &distance)) {
     if (pos == -1) continue;  // In case when only insert is present.
     if (distance < min_distance || distance >= GetMaxDistance()) continue;
-    if (FLAGS_brotli_window != -1) {
+    if (absl::GetFlag(FLAGS_brotli_window) != -1) {
       AdjustPosition(&pos);
     }
     if (pos >= skip && distance <= pos) {
@@ -102,7 +101,7 @@ void BuildHistogram(FILE* fin, int** histo) {
         assert(y >= 0 && y < width);
       }
 
-      if (FLAGS_with_copies) {
+      if (absl::GetFlag(FLAGS_with_copies)) {
         int right = 1ul * (pos + copy - 1) * width / max_pos;
         if (right < 0) {
           printf("pos = %d, distance = %d, copy = %d, y = %d, right = %d\n",
@@ -131,8 +130,8 @@ void BuildHistogram(FILE* fin, int** histo) {
 }
 
 void ConvertToPixels(int** histo, uint8_t** pixel) {
-  int height = FLAGS_height;
-  int width = FLAGS_width;
+  int height = absl::GetFlag(FLAGS_height);
+  int width = absl::GetFlag(FLAGS_width);
 
   int maxs = 0;
   for (int i = 0; i < height; i++) {
@@ -141,7 +140,7 @@ void ConvertToPixels(int** histo, uint8_t** pixel) {
     }
   }
 
-  bool simple = FLAGS_simple;
+  bool simple = absl::GetFlag(FLAGS_simple);
   double max_histo = static_cast<double>(maxs);
   for (int i = 0; i < height; i++) {
     for (int j = 0; j < width; j++) {
@@ -156,8 +155,8 @@ void ConvertToPixels(int** histo, uint8_t** pixel) {
 }
 
 void DrawPixels(uint8_t** pixel, FILE* fout) {
-  int height = FLAGS_height;
-  int width = FLAGS_width;
+  int height = absl::GetFlag(FLAGS_height);
+  int width = absl::GetFlag(FLAGS_width);
 
   fprintf(fout, "P5\n%d %d\n255\n", width, height);
   for (int i = height - 1; i >= 0; i--) {
@@ -166,14 +165,14 @@ void DrawPixels(uint8_t** pixel, FILE* fout) {
 }
 
 int main(int argc, char* argv[]) {
-  ParseCommandLineFlags(&argc, &argv, true);
+  base::ParseCommandLine(&argc, &argv);
   if (argc != 3) {
     printf("usage: draw_histogram.cc data output_file\n");
     return 1;
   }
 
-  int height = FLAGS_height;
-  int width = FLAGS_width;
+  int height = absl::GetFlag(FLAGS_height);
+  int width = absl::GetFlag(FLAGS_width);
 
   FILE* fin = fopen(argv[1], "r");
   FILE* fout = fopen(argv[2], "wb");

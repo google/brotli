@@ -19,6 +19,7 @@ cc_library(
         "-DHAVE_CONFIG_H=1",
     ],
     includes = ["include"],
+    include_prefix = "third_party/libdivsufsort",
 )
 
 commom_awk_replaces = (

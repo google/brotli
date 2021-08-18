@@ -4,7 +4,12 @@ licenses(["notice"])  # MIT
 
 filegroup(
     name = "jni_src",
-    srcs = ["decoder_jni.cc"],
+    srcs = [
+        "decoder_jni.cc",
+        "decoder_jni.h",
+        # TODO: investigate, why this prevents JNI library loading.
+        #"decoder_jni_onload.cc",
+    ],
 )
 
 java_library(

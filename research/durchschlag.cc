@@ -3,7 +3,7 @@
 #include <algorithm>
 #include <exception>  /* terminate */
 
-#include "divsufsort.h"
+#include "third_party/libdivsufsort/include/divsufsort.h"
 
 /* Pointer to position in text. */
 typedef DurchschlagTextIdx TextIdx;

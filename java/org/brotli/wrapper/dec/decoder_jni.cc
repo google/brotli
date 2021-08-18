@@ -4,7 +4,7 @@
    See file LICENSE for detail or copy at https://opensource.org/licenses/MIT
 */
 
-#include <jni.h>
+#include "./decoder_jni.h"
 
 #include <new>
 

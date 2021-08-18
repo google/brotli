@@ -7,10 +7,8 @@ licenses(["notice"])  # MIT
 cc_library(
     name = "dm",
     srcs = ["deorummolae.cc"],
-    hdrs = [
-        "deorummolae.h",
-        "esaxx/sais.hxx",
-    ],
+    deps = ["@esaxx//:sais"],
+    hdrs = ["deorummolae.h"],
 )
 
 cc_library(
