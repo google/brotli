@@ -3,7 +3,9 @@
 #include <cstdio>
 #include <cstring>
 #include <fstream>
+#if !defined(_MSC_VER)
 #include <glob.h>
+#endif
 #include <vector>
 
 #include "./deorummolae.h"
@@ -268,14 +270,19 @@ int main(int argc, char const* argv[]) {
       }
     }
 
+    bool ok = true;
+#if defined(_MSC_VER)
+        const char* resolved_path = argv[i];
+#else
     glob_t resolved_paths;
     memset(&resolved_paths, 0, sizeof(resolved_paths));
-    bool ok = true;
     if (glob(argv[i], GLOB_TILDE, NULL, &resolved_paths) == 0) {
       for(size_t j = 0; j < resolved_paths.gl_pathc; ++j) {
-        std::string content = readFile(resolved_paths.gl_pathv[j]);
+        const char* resolved_path = resolved_paths.gl_pathv[j];
+#endif
+        std::string content = readFile(resolved_path);
         if (chunkLen == 0) {
-          paths.emplace_back(resolved_paths.gl_pathv[j]);
+          paths.emplace_back(resolved_path);
           data.insert(data.end(), content.begin(), content.end());
           total += content.size();
           sizes.push_back(content.size());
@@ -293,11 +300,13 @@ int main(int argc, char const* argv[]) {
           total += chunk.size();
           sizes.push_back(chunk.size());
         }
+#if !defined(_MSC_VER)
       }
     } else {
       ok = false;
     }
     globfree(&resolved_paths);
+#endif
     if (!ok) exit(1);
   }
 

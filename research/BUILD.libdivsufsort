@@ -38,7 +38,8 @@ genrule(
     srcs = ["include/config.h.cmake"],
     outs = ["include/config.h"],
     cmd = ("awk '{ " +
-           "gsub(/@HAVE_IO_H 1@/, \"HAVE_IO_H 0\"); " +
+           "gsub(/HAVE_IO_H 1/, \"HAVE_IO_H 0\"); " +
+           "gsub(/HAVE_STRINGS_H 1/, \"HAVE_STRINGS_H 0\"); " +
            commom_awk_replaces +
            "print; }' $(<) > $(@)"),
 )

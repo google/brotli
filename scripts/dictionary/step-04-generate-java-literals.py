@@ -1,6 +1,6 @@
 # Step 04 - generate Java literals.
 #
-# Java byte-code has ridiculous restrictions. There is no such thing as
+# Java byte-code has severe restrictions. There is no such thing as
 # "array literal" - those are implemented as series of data[x] = y;
 # as a consequence N-byte array will use 7N bytes in class, plus N bytes
 # in instantiated variable. Also no literal could be longer than 64KiB.
@@ -17,7 +17,7 @@
 
 try:
   unichr  # Python 2
-except NameError
+except NameError:
   unichr = chr  # Python 3
 
 bin_path = "dictionary.bin"
@@ -49,8 +49,9 @@ for b in data:
       cntr = skip_flip_offset + 1
 hi.append(unichr(cntr))
 
-low0 = low[0 : len(low) // 2]
-low1 = low[len(low) // 2 : len(low)]
+low0 = low[0:len(low) // 2]
+low1 = low[len(low) // 2:len(low)]
+
 
 def escape(chars):
   result = []
@@ -68,7 +69,7 @@ def escape(chars):
     elif ord(c) < 32 or ord(c) >= 127:
       result.append("\\u%04X" % ord(c))
     else:
-      result.append(c);
+      result.append(c)
   return result
 
 

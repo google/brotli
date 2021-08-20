@@ -19,7 +19,7 @@ for line in lines:
     if re_data_line.match(line) is not None:
       data = line.strip()
       for i in range(32):
-        dictionary.append(int(data[2 * i : 2 * i + 2], 16))
+        dictionary.append(int(data[2 * i:2 * i + 2], 16))
       if len(dictionary) == 122784:
         break
   else:

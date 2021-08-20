@@ -1,5 +1,6 @@
 # IT WOULD BE FOOLISH TO USE COMPUTERS TO AUTOMATE REPETITIVE TASKS:
-# ENLIST EVERY USED HEADER AND SOURCE FILE MANUALLY!
+# neither CMake nor Automake support "glob" expressions,
+# so every header and source file have to be listed manually.
 
 BROTLI_CLI_C = \
   c/tools/brotli.c

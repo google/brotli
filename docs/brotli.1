@@ -1,4 +1,4 @@
-.TH "BROTLI" "1" "February 2018" "brotli 1.0.0" "User commands"
+.TH "BROTLI" "1" "August 2021" "" "User commands"
 .SH "NAME"
 \fBbrotli\fR \- brotli, unbrotli \- compress or decompress files
 .SH SYNOPSIS
@@ -107,6 +107,10 @@ Conflicting or duplicate \fIoptions\fR are not allowed\.
   \fB(2**NUM \- 16)\fP; 0 lets compressor decide over the optimal value; bigger
   windows size improve density; decoder might require up to window size
   memory to operate
+.IP \(bu 2
+\fB\-D FILE\fP, \fB\-\-dictionary=FILE\fP:
+  use FILE as raw (LZ77) dictionary; same dictionary MUST be used both for
+  compression and decompression
 .IP \(bu 2
 \fB\-S SUF\fP, \fB\-\-suffix=SUF\fP:
   output file suffix (default: \fB\|\.br\fP)

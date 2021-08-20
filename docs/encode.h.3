@@ -1,4 +1,4 @@
-.TH "encode.h" 3 "Thu Feb 22 2018" "Brotli" \" -*- nroff -*-
+.TH "encode.h" 3 "August 2021" "Brotli" \" -*- nroff -*-
 .ad l
 .nh
 .SH NAME
@@ -76,6 +76,10 @@ encode.h \- API for Brotli compression\&.
 
 .in +1c
 .ti -1c
+.RI "\fBBROTLI_BOOL\fP \fBBrotliEncoderAttachPreparedDictionary\fP (\fBBrotliEncoderState\fP *state, const BrotliEncoderPreparedDictionary *dictionary)"
+.br
+.RI "\fIAttaches a prepared dictionary of any type to the encoder\&. \fP"
+.ti -1c
 .RI "\fBBROTLI_BOOL\fP \fBBrotliEncoderCompress\fP (int quality, int lgwin, \fBBrotliEncoderMode\fP mode, size_t input_size, const uint8_t input_buffer[input_size], size_t *encoded_size, uint8_t encoded_buffer[*encoded_size])"
 .br
 .RI "\fIPerforms one-shot memory-to-memory compression\&. \fP"
@@ -103,6 +107,10 @@ encode.h \- API for Brotli compression\&.
 .RI "size_t \fBBrotliEncoderMaxCompressedSize\fP (size_t input_size)"
 .br
 .RI "\fICalculates the output size bound for the given \fCinput_size\fP\&. \fP"
+.ti -1c
+.RI "BrotliEncoderPreparedDictionary * \fBBrotliEncoderPrepareDictionary\fP (BrotliSharedDictionaryType type, size_t data_size, const uint8_t data[data_size], int quality, \fBbrotli_alloc_func\fP alloc_func, \fBbrotli_free_func\fP free_func, void *opaque)"
+.br
+.RI "\fIPrepares a shared dictionary from the given file format for the encoder\&. \fP"
 .ti -1c
 .RI "\fBBROTLI_BOOL\fP \fBBrotliEncoderSetParameter\fP (\fBBrotliEncoderState\fP *state, \fBBrotliEncoderParameter\fP param, uint32_t value)"
 .br
@@ -318,6 +326,19 @@ If offset is not 0, then stream header is omitted\&. In any case output start is
 Range is not artificially limited, but all the values greater or equal to maximal window size have the same effect\&. Values greater than 2**30 are not allowed\&. 
 .SH "Function Documentation"
 .PP 
+.SS "\fBBROTLI_BOOL\fP BrotliEncoderAttachPreparedDictionary (\fBBrotliEncoderState\fP * state, const BrotliEncoderPreparedDictionary * dictionary)"
+
+.PP
+Attaches a prepared dictionary of any type to the encoder\&. Can be used multiple times to attach multiple dictionaries\&. The dictionary type was determined by BrotliEncoderPrepareDictionary\&. Multiple raw prefix dictionaries and/or max 1 serialized dictionary with custom words can be attached\&.
+.PP
+\fBReturns:\fP
+.RS 4
+\fBBROTLI_FALSE\fP in case of error 
+.PP
+\fBBROTLI_TRUE\fP otherwise 
+.RE
+.PP
+
 .SS "\fBBROTLI_BOOL\fP BrotliEncoderCompress (int quality, int lgwin, \fBBrotliEncoderMode\fP mode, size_t input_size, const uint8_t input_buffer[input_size], size_t * encoded_size, uint8_t encoded_buffer[*encoded_size])"
 
 .PP
@@ -506,6 +527,29 @@ Result is only valid if quality is at least \fC2\fP and, in case \fBBrotliEncode
 \fBReturns:\fP
 .RS 4
 \fC0\fP if result does not fit \fCsize_t\fP 
+.RE
+.PP
+
+.SS "BrotliEncoderPreparedDictionary* BrotliEncoderPrepareDictionary (BrotliSharedDictionaryType type, size_t data_size, const uint8_t data[data_size], int quality, \fBbrotli_alloc_func\fP alloc_func, \fBbrotli_free_func\fP free_func, void * opaque)"
+
+.PP
+Prepares a shared dictionary from the given file format for the encoder\&. \fCalloc_func\fP and \fCfree_func\fP \fBMUST\fP be both zero or both non-zero\&. In the case they are both zero, default memory allocators are used\&. \fCopaque\fP is passed to \fCalloc_func\fP and \fCfree_func\fP when they are called\&. \fCfree_func\fP has to return without doing anything when asked to free a NULL pointer\&.
+.PP
+\fBParameters:\fP
+.RS 4
+\fItype\fP type of dictionary stored in data 
+.br
+\fIdata_size\fP size of \fCdata\fP buffer 
+.br
+\fIdata\fP pointer to the dictionary data 
+.br
+\fIquality\fP the maximum Brotli quality to prepare the dictionary for, use BROTLI_MAX_QUALITY by default 
+.br
+\fIalloc_func\fP custom memory allocation function 
+.br
+\fIfree_func\fP custom memory free function 
+.br
+\fIopaque\fP custom memory manager handle 
 .RE
 .PP
 
