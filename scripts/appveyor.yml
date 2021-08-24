@@ -95,17 +95,3 @@ test_script:
       %ROOT%\bazel.exe --batch test -c opt --test_output streamed org/brotli/wrapper/...:all &&
     cd ..
   )
-
-deploy:
-- provider: BinTray
-  on:
-    branch: master
-  username: eustas
-  api_key:
-    secure: B3rM8JYeIHIw6BfOjHggAeyTmxEf8ZDYmyF9gCwqyWaxyxECD9BuN50SiV2KE/RI
-  subject: eustas
-  repo: brotli
-  package: bin
-  version: latest
-  publish: true
-  override: true
