@@ -252,16 +252,3 @@ script:
 - scripts/.travis.sh script
 after_success:
 - scripts/.travis.sh after_success
-
-before_deploy:
-- scripts/.travis.sh before_deploy
-
-deploy:
-- provider: bintray
-  file: "scripts/.bintray.json"
-  user: "eustas"
-  key:
-    secure: "Kbam/lTAdz72fZivbs6riJT+Y4PbuKP7r6t5PAWxJxAAykjwnYTRe3zF472g9HCE14KYMsdB+KSYSgg6TGJnqGC9gL9xhhGU9U/WmA+vbMWS/MSnMWpK9IRpp77pM2i2NKZD4v33JuEwKFCBJP3Vj6QQ5Qd1NKdobuXJyznhgnw="
-  on:
-    condition: "${BUILD_SYSTEM} = bazel"
-  skip_cleanup: true
