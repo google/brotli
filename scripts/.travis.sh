@@ -69,13 +69,4 @@ case "$1" in
 	;;
     "after_success")
 	;;
-    "before_deploy")
-	case "${BUILD_SYSTEM}" in
-	    "bazel")
-		export RELEASE_DATE=`date +%Y-%m-%d`
-		perl -p -i -e 's/\$\{([^}]+)\}/defined $ENV{$1} ? $ENV{$1} : $&/eg' scripts/.bintray.json
-		zip -j9 brotli.zip bazel-bin/libbrotli*.a bazel-bin/libbrotli*.so bazel-bin/brotli
-		;;
-	esac
-	;;
 esac
