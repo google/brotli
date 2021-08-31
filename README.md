@@ -21,7 +21,7 @@ Brotli is open-sourced under the MIT License, see the LICENSE file.
 Brotli mailing list:
 https://groups.google.com/forum/#!forum/brotli
 
-[![GitHub Actions Build Status](https://github.com/google/brotli/actions/workflows/build_test.yml/badge.svg)
+![GitHub Actions Build Status](https://github.com/google/brotli/actions/workflows/build_test.yml/badge.svg)
 [![Fuzzing Status](https://oss-fuzz-build-logs.storage.googleapis.com/badges/brotli.svg)](https://oss-fuzz-build-logs.storage.googleapis.com/index.html#brotli)
 
 ### Build instructions
