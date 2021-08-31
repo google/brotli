@@ -12,6 +12,7 @@ new_git_repository(
     build_file = "@//:BUILD.libdivsufsort",
     commit = "5f60d6f026c30fb4ac296f696b3c8b0eb71bd428",
     remote = "https://github.com/y-256/libdivsufsort",
+    shallow_since = "1445958113 +0900",
 )
 
 new_git_repository(
@@ -27,4 +28,5 @@ cc_library(
 """,
     commit = "ca7cb332011ec37a8436487f210f396b84bd8273",
     remote = "https://github.com/hillbig/esaxx",
+    shallow_since = "1391400691 +0900",
 )

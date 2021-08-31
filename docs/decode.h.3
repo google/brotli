@@ -1,4 +1,4 @@
-.TH "decode.h" 3 "Thu Feb 22 2018" "Brotli" \" -*- nroff -*-
+.TH "decode.h" 3 "August 2021" "Brotli" \" -*- nroff -*-
 .ad l
 .nh
 .SH NAME
@@ -35,6 +35,10 @@ decode.h \- API for Brotli decompression\&.
 .SS "Functions"
 
 .in +1c
+.ti -1c
+.RI "\fBBROTLI_BOOL\fP \fBBrotliDecoderAttachDictionary\fP (\fBBrotliDecoderState\fP *state, BrotliSharedDictionaryType type, size_t data_size, const uint8_t data[data_size])"
+.br
+.RI "\fIAdds LZ77 prefix dictionary, adds or replaces built-in static dictionary and transforms\&. \fP"
 .ti -1c
 .RI "\fBBrotliDecoderState\fP * \fBBrotliDecoderCreateInstance\fP (\fBbrotli_alloc_func\fP alloc_func, \fBbrotli_free_func\fP free_func, void *opaque)"
 .br
@@ -167,6 +171,35 @@ Partially done; should be called again with more input\&.
 Partially done; should be called again with more output\&. 
 .SH "Function Documentation"
 .PP 
+.SS "\fBBROTLI_BOOL\fP BrotliDecoderAttachDictionary (\fBBrotliDecoderState\fP * state, BrotliSharedDictionaryType type, size_t data_size, const uint8_t data[data_size])"
+
+.PP
+Adds LZ77 prefix dictionary, adds or replaces built-in static dictionary and transforms\&. Attached dictionary ownership is not transferred\&. Data provided to this method should be kept accessible until decoding is finished and decoder instance is destroyed\&.
+.PP
+\fBNote:\fP
+.RS 4
+Dictionaries can NOT be attached after actual decoding is started\&.
+.RE
+.PP
+\fBParameters:\fP
+.RS 4
+\fIstate\fP decoder instance 
+.br
+\fItype\fP dictionary data format 
+.br
+\fIdata_size\fP length of memory region pointed by \fCdata\fP 
+.br
+\fIdata\fP dictionary data in format corresponding to \fCtype\fP 
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+\fBBROTLI_FALSE\fP if dictionary is corrupted, or dictionary count limit is reached 
+.PP
+\fBBROTLI_TRUE\fP if dictionary is accepted / attached 
+.RE
+.PP
+
 .SS "\fBBrotliDecoderState\fP* BrotliDecoderCreateInstance (\fBbrotli_alloc_func\fP alloc_func, \fBbrotli_free_func\fP free_func, void * opaque)"
 
 .PP

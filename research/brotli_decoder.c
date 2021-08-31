@@ -6,7 +6,17 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+
+#if !defined(_WIN32)
 #include <unistd.h>
+#else
+#include <io.h>
+#define fdopen _fdopen
+#if !defined(__MINGW32__)
+#define STDIN_FILENO _fileno(stdin)
+#define STDOUT_FILENO _fileno(stdout)
+#endif
+#endif
 
 #include <brotli/decode.h>
 

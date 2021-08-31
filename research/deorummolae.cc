@@ -5,6 +5,10 @@
 
 #include "third_party/esaxx/sais.hxx"
 
+#if defined(_MSC_VER)
+#include <intrin.h>  /* __popcnt64 */
+#endif
+
 /* Used for quick SA-entry to file mapping. Each file is padded to size that
    is a multiple of chunk size. */
 #define CHUNK_SIZE 64
@@ -30,7 +34,11 @@ typedef uint32_t TextIdx;
 typedef int32_t TextSaIdx;
 
 static size_t popcount(uint64_t u) {
+#if defined(_MSC_VER)
+  return static_cast<size_t>(__popcnt64(u));
+#else
   return static_cast<size_t>(__builtin_popcountll(u));
+#endif
 }
 
 /* Condense terminators and pad file entries. */

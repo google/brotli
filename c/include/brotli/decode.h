@@ -164,7 +164,7 @@ BROTLI_DEC_API BROTLI_BOOL BrotliDecoderSetParameter(
  * Data provided to this method should be kept accessible until
  * decoding is finished and decoder instance is destroyed.
  *
- * @note Dictionaries could NOT be attached after actual decoding is started.
+ * @note Dictionaries can NOT be attached after actual decoding is started.
  *
  * @param state decoder instance
  * @param type dictionary data format
