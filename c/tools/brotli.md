@@ -80,7 +80,7 @@ OPTIONS
 * `-v`, `--verbose`:
     increase output verbosity
 * `-w NUM`, `--lgwin=NUM`:
-    set LZ77 window size (0, 10-24) (default: 22); window size is
+    set LZ77 window size (0, 10-24) (default: 24); window size is
     `(2**NUM - 16)`; 0 lets compressor decide over the optimal value; bigger
     windows size improve density; decoder might require up to window size
     memory to operate

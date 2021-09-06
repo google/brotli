@@ -13,11 +13,11 @@
 #include "../common/context.h"
 #include "../common/platform.h"
 #include <brotli/types.h>
-#include "./block_splitter.h"
-#include "./command.h"
-#include "./histogram.h"
-#include "./memory.h"
-#include "./quality.h"
+#include "block_splitter.h"
+#include "command.h"
+#include "histogram.h"
+#include "memory.h"
+#include "quality.h"
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {

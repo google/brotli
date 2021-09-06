@@ -1,4 +1,4 @@
-#include "./durchschlag.h"
+#include "durchschlag.h"
 
 #include <algorithm>
 #include <exception>  /* terminate */

@@ -12,17 +12,17 @@
    Adapted from the CompressFragment() function in
    https://github.com/google/snappy/blob/master/snappy.cc */
 
-#include "./compress_fragment.h"
+#include "compress_fragment.h"
 
 #include <string.h>  /* memcmp, memcpy, memset */
 
 #include "../common/platform.h"
 #include <brotli/types.h>
-#include "./brotli_bit_stream.h"
-#include "./entropy_encode.h"
-#include "./fast_log.h"
-#include "./find_match_length.h"
-#include "./write_bits.h"
+#include "brotli_bit_stream.h"
+#include "entropy_encode.h"
+#include "fast_log.h"
+#include "find_match_length.h"
+#include "write_bits.h"
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {

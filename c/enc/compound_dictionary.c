@@ -4,12 +4,12 @@
    See file LICENSE for detail or copy at https://opensource.org/licenses/MIT
 */
 
-#include "./compound_dictionary.h"
+#include "compound_dictionary.h"
 
 #include "../common/platform.h"
 #include <brotli/types.h>
-#include "./memory.h"
-#include "./quality.h"
+#include "memory.h"
+#include "quality.h"
 
 static PreparedDictionary* CreatePreparedDictionaryWithParams(MemoryManager* m,
     const uint8_t* source, size_t source_size, uint32_t bucket_bits,

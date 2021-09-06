@@ -6,18 +6,18 @@
 
 /* Block split point selection utilities. */
 
-#include "./block_splitter.h"
+#include "block_splitter.h"
 
 #include <string.h>  /* memcpy, memset */
 
 #include "../common/platform.h"
-#include "./bit_cost.h"
-#include "./cluster.h"
-#include "./command.h"
-#include "./fast_log.h"
-#include "./histogram.h"
-#include "./memory.h"
-#include "./quality.h"
+#include "bit_cost.h"
+#include "cluster.h"
+#include "command.h"
+#include "fast_log.h"
+#include "histogram.h"
+#include "memory.h"
+#include "quality.h"
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
@@ -90,19 +90,19 @@ static BROTLI_INLINE double BitCost(size_t count) {
 #define FN(X) X ## Literal
 #define DataType uint8_t
 /* NOLINTNEXTLINE(build/include) */
-#include "./block_splitter_inc.h"
+#include "block_splitter_inc.h"
 #undef DataType
 #undef FN
 
 #define FN(X) X ## Command
 #define DataType uint16_t
 /* NOLINTNEXTLINE(build/include) */
-#include "./block_splitter_inc.h"
+#include "block_splitter_inc.h"
 #undef FN
 
 #define FN(X) X ## Distance
 /* NOLINTNEXTLINE(build/include) */
-#include "./block_splitter_inc.h"
+#include "block_splitter_inc.h"
 #undef DataType
 #undef FN
 

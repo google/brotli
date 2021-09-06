@@ -7,7 +7,7 @@
 /* Algorithms for distributing the literals and commands of a metablock between
    block types and contexts. */
 
-#include "./memory.h"
+#include "memory.h"
 
 #include <stdlib.h>  /* exit, free, malloc */
 #include <string.h>  /* memcpy */

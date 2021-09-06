@@ -11,8 +11,8 @@
 
 #include "../common/platform.h"
 #include <brotli/types.h>
-#include "./fast_log.h"
-#include "./histogram.h"
+#include "fast_log.h"
+#include "histogram.h"
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {

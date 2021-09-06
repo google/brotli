@@ -10,7 +10,7 @@
 #define BROTLI_ENC_PARAMS_H_
 
 #include <brotli/encode.h>
-#include "./encoder_dict.h"
+#include "encoder_dict.h"
 
 typedef struct BrotliHasherParams {
   int type;
