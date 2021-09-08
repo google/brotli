@@ -11,7 +11,7 @@
 #include "../common/constants.h"
 #include <brotli/shared_dictionary.h>
 #include <brotli/types.h>
-#include "./memory.h"
+#include "memory.h"
 
 static const uint32_t kPreparedDictionaryMagic = 0xDEBCEDE0;
 static const uint64_t kPreparedDictionaryHashMul64Long =

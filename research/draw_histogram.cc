@@ -19,7 +19,7 @@
 using gflags::ParseCommandLineFlags;
 
 #include "third_party/absl/flags/flag.h"
-#include "./read_dist.h"
+#include "read_dist.h"
 
 DEFINE_int32(height, 1000, "Height of the resulting histogam.");
 DEFINE_int32(width, 8000, "Width of the resulting histogam.");

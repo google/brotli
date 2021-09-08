@@ -8,7 +8,7 @@
    compression algorithms here, just the right ordering of bits to match the
    specs. */
 
-#include "./brotli_bit_stream.h"
+#include "brotli_bit_stream.h"
 
 #include <string.h>  /* memcpy, memset */
 
@@ -16,12 +16,12 @@
 #include "../common/context.h"
 #include "../common/platform.h"
 #include <brotli/types.h>
-#include "./entropy_encode.h"
-#include "./entropy_encode_static.h"
-#include "./fast_log.h"
-#include "./histogram.h"
-#include "./memory.h"
-#include "./write_bits.h"
+#include "entropy_encode.h"
+#include "entropy_encode_static.h"
+#include "fast_log.h"
+#include "histogram.h"
+#include "memory.h"
+#include "write_bits.h"
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
@@ -919,17 +919,17 @@ static void StoreSymbolWithContext(BlockEncoder* self, size_t symbol,
 
 #define FN(X) X ## Literal
 /* NOLINTNEXTLINE(build/include) */
-#include "./block_encoder_inc.h"
+#include "block_encoder_inc.h"
 #undef FN
 
 #define FN(X) X ## Command
 /* NOLINTNEXTLINE(build/include) */
-#include "./block_encoder_inc.h"
+#include "block_encoder_inc.h"
 #undef FN
 
 #define FN(X) X ## Distance
 /* NOLINTNEXTLINE(build/include) */
-#include "./block_encoder_inc.h"
+#include "block_encoder_inc.h"
 #undef FN
 
 static void JumpToByteBoundary(size_t* storage_ix, uint8_t* storage) {

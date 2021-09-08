@@ -4,8 +4,8 @@
    See file LICENSE for detail or copy at https://opensource.org/licenses/MIT
 */
 
-#include "./dictionary.h"
-#include "./platform.h"
+#include "dictionary.h"
+#include "platform.h"
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {

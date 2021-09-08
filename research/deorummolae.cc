@@ -1,4 +1,4 @@
-#include "./deorummolae.h"
+#include "deorummolae.h"
 
 #include <array>
 #include <cstdio>

@@ -6,7 +6,7 @@
 
 #include <jni.h>
 
-#include "./decoder_jni.h"
+#include "decoder_jni.h"
 
 #ifdef __cplusplus
 extern "C" {

@@ -4,13 +4,13 @@
    See file LICENSE for detail or copy at https://opensource.org/licenses/MIT
 */
 
-#include "./static_dict.h"
+#include "static_dict.h"
 
 #include "../common/dictionary.h"
 #include "../common/platform.h"
 #include "../common/transform.h"
-#include "./encoder_dict.h"
-#include "./find_match_length.h"
+#include "encoder_dict.h"
+#include "find_match_length.h"
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {

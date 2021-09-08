@@ -12,9 +12,9 @@
 #include <stdlib.h>  /* malloc, free */
 #include <stdio.h>
 
-#include "./dictionary.h"
-#include "./platform.h"
-#include "./shared_dictionary_internal.h"
+#include "dictionary.h"
+#include "platform.h"
+#include "shared_dictionary_internal.h"
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {

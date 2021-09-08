@@ -15,8 +15,8 @@
 #include <brotli/shared_dictionary.h>
 #include "../common/transform.h"
 #include <brotli/types.h>
-#include "./bit_reader.h"
-#include "./huffman.h"
+#include "bit_reader.h"
+#include "huffman.h"
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {

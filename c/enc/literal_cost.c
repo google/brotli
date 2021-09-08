@@ -7,14 +7,14 @@
 /* Literal cost model to allow backward reference replacement to be efficient.
 */
 
-#include "./literal_cost.h"
+#include "literal_cost.h"
 
 #include <string.h>  /* memset */
 
 #include "../common/platform.h"
 #include <brotli/types.h>
-#include "./fast_log.h"
-#include "./utf8_util.h"
+#include "fast_log.h"
+#include "utf8_util.h"
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {

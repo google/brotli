@@ -8,9 +8,9 @@
 #endif
 #include <vector>
 
-#include "./deorummolae.h"
-#include "./durchschlag.h"
-#include "./sieve.h"
+#include "deorummolae.h"
+#include "durchschlag.h"
+#include "sieve.h"
 
 /* This isn't a definitive list of "--foo" arguments, only those that take an
  * additional "=#" integer parameter, like "--foo=20" or "--foo=32K".

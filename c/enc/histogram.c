@@ -6,11 +6,11 @@
 
 /* Build per-context histograms of literals, commands and distance codes. */
 
-#include "./histogram.h"
+#include "histogram.h"
 
 #include "../common/context.h"
-#include "./block_splitter.h"
-#include "./command.h"
+#include "block_splitter.h"
+#include "command.h"
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {

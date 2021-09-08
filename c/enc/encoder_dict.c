@@ -4,7 +4,7 @@
    See file LICENSE for detail or copy at https://opensource.org/licenses/MIT
 */
 
-#include "./encoder_dict.h"
+#include "encoder_dict.h"
 
 #include <stdlib.h>  /* malloc, free */
 
@@ -12,11 +12,11 @@
 #include "../common/platform.h"
 #include "../common/shared_dictionary_internal.h"
 #include "../common/transform.h"
-#include "./compound_dictionary.h"
-#include "./dictionary_hash.h"
-#include "./memory.h"
-#include "./quality.h"
-#include "./hash.h"
+#include "compound_dictionary.h"
+#include "dictionary_hash.h"
+#include "memory.h"
+#include "quality.h"
+#include "hash.h"
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {

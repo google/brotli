@@ -1,4 +1,4 @@
-#include "./sieve.h"
+#include "sieve.h"
 
 /* Pointer to position in (combined corpus) text. */
 typedef uint32_t TextIdx;

@@ -17,12 +17,12 @@
 #include "../common/dictionary.h"
 #include "../common/platform.h"
 #include <brotli/types.h>
-#include "./encoder_dict.h"
-#include "./fast_log.h"
-#include "./find_match_length.h"
-#include "./memory.h"
-#include "./quality.h"
-#include "./static_dict.h"
+#include "encoder_dict.h"
+#include "fast_log.h"
+#include "find_match_length.h"
+#include "memory.h"
+#include "quality.h"
+#include "static_dict.h"
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
@@ -246,7 +246,7 @@ static BROTLI_INLINE size_t BackwardMatchLengthCode(const BackwardMatch* self) {
 #define BUCKET_BITS 17
 #define MAX_TREE_SEARCH_DEPTH 64
 #define MAX_TREE_COMP_LENGTH 128
-#include "./hash_to_binary_tree_inc.h"  /* NOLINT(build/include) */
+#include "hash_to_binary_tree_inc.h"  /* NOLINT(build/include) */
 #undef MAX_TREE_SEARCH_DEPTH
 #undef MAX_TREE_COMP_LENGTH
 #undef BUCKET_BITS
@@ -263,7 +263,7 @@ static BROTLI_INLINE size_t BackwardMatchLengthCode(const BackwardMatch* self) {
 #define BUCKET_SWEEP_BITS 0
 #define HASH_LEN 5
 #define USE_DICTIONARY 1
-#include "./hash_longest_match_quickly_inc.h"  /* NOLINT(build/include) */
+#include "hash_longest_match_quickly_inc.h"  /* NOLINT(build/include) */
 #undef BUCKET_SWEEP_BITS
 #undef USE_DICTIONARY
 #undef HASHER
@@ -271,7 +271,7 @@ static BROTLI_INLINE size_t BackwardMatchLengthCode(const BackwardMatch* self) {
 #define HASHER() H3
 #define BUCKET_SWEEP_BITS 1
 #define USE_DICTIONARY 0
-#include "./hash_longest_match_quickly_inc.h"  /* NOLINT(build/include) */
+#include "hash_longest_match_quickly_inc.h"  /* NOLINT(build/include) */
 #undef USE_DICTIONARY
 #undef BUCKET_SWEEP_BITS
 #undef BUCKET_BITS
@@ -281,7 +281,7 @@ static BROTLI_INLINE size_t BackwardMatchLengthCode(const BackwardMatch* self) {
 #define BUCKET_BITS 17
 #define BUCKET_SWEEP_BITS 2
 #define USE_DICTIONARY 1
-#include "./hash_longest_match_quickly_inc.h"  /* NOLINT(build/include) */
+#include "hash_longest_match_quickly_inc.h"  /* NOLINT(build/include) */
 #undef USE_DICTIONARY
 #undef HASH_LEN
 #undef BUCKET_SWEEP_BITS
@@ -289,11 +289,11 @@ static BROTLI_INLINE size_t BackwardMatchLengthCode(const BackwardMatch* self) {
 #undef HASHER
 
 #define HASHER() H5
-#include "./hash_longest_match_inc.h"  /* NOLINT(build/include) */
+#include "hash_longest_match_inc.h"  /* NOLINT(build/include) */
 #undef HASHER
 
 #define HASHER() H6
-#include "./hash_longest_match64_inc.h"  /* NOLINT(build/include) */
+#include "hash_longest_match64_inc.h"  /* NOLINT(build/include) */
 #undef HASHER
 
 #define BUCKET_BITS 15
@@ -302,13 +302,13 @@ static BROTLI_INLINE size_t BackwardMatchLengthCode(const BackwardMatch* self) {
 #define NUM_BANKS 1
 #define BANK_BITS 16
 #define HASHER() H40
-#include "./hash_forgetful_chain_inc.h"  /* NOLINT(build/include) */
+#include "hash_forgetful_chain_inc.h"  /* NOLINT(build/include) */
 #undef HASHER
 #undef NUM_LAST_DISTANCES_TO_CHECK
 
 #define NUM_LAST_DISTANCES_TO_CHECK 10
 #define HASHER() H41
-#include "./hash_forgetful_chain_inc.h"  /* NOLINT(build/include) */
+#include "hash_forgetful_chain_inc.h"  /* NOLINT(build/include) */
 #undef HASHER
 #undef NUM_LAST_DISTANCES_TO_CHECK
 #undef NUM_BANKS
@@ -318,7 +318,7 @@ static BROTLI_INLINE size_t BackwardMatchLengthCode(const BackwardMatch* self) {
 #define NUM_BANKS 512
 #define BANK_BITS 9
 #define HASHER() H42
-#include "./hash_forgetful_chain_inc.h"  /* NOLINT(build/include) */
+#include "hash_forgetful_chain_inc.h"  /* NOLINT(build/include) */
 #undef HASHER
 #undef NUM_LAST_DISTANCES_TO_CHECK
 #undef NUM_BANKS
@@ -331,7 +331,7 @@ static BROTLI_INLINE size_t BackwardMatchLengthCode(const BackwardMatch* self) {
 #define BUCKET_SWEEP_BITS 2
 #define HASH_LEN 7
 #define USE_DICTIONARY 0
-#include "./hash_longest_match_quickly_inc.h"  /* NOLINT(build/include) */
+#include "hash_longest_match_quickly_inc.h"  /* NOLINT(build/include) */
 #undef USE_DICTIONARY
 #undef HASH_LEN
 #undef BUCKET_SWEEP_BITS
@@ -345,14 +345,14 @@ static BROTLI_INLINE size_t BackwardMatchLengthCode(const BackwardMatch* self) {
 #define JUMP 4
 #define NUMBUCKETS 16777216
 #define MASK ((NUMBUCKETS * 64) - 1)
-#include "./hash_rolling_inc.h"  /* NOLINT(build/include) */
+#include "hash_rolling_inc.h"  /* NOLINT(build/include) */
 #undef JUMP
 #undef HASHER
 
 
 #define HASHER() HROLLING
 #define JUMP 1
-#include "./hash_rolling_inc.h"  /* NOLINT(build/include) */
+#include "hash_rolling_inc.h"  /* NOLINT(build/include) */
 #undef MASK
 #undef NUMBUCKETS
 #undef JUMP
@@ -362,7 +362,7 @@ static BROTLI_INLINE size_t BackwardMatchLengthCode(const BackwardMatch* self) {
 #define HASHER() H35
 #define HASHER_A H3
 #define HASHER_B HROLLING_FAST
-#include "./hash_composite_inc.h"  /* NOLINT(build/include) */
+#include "hash_composite_inc.h"  /* NOLINT(build/include) */
 #undef HASHER_A
 #undef HASHER_B
 #undef HASHER
@@ -370,7 +370,7 @@ static BROTLI_INLINE size_t BackwardMatchLengthCode(const BackwardMatch* self) {
 #define HASHER() H55
 #define HASHER_A H54
 #define HASHER_B HROLLING_FAST
-#include "./hash_composite_inc.h"  /* NOLINT(build/include) */
+#include "hash_composite_inc.h"  /* NOLINT(build/include) */
 #undef HASHER_A
 #undef HASHER_B
 #undef HASHER
@@ -378,7 +378,7 @@ static BROTLI_INLINE size_t BackwardMatchLengthCode(const BackwardMatch* self) {
 #define HASHER() H65
 #define HASHER_A H6
 #define HASHER_B HROLLING
-#include "./hash_composite_inc.h"  /* NOLINT(build/include) */
+#include "hash_composite_inc.h"  /* NOLINT(build/include) */
 #undef HASHER_A
 #undef HASHER_B
 #undef HASHER
