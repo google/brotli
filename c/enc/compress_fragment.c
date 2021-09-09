@@ -130,7 +130,7 @@ static void BuildAndStoreCommandPrefixCode(BrotliOnePassArena* s,
   uint16_t* const bits = s->cmd_bits;
   uint8_t* BROTLI_RESTRICT const tmp_depth = s->tmp_depth;
   uint16_t* BROTLI_RESTRICT const tmp_bits = s->tmp_bits;
-  /* TODO: do only once on initialization. */
+  /* TODO(emXozP): do only once on initialization. */
   memset(tmp_depth, 0, BROTLI_NUM_COMMAND_SYMBOLS);
 
   BrotliCreateHuffmanTree(histogram, 64, 15, s->tree, depth);
@@ -168,7 +168,7 @@ static void BuildAndStoreCommandPrefixCode(BrotliOnePassArena* s,
       tmp_depth[256 + 8 * i] = depth[48 + i];
       tmp_depth[448 + 8 * i] = depth[56 + i];
     }
-    /* TODO: could/should full-length machinery be avoided? */
+    /* TODO(emXozP): could/should full-length machinery be avoided? */
     BrotliStoreHuffmanTree(
         tmp_depth, BROTLI_NUM_COMMAND_SYMBOLS, s->tree, storage_ix, storage);
   }

@@ -479,7 +479,6 @@ BROTLI_ENC_API BROTLI_BOOL BrotliEncoderHasMoreOutput(
 BROTLI_ENC_API const uint8_t* BrotliEncoderTakeOutput(
     BrotliEncoderState* state, size_t* size);
 
-
 /**
  * Gets an encoder library version.
  *

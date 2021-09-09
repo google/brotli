@@ -1356,7 +1356,7 @@ static BROTLI_BOOL BROTLI_NOINLINE BrotliEnsureRingBuffer(
 static BrotliDecoderErrorCode BROTLI_NOINLINE CopyUncompressedBlockToOutput(
     size_t* available_out, uint8_t** next_out, size_t* total_out,
     BrotliDecoderState* s) {
-  /* TODO: avoid allocation for single uncompressed block. */
+  /* TODO(emXozP): avoid allocation for single uncompressed block. */
   if (!BrotliEnsureRingBuffer(s)) {
     return BROTLI_FAILURE(BROTLI_DECODER_ERROR_ALLOC_RING_BUFFER_1);
   }

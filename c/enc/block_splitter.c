@@ -170,7 +170,7 @@ void BrotliSplitBlock(MemoryManager* m,
         kCommandStrideLength, kCommandBlockSwitchCost, params,
         insert_and_copy_split);
     if (BROTLI_IS_OOM(m)) return;
-    /* TODO: reuse for distances? */
+    /* TODO(emXozP): reuse for distances? */
     BROTLI_FREE(m, insert_and_copy_codes);
   }
 
@@ -196,7 +196,6 @@ void BrotliSplitBlock(MemoryManager* m,
     BROTLI_FREE(m, distance_prefixes);
   }
 }
-
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }  /* extern "C" */

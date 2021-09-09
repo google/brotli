@@ -485,11 +485,11 @@ static BROTLI_INLINE void BrotliDump(const char* f, int l, const char* fn) {
 #define BROTLI_DUMP() (void)(0)
 #endif
 
-/* TODO: add appropriate icc/sunpro/arm/ibm/ti checks. */
+/* TODO(emXozP): add appropriate icc/sunpro/arm/ibm/ti checks. */
 #if (BROTLI_GNUC_VERSION_CHECK(3, 0, 0) || defined(__llvm__)) && \
     !defined(BROTLI_BUILD_NO_RBIT)
 #if defined(BROTLI_TARGET_ARMV7) || defined(BROTLI_TARGET_ARMV8_ANY)
-/* TODO: detect ARMv6T2 and enable this code for it. */
+/* TODO(emXozP): detect ARMv6T2 and enable this code for it. */
 static BROTLI_INLINE brotli_reg_t BrotliRBit(brotli_reg_t input) {
   brotli_reg_t output;
   __asm__("rbit %0, %1\n" : "=r"(output) : "r"(input));

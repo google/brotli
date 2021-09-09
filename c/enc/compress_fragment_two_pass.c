@@ -69,7 +69,7 @@ static void BuildAndStoreCommandPrefixCode(BrotliTwoPassArena* s,
                                            size_t* storage_ix,
                                            uint8_t* storage) {
   /* Tree size for building a tree over 64 symbols is 2 * 64 + 1. */
-  /* TODO: initialize once. */
+  /* TODO(emXozP): initialize once. */
   memset(s->tmp_depth, 0, sizeof(s->tmp_depth));
   BrotliCreateHuffmanTree(s->cmd_histo, 64, 15, s->tmp_tree, s->cmd_depth);
   BrotliCreateHuffmanTree(&s->cmd_histo[64], 64, 14, s->tmp_tree,
@@ -472,9 +472,9 @@ static void StoreCommands(BrotliTwoPassArena* s,
 
   size_t i;
   memset(s->lit_histo, 0, sizeof(s->lit_histo));
-  /* TODO: is that necessary? */
+  /* TODO(emXozP): is that necessary? */
   memset(s->cmd_depth, 0, sizeof(s->cmd_depth));
-  /* TODO: is that necessary? */
+  /* TODO(emXozP): is that necessary? */
   memset(s->cmd_bits, 0, sizeof(s->cmd_bits));
   memset(s->cmd_histo, 0, sizeof(s->cmd_histo));
   for (i = 0; i < num_literals; ++i) {

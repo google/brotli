@@ -286,7 +286,7 @@ void BrotliStoreHuffmanTree(const uint8_t* depths, size_t num,
   /* Write the Huffman tree into the brotli-representation.
      The command alphabet is the largest, so this allocation will fit all
      alphabets. */
-  /* TODO: fix me */
+  /* TODO(emXozP): fix me */
   uint8_t huffman_tree[BROTLI_NUM_COMMAND_SYMBOLS];
   uint8_t huffman_tree_extra_bits[BROTLI_NUM_COMMAND_SYMBOLS];
   size_t huffman_tree_size = 0;
@@ -778,7 +778,7 @@ static void BuildAndStoreBlockSplitCode(const uint8_t* types,
     ++length_histo[BlockLengthPrefixCode(lengths[i])];
   }
   StoreVarLenUint8(num_types - 1, storage_ix, storage);
-  if (num_types > 1) {  /* TODO: else? could StoreBlockSwitch occur? */
+  if (num_types > 1) {  /* TODO(emXozP): else? could StoreBlockSwitch occur? */
     BuildAndStoreHuffmanTree(&type_histo[0], num_types + 2, num_types + 2, tree,
                              &code->type_depths[0], &code->type_bits[0],
                              storage_ix, storage);
@@ -1150,12 +1150,12 @@ static void StoreDataWithHuffmanCodes(const uint8_t* input,
   }
 }
 
-/* TODO: pull alloc/dealloc to caller? */
+/* TODO(emXozP): pull alloc/dealloc to caller? */
 typedef struct MetablockArena {
   HistogramLiteral lit_histo;
   HistogramCommand cmd_histo;
   HistogramDistance dist_histo;
-  /* TODO: merge bits and depth? */
+  /* TODO(emXozP): merge bits and depth? */
   uint8_t lit_depth[BROTLI_NUM_LITERAL_SYMBOLS];
   uint16_t lit_bits[BROTLI_NUM_LITERAL_SYMBOLS];
   uint8_t cmd_depth[BROTLI_NUM_COMMAND_SYMBOLS];

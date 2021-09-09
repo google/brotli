@@ -138,7 +138,7 @@ BROTLI_BOOL BrotliEncoderSetParameter(
     BrotliEncoderState* state, BrotliEncoderParameter p, uint32_t value) {
   /* Changing parameters on the fly is not implemented yet. */
   if (state->is_initialized_) return BROTLI_FALSE;
-  /* TODO: Validate/clamp parameters here. */
+  /* TODO(emXozP): Validate/clamp parameters here. */
   switch (p) {
     case BROTLI_PARAM_MODE:
       state->params.mode = (BrotliEncoderMode)value;
@@ -274,7 +274,7 @@ static void EncodeWindowBits(int lgwin, BROTLI_BOOL large_window,
   }
 }
 
-/* TODO: move to compress_fragment.c? */
+/* TODO(emXozP): move to compress_fragment.c? */
 /* Initializes the command and distance prefix codes for the first block. */
 static void InitCommandPrefixCodes(BrotliOnePassArena* s) {
   static const uint8_t kDefaultCommandDepths[128] = {
@@ -506,7 +506,7 @@ static void DecideOverLiteralContextModeling(const uint8_t* input,
 static BROTLI_BOOL ShouldCompress(
     const uint8_t* data, const size_t mask, const uint64_t last_flush_pos,
     const size_t bytes, const size_t num_literals, const size_t num_commands) {
-  /* TODO: find more precise minimal block overhead. */
+  /* TODO(emXozP): find more precise minimal block overhead. */
   if (bytes <= 2) return BROTLI_FALSE;
   if (num_commands < (bytes >> 8) + 2) {
     if ((double)num_literals > 0.99 * (double)bytes) {
@@ -606,7 +606,7 @@ static void WriteMetaBlockInternal(MemoryManager* m,
       size_t num_literal_contexts = 1;
       const uint32_t* literal_context_map = NULL;
       if (!params->disable_literal_context_modeling) {
-        /* TODO: pull to higher level and reuse. */
+        /* TODO(emXozP): pull to higher level and reuse. */
         uint32_t* arena = BROTLI_ALLOC(m, uint32_t, 14 * 32);
         if (BROTLI_IS_OOM(m) || BROTLI_IS_NULL(arena)) return;
         DecideOverLiteralContextModeling(
@@ -1136,7 +1136,7 @@ static BROTLI_BOOL EncodeData(
     const size_t max_commands = max_length / 8;
     const size_t processed_bytes = (size_t)(s->input_pos_ - s->last_flush_pos_);
     /* If maximal possible additional block doesn't fit metablock, flush now. */
-    /* TODO: Postpone decision until next block arrives? */
+    /* TODO(emXozP): Postpone decision until next block arrives? */
     const BROTLI_BOOL next_input_fits_metablock = TO_BROTLI_BOOL(
         processed_bytes + InputBlockSize(s) <= max_length);
     /* If block splitting is not used, then flush as soon as there is some
@@ -1337,7 +1337,7 @@ static BROTLI_NOINLINE BROTLI_BOOL BrotliCompressBufferQuality10(
          allocation here and not before the loop, because if the input is small,
          this will be allocated after the Zopfli cost model is freed, so this
          will not increase peak memory usage.
-         TODO: If the first allocation is too small, increase command
+         TODO(emXozP): If the first allocation is too small, increase command
          buffer size exponentially. */
       new_cmd_alloc_size = BROTLI_MAX(size_t, expected_num_commands,
                                       num_commands + path_size + 1);
@@ -1540,7 +1540,7 @@ BROTLI_BOOL BrotliEncoderCompress(
     return BROTLI_TRUE;
   }
   if (quality == 10) {
-    /* TODO: Implement this direct path for all quality levels. */
+    /* TODO(emXozP): Implement this direct path for all quality levels. */
     const int lg_win = BROTLI_MIN(int, BROTLI_LARGE_MAX_WINDOW_BITS,
                                        BROTLI_MAX(int, 16, lgwin));
     int ok = BrotliCompressBufferQuality10(lg_win, input_size, input_buffer,
