@@ -460,7 +460,7 @@ void BrotliSharedDictionaryDestroyInstance(
 
 BROTLI_BOOL BrotliSharedDictionaryAttach(
     BrotliSharedDictionary* dict, BrotliSharedDictionaryType type,
-    size_t data_size, const uint8_t* data) {
+    size_t data_size, const uint8_t data[BROTLI_ARRAY_PARAM(data_size)]) {
   if (!dict) {
     return BROTLI_FALSE;
   }
