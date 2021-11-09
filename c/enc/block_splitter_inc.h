@@ -234,7 +234,7 @@ static void FN(ClusterBlocks)(MemoryManager* m,
   uint32_t* BROTLI_RESTRICT const remap = u32 + 3 * HISTOGRAMS_PER_BATCH;
   uint32_t* BROTLI_RESTRICT const block_lengths =
       u32 + 4 * HISTOGRAMS_PER_BATCH;
-  /* TODO: move to arena? */
+  /* TODO(eustas): move to arena? */
   HistogramType* tmp = BROTLI_ALLOC(m, HistogramType, 2);
 
   if (BROTLI_IS_OOM(m) || BROTLI_IS_NULL(histogram_symbols) ||
@@ -335,7 +335,7 @@ static void FN(ClusterBlocks)(MemoryManager* m,
         FN(HistogramAdd)(tmp, data[pos++]);
       }
       /* Among equally good histograms prefer last used. */
-      /* TODO: should we give a block-switch discount here? */
+      /* TODO(eustas): should we give a block-switch discount here? */
       best_out = (i == 0) ? histogram_symbols[0] : histogram_symbols[i - 1];
       best_bits = FN(BrotliHistogramBitCostDistance)(
           tmp, &all_histograms[best_out], tmp + 1);

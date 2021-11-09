@@ -527,7 +527,7 @@ BROTLI_BOOL BrotliFindAllStaticDictionaryMatches(
         uint32_t skipdist = (uint32_t)((uint32_t)(1 << dictionary->words->
             size_bits_by_length[len_code]) & ~1u) *
             (uint32_t)dictionary->num_transforms;
-        /* TODO: check for dist overflow */
+        /* TODO(lode): check for dist overflow */
         dist += skipdist;
         AddMatch(dist, (size_t)l, len_code, matches);
       }

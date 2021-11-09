@@ -97,7 +97,7 @@ static void buildFullText(std::vector<std::vector<TextChar>>* data,
 }
 
 /* Build longest-common-prefix based on suffix array and text.
-   TODO: borrowed -> unknown efficiency. */
+   TODO(eustas): borrowed -> unknown efficiency. */
 static void buildLcp(std::vector<TextChar>* text, std::vector<TextIdx>* sa,
     std::vector<TextIdx>* lcp, std::vector<TextIdx>* invese_sa) {
   TextIdx size = static_cast<TextIdx>(text->size());

@@ -219,7 +219,7 @@ int main(int argc, char const* argv[]) {
         }
       } else if (arg1 == 's') {
         sliceLen = readInt(arg2);
-        // TODO: investigate why sliceLen == 4..5 greatly slows down
+        // TODO(eustas): investigate why sliceLen == 4..5 greatly slows down
         //               durschlag engine, but only from command line;
         //               durschlag_runner seems to work fine with those.
         if (sliceLen < 4 || sliceLen > 256) {

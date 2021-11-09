@@ -218,7 +218,7 @@ static BROTLI_NOINLINE BrotliDecoderErrorCode DecodeVarLenUint8(
 
     default:
       return
-          BROTLI_FAILURE(BROTLI_DECODER_ERROR_UNREACHABLE);
+          BROTLI_FAILURE(BROTLI_DECODER_ERROR_UNREACHABLE);  /* COV_NF_LINE */
   }
 }
 
@@ -339,7 +339,7 @@ static BrotliDecoderErrorCode BROTLI_NOINLINE DecodeMetaBlockLength(
 
       default:
         return
-            BROTLI_FAILURE(BROTLI_DECODER_ERROR_UNREACHABLE);
+            BROTLI_FAILURE(BROTLI_DECODER_ERROR_UNREACHABLE);  /* COV_NF_LINE */
     }
   }
 }
@@ -865,7 +865,7 @@ static BrotliDecoderErrorCode ReadHuffmanCode(uint32_t alphabet_size_max,
 
       default:
         return
-            BROTLI_FAILURE(BROTLI_DECODER_ERROR_UNREACHABLE);
+            BROTLI_FAILURE(BROTLI_DECODER_ERROR_UNREACHABLE);  /* COV_NF_LINE */
     }
   }
 }
@@ -1112,7 +1112,7 @@ static BrotliDecoderErrorCode DecodeContextMap(uint32_t context_map_size,
 
     default:
       return
-          BROTLI_FAILURE(BROTLI_DECODER_ERROR_UNREACHABLE);
+          BROTLI_FAILURE(BROTLI_DECODER_ERROR_UNREACHABLE);  /* COV_NF_LINE */
   }
 }
 
@@ -1356,7 +1356,7 @@ static BROTLI_BOOL BROTLI_NOINLINE BrotliEnsureRingBuffer(
 static BrotliDecoderErrorCode BROTLI_NOINLINE CopyUncompressedBlockToOutput(
     size_t* available_out, uint8_t** next_out, size_t* total_out,
     BrotliDecoderState* s) {
-  /* TODO: avoid allocation for single uncompressed block. */
+  /* TODO(eustas): avoid allocation for single uncompressed block. */
   if (!BrotliEnsureRingBuffer(s)) {
     return BROTLI_FAILURE(BROTLI_DECODER_ERROR_ALLOC_RING_BUFFER_1);
   }
@@ -1866,7 +1866,7 @@ static BROTLI_INLINE BrotliDecoderErrorCode ProcessCommandsInternal(
   } else if (s->state == BROTLI_STATE_COMMAND_POST_WRAP_COPY) {
     goto CommandPostWrapCopy;
   } else {
-    return BROTLI_FAILURE(BROTLI_DECODER_ERROR_UNREACHABLE);
+    return BROTLI_FAILURE(BROTLI_DECODER_ERROR_UNREACHABLE);  /* COV_NF_LINE */
   }
 
 CommandBegin:
@@ -2600,7 +2600,7 @@ BrotliDecoderResult BrotliDecoderDecompressStream(
           case 1: hgroup = &s->insert_copy_hgroup; break;
           case 2: hgroup = &s->distance_hgroup; break;
           default: return SaveErrorCode(s, BROTLI_FAILURE(
-              BROTLI_DECODER_ERROR_UNREACHABLE));
+              BROTLI_DECODER_ERROR_UNREACHABLE));  /* COV_NF_LINE */
         }
         result = HuffmanTreeGroupDecode(hgroup, s);
         if (result != BROTLI_DECODER_SUCCESS) break;
@@ -2778,6 +2778,23 @@ const char* BrotliDecoderErrorString(BrotliDecoderErrorCode c) {
 uint32_t BrotliDecoderVersion() {
   return BROTLI_VERSION;
 }
+
+/* Escalate internal functions visibility; for testing purposes only. */
+#if defined(BROTLI_TEST)
+BROTLI_BOOL SafeReadSymbolForTest(
+    const HuffmanCode*, BrotliBitReader*, uint32_t*);
+BROTLI_BOOL SafeReadSymbolForTest(
+    const HuffmanCode* table, BrotliBitReader* br, uint32_t* result) {
+  return SafeReadSymbol(table, br, result);
+}
+
+void InverseMoveToFrontTransformForTest(
+    uint8_t*, uint32_t, BrotliDecoderState*);
+void InverseMoveToFrontTransformForTest(
+    uint8_t* v, uint32_t l, BrotliDecoderState* s) {
+  InverseMoveToFrontTransform(v, l, s);
+}
+#endif
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }  /* extern "C" */

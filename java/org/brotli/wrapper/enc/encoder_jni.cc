@@ -93,7 +93,7 @@ Java_org_brotli_wrapper_enc_EncoderJNI_nativeCreate(
   }
 
   if (ok) {
-    /* TODO: future versions (e.g. when 128-bit architecture comes)
+    /* TODO(eustas): future versions (e.g. when 128-bit architecture comes)
                      might require thread-safe cookie<->handle mapping. */
     context[0] = reinterpret_cast<jlong>(handle);
   } else if (!!handle) {

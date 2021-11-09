@@ -156,24 +156,6 @@ OR:
 #define BROTLI_NOINLINE
 #endif
 
-/* BROTLI_INTERNAL could be defined to override visibility, e.g. for tests. */
-#if !defined(BROTLI_INTERNAL)
-#if defined(_WIN32) || defined(__CYGWIN__)
-#define BROTLI_INTERNAL
-#elif BROTLI_GNUC_VERSION_CHECK(3, 3, 0) ||                         \
-    BROTLI_TI_VERSION_CHECK(8, 0, 0) ||                             \
-    BROTLI_INTEL_VERSION_CHECK(16, 0, 0) ||                         \
-    BROTLI_ARM_VERSION_CHECK(4, 1, 0) ||                            \
-    BROTLI_IBM_VERSION_CHECK(13, 1, 0) ||                           \
-    BROTLI_SUNPRO_VERSION_CHECK(5, 11, 0) ||                        \
-    (BROTLI_TI_VERSION_CHECK(7, 3, 0) &&                            \
-     defined(__TI_GNU_ATTRIBUTE_SUPPORT__) && defined(__TI_EABI__))
-#define BROTLI_INTERNAL __attribute__ ((visibility ("hidden")))
-#else
-#define BROTLI_INTERNAL
-#endif
-#endif
-
 /* <<< <<< <<< end of hedley macros. */
 
 #if BROTLI_GNUC_HAS_ATTRIBUTE(unused, 2, 7, 0) || \
@@ -485,11 +467,11 @@ static BROTLI_INLINE void BrotliDump(const char* f, int l, const char* fn) {
 #define BROTLI_DUMP() (void)(0)
 #endif
 
-/* TODO: add appropriate icc/sunpro/arm/ibm/ti checks. */
+/* TODO(eustas): add appropriate icc/sunpro/arm/ibm/ti checks. */
 #if (BROTLI_GNUC_VERSION_CHECK(3, 0, 0) || defined(__llvm__)) && \
     !defined(BROTLI_BUILD_NO_RBIT)
 #if defined(BROTLI_TARGET_ARMV7) || defined(BROTLI_TARGET_ARMV8_ANY)
-/* TODO: detect ARMv6T2 and enable this code for it. */
+/* TODO(eustas): detect ARMv6T2 and enable this code for it. */
 static BROTLI_INLINE brotli_reg_t BrotliRBit(brotli_reg_t input) {
   brotli_reg_t output;
   __asm__("rbit %0, %1\n" : "=r"(output) : "r"(input));

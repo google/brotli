@@ -664,7 +664,7 @@ static int64_t FileSize(const char* path) {
 }
 
 /* Copy file times and permissions.
-   TODO: this is a "best effort" implementation; honest cross-platform
+   TODO(eustas): this is a "best effort" implementation; honest cross-platform
    fully featured implementation is way too hacky; add more hacks by request. */
 static void CopyStat(const char* input_path, const char* output_path) {
   struct stat statbuf;

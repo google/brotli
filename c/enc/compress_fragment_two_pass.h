@@ -22,7 +22,7 @@
 extern "C" {
 #endif
 
-/* TODO: turn to macro. */
+/* TODO(eustas): turn to macro. */
 static const size_t kCompressFragmentTwoPassBlockSize = 1 << 17;
 
 typedef struct BrotliTwoPassArena {

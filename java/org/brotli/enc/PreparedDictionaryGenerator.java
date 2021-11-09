@@ -73,7 +73,7 @@ public class PreparedDictionaryGenerator {
       accumulator |= (src.get(i) & 0xFFL) << (8 * i);
     }
     accumulator <<= 8;
-    /* TODO: apply custom "store" order. */
+    /* TODO(eustas): apply custom "store" order. */
     for (int i = 0; i + 7 < sourceSize; ++i) {
       accumulator = (accumulator >>> 8) | ((src.get(i + 7) & 0xFFL) << 56);
       long h = (accumulator & hashMask) * HASH_MULTIPLIER;

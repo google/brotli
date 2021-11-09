@@ -66,7 +66,7 @@ final class Huffman {
     int tableOffset = tableGroup[tableIdx];
     int key; // Reversed prefix code.
     int[] sorted = new int[codeLengthsSize]; // Symbols sorted by code length.
-    // TODO: fill with zeroes?
+    // TODO(eustas): fill with zeroes?
     int[] count = new int[MAX_LENGTH + 1]; // Number of codes of each length.
     int[] offset = new int[MAX_LENGTH + 1]; // Offsets in sorted table for each length.
     int symbol;

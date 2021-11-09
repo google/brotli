@@ -479,6 +479,13 @@ BROTLI_ENC_API BROTLI_BOOL BrotliEncoderHasMoreOutput(
 BROTLI_ENC_API const uint8_t* BrotliEncoderTakeOutput(
     BrotliEncoderState* state, size_t* size);
 
+/* Returns the estimated peak memory usage (in bytes) of the BrotliCompress()
+   function, not counting the memory needed for the input and output. */
+BROTLI_ENC_EXTRA_API size_t BrotliEncoderEstimatePeakMemoryUsage(
+    int quality, int lgwin, size_t input_size);
+/* Returns 0 if dictionary is not valid; otherwise returns allocation size. */
+BROTLI_ENC_EXTRA_API size_t BrotliEncoderGetPreparedDictionarySize(
+    const BrotliEncoderPreparedDictionary* dictionary);
 
 /**
  * Gets an encoder library version.

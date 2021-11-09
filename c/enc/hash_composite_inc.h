@@ -48,7 +48,7 @@ static void FN(Initialize)(HasherCommon* common,
   self->hb_common = *self->common;
   self->fresh = BROTLI_TRUE;
   self->params = params;
-  /* TODO: Initialize of the hashers is deferred to Prepare (and params
+  /* TODO(lode): Initialize of the hashers is deferred to Prepare (and params
      remembered here) because we don't get the one_shot and input_size params
      here that are needed to know the memory size of them. Instead provide
      those params to all hashers FN(Initialize) */

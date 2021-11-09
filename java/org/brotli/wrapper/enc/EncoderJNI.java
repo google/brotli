@@ -169,7 +169,7 @@ class EncoderJNI {
     @Override
     protected void finalize() throws Throwable {
       if (context[0] != 0) {
-        /* TODO: log resource leak? */
+        /* TODO(eustas): log resource leak? */
         destroy();
       }
       super.finalize();

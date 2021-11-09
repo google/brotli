@@ -10,12 +10,16 @@ import unittest
 
 
 project_dir = os.path.abspath(os.path.join(__file__, '..', '..', '..'))
-src_dir = os.path.join(project_dir, 'python')
-test_dir = os.path.join(project_dir, 'tests')
+test_dir = os.getenv("BROTLI_TESTS_PATH")
+BRO_ARGS = [os.getenv("BROTLI_WRAPPER")]
 
-python_exe = sys.executable or 'python'
-bro_path = os.path.join(src_dir, 'bro.py')
-BRO_ARGS = [python_exe, bro_path]
+# Fallbacks
+if test_dir is None:
+  test_dir = os.path.join(project_dir, 'tests')
+if BRO_ARGS[0] is None:
+  python_exe = sys.executable or 'python'
+  bro_path = os.path.join(project_dir, 'python', 'bro.py')
+  BRO_ARGS = [python_exe, bro_path]
 
 # Get the platform/version-specific build folder.
 # By default, the distutils build base is in the same location as setup.py.
