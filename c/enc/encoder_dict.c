@@ -367,7 +367,7 @@ static void BuildDictionaryHashTable(uint16_t* hash_table_words,
   /* The order of the loops is such that in case of collision, words with
      shorter length are preferred, and in case of same length, words with
      smaller index. There is only a single word per bucket. */
-  /* TODO: consider adding optional user-supplied frequency_map to use
+  /* TODO(lode): consider adding optional user-supplied frequency_map to use
      for preferred words instead, this can make the encoder better for
      quality 9 and below without affecting the decoder */
   memset(hash_table_words, 0, sizeof(kStaticDictionaryHashWords));
@@ -424,7 +424,7 @@ static void ComputeCutoffTransforms(
      ((cutoffTransforms >> (N * 6)) & 0x3F), so for example the identity
      transform code must be 0-63, for N=1 the transform code must be 4-67, ...,
      for N=9 it must be 36-99.
-     TODO: consider a simple flexible uint8_t[10] instead of the uint64_t
+     TODO(lode): consider a simple flexible uint8_t[10] instead of the uint64_t
      for the cutoff transforms, so that shared dictionaries can have the
      OmitLast transforms anywhere without loss. */
   *count = 0;
@@ -501,7 +501,7 @@ void BrotliInitSharedEncoderDictionary(SharedEncoderDictionary* dict) {
   dict->max_quality = BROTLI_MAX_QUALITY;
 }
 
-/* TODO: make sure that tooling will warn user if not all the cutoff
+/* TODO(eustas): make sure that tooling will warn user if not all the cutoff
    transforms are available (for low-quality encoder). */
 static BROTLI_BOOL InitCustomSharedEncoderDictionary(
     MemoryManager* m, const BrotliSharedDictionary* decoded_dict,
@@ -622,6 +622,14 @@ void BrotliDestroyManagedDictionary(ManagedDictionary* dictionary) {
   if (!dictionary) return;
   BrotliBootstrapFree(dictionary, &dictionary->memory_manager_);
 }
+
+/* Escalate internal functions visibility; for testing purposes only. */
+#if defined(BROTLI_TEST)
+void InitEncoderDictionaryForTest(BrotliEncoderDictionary*);
+void InitEncoderDictionaryForTest(BrotliEncoderDictionary* d) {
+  InitEncoderDictionary(d);
+}
+#endif
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }  /* extern "C" */

@@ -170,7 +170,7 @@ void BrotliSplitBlock(MemoryManager* m,
         kCommandStrideLength, kCommandBlockSwitchCost, params,
         insert_and_copy_split);
     if (BROTLI_IS_OOM(m)) return;
-    /* TODO: reuse for distances? */
+    /* TODO(eustas): reuse for distances? */
     BROTLI_FREE(m, insert_and_copy_codes);
   }
 
@@ -197,6 +197,20 @@ void BrotliSplitBlock(MemoryManager* m,
   }
 }
 
+#if defined(BROTLI_TEST)
+size_t CountLiteralsForTest(const Command*, const size_t);
+size_t CountLiteralsForTest(const Command* cmds, const size_t num_commands) {
+  return CountLiterals(cmds, num_commands);
+}
+
+void CopyLiteralsToByteArrayForTest(const Command*,
+    const size_t, const uint8_t*, const size_t, const size_t, uint8_t*);
+void CopyLiteralsToByteArrayForTest(const Command* cmds,
+    const size_t num_commands, const uint8_t* data, const size_t offset,
+    const size_t mask, uint8_t* literals) {
+  CopyLiteralsToByteArray(cmds, num_commands, data, offset, mask, literals);
+}
+#endif
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }  /* extern "C" */

@@ -69,7 +69,7 @@ static void BuildAndStoreCommandPrefixCode(BrotliTwoPassArena* s,
                                            size_t* storage_ix,
                                            uint8_t* storage) {
   /* Tree size for building a tree over 64 symbols is 2 * 64 + 1. */
-  /* TODO: initialize once. */
+  /* TODO(eustas): initialize once. */
   memset(s->tmp_depth, 0, sizeof(s->tmp_depth));
   BrotliCreateHuffmanTree(s->cmd_histo, 64, 15, s->tmp_tree, s->cmd_depth);
   BrotliCreateHuffmanTree(&s->cmd_histo[64], 64, 14, s->tmp_tree,
@@ -329,6 +329,8 @@ trawl:
         ip += matched;
         BROTLI_DCHECK(0 == memcmp(base, candidate, matched));
         EmitInsertLen((uint32_t)insert, commands);
+        BROTLI_LOG(("[CompressFragment] pos = %d insert = %d copy = %d\n",
+                    (int)(next_emit - base_ip), insert, 2));
         memcpy(*literals, next_emit, (size_t)insert);
         *literals += insert;
         if (distance == last_distance) {
@@ -339,6 +341,12 @@ trawl:
           last_distance = distance;
         }
         EmitCopyLenLastDistance(matched, commands);
+        BROTLI_LOG(("[CompressFragment] pos = %d distance = %d\n"
+                    "[CompressFragment] pos = %d insert = %d copy = %d\n"
+                    "[CompressFragment] pos = %d distance = %d\n",
+                    (int)(base - base_ip), (int)distance,
+                    (int)(base - base_ip) + 2, 0, (int)matched - 2,
+                    (int)(base - base_ip) + 2, (int)distance));
 
         next_emit = ip;
         if (BROTLI_PREDICT_FALSE(ip >= ip_limit)) {
@@ -394,6 +402,10 @@ trawl:
         BROTLI_DCHECK(0 == memcmp(base, candidate, matched));
         EmitCopyLen(matched, commands);
         EmitDistance((uint32_t)last_distance, commands);
+        BROTLI_LOG(("[CompressFragment] pos = %d insert = %d copy = %d\n"
+                    "[CompressFragment] pos = %d distance = %d\n",
+                    (int)(base - base_ip), 0, (int)matched,
+                    (int)(base - base_ip), (int)last_distance));
 
         next_emit = ip;
         if (BROTLI_PREDICT_FALSE(ip >= ip_limit)) {
@@ -446,6 +458,8 @@ emit_remainder:
   if (next_emit < ip_end) {
     const uint32_t insert = (uint32_t)(ip_end - next_emit);
     EmitInsertLen(insert, commands);
+    BROTLI_LOG(("[CompressFragment] pos = %d insert = %d copy = %d\n",
+                (int)(next_emit - base_ip), insert, 2));
     memcpy(*literals, next_emit, insert);
     *literals += insert;
   }
@@ -472,9 +486,9 @@ static void StoreCommands(BrotliTwoPassArena* s,
 
   size_t i;
   memset(s->lit_histo, 0, sizeof(s->lit_histo));
-  /* TODO: is that necessary? */
+  /* TODO(eustas): is that necessary? */
   memset(s->cmd_depth, 0, sizeof(s->cmd_depth));
-  /* TODO: is that necessary? */
+  /* TODO(eustas): is that necessary? */
   memset(s->cmd_bits, 0, sizeof(s->cmd_bits));
   memset(s->cmd_histo, 0, sizeof(s->cmd_histo));
   for (i = 0; i < num_literals; ++i) {

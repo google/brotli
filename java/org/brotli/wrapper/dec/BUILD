@@ -7,7 +7,7 @@ filegroup(
     srcs = [
         "decoder_jni.cc",
         "decoder_jni.h",
-        # TODO: investigate, why this prevents JNI library loading.
+        # TODO(eustas): investigate, why this prevents JNI library loading.
         #"decoder_jni_onload.cc",
     ],
 )

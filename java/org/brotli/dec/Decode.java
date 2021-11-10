@@ -88,7 +88,7 @@ final class Decode {
       0x020000, 0x020004, 0x020003, 0x030002, 0x020000, 0x020004, 0x020003, 0x040005
   };
 
-  // TODO: generalize.
+  // TODO(eustas): generalize.
   static final int MAX_TRANSFORMED_WORD_LENGTH = 5 + 24 + 8;
 
   private static final int MAX_DISTANCE_BITS = 24;
@@ -152,7 +152,7 @@ final class Decode {
     return NUM_DISTANCE_SHORT_CODES + ndirect + 2 * (maxndistbits << npostfix);
   }
 
-  // TODO: add a correctness test for this function when
+  // TODO(eustas): add a correctness test for this function when
   //               large-window and dictionary are implemented.
   private static int calculateDistanceAlphabetLimit(int maxDistance, int npostfix, int ndirect) {
     if (maxDistance < ndirect + (2 << npostfix)) {
@@ -265,7 +265,7 @@ final class Decode {
     s.isLargeWindow = 1;
   }
 
-  // TODO: do we need byte views?
+  // TODO(eustas): do we need byte views?
   static void attachDictionaryChunk(State s, byte[] data) {
     if (s.runningState != INITIALIZED) {
       throw new IllegalStateException("State MUST be freshly initialized");
@@ -485,7 +485,7 @@ final class Decode {
     if (space != 0) {
       throw new BrotliRuntimeException("Unused space"); // COV_NF_LINE
     }
-    // TODO: Pass max_symbol to Huffman table builder instead?
+    // TODO(eustas): Pass max_symbol to Huffman table builder instead?
     Utils.fillIntsWithZeroes(codeLengths, symbol, numSymbols);
   }
 
@@ -504,7 +504,7 @@ final class Decode {
    */
   private static int readSimpleHuffmanCode(int alphabetSizeMax, int alphabetSizeLimit,
       int[] tableGroup, int tableIdx, State s) {
-    // TODO: Avoid allocation?
+    // TODO(eustas): Avoid allocation?
     int[] codeLengths = new int[alphabetSizeLimit];
     int[] symbols = new int[4];
 
@@ -560,7 +560,7 @@ final class Decode {
         break;
     }
 
-    // TODO: Use specialized version?
+    // TODO(eustas): Use specialized version?
     return Huffman.buildHuffmanTable(
         tableGroup, tableIdx, HUFFMAN_TABLE_BITS, codeLengths, alphabetSizeLimit);
   }
@@ -568,7 +568,7 @@ final class Decode {
   // Decode Huffman-coded code lengths.
   private static int readComplexHuffmanCode(int alphabetSizeLimit, int skip,
       int[] tableGroup, int tableIdx, State s) {
-    // TODO: Avoid allocation?
+    // TODO(eustas): Avoid allocation?
     int[] codeLengths = new int[alphabetSizeLimit];
     int[] codeLengthCodeLengths = new int[CODE_LENGTH_CODES];
     int space = 32;
@@ -577,7 +577,7 @@ final class Decode {
       int codeLenIdx = CODE_LENGTH_CODE_ORDER[i];
       BitReader.fillBitWindow(s);
       int p = BitReader.peekBits(s) & 15;
-      // TODO: Demultiplex FIXED_TABLE.
+      // TODO(eustas): Demultiplex FIXED_TABLE.
       s.bitOffset += FIXED_TABLE[p] >> 16;
       int v = FIXED_TABLE[p] & 0xFFFF;
       codeLengthCodeLengths[codeLenIdx] = v;
@@ -709,7 +709,7 @@ final class Decode {
   private static void maybeReallocateRingBuffer(State s) {
     int newSize = s.maxRingBufferSize;
     if (newSize > s.expectedTotalSize) {
-      /* TODO: Handle 2GB+ cases more gracefully. */
+      /* TODO(eustas): Handle 2GB+ cases more gracefully. */
       int minimalNewSize = s.expectedTotalSize;
       while ((newSize >> 1) > minimalNewSize) {
         newSize >>= 1;
@@ -736,7 +736,7 @@ final class Decode {
       s.runningState = INIT_WRITE;
       return;
     }
-    // TODO: Reset? Do we need this?
+    // TODO(eustas): Reset? Do we need this?
     s.literalTreeGroup = new int[0];
     s.commandTreeGroup = new int[0];
     s.distanceTreeGroup = new int[0];
@@ -831,7 +831,7 @@ final class Decode {
     BitReader.fillBitWindow(s);
     s.distancePostfixBits = BitReader.readFewBits(s, 2);
     s.numDirectDistanceCodes = BitReader.readFewBits(s, 4) << s.distancePostfixBits;
-    // TODO: Reuse?
+    // TODO(eustas): Reuse?
     s.contextModes = new byte[s.numLiteralBlockTypes];
     for (int i = 0; i < s.numLiteralBlockTypes;) {
       /* Ensure that less than 256 bits read between readMoreInput. */
@@ -843,7 +843,7 @@ final class Decode {
       BitReader.readMoreInput(s);
     }
 
-    // TODO: Reuse?
+    // TODO(eustas): Reuse?
     s.contextMap = new byte[s.numLiteralBlockTypes << LITERAL_CONTEXT_BITS];
     int numLiteralTrees = decodeContextMap(s.numLiteralBlockTypes << LITERAL_CONTEXT_BITS,
         s.contextMap, s);
@@ -855,7 +855,7 @@ final class Decode {
       }
     }
 
-    // TODO: Reuse?
+    // TODO(eustas): Reuse?
     s.distContextMap = new byte[s.numDistanceBlockTypes << DISTANCE_CONTEXT_BITS];
     int numDistTrees = decodeContextMap(s.numDistanceBlockTypes << DISTANCE_CONTEXT_BITS,
         s.distContextMap, s);
@@ -1091,7 +1091,7 @@ final class Decode {
     byte[] ringBuffer = s.ringBuffer;
 
     while (s.runningState != FINISHED) {
-      // TODO: extract cases to methods for the better readability.
+      // TODO(eustas): extract cases to methods for the better readability.
       switch (s.runningState) {
         case BLOCK_START:
           if (s.metaBlockLength < 0) {

@@ -228,7 +228,7 @@ BROTLI_INTERNAL size_t FN(BrotliHistogramReindex)(MemoryManager* m,
       ++next_index;
     }
   }
-  /* TODO: by using idea of "cycle-sort" we can avoid allocation of
+  /* TODO(eustas): by using idea of "cycle-sort" we can avoid allocation of
      tmp and reduce the number of copying by the factor of 2. */
   tmp = BROTLI_ALLOC(m, HistogramType, next_index);
   if (BROTLI_IS_OOM(m) || BROTLI_IS_NULL(tmp)) return 0;
@@ -259,7 +259,7 @@ BROTLI_INTERNAL void FN(BrotliClusterHistograms)(
   size_t pairs_capacity = max_input_histograms * max_input_histograms / 2;
   /* For the first pass of clustering, we allow all pairs. */
   HistogramPair* pairs = BROTLI_ALLOC(m, HistogramPair, pairs_capacity + 1);
-  /* TODO: move to "persistent" arena? */
+  /* TODO(eustas): move to "persistent" arena? */
   HistogramType* tmp = BROTLI_ALLOC(m, HistogramType, 1);
   size_t i;
 

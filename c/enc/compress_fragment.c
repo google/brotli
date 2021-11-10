@@ -130,7 +130,7 @@ static void BuildAndStoreCommandPrefixCode(BrotliOnePassArena* s,
   uint16_t* const bits = s->cmd_bits;
   uint8_t* BROTLI_RESTRICT const tmp_depth = s->tmp_depth;
   uint16_t* BROTLI_RESTRICT const tmp_bits = s->tmp_bits;
-  /* TODO: do only once on initialization. */
+  /* TODO(eustas): do only once on initialization. */
   memset(tmp_depth, 0, BROTLI_NUM_COMMAND_SYMBOLS);
 
   BrotliCreateHuffmanTree(histogram, 64, 15, s->tree, depth);
@@ -168,7 +168,7 @@ static void BuildAndStoreCommandPrefixCode(BrotliOnePassArena* s,
       tmp_depth[256 + 8 * i] = depth[48 + i];
       tmp_depth[448 + 8 * i] = depth[56 + i];
     }
-    /* TODO: could/should full-length machinery be avoided? */
+    /* TODO(eustas): could/should full-length machinery be avoided? */
     BrotliStoreHuffmanTree(
         tmp_depth, BROTLI_NUM_COMMAND_SYMBOLS, s->tree, storage_ix, storage);
   }
@@ -567,6 +567,8 @@ trawl:
         int distance = (int)(base - candidate);  /* > 0 */
         size_t insert = (size_t)(base - next_emit);
         ip += matched;
+        BROTLI_LOG(("[CompressFragment] pos = %d insert = %lu copy = %d\n",
+                    (int)(next_emit - base_ip), (unsigned long)insert, 2));
         BROTLI_DCHECK(0 == memcmp(base, candidate, matched));
         if (BROTLI_PREDICT_TRUE(insert < 6210)) {
           EmitInsertLen(insert, cmd_depth, cmd_bits, cmd_histo,
@@ -595,6 +597,12 @@ trawl:
         }
         EmitCopyLenLastDistance(matched, cmd_depth, cmd_bits, cmd_histo,
                                 storage_ix, storage);
+        BROTLI_LOG(("[CompressFragment] pos = %d distance = %d\n"
+                    "[CompressFragment] pos = %d insert = %d copy = %d\n"
+                    "[CompressFragment] pos = %d distance = %d\n",
+                    (int)(base - base_ip), (int)distance,
+                    (int)(base - base_ip) + 2, 0, (int)matched - 2,
+                    (int)(base - base_ip) + 2, (int)distance));
 
         next_emit = ip;
         if (BROTLI_PREDICT_FALSE(ip >= ip_limit)) {
@@ -632,6 +640,10 @@ trawl:
                     storage_ix, storage);
         EmitDistance((size_t)last_distance, cmd_depth, cmd_bits,
                      cmd_histo, storage_ix, storage);
+        BROTLI_LOG(("[CompressFragment] pos = %d insert = %d copy = %d\n"
+                    "[CompressFragment] pos = %d distance = %d\n",
+                    (int)(base - base_ip), 0, (int)matched,
+                    (int)(base - base_ip), (int)last_distance));
 
         next_emit = ip;
         if (BROTLI_PREDICT_FALSE(ip >= ip_limit)) {
@@ -682,6 +694,8 @@ trawl:
   /* Emit the remaining bytes as literals. */
   if (next_emit < ip_end) {
     const size_t insert = (size_t)(ip_end - next_emit);
+    BROTLI_LOG(("[CompressFragment] pos = %d insert = %lu copy = %d\n",
+                (int)(next_emit - base_ip), (unsigned long)insert, 2));
     if (BROTLI_PREDICT_TRUE(insert < 6210)) {
       EmitInsertLen(insert, cmd_depth, cmd_bits, cmd_histo,
                     storage_ix, storage);

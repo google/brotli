@@ -138,7 +138,7 @@ BROTLI_BOOL BrotliEncoderSetParameter(
     BrotliEncoderState* state, BrotliEncoderParameter p, uint32_t value) {
   /* Changing parameters on the fly is not implemented yet. */
   if (state->is_initialized_) return BROTLI_FALSE;
-  /* TODO: Validate/clamp parameters here. */
+  /* TODO(eustas): Validate/clamp parameters here. */
   switch (p) {
     case BROTLI_PARAM_MODE:
       state->params.mode = (BrotliEncoderMode)value;
@@ -274,7 +274,7 @@ static void EncodeWindowBits(int lgwin, BROTLI_BOOL large_window,
   }
 }
 
-/* TODO: move to compress_fragment.c? */
+/* TODO(eustas): move to compress_fragment.c? */
 /* Initializes the command and distance prefix codes for the first block. */
 static void InitCommandPrefixCodes(BrotliOnePassArena* s) {
   static const uint8_t kDefaultCommandDepths[128] = {
@@ -506,7 +506,7 @@ static void DecideOverLiteralContextModeling(const uint8_t* input,
 static BROTLI_BOOL ShouldCompress(
     const uint8_t* data, const size_t mask, const uint64_t last_flush_pos,
     const size_t bytes, const size_t num_literals, const size_t num_commands) {
-  /* TODO: find more precise minimal block overhead. */
+  /* TODO(eustas): find more precise minimal block overhead. */
   if (bytes <= 2) return BROTLI_FALSE;
   if (num_commands < (bytes >> 8) + 2) {
     if ((double)num_literals > 0.99 * (double)bytes) {
@@ -606,7 +606,7 @@ static void WriteMetaBlockInternal(MemoryManager* m,
       size_t num_literal_contexts = 1;
       const uint32_t* literal_context_map = NULL;
       if (!params->disable_literal_context_modeling) {
-        /* TODO: pull to higher level and reuse. */
+        /* TODO(eustas): pull to higher level and reuse. */
         uint32_t* arena = BROTLI_ALLOC(m, uint32_t, 14 * 32);
         if (BROTLI_IS_OOM(m) || BROTLI_IS_NULL(arena)) return;
         DecideOverLiteralContextModeling(
@@ -1136,7 +1136,7 @@ static BROTLI_BOOL EncodeData(
     const size_t max_commands = max_length / 8;
     const size_t processed_bytes = (size_t)(s->input_pos_ - s->last_flush_pos_);
     /* If maximal possible additional block doesn't fit metablock, flush now. */
-    /* TODO: Postpone decision until next block arrives? */
+    /* TODO(eustas): Postpone decision until next block arrives? */
     const BROTLI_BOOL next_input_fits_metablock = TO_BROTLI_BOOL(
         processed_bytes + InputBlockSize(s) <= max_length);
     /* If block splitting is not used, then flush as soon as there is some
@@ -1337,7 +1337,7 @@ static BROTLI_NOINLINE BROTLI_BOOL BrotliCompressBufferQuality10(
          allocation here and not before the loop, because if the input is small,
          this will be allocated after the Zopfli cost model is freed, so this
          will not increase peak memory usage.
-         TODO: If the first allocation is too small, increase command
+         TODO(eustas): If the first allocation is too small, increase command
          buffer size exponentially. */
       new_cmd_alloc_size = BROTLI_MAX(size_t, expected_num_commands,
                                       num_commands + path_size + 1);
@@ -1540,7 +1540,7 @@ BROTLI_BOOL BrotliEncoderCompress(
     return BROTLI_TRUE;
   }
   if (quality == 10) {
-    /* TODO: Implement this direct path for all quality levels. */
+    /* TODO(eustas): Implement this direct path for all quality levels. */
     const int lg_win = BROTLI_MIN(int, BROTLI_LARGE_MAX_WINDOW_BITS,
                                        BROTLI_MAX(int, 16, lgwin));
     int ok = BrotliCompressBufferQuality10(lg_win, input_size, input_buffer,
@@ -2090,6 +2090,153 @@ BROTLI_BOOL BrotliEncoderAttachPreparedDictionary(BrotliEncoderState* state,
   }
   return BROTLI_TRUE;
 }
+
+size_t BrotliEncoderEstimatePeakMemoryUsage(int quality, int lgwin,
+                                            size_t input_size) {
+  BrotliEncoderParams params;
+  BrotliEncoderInitParams(&params);
+  params.quality = quality;
+  params.lgwin = lgwin;
+  params.size_hint = input_size;
+  SanitizeParams(&params);
+  params.lgblock = ComputeLgBlock(&params);
+  ChooseHasher(&params, &params.hasher);
+  if (params.quality == FAST_ONE_PASS_COMPRESSION_QUALITY ||
+      params.quality == FAST_TWO_PASS_COMPRESSION_QUALITY) {
+    size_t state_size = sizeof(BrotliEncoderState);
+    size_t block_size = BROTLI_MIN(size_t, input_size, (1ul << params.lgwin));
+    size_t hash_table_size =
+        HashTableSize(MaxHashTableSize(params.quality), block_size);
+    size_t hash_size =
+        (hash_table_size < (1u << 10)) ? 0 : sizeof(int) * hash_table_size;
+    size_t cmdbuf_size = params.quality == FAST_TWO_PASS_COMPRESSION_QUALITY ?
+        5 * BROTLI_MIN(size_t, block_size, 1ul << 17) : 0;
+    if (params.quality == FAST_ONE_PASS_COMPRESSION_QUALITY) {
+      state_size += sizeof(BrotliOnePassArena);
+    } else {
+      state_size += sizeof(BrotliTwoPassArena);
+    }
+    return hash_size + cmdbuf_size + state_size;
+  } else {
+    size_t short_ringbuffer_size = (size_t)1 << params.lgblock;
+    int ringbuffer_bits = ComputeRbBits(&params);
+    size_t ringbuffer_size = input_size < short_ringbuffer_size ?
+        input_size : (1u << ringbuffer_bits) + short_ringbuffer_size;
+    size_t hash_size[4] = {0};
+    size_t metablock_size =
+        BROTLI_MIN(size_t, input_size, MaxMetablockSize(&params));
+    size_t inputblock_size =
+        BROTLI_MIN(size_t, input_size, (size_t)1 << params.lgblock);
+    size_t cmdbuf_size = metablock_size * 2 + inputblock_size * 6;
+    size_t outbuf_size = metablock_size * 2 + 503;
+    size_t histogram_size = 0;
+    HasherSize(&params, BROTLI_TRUE, input_size, hash_size);
+    if (params.quality < MIN_QUALITY_FOR_BLOCK_SPLIT) {
+      cmdbuf_size = BROTLI_MIN(size_t, cmdbuf_size,
+          MAX_NUM_DELAYED_SYMBOLS * sizeof(Command) + inputblock_size * 12);
+    }
+    if (params.quality >= MIN_QUALITY_FOR_HQ_BLOCK_SPLITTING) {
+      /* Only a very rough estimation, based on enwik8. */
+      histogram_size = 200 << 20;
+    } else if (params.quality >= MIN_QUALITY_FOR_BLOCK_SPLIT) {
+      size_t literal_histograms =
+          BROTLI_MIN(size_t, metablock_size / 6144, 256);
+      size_t command_histograms =
+          BROTLI_MIN(size_t, metablock_size / 6144, 256);
+      size_t distance_histograms =
+          BROTLI_MIN(size_t, metablock_size / 6144, 256);
+      histogram_size = literal_histograms * sizeof(HistogramLiteral) +
+                       command_histograms * sizeof(HistogramCommand) +
+                       distance_histograms * sizeof(HistogramDistance);
+    }
+    return (ringbuffer_size +
+            hash_size[0] + hash_size[1] + hash_size[2] + hash_size[3] +
+            cmdbuf_size +
+            outbuf_size +
+            histogram_size);
+  }
+}
+size_t BrotliEncoderGetPreparedDictionarySize(
+    const BrotliEncoderPreparedDictionary* prepared_dictionary) {
+  /* First field of dictionary structs */
+  const BrotliEncoderPreparedDictionary* prepared = prepared_dictionary;
+  uint32_t magic = *((const uint32_t*)prepared);
+  size_t overhead = 0;
+  if (magic == kManagedDictionaryMagic) {
+    const ManagedDictionary* managed = (const ManagedDictionary*)prepared;
+    overhead = sizeof(ManagedDictionary);
+    magic = *managed->dictionary;
+    prepared = (const BrotliEncoderPreparedDictionary*)managed->dictionary;
+  }
+
+  if (magic == kPreparedDictionaryMagic) {
+    const PreparedDictionary* dictionary =
+        (const PreparedDictionary*)prepared;
+    /* Keep in sync with step 3 of CreatePreparedDictionary */
+    return sizeof(PreparedDictionary) + dictionary->source_size +
+        (sizeof(uint32_t) << dictionary->slot_bits) +
+        (sizeof(uint16_t) << dictionary->bucket_bits) +
+        (sizeof(uint32_t) * dictionary->source_offset) + overhead;
+  } else if (magic == kSharedDictionaryMagic) {
+    const SharedEncoderDictionary* dictionary =
+        (const SharedEncoderDictionary*)prepared;
+    const CompoundDictionary* compound = &dictionary->compound;
+    const ContextualEncoderDictionary* contextual = &dictionary->contextual;
+    size_t result = sizeof(*dictionary);
+    size_t i;
+    size_t num_instances;
+    const BrotliEncoderDictionary* instances;
+    for (i = 0; i < compound->num_prepared_instances_; i++) {
+      size_t size = BrotliEncoderGetPreparedDictionarySize(
+          (const BrotliEncoderPreparedDictionary*)
+          compound->prepared_instances_[i]);
+      if (!size) return 0;  /* error */
+      result += size;
+    }
+    if (contextual->context_based) {
+      num_instances = contextual->num_instances_;
+      instances = contextual->instances_;
+      result += sizeof(*instances) * num_instances;
+    } else {
+      num_instances = 1;
+      instances = &contextual->instance_;
+    }
+    for (i = 0; i < num_instances; i++) {
+      const BrotliEncoderDictionary* dict = &instances[i];
+      result += dict->trie.pool_capacity * sizeof(BrotliTrieNode);
+      if (dict->hash_table_data_words_) {
+        result += sizeof(kStaticDictionaryHashWords);
+      }
+      if (dict->hash_table_data_lengths_) {
+        result += sizeof(kStaticDictionaryHashLengths);
+      }
+      if (dict->buckets_data_) {
+        result += sizeof(*dict->buckets_data_) * dict->buckets_alloc_size_;
+      }
+      if (dict->dict_words_data_) {
+        result += sizeof(*dict->dict_words) * dict->dict_words_alloc_size_;
+      }
+      if (dict->words_instance_) {
+        result += sizeof(*dict->words_instance_);
+        /* data_size not added here: it is never allocated by the
+           SharedEncoderDictionary, instead it always points to the file
+           already loaded in memory. So if the caller wants to include
+           this memory as well, add the size of the loaded dictionary
+           file to this. */
+      }
+    }
+    return result + overhead;
+  }
+  return 0;  /* error */
+}
+
+#if defined(BROTLI_TEST)
+size_t MakeUncompressedStreamForTest(const uint8_t*, size_t, uint8_t*);
+size_t MakeUncompressedStreamForTest(
+    const uint8_t* input, size_t input_size, uint8_t* output) {
+  return MakeUncompressedStream(input, input_size, output);
+}
+#endif
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }  /* extern "C" */

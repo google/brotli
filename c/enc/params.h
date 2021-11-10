@@ -40,7 +40,7 @@ typedef struct BrotliEncoderParams {
   BROTLI_BOOL large_window;
   BrotliHasherParams hasher;
   BrotliDistanceParams dist;
-  /* TODO: rename to BrotliShared... */
+  /* TODO(eustas): rename to BrotliShared... */
   SharedEncoderDictionary dictionary;
 } BrotliEncoderParams;
 

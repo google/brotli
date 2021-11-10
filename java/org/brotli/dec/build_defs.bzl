@@ -11,7 +11,8 @@ def brotli_java_test(name, main_class = None, jvm_flags = None, **kwargs):
         jvm_flags = []
     jvm_flags = jvm_flags + _TEST_JVM_FLAGS
 
-    test_package = native.package_name().replace("/", ".")
+    test_package = native.package_name().replace("/", ".").replace("javatests.", "")
+
     if main_class == None:
         test_class = test_package + "." + name
     else:
