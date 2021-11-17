@@ -986,9 +986,9 @@ static BROTLI_BOOL DecompressFile(Context* context, BrotliDecoderState* s) {
       }
       if (context->verbosity > 0) {
         context->end_time = clock();
-        fprintf(stderr, "Decompressed ");
+        fprintf(stdout, "Decompressed ");
         PrintFileProcessingProgress(context);
-        fprintf(stderr, "\n");
+        fprintf(stdout, "\n");
       }
       return BROTLI_TRUE;
     } else {
@@ -1059,9 +1059,9 @@ static BROTLI_BOOL CompressFile(Context* context, BrotliEncoderState* s) {
       if (!FlushOutput(context)) return BROTLI_FALSE;
       if (context->verbosity > 0) {
         context->end_time = clock();
-        fprintf(stderr, "Compressed ");
+        fprintf(stdout, "Compressed ");
         PrintFileProcessingProgress(context);
-        fprintf(stderr, "\n");
+        fprintf(stdout, "\n");
       }
       return BROTLI_TRUE;
     }
