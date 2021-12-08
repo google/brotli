@@ -106,11 +106,7 @@ func (w *Writer) writeChunk(p []byte, op C.BrotliEncoderOperation) (n int, err e
 
 		length := int(result.output_data_size)
 		if length != 0 {
-			// It is a workaround for non-copying-wrapping of native memory.
-			// C-encoder never pushes output block longer than ((2 << 25) + 502).
-			// TODO(eustas): use natural wrapper, when it becomes available, see
-			//               https://golang.org/issue/13656.
-			output := (*[1 << 30]byte)(unsafe.Pointer(result.output_data))[:length:length]
+			output := unsafe.Slice((*byte)(unsafe.Pointer(result.output_data)), length)
 			_, err = w.dst.Write(output)
 			if err != nil {
 				return n, err
