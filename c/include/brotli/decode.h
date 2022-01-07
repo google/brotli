@@ -225,9 +225,9 @@ BROTLI_DEC_API void BrotliDecoderDestroyInstance(BrotliDecoderState* state);
  */
 BROTLI_DEC_API BrotliDecoderResult BrotliDecoderDecompress(
     size_t encoded_size,
-    const uint8_t encoded_buffer[BROTLI_ARRAY_PARAM(encoded_size)],
+    const uint8_t *encoded_buffer,
     size_t* decoded_size,
-    uint8_t decoded_buffer[BROTLI_ARRAY_PARAM(*decoded_size)]);
+    uint8_t *decoded_buffer);
 
 /**
  * Decompresses the input stream to the output stream.

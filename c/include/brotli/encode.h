@@ -357,9 +357,9 @@ BROTLI_ENC_API size_t BrotliEncoderMaxCompressedSize(size_t input_size);
  */
 BROTLI_ENC_API BROTLI_BOOL BrotliEncoderCompress(
     int quality, int lgwin, BrotliEncoderMode mode, size_t input_size,
-    const uint8_t input_buffer[BROTLI_ARRAY_PARAM(input_size)],
+    const uint8_t *input_buffer,
     size_t* encoded_size,
-    uint8_t encoded_buffer[BROTLI_ARRAY_PARAM(*encoded_size)]);
+    uint8_t *encoded_buffer);
 
 /**
  * Compresses input stream to output stream.
