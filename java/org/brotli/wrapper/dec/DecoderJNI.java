@@ -15,7 +15,7 @@ import java.nio.ByteBuffer;
 public class DecoderJNI {
   private static native ByteBuffer nativeCreate(long[] context);
   private static native void nativePush(long[] context, int length);
-  private static native ByteBuffer nativePull(long[] context);
+  private static native ByteBuffer nativePull(long[] context, int length);
   private static native void nativeDestroy(long[] context);
   private static native boolean nativeAttachDictionary(long[] context, ByteBuffer dictionary);
 
@@ -100,6 +100,16 @@ public class DecoderJNI {
     }
 
     public ByteBuffer pull() {
+      return pull(0);
+    }
+
+    /**
+     * Pulls decompressed data from the decoder.
+     * @param length number of bytes that the caller is ready to pull from the decoder, 0 if any amount
+     *               could be handled.
+     * @return a buffer which has at most {@code length} bytes available.
+     */
+    public ByteBuffer pull(int length) {
       if (context[0] == 0) {
         throw new IllegalStateException("brotli decoder is already destroyed");
       }
@@ -107,7 +117,7 @@ public class DecoderJNI {
         throw new IllegalStateException("pulling output from decoder in " + lastStatus + " state");
       }
       fresh = false;
-      ByteBuffer result = nativePull(context);
+      ByteBuffer result = nativePull(context, length);
       parseStatus();
       return result;
     }

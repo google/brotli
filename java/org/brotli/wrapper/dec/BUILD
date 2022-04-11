@@ -101,3 +101,16 @@ java_test(
     test_class = "org.brotli.wrapper.dec.CornerCasesTest",
     runtime_deps = [":test_lib"],
 )
+
+java_test(
+    name = "LengthLimitedTest",
+    size = "large",
+    data = [
+        ":brotli_jni",  # Bazel JNI workaround
+    ],
+    jvm_flags = [
+        "-DBROTLI_JNI_LIBRARY=$(location :brotli_jni)",
+    ],
+    test_class = "org.brotli.wrapper.dec.LengthLimitedTest",
+    runtime_deps = [":test_lib"],
+)

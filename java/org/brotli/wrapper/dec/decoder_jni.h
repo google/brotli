@@ -53,7 +53,7 @@ Java_org_brotli_wrapper_dec_DecoderJNI_nativePush(
  */
 JNIEXPORT jobject JNICALL
 Java_org_brotli_wrapper_dec_DecoderJNI_nativePull(
-    JNIEnv* env, jobject /*jobj*/, jlongArray ctx);
+    JNIEnv* env, jobject /*jobj*/, jlongArray ctx, jint output_length);
 
 /**
  * Releases all used resources.
