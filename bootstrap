@@ -6,9 +6,7 @@ fi
 
 REQUIRED='is required, but not installed.'
 bc -v >/dev/null 2>&1 || { echo >&2 "'bc' $REQUIRED"; exit 1; }
-if [ `uname -s` != "FreeBSD" ]; then
-sed --version >/dev/null 2>&1 || { echo >&2 "'sed' $REQUIRED"; exit 1; }
-fi
+[ "x`echo hello | sed s/hello/world/ 2>/dev/null`" = "xworld" ] || { echo >&2 "'sed' $REQUIRED"; exit 1; }
 autoreconf --version >/dev/null 2>&1 || { echo >&2 "'autoconf' $REQUIRED"; exit 1; }
 
 # If libtool is not installed -> "error: Libtool library used but 'LIBTOOL' is undefined"
