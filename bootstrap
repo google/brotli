@@ -34,4 +34,4 @@ BROTLI_VERSION="$BROTLI_VERSION_MAJOR.$BROTLI_VERSION_MINOR.$BROTLI_VERSION_PATC
 sed -i.bak -r "s/[0-9]+:[0-9]+:[0-9]+/$BROTLI_ABI_INFO/" Makefile.am
 sed -i.bak -r "s/\[[0-9]+\.[0-9]+\.[0-9]+\]/[$BROTLI_VERSION]/" configure.ac
 
-autoreconf --install --force --symlink || exit $
+autoreconf --install --force --symlink || exit $?
