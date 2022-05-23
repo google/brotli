@@ -1,0 +1,5 @@
+
+project: brotli
+target: brotli
+cmds:
+  - cmd: /out/decode_fuzzer

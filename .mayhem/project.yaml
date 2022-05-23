@@ -1,0 +1,21 @@
+homepage: "https://github.com/google/brotli"
+language: c++
+primary_contact: "eustas@chromium.org"
+vendor_ccs:
+  - "jkew@mozilla.com"
+  - "twsmith@mozilla.com"
+fuzzing_engines:
+  - libfuzzer
+  - afl
+  - honggfuzz
+  - dataflow
+sanitizers:
+  - address
+  - dataflow
+  - memory
+  - undefined
+architectures:
+  - x86_64
+  - i386
+main_repo: 'https://github.com/google/brotli.git'
+file_github_issue: True
