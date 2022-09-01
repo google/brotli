@@ -176,7 +176,7 @@ static Command ParseAlias(const char* name) {
   /* Partial comparison. On Windows there could be ".exe" suffix. */
   if (strncmp(name, unbrotli, unbrotli_len) == 0) {
     char terminator = name[unbrotli_len];
-    if (terminator == 0 || terminator == '.') return COMMAND_DECOMPRESS;
+    if (terminator == 0 || terminator == '.') return COMMAND_HELP;
   }
   return COMMAND_COMPRESS;
 }
