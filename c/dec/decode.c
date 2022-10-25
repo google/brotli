@@ -2776,7 +2776,7 @@ const char* BrotliDecoderErrorString(BrotliDecoderErrorCode c) {
   }
 }
 
-uint32_t BrotliDecoderVersion() {
+uint32_t BrotliDecoderVersion(void) {
   return BROTLI_VERSION;
 }
 
