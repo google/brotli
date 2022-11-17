@@ -97,6 +97,7 @@ BROTLI_ENC_H = \
   c/enc/prefix.h \
   c/enc/quality.h \
   c/enc/ringbuffer.h \
+  c/enc/state.h \
   c/enc/static_dict.h \
   c/enc/static_dict_lut.h \
   c/enc/utf8_util.h \

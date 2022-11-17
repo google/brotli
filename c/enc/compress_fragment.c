@@ -16,8 +16,9 @@
 
 #include <string.h>  /* memcmp, memcpy, memset */
 
-#include "../common/platform.h"
 #include <brotli/types.h>
+
+#include "../common/platform.h"
 #include "brotli_bit_stream.h"
 #include "entropy_encode.h"
 #include "fast_log.h"

@@ -30,8 +30,10 @@ class EncoderJNI {
 
   private static class PreparedDictionaryImpl implements PreparedDictionary {
     private ByteBuffer data;
+    /** Reference to (non-copied) LZ data. */
+    private ByteBuffer rawData;
 
-    private PreparedDictionaryImpl(ByteBuffer data) {
+    private PreparedDictionaryImpl(ByteBuffer data, ByteBuffer rawData) {
       this.data = data;
     }
 
@@ -45,6 +47,7 @@ class EncoderJNI {
       try {
         ByteBuffer data = this.data;
         this.data = null;
+        this.rawData = null;
         nativeDestroyDictionary(data);
       } finally {
         super.finalize();
@@ -66,7 +69,7 @@ class EncoderJNI {
     if (dictionaryData == null) {
       throw new IllegalStateException("OOM");
     }
-    return new PreparedDictionaryImpl(dictionaryData);
+    return new PreparedDictionaryImpl(dictionaryData, dictionary);
   }
 
   static class Wrapper {

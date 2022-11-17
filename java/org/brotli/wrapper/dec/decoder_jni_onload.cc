@@ -6,7 +6,7 @@
 
 #include <jni.h>
 
-#include "decoder_jni.h"
+#include "decoder_jni.h"   // NOLINT: build/include
 
 #ifdef __cplusplus
 extern "C" {
@@ -36,7 +36,7 @@ JNIEXPORT jint JNI_OnLoad(JavaVM* vm, void* reserved) {
   }
 
   jclass clazz =
-      env->FindClass("com/google/compression/brotli/wrapper/dec/DecoderJNI");
+      env->FindClass("org/brotli/wrapper/dec/DecoderJNI");
   if (clazz == nullptr) {
     return -1;
   }

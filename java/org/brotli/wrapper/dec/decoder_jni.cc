@@ -4,11 +4,11 @@
    See file LICENSE for detail or copy at https://opensource.org/licenses/MIT
 */
 
-#include "decoder_jni.h"
-
-#include <new>
+#include "decoder_jni.h"  // NOLINT: build/include
 
 #include <brotli/decode.h>
+
+#include <new>
 
 namespace {
 /* A structure used to persist the decoder's state in between calls. */

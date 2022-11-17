@@ -7,10 +7,11 @@
 #ifndef BROTLI_ENC_ENCODER_DICT_H_
 #define BROTLI_ENC_ENCODER_DICT_H_
 
-#include "../common/dictionary.h"
-#include "../common/platform.h"
 #include <brotli/shared_dictionary.h>
 #include <brotli/types.h>
+
+#include "../common/dictionary.h"
+#include "../common/platform.h"
 #include "compound_dictionary.h"
 #include "memory.h"
 #include "static_dict_lut.h"
@@ -102,9 +103,6 @@ typedef struct ContextualEncoderDictionary {
   BrotliEncoderDictionary instance_;
   BrotliEncoderDictionary* instances_;
 } ContextualEncoderDictionary;
-
-static const uint32_t kSharedDictionaryMagic = 0xDEBCEDE1;
-static const uint32_t kManagedDictionaryMagic = 0xDEBCEDE2;
 
 typedef struct SharedEncoderDictionary {
   /* Magic value to distinguish this struct from PreparedDictionary for

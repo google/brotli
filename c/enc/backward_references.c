@@ -8,10 +8,11 @@
 
 #include "backward_references.h"
 
+#include <brotli/types.h>
+
 #include "../common/constants.h"
 #include "../common/dictionary.h"
 #include "../common/platform.h"
-#include <brotli/types.h>
 #include "command.h"
 #include "compound_dictionary.h"
 #include "dictionary_hash.h"

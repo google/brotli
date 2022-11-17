@@ -13,10 +13,12 @@
 #include <stdlib.h>  /* exit */
 #include <string.h>  /* memcmp, memset */
 
+#include <brotli/types.h>
+
 #include "../common/constants.h"
 #include "../common/dictionary.h"
 #include "../common/platform.h"
-#include <brotli/types.h>
+#include "compound_dictionary.h"
 #include "encoder_dict.h"
 #include "fast_log.h"
 #include "find_match_length.h"
@@ -511,7 +513,6 @@ static BROTLI_INLINE void FindCompoundDictionaryMatch(
     const size_t ring_buffer_mask, const int* BROTLI_RESTRICT distance_cache,
     const size_t cur_ix, const size_t max_length, const size_t distance_offset,
     const size_t max_distance, HasherSearchResult* BROTLI_RESTRICT out) {
-  const uint32_t source_offset = self->source_offset;
   const uint32_t source_size = self->source_size;
   const size_t boundary = distance_offset - source_size;
   const uint32_t hash_bits = self->hash_bits;
@@ -525,7 +526,7 @@ static BROTLI_INLINE void FindCompoundDictionaryMatch(
   const uint32_t* slot_offsets = (uint32_t*)(&self[1]);
   const uint16_t* heads = (uint16_t*)(&slot_offsets[1u << slot_bits]);
   const uint32_t* items = (uint32_t*)(&heads[1u << bucket_bits]);
-  const uint8_t* source = (uint8_t*)(&items[source_offset]);
+  const uint8_t* source = NULL;
 
   const size_t cur_ix_masked = cur_ix & ring_buffer_mask;
   score_t best_score = out->score;
@@ -539,6 +540,15 @@ static BROTLI_INLINE void FindCompoundDictionaryMatch(
   const uint32_t head = heads[key];
   const uint32_t* BROTLI_RESTRICT chain = &items[slot_offsets[slot] + head];
   uint32_t item = (head == 0xFFFF) ? 1 : 0;
+
+  const void* tail = (void*)&items[self->num_items];
+  if (self->magic == kPreparedDictionaryMagic) {
+    source = (const uint8_t*)tail;
+  } else {
+    /* kLeanPreparedDictionaryMagic */
+    source = (const uint8_t*)BROTLI_UNALIGNED_LOAD_PTR((const uint8_t**)tail);
+  }
+
   for (i = 0; i < 4; ++i) {
     const size_t distance = (size_t)distance_cache[i];
     size_t offset;
@@ -608,7 +618,6 @@ static BROTLI_INLINE size_t FindAllCompoundDictionaryMatches(
     const size_t ring_buffer_mask, const size_t cur_ix, const size_t min_length,
     const size_t max_length, const size_t distance_offset,
     const size_t max_distance, BackwardMatch* matches, size_t match_limit) {
-  const uint32_t source_offset = self->source_offset;
   const uint32_t source_size = self->source_size;
   const uint32_t hash_bits = self->hash_bits;
   const uint32_t bucket_bits = self->bucket_bits;
@@ -621,7 +630,7 @@ static BROTLI_INLINE size_t FindAllCompoundDictionaryMatches(
   const uint32_t* slot_offsets = (uint32_t*)(&self[1]);
   const uint16_t* heads = (uint16_t*)(&slot_offsets[1u << slot_bits]);
   const uint32_t* items = (uint32_t*)(&heads[1u << bucket_bits]);
-  const uint8_t* source = (uint8_t*)(&items[source_offset]);
+  const uint8_t* source = NULL;
 
   const size_t cur_ix_masked = cur_ix & ring_buffer_mask;
   size_t best_len = min_length;
@@ -634,6 +643,15 @@ static BROTLI_INLINE size_t FindAllCompoundDictionaryMatches(
   const uint32_t* BROTLI_RESTRICT chain = &items[slot_offsets[slot] + head];
   uint32_t item = (head == 0xFFFF) ? 1 : 0;
   size_t found = 0;
+
+  const void* tail = (void*)&items[self->num_items];
+  if (self->magic == kPreparedDictionaryMagic) {
+    source = (const uint8_t*)tail;
+  } else {
+    /* kLeanPreparedDictionaryMagic */
+    source = (const uint8_t*)BROTLI_UNALIGNED_LOAD_PTR((const uint8_t**)tail);
+  }
+
   while (item == 0) {
     size_t offset;
     size_t distance;

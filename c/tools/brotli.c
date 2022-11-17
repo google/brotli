@@ -20,10 +20,11 @@
 #include <sys/types.h>
 #include <time.h>
 
-#include "../common/constants.h"
-#include "../common/version.h"
 #include <brotli/decode.h>
 #include <brotli/encode.h>
+
+#include "../common/constants.h"
+#include "../common/version.h"
 
 #if !defined(_WIN32)
 #include <unistd.h>

@@ -19,6 +19,14 @@ public class BrotliInputStream extends InputStream {
   public static final int DEFAULT_INTERNAL_BUFFER_SIZE = 256;
 
   /**
+   * Value expected by InputStream contract when stream is over.
+   *
+   * In Java it is -1.
+   * In C# it is 0 (should be patched during transpilation).
+   */
+  private static final int END_OF_STREAM_MARKER = -1;
+
+  /**
    * Internal buffer used for efficient byte-by-byte reading.
    */
   private byte[] buffer;
@@ -112,7 +120,8 @@ public class BrotliInputStream extends InputStream {
     if (bufferOffset >= remainingBufferBytes) {
       remainingBufferBytes = read(buffer, 0, buffer.length);
       bufferOffset = 0;
-      if (remainingBufferBytes == -1) {
+      if (remainingBufferBytes == END_OF_STREAM_MARKER) {
+        // Both Java and C# return the same value for EOF on single-byte read.
         return -1;
       }
     }
@@ -151,10 +160,9 @@ public class BrotliInputStream extends InputStream {
       state.outputLength = destLen;
       state.outputUsed = 0;
       Decode.decompress(state);
-      if (state.outputUsed == 0) {
-        return -1;
-      }
-      return state.outputUsed + copyLen;
+      copyLen += state.outputUsed;
+      copyLen = (copyLen > 0) ? copyLen : END_OF_STREAM_MARKER;
+      return copyLen;
     } catch (BrotliRuntimeException ex) {
       throw new IOException("Brotli stream decoding failed", ex);
     }

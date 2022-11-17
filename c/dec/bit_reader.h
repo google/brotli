@@ -11,9 +11,10 @@
 
 #include <string.h>  /* memcpy */
 
+#include <brotli/types.h>
+
 #include "../common/constants.h"
 #include "../common/platform.h"
-#include <brotli/types.h>
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
@@ -53,8 +54,8 @@ BROTLI_INTERNAL void BrotliInitBitReader(BrotliBitReader* const br);
 /* Ensures that accumulator is not empty.
    May consume up to sizeof(brotli_reg_t) - 1 bytes of input.
    Returns BROTLI_FALSE if data is required but there is no input available.
-   For BROTLI_ALIGNED_READ this function also prepares bit reader for aligned
-   reading. */
+   For !BROTLI_UNALIGNED_READ_FAST this function also prepares bit reader for
+   aligned reading. */
 BROTLI_INTERNAL BROTLI_BOOL BrotliWarmupBitReader(BrotliBitReader* const br);
 
 /* Fallback for BrotliSafeReadBits32. Extracted as noninlined method to unburden
@@ -107,7 +108,8 @@ static BROTLI_INLINE BROTLI_BOOL BrotliCheckInputAmount(
 static BROTLI_INLINE void BrotliFillBitWindow(
     BrotliBitReader* const br, uint32_t n_bits) {
 #if (BROTLI_64_BITS)
-  if (!BROTLI_ALIGNED_READ && BROTLI_IS_CONSTANT(n_bits) && (n_bits <= 8)) {
+  if (BROTLI_UNALIGNED_READ_FAST && BROTLI_IS_CONSTANT(n_bits) &&
+      (n_bits <= 8)) {
     uint32_t bit_pos = br->bit_pos_;
     if (bit_pos >= 56) {
       br->val_ =
@@ -117,8 +119,8 @@ static BROTLI_INLINE void BrotliFillBitWindow(
       br->avail_in -= 7;
       br->next_in += 7;
     }
-  } else if (
-      !BROTLI_ALIGNED_READ && BROTLI_IS_CONSTANT(n_bits) && (n_bits <= 16)) {
+  } else if (BROTLI_UNALIGNED_READ_FAST && BROTLI_IS_CONSTANT(n_bits) &&
+             (n_bits <= 16)) {
     uint32_t bit_pos = br->bit_pos_;
     if (bit_pos >= 48) {
       br->val_ =
@@ -140,7 +142,8 @@ static BROTLI_INLINE void BrotliFillBitWindow(
     }
   }
 #else
-  if (!BROTLI_ALIGNED_READ && BROTLI_IS_CONSTANT(n_bits) && (n_bits <= 8)) {
+  if (BROTLI_UNALIGNED_READ_FAST && BROTLI_IS_CONSTANT(n_bits) &&
+      (n_bits <= 8)) {
     uint32_t bit_pos = br->bit_pos_;
     if (bit_pos >= 24) {
       br->val_ =

@@ -919,6 +919,7 @@ final class Decode {
   private static int writeRingBuffer(State s) {
     int toWrite = Math.min(s.outputLength - s.outputUsed,
         s.ringBufferBytesReady - s.ringBufferBytesWritten);
+    // TODO(eustas): DCHECK(toWrite >= 0)
     if (toWrite != 0) {
       System.arraycopy(s.ringBuffer, s.ringBufferBytesWritten, s.output,
           s.outputOffset + s.outputUsed, toWrite);

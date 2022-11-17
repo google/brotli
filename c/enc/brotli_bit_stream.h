@@ -16,9 +16,10 @@
 #ifndef BROTLI_ENC_BROTLI_BIT_STREAM_H_
 #define BROTLI_ENC_BROTLI_BIT_STREAM_H_
 
+#include <brotli/types.h>
+
 #include "../common/context.h"
 #include "../common/platform.h"
-#include <brotli/types.h>
 #include "command.h"
 #include "entropy_encode.h"
 #include "memory.h"

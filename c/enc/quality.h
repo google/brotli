@@ -10,8 +10,9 @@
 #ifndef BROTLI_ENC_QUALITY_H_
 #define BROTLI_ENC_QUALITY_H_
 
-#include "../common/platform.h"
 #include <brotli/encode.h>
+
+#include "../common/platform.h"
 #include "params.h"
 
 #define FAST_ONE_PASS_COMPRESSION_QUALITY 0

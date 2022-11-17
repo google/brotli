@@ -2,10 +2,11 @@
 #include <Python.h>
 #include <bytesobject.h>
 #include <structmember.h>
-#include <vector>
-#include "../common/version.h"
+
 #include <brotli/decode.h>
 #include <brotli/encode.h>
+
+#include <vector>
 
 #if PY_MAJOR_VERSION >= 3
 #define PyInt_Check PyLong_Check
@@ -745,8 +746,9 @@ PyMODINIT_FUNC INIT_BROTLI(void) {
   PyModule_AddIntConstant(m, "MODE_FONT", (int) BROTLI_MODE_FONT);
 
   char version[16];
+  uint32_t decoderVersion = BrotliDecoderVersion();
   snprintf(version, sizeof(version), "%d.%d.%d",
-      BROTLI_VERSION >> 24, (BROTLI_VERSION >> 12) & 0xFFF, BROTLI_VERSION & 0xFFF);
+      decoderVersion >> 24, (decoderVersion >> 12) & 0xFFF, decoderVersion & 0xFFF);
   PyModule_AddStringConstant(m, "__version__", version);
 
   RETURN_BROTLI;

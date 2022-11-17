@@ -7,6 +7,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include <brotli/decode.h>
+
 #if !defined(_WIN32)
 #include <unistd.h>
 #else
@@ -17,8 +19,6 @@
 #define STDOUT_FILENO _fileno(stdout)
 #endif
 #endif
-
-#include <brotli/decode.h>
 
 #define BUFFER_SIZE (1u << 20)
 
