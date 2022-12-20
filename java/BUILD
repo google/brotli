@@ -37,15 +37,10 @@ cc_library(
 # <<< JNI headers
 
 genrule(
-    name = "license_resource",
+    name = "license",
     srcs = ["@org_brotli//:LICENSE"],
     outs = ["META-INF/LICENSE"],
     cmd = "cp -f $< $@",
-)
-
-java_library(
-    name = "license",
-    resources = [":license_resource"],
 )
 
 ########################################################
