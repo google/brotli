@@ -81,17 +81,17 @@ jobs:
             cxx_compiler: g++
             os: macos-latest
 
-          - name: cmake-win64:msvc2017-rel
+          - name: cmake-win64:msvc2019-rel
             build_system: cmake
-            cmake_generator: Visual Studio 15 2017 Win64
+            cmake_generator: Visual Studio 16 2019
             cmake_config: Release
-            os: windows-2016
+            os: windows-2019
 
-          - name: cmake-win64:msvc2017-dbg
+          - name: cmake-win64:msvc2019-dbg
             build_system: cmake
-            cmake_generator: Visual Studio 15 2017 Win64
+            cmake_generator: Visual Studio 16 2019
             cmake_config: Debug
-            os: windows-2016
+            os: windows-2019
 
           # TODO: consider running this combination in docker
           #- name: autotools:gcc5
