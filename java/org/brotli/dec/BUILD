@@ -22,7 +22,7 @@ java_library(
         ],
     ),
     proguard_specs = ["proguard.pgcfg"],
-    resource_jars = ["//:license"],
+    resources = ["//:license"],
 )
 
 brotli_java_test(
