@@ -26,11 +26,7 @@
 #include "../common/constants.h"
 #include "../common/version.h"
 
-#if !defined(_WIN32)
-#include <unistd.h>
-#include <utime.h>
-#define MAKE_BINARY(FILENO) (FILENO)
-#else
+#if defined(_WIN32)
 #include <io.h>
 #include <share.h>
 #include <sys/utime.h>
@@ -72,7 +68,23 @@ static int ms_open(const char* filename, int oflag, int pmode) {
   _sopen_s(&result, filename, oflag | O_BINARY, _SH_DENYNO, pmode);
   return result;
 }
-#endif  /* WIN32 */
+#else  /* !defined(_WIN32) */
+#include <unistd.h>
+#include <utime.h>
+#define MAKE_BINARY(FILENO) (FILENO)
+#endif  /* defined(_WIN32) */
+
+#if defined(__APPLE__) && !defined(_POSIX_C_SOURCE)
+#define HAVE_UTIMENSAT 1
+#define ATIME_NSEC(S) ((S)->st_atimespec.tv_nsec)
+#define MTIME_NSEC(S) ((S)->st_mtimespec.tv_nsec)
+#elif defined(_WIN32) || !defined(AT_SYMLINK_NOFOLLOW)
+#define HAVE_UTIMENSAT 0
+#else
+#define HAVE_UTIMENSAT 1
+#define ATIME_NSEC(S) ((S)->st_atim.tv_nsec)
+#define MTIME_NSEC(S) ((S)->st_mtim.tv_nsec)
+#endif
 
 typedef enum {
   COMMAND_COMPRESS,
@@ -664,12 +676,27 @@ static int64_t FileSize(const char* path) {
   return retval;
 }
 
+static int CopyTimeStat(const struct stat* statbuf, const char* output_path) {
+#if HAVE_UTIMENSAT
+  struct timespec times[2];
+  times[0].tv_sec = statbuf->st_atime;
+  times[0].tv_nsec = ATIME_NSEC(statbuf);
+  times[1].tv_sec = statbuf->st_mtime;
+  times[1].tv_nsec = MTIME_NSEC(statbuf);
+  return utimensat(AT_FDCWD, output_path, times, AT_SYMLINK_NOFOLLOW);
+#else
+  struct utimbuf times;
+  times.actime = statbuf->st_atime;
+  times.modtime = statbuf->st_mtime;
+  return utime(output_path, &times);
+#endif
+}
+
 /* Copy file times and permissions.
    TODO(eustas): this is a "best effort" implementation; honest cross-platform
    fully featured implementation is way too hacky; add more hacks by request. */
 static void CopyStat(const char* input_path, const char* output_path) {
   struct stat statbuf;
-  struct utimbuf times;
   int res;
   if (input_path == 0 || output_path == 0) {
     return;
@@ -677,9 +704,7 @@ static void CopyStat(const char* input_path, const char* output_path) {
   if (stat(input_path, &statbuf) != 0) {
     return;
   }
-  times.actime = statbuf.st_atime;
-  times.modtime = statbuf.st_mtime;
-  utime(output_path, &times);
+  res = CopyTimeStat(&statbuf, output_path);
   res = chmod(output_path, statbuf.st_mode & (S_IRWXU | S_IRWXG | S_IRWXO));
   if (res != 0) {
     fprintf(stderr, "setting access bits failed for [%s]: %s\n",
