@@ -617,7 +617,7 @@ static PyObject* decompress_stream(BrotliDecoderState* dec,
 
     if (result == BROTLI_DECODER_RESULT_NEEDS_MORE_OUTPUT) {
       if (available_out == 0) {
-        if (BlocksOutputBuffer_Grow(&buffer, &available_out, &next_out) < 0) {printf("bbbb\n");
+        if (BlocksOutputBuffer_Grow(&buffer, &available_out, &next_out) < 0) {
           goto error;
         }
       }
