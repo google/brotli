@@ -71,40 +71,33 @@ class BuildExt(build_ext):
             log.info("building '%s' extension", ext.name)
 
         c_sources = []
-        cxx_sources = []
         for source in ext.sources:
             if source.endswith('.c'):
                 c_sources.append(source)
-            else:
-                cxx_sources.append(source)
         extra_args = ext.extra_compile_args or []
 
         objects = []
-        for lang, sources in (('c', c_sources), ('c++', cxx_sources)):
-            if lang == 'c++':
-                if self.compiler.compiler_type == 'msvc':
-                    extra_args.append('/EHsc')
 
-            macros = ext.define_macros[:]
-            if platform.system() == 'Darwin':
-                macros.append(('OS_MACOSX', '1'))
-            elif self.compiler.compiler_type == 'mingw32':
-                # On Windows Python 2.7, pyconfig.h defines "hypot" as "_hypot",
-                # This clashes with GCC's cmath, and causes compilation errors when
-                # building under MinGW: http://bugs.python.org/issue11566
-                macros.append(('_hypot', 'hypot'))
-            for undef in ext.undef_macros:
-                macros.append((undef,))
+        macros = ext.define_macros[:]
+        if platform.system() == 'Darwin':
+            macros.append(('OS_MACOSX', '1'))
+        elif self.compiler.compiler_type == 'mingw32':
+            # On Windows Python 2.7, pyconfig.h defines "hypot" as "_hypot",
+            # This clashes with GCC's cmath, and causes compilation errors when
+            # building under MinGW: http://bugs.python.org/issue11566
+            macros.append(('_hypot', 'hypot'))
+        for undef in ext.undef_macros:
+            macros.append((undef,))
 
-            objs = self.compiler.compile(
-                sources,
-                output_dir=self.build_temp,
-                macros=macros,
-                include_dirs=ext.include_dirs,
-                debug=self.debug,
-                extra_postargs=extra_args,
-                depends=ext.depends)
-            objects.extend(objs)
+        objs = self.compiler.compile(
+            c_sources,
+            output_dir=self.build_temp,
+            macros=macros,
+            include_dirs=ext.include_dirs,
+            debug=self.debug,
+            extra_postargs=extra_args,
+            depends=ext.depends)
+        objects.extend(objs)
 
         self._built_objects = objects[:]
         if ext.extra_objects:
@@ -117,7 +110,7 @@ class BuildExt(build_ext):
 
         ext_path = self.get_ext_fullpath(ext.name)
         # Detect target language, if not provided
-        language = ext.language or self.compiler.detect_language(sources)
+        language = ext.language or self.compiler.detect_language(c_sources)
 
         self.compiler.link_shared_object(
             objects,
@@ -180,7 +173,7 @@ EXT_MODULES = [
     Extension(
         '_brotli',
         sources=[
-            'python/_brotli.cc',
+            'python/_brotli.c',
             'c/common/constants.c',
             'c/common/context.c',
             'c/common/dictionary.c',
@@ -271,8 +264,7 @@ EXT_MODULES = [
         ],
         include_dirs=[
             'c/include',
-        ],
-        language='c++'),
+        ]),
 ]
 
 TEST_SUITE = 'setup.get_test_suite'
