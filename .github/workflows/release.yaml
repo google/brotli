@@ -1,0 +1,118 @@
+# Copyright 2023 Google Inc. All Rights Reserved.
+#
+# Distributed under MIT license.
+# See file LICENSE for detail or copy at https://opensource.org/licenses/MIT
+
+# Workflow for building the release binaries.
+
+name: Release build / deploy
+on:
+  push:
+    branches:
+      - master
+      - v*.*.*
+      - winass
+  release:
+    types: [ published ]
+
+jobs:
+  windows_build:
+    name: Windows Build (vcpkg / ${{ matrix.triplet }})
+    runs-on: [windows-2022]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - triplet: x86-windows-dynamic
+            arch: '-A Win32'
+            build_shared_libs: 'ON'
+          - triplet: x64-windows-dynamic
+            arch: '-A x64'
+            build_shared_libs: 'ON'
+          - triplet: x86-windows-static
+            arch: '-A Win32'
+            build_shared_libs: 'OFF'
+          - triplet: x64-windows-static
+            arch: '-A x64'
+            build_shared_libs: 'OFF'
+
+    env:
+      VCPKG_VERSION: '2022.11.14'
+      VCPKG_ROOT: vcpkg
+      VCPKG_DISABLE_METRICS: 1
+
+    steps:
+    - name: Checkout the source
+      uses: actions/checkout@v3
+      with:
+        submodules: false
+        fetch-depth: 1
+
+    - uses: actions/cache@v3
+      id: cache-vcpkg
+      with:
+        path: vcpkg
+        key: release-${{ runner.os }}-vcpkg-${{ env.VCPKG_VERSION }}-${{ matrix.triplet }}
+
+    - name: Download vcpkg
+      if: steps.cache-vcpkg.outputs.cache-hit != 'true'
+      # wget doesn't seem to work under bash.
+      shell: 'powershell'
+      run: |
+        C:\msys64\usr\bin\wget.exe -nv `
+           https://github.com/microsoft/vcpkg/archive/refs/tags/${{ env.VCPKG_VERSION }}.zip `
+          -O vcpkg.zip
+    - name: Bootstrap vcpkg
+      if: steps.cache-vcpkg.outputs.cache-hit != 'true'
+      shell: 'bash'
+      run: |
+        set -x
+        unzip -q vcpkg.zip
+        rm -rf ${VCPKG_ROOT}
+        mv vcpkg-${VCPKG_VERSION} ${VCPKG_ROOT}
+        ${VCPKG_ROOT}/bootstrap-vcpkg.sh
+
+    - name: Configure
+      shell: 'bash'
+      run: |
+        set -x
+        mkdir out
+        cmake -Bout -H. ${{ matrix.arch }} \
+          -DBUILD_TESTING=OFF \
+          -DBUILD_SHARED_LIBS=${{ matrix.build_shared_libs }} \
+          -DCMAKE_BUILD_TYPE=Release \
+          -DCMAKE_INSTALL_PREFIX=`pwd`/prefix \
+          -DCMAKE_TOOLCHAIN_FILE=${VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake \
+          -DVCPKG_TARGET_TRIPLET=${{ matrix.triplet }} \
+        #
+    - name: Build
+      shell: 'bash'
+      run: |
+        set -x
+        cmake --build out --config Release
+    - name: Install
+      shell: 'bash'
+      run: |
+        set -x
+        cmake --build out --config Release --target install
+        cp LICENSE prefix/bin/LICENSE.brotli
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: brotli-${{matrix.triplet}}
+        path: |
+          prefix/bin/*
+
+    - name: Package release zip
+      if: github.event_name == 'release'
+      shell: 'powershell'
+      run: |
+        Compress-Archive -Path prefix\bin\* `
+          -DestinationPath brotli-${{matrix.triplet}}.zip
+
+    - name: Upload binaries to release
+      if: github.event_name == 'release'
+      uses: AButler/upload-release-assets@v2.0
+      with:
+        files: brotli-${{matrix.triplet}}.zip
+        repo-token: ${{ secrets.GITHUB_TOKEN }}
