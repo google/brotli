@@ -23,10 +23,18 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          - triplet: x86-windows-dynamic
+            arch: '-A Win32'
+            build_shared_libs: 'ON'
+          - triplet: x64-windows-dynamic
+            arch: '-A x64'
+            build_shared_libs: 'ON'
           - triplet: x86-windows-static
             arch: '-A Win32'
+            build_shared_libs: 'OFF'
           - triplet: x64-windows-static
             arch: '-A x64'
+            build_shared_libs: 'OFF'
 
     env:
       VCPKG_VERSION: '2022.11.14'
@@ -71,7 +79,7 @@ jobs:
         mkdir out
         cmake -Bout -H. ${{ matrix.arch }} \
           -DBUILD_TESTING=OFF \
-          -DBUILD_SHARED_LIBS=OFF \
+          -DBUILD_SHARED_LIBS=${{ matrix.build_shared_libs }} \
           -DCMAKE_BUILD_TYPE=Release \
           -DCMAKE_INSTALL_PREFIX=`pwd`/prefix \
           -DCMAKE_TOOLCHAIN_FILE=${VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake \
@@ -91,7 +99,7 @@ jobs:
     - name: Upload artifacts
       uses: actions/upload-artifact@v3
       with:
-        name: jxl-${{matrix.triplet}}
+        name: brotli-${{matrix.triplet}}
         path: |
           prefix/bin/*
 
