@@ -68,8 +68,8 @@ jobs:
       shell: 'bash'
       run: |
         set -x
-        mkdir build
-        cmake -Bbuild -H. ${{ matrix.arch }} \
+        mkdir out
+        cmake -Bout -H. ${{ matrix.arch }} \
           -DBUILD_TESTING=OFF \
           -DCMAKE_BUILD_TYPE=Release \
           -DCMAKE_INSTALL_PREFIX=`pwd`/prefix \
@@ -80,12 +80,12 @@ jobs:
       shell: 'bash'
       run: |
         set -x
-        cmake --build build --config Release
+        cmake --build out --config Release
     - name: Install
       shell: 'bash'
       run: |
         set -x
-        cmake --build build --config Release --target install
+        cmake --build out --config Release --target install
         cp LICENSE prefix/bin/LICENSE.brotli
     - name: Upload artifacts
       uses: actions/upload-artifact@v3
