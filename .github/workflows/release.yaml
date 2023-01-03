@@ -11,6 +11,7 @@ on:
     branches:
       - master
       - v*.*.*
+      - winass
   release:
     types: [ published ]
 
