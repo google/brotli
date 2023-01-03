@@ -71,6 +71,7 @@ jobs:
         mkdir out
         cmake -Bout -H. ${{ matrix.arch }} \
           -DBUILD_TESTING=OFF \
+          -DBUILD_SHARED_LIBS=OFF \
           -DCMAKE_BUILD_TYPE=Release \
           -DCMAKE_INSTALL_PREFIX=`pwd`/prefix \
           -DCMAKE_TOOLCHAIN_FILE=${VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake \
