@@ -34,7 +34,7 @@ static PreparedDictionary* CreatePreparedDictionaryWithParams(MemoryManager* m,
   uint32_t* slot_offsets = NULL;
   uint16_t* heads = NULL;
   uint32_t* items = NULL;
-  const uint8_t** source_ref = NULL;
+  uint8_t** source_ref = NULL;
   uint32_t i;
   uint32_t* slot_size = NULL;
   uint32_t* slot_limit = NULL;
@@ -108,7 +108,7 @@ static PreparedDictionary* CreatePreparedDictionaryWithParams(MemoryManager* m,
   slot_offsets = (uint32_t*)(&result[1]);
   heads = (uint16_t*)(&slot_offsets[num_slots]);
   items = (uint32_t*)(&heads[num_buckets]);
-  source_ref = (const uint8_t**)(&items[total_items]);
+  source_ref = (uint8_t**)(&items[total_items]);
 
   result->magic = kLeanPreparedDictionaryMagic;
   result->num_items = total_items;
