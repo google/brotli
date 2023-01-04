@@ -6,13 +6,13 @@
 
 package org.brotli.wrapper.enc;
 
-import org.brotli.enc.PreparedDictionary;
 import java.io.IOException;
 import java.nio.Buffer;
 import java.nio.ByteBuffer;
 import java.nio.channels.WritableByteChannel;
 import java.util.ArrayList;
 import java.util.List;
+import org.brotli.enc.PreparedDictionary;
 
 /**
  * Base class for OutputStream / Channel implementations.
@@ -209,22 +209,21 @@ public class Encoder {
     }
   }
 
-  /**
-   * Encodes the given data buffer.
-   */
-  public static byte[] compress(byte[] data, Parameters params) throws IOException {
-    if (data.length == 0) {
+  /** Encodes the given data buffer. */
+  public static byte[] compress(byte[] data, int offset, int length, Parameters params)
+      throws IOException {
+    if (length == 0) {
       byte[] empty = new byte[1];
       empty[0] = 6;
       return empty;
     }
     /* data.length > 0 */
     EncoderJNI.Wrapper encoder =
-        new EncoderJNI.Wrapper(data.length, params.quality, params.lgwin, params.mode);
+        new EncoderJNI.Wrapper(length, params.quality, params.lgwin, params.mode);
     ArrayList<byte[]> output = new ArrayList<byte[]>();
     int totalOutputSize = 0;
     try {
-      encoder.getInputBuffer().put(data);
+      encoder.getInputBuffer().put(data, offset, length);
       encoder.push(EncoderJNI.Operation.FINISH, data.length);
       while (true) {
         if (!encoder.isSuccess()) {
@@ -248,16 +247,25 @@ public class Encoder {
       return output.get(0);
     }
     byte[] result = new byte[totalOutputSize];
-    int offset = 0;
+    int resultOffset = 0;
     for (byte[] chunk : output) {
-      System.arraycopy(chunk, 0, result, offset, chunk.length);
-      offset += chunk.length;
+      System.arraycopy(chunk, 0, result, resultOffset, chunk.length);
+      resultOffset += chunk.length;
     }
     return result;
   }
 
+  /** Encodes the given data buffer. */
+  public static byte[] compress(byte[] data, Parameters params) throws IOException {
+    return compress(data, 0, data.length, params);
+  }
+
   public static byte[] compress(byte[] data) throws IOException {
     return compress(data, new Parameters());
+  }
+
+  public static byte[] compress(byte[] data, int offset, int length) throws IOException {
+    return compress(data, offset, length, new Parameters());
   }
 
   /**

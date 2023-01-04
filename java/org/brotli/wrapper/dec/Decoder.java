@@ -138,16 +138,14 @@ public class Decoder {
     source.close();
   }
 
-  /**
-   * Decodes the given data buffer.
-   */
-  public static byte[] decompress(byte[] data) throws IOException {
-    DecoderJNI.Wrapper decoder = new DecoderJNI.Wrapper(data.length);
+  /** Decodes the given data buffer starting at offset till length. */
+  public static byte[] decompress(byte[] data, int offset, int length) throws IOException {
+    DecoderJNI.Wrapper decoder = new DecoderJNI.Wrapper(length);
     ArrayList<byte[]> output = new ArrayList<byte[]>();
     int totalOutputSize = 0;
     try {
-      decoder.getInputBuffer().put(data);
-      decoder.push(data.length);
+      decoder.getInputBuffer().put(data, offset, length);
+      decoder.push(length);
       while (decoder.getStatus() != DecoderJNI.Status.DONE) {
         switch (decoder.getStatus()) {
           case OK:
@@ -182,11 +180,16 @@ public class Decoder {
       return output.get(0);
     }
     byte[] result = new byte[totalOutputSize];
-    int offset = 0;
+    int resultOffset = 0;
     for (byte[] chunk : output) {
-      System.arraycopy(chunk, 0, result, offset, chunk.length);
-      offset += chunk.length;
+      System.arraycopy(chunk, 0, result, resultOffset, chunk.length);
+      resultOffset += chunk.length;
     }
     return result;
+  }
+
+  /** Decodes the given data buffer. */
+  public static byte[] decompress(byte[] data) throws IOException {
+    return decompress(data, 0, data.length);
   }
 }
