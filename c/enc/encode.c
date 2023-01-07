@@ -1829,6 +1829,7 @@ size_t BrotliEncoderEstimatePeakMemoryUsage(int quality, int lgwin,
   params.quality = quality;
   params.lgwin = lgwin;
   params.size_hint = input_size;
+  params.large_window = lgwin > BROTLI_MAX_WINDOW_BITS;
   SanitizeParams(&params);
   params.lgblock = ComputeLgBlock(&params);
   ChooseHasher(&params, &params.hasher);
