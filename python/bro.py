@@ -51,7 +51,7 @@ def main(args=None):
     parser = argparse.ArgumentParser(
         prog=os.path.basename(__file__), description=__doc__)
     parser.add_argument(
-        '--version', action='version', version=brotli.__version__)
+        '--version', action='version', version=brotli.version)
     parser.add_argument(
         '-i',
         '--input',

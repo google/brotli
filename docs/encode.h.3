@@ -587,7 +587,7 @@ invalid values might be accepted in case they would not break encoding process\&
 .PP
 Acquires pointer to internal output buffer\&. This method is used to make language bindings easier and more efficient:
 .IP "1." 4
-push data to \fBBrotliEncoderCompressStream\fP, until \fBBrotliEncoderHasMoreOutput\fP returns BROTL_TRUE
+push data to \fBBrotliEncoderCompressStream\fP, until \fBBrotliEncoderHasMoreOutput\fP returns BROTLI_TRUE
 .IP "2." 4
 use \fBBrotliEncoderTakeOutput\fP to peek bytes and copy to language-specific entity
 .PP

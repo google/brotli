@@ -44,9 +44,17 @@ TESTDATA_FILES = [
     'alice29.txt',  # Large text
     'random_org_10k.bin',  # Small data
     'mapsdatazrh',  # Large data
+    'ukkonooa',  # Poem
 ]
 
-TESTDATA_PATHS = [os.path.join(TESTDATA_DIR, f) for f in TESTDATA_FILES]
+# Some files might be missing in a lightweight sources pack.
+TESTDATA_PATH_CANDIDATES = [
+    os.path.join(TESTDATA_DIR, f) for f in TESTDATA_FILES
+]
+
+TESTDATA_PATHS = [
+    path for path in TESTDATA_PATH_CANDIDATES if os.path.isfile(path)
+]
 
 TESTDATA_PATHS_FOR_DECOMPRESSION = glob.glob(
     os.path.join(TESTDATA_DIR, '*.compressed'))

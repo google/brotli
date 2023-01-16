@@ -22,7 +22,7 @@ following command from this directory:
 You may run the following commands from this directory:
 
     $ make          # Build the module in-place
-   
+
     $ make test     # Test the module
 
     $ make clean    # Remove all temporary files and build output

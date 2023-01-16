@@ -7,7 +7,6 @@ import subprocess
 import unittest
 
 from . import _test_utils
-import brotli
 
 BRO_ARGS = _test_utils.BRO_ARGS
 TEST_ENV = _test_utils.TEST_ENV
