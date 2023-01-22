@@ -47,8 +47,11 @@ public class Encoder {
      */
     FONT;
 
+    // see: https://www.gamlor.info/wordpress/2017/08/javas-enum-values-hidden-allocations/
+    private static final Mode[] ALL_VALUES = values();
+
     public static Mode of(int value) {
-      return values()[value];
+      return ALL_VALUES[value];
     }
   }
 
