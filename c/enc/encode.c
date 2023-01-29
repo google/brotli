@@ -1188,7 +1188,7 @@ static size_t WriteMetadataHeader(
   if (block_size == 0) {
     BrotliWriteBits(2, 0, &storage_ix, header);
   } else {
-    uint32_t nbits = (block_size == 1) ? 0 :
+    uint32_t nbits = (block_size == 1) ? 1 :
         (Log2FloorNonZero((uint32_t)block_size - 1) + 1);
     uint32_t nbytes = (nbits + 7) / 8;
     BrotliWriteBits(2, nbytes, &storage_ix, header);
