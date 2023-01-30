@@ -89,6 +89,10 @@ BROTLI_BOOL BrotliDecoderStateInit(BrotliDecoderState* s,
       BrotliSharedDictionaryCreateInstance(alloc_func, free_func, opaque);
   if (!s->dictionary) return BROTLI_FALSE;
 
+  s->metadata_start_func = NULL;
+  s->metadata_chunk_func = NULL;
+  s->metadata_callback_opaque = 0;
+
   return BROTLI_TRUE;
 }
 

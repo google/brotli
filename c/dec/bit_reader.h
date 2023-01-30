@@ -341,6 +341,11 @@ static BROTLI_INLINE BROTLI_BOOL BrotliJumpToByteBoundary(BrotliBitReader* br) {
   return TO_BROTLI_BOOL(pad_bits == 0);
 }
 
+static BROTLI_INLINE void BrotliDropBytes(BrotliBitReader* br, size_t num) {
+  br->avail_in -= num;
+  br->next_in += num;
+}
+
 /* Copies remaining input bytes stored in the bit reader to the output. Value
    |num| may not be larger than BrotliGetRemainingBytes. The bit reader must be
    warmed up again after this. */
@@ -352,9 +357,10 @@ static BROTLI_INLINE void BrotliCopyBytes(uint8_t* dest,
     ++dest;
     --num;
   }
-  memcpy(dest, br->next_in, num);
-  br->avail_in -= num;
-  br->next_in += num;
+  if (num > 0) {
+    memcpy(dest, br->next_in, num);
+    BrotliDropBytes(br, num);
+  }
 }
 
 #if defined(__cplusplus) || defined(c_plusplus)

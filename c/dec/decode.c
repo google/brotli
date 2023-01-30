@@ -1354,6 +1354,57 @@ static BROTLI_BOOL BROTLI_NOINLINE BrotliEnsureRingBuffer(
   return BROTLI_TRUE;
 }
 
+static BrotliDecoderErrorCode BROTLI_NOINLINE
+SkipMetadataBlock(BrotliDecoderState* s) {
+  BrotliBitReader* br = &s->br;
+
+  if (s->meta_block_remaining_len == 0) {
+    return BROTLI_DECODER_SUCCESS;
+  }
+
+  BROTLI_DCHECK((BrotliGetAvailableBits(br) & 7) == 0);
+
+  /* Drain accumulator. */
+  if (BrotliGetAvailableBits(br) >= 8) {
+    uint8_t buffer[8];
+    int nbytes = (int)(BrotliGetAvailableBits(br)) >> 3;
+    BROTLI_DCHECK(nbytes <= 8);
+    if (nbytes > s->meta_block_remaining_len) {
+      nbytes = s->meta_block_remaining_len;
+    }
+    BrotliCopyBytes(buffer, br, (size_t)nbytes);
+    if (s->metadata_chunk_func) {
+      s->metadata_chunk_func(s->metadata_callback_opaque, buffer,
+                             (size_t)nbytes);
+    }
+    s->meta_block_remaining_len -= nbytes;
+    if (s->meta_block_remaining_len == 0) {
+      return BROTLI_DECODER_SUCCESS;
+    }
+  }
+
+  /* Direct access to metadata is possible. */
+  int nbytes = (int)BrotliGetRemainingBytes(br);
+  if (nbytes > s->meta_block_remaining_len) {
+    nbytes = s->meta_block_remaining_len;
+  }
+  if (nbytes > 0) {
+    if (s->metadata_chunk_func) {
+      s->metadata_chunk_func(s->metadata_callback_opaque, br->next_in,
+                             (size_t)nbytes);
+    }
+    BrotliDropBytes(br, (size_t)nbytes);
+    s->meta_block_remaining_len -= nbytes;
+    if (s->meta_block_remaining_len == 0) {
+      return BROTLI_DECODER_SUCCESS;
+    }
+  }
+
+  BROTLI_DCHECK(BrotliGetRemainingBytes(br) == 0);
+
+  return BROTLI_DECODER_NEEDS_MORE_INPUT;
+}
+
 static BrotliDecoderErrorCode BROTLI_NOINLINE CopyUncompressedBlockToOutput(
     size_t* available_out, uint8_t** next_out, size_t* total_out,
     BrotliDecoderState* s) {
@@ -2414,6 +2465,10 @@ BrotliDecoderResult BrotliDecoderDecompressStream(
         }
         if (s->is_metadata) {
           s->state = BROTLI_STATE_METADATA;
+          if (s->metadata_start_func) {
+            s->metadata_start_func(s->metadata_callback_opaque,
+                                   (size_t)s->meta_block_remaining_len);
+          }
           break;
         }
         if (s->meta_block_remaining_len == 0) {
@@ -2506,17 +2561,11 @@ BrotliDecoderResult BrotliDecoderDecompressStream(
       }
 
       case BROTLI_STATE_METADATA:
-        for (; s->meta_block_remaining_len > 0; --s->meta_block_remaining_len) {
-          uint32_t bits;
-          /* Read one byte and ignore it. */
-          if (!BrotliSafeReadBits(br, 8, &bits)) {
-            result = BROTLI_DECODER_NEEDS_MORE_INPUT;
-            break;
-          }
+        result = SkipMetadataBlock(s);
+        if (result != BROTLI_DECODER_SUCCESS) {
+          break;
         }
-        if (result == BROTLI_DECODER_SUCCESS) {
-          s->state = BROTLI_STATE_METABLOCK_DONE;
-        }
+        s->state = BROTLI_STATE_METABLOCK_DONE;
         break;
 
       case BROTLI_STATE_METABLOCK_HEADER_2: {
@@ -2783,6 +2832,15 @@ const char* BrotliDecoderErrorString(BrotliDecoderErrorCode c) {
 
 uint32_t BrotliDecoderVersion(void) {
   return BROTLI_VERSION;
+}
+
+void BrotliDecoderSetMetadataCallbacks(
+    BrotliDecoderState* state,
+    brotli_decoder_metadata_start_func start_func,
+    brotli_decoder_metadata_chunk_func chunk_func, void* opaque) {
+  state->metadata_start_func = start_func;
+  state->metadata_chunk_func = chunk_func;
+  state->metadata_callback_opaque = opaque;
 }
 
 /* Escalate internal functions visibility; for testing purposes only. */

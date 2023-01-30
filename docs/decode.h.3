@@ -23,6 +23,14 @@ decode.h \- API for Brotli decompression\&.
 
 .in +1c
 .ti -1c
+.RI "typedef void(* \fBbrotli_decoder_metadata_chunk_func\fP) (void *opaque, const uint8_t *data, size_t size)"
+.br
+.RI "\fICallback to fire on metadata block chunk becomes available\&. \fP"
+.ti -1c
+.RI "typedef void(* \fBbrotli_decoder_metadata_start_func\fP) (void *opaque, size_t size)"
+.br
+.RI "\fICallback to fire on metadata block start\&. \fP"
+.ti -1c
 .RI "typedef enum \fBBrotliDecoderParameter\fP \fBBrotliDecoderParameter\fP"
 .br
 .RI "\fIOptions to be used with \fBBrotliDecoderSetParameter\fP\&. \fP"
@@ -76,6 +84,10 @@ decode.h \- API for Brotli decompression\&.
 .br
 .RI "\fIChecks if instance has already consumed input\&. \fP"
 .ti -1c
+.RI "void \fBBrotliDecoderSetMetadataCallbacks\fP (\fBBrotliDecoderState\fP *state, \fBbrotli_decoder_metadata_start_func\fP start_func, \fBbrotli_decoder_metadata_chunk_func\fP chunk_func, void *opaque)"
+.br
+.RI "\fISets callback for receiving metadata blocks\&. \fP"
+.ti -1c
 .RI "\fBBROTLI_BOOL\fP \fBBrotliDecoderSetParameter\fP (\fBBrotliDecoderState\fP *state, \fBBrotliDecoderParameter\fP param, uint32_t value)"
 .br
 .RI "\fISets the specified parameter to the given decoder instance\&. \fP"
@@ -123,6 +135,34 @@ BROTLI_DECODER_ERROR_CODES_LIST(CASE_, NEWLINE_)
 The value of the last error code, negative integer\&. All other error code values are in the range from \fBBROTLI_LAST_ERROR_CODE\fP to \fC-1\fP\&. There are also 4 other possible non-error codes \fC0\fP \&.\&. \fC3\fP in \fBBrotliDecoderErrorCode\fP enumeration\&. 
 .SH "Typedef Documentation"
 .PP 
+.SS "typedef void(* brotli_decoder_metadata_chunk_func) (void *opaque, const uint8_t *data, size_t size)"
+
+.PP
+Callback to fire on metadata block chunk becomes available\&. This function can be invoked multiple times per metadata block; block should be considered finished when sum of \fCsize\fP matches the announced metadata block size\&. Chunks contents pointed by \fCdata\fP are transient and shouln not be accessed after leaving the callback\&.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIopaque\fP callback handle 
+.br
+\fIdata\fP pointer to metadata contents 
+.br
+\fIsize\fP size of metadata block chunk, at least \fC1\fP 
+.RE
+.PP
+
+.SS "typedef void(* brotli_decoder_metadata_start_func) (void *opaque, size_t size)"
+
+.PP
+Callback to fire on metadata block start\&. After this callback is fired, if \fCsize\fP is not \fC0\fP, it is followed by \fBbrotli_decoder_metadata_chunk_func\fP as more metadata block contents become accessible\&.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIopaque\fP callback handle 
+.br
+\fIsize\fP size of metadata block 
+.RE
+.PP
+
 .SS "typedef enum \fBBrotliDecoderParameter\fP  \fBBrotliDecoderParameter\fP"
 
 .PP
@@ -375,6 +415,23 @@ Checks if instance has already consumed input\&. Instance that returns \fBBROTLI
 \fBBROTLI_TRUE\fP if decoder has already used some input bytes 
 .PP
 \fBBROTLI_FALSE\fP otherwise 
+.RE
+.PP
+
+.SS "void BrotliDecoderSetMetadataCallbacks (\fBBrotliDecoderState\fP * state, \fBbrotli_decoder_metadata_start_func\fP start_func, \fBbrotli_decoder_metadata_chunk_func\fP chunk_func, void * opaque)"
+
+.PP
+Sets callback for receiving metadata blocks\&. 
+.PP
+\fBParameters:\fP
+.RS 4
+\fIstate\fP decoder instance 
+.br
+\fIstart_func\fP callback on metadata block start 
+.br
+\fIchunk_func\fP callback on metadata block chunk 
+.br
+\fIopaque\fP callback handle 
 .RE
 .PP
 
