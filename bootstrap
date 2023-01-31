@@ -9,7 +9,8 @@ autoreconf --version >/dev/null 2>&1 || { echo >&2 "'autoconf' $REQUIRED"; exit 
 # -E is POSIX. -r is for GNU sed older than 4.2.
 echo hello | sed -E s/hello/world/ >/dev/null 2>&1 && SED_ERE=-E || SED_ERE=-r
 
-# If libtool is not installed -> "error: Libtool library used but 'LIBTOOL' is undefined"
+# If libtool is not installed ->
+# "error: Libtool library used but 'LIBTOOL' is undefined"
 
 if [ ! -e "./m4" ]; then
 mkdir m4 2>/dev/null
