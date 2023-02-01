@@ -8,19 +8,34 @@
 
 #include <brotli/decode.h>
 
+#define kBufferSize 1024
+
 // Entry point for LibFuzzer.
 int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
-  size_t addend = 0;
-  if (size > 0)
-    addend = data[size - 1] & 7;
-  const uint8_t* next_in = data;
-
-  const int kBufferSize = 1024;
-  uint8_t* buffer = (uint8_t*) malloc(kBufferSize);
-  if (!buffer) {
-    // OOM is out-of-scope here.
+  if (size < 3) {
     return 0;
   }
+  size_t addend = data[0] & 7;
+  uint32_t decode_large = (data[0] & 8) ? 1 : 0;
+  BrotliSharedDictionaryType dict_type = (data[0] & 0x10) ? BROTLI_SHARED_DICTIONARY_SERIALIZED : BROTLI_SHARED_DICTIONARY_RAW;
+  size--;
+  data++;
+  uint16_t dict_size = (uint16_t)((((uint16_t)data[0]) << 8)) | ((uint16_t) data[1]);
+  const uint8_t* dict = data;
+  size-=2;
+  data+=2;
+  if (size < dict_size) {
+    dict_size = 0;
+  }
+  size-=dict_size;
+  data+=dict_size;
+
+  if (addend == 0)
+    addend = size;
+
+  const uint8_t* next_in = data;
+
+  uint8_t buffer[kBufferSize];
   /* The biggest "magic number" in brotli is 16MiB - 16, so no need to check
      the cases with much longer output. */
   const size_t total_out_limit = (addend == 0) ? (1 << 26) : (1 << 24);
@@ -29,12 +44,14 @@ int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   BrotliDecoderState* state = BrotliDecoderCreateInstance(0, 0, 0);
   if (!state) {
     // OOM is out-of-scope here.
-    free(buffer);
     return 0;
   }
 
-  if (addend == 0)
-    addend = size;
+  BrotliDecoderSetParameter(state, BROTLI_DECODER_PARAM_LARGE_WINDOW, decode_large);
+  if (dict_size > 0) {
+    BrotliDecoderAttachDictionary(state, BROTLI_SHARED_DICTIONARY_RAW,
+                                      dict_size, dict);
+  }
   /* Test both fast (addend == size) and slow (addend <= 7) decoding paths. */
   for (size_t i = 0; i < size;) {
     size_t next_i = i + addend;
@@ -58,6 +75,5 @@ int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   }
 
   BrotliDecoderDestroyInstance(state);
-  free(buffer);
   return 0;
 }
