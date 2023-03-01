@@ -211,15 +211,15 @@ typedef struct BrotliMetablockHeaderArena {
   BrotliRunningContextMapState substate_context_map;
   BrotliRunningHuffmanState substate_huffman;
 
-  uint32_t sub_loop_counter;
+  brotli_reg_t sub_loop_counter;
 
-  uint32_t repeat_code_len;
-  uint32_t prev_code_len;
+  brotli_reg_t repeat_code_len;
+  brotli_reg_t prev_code_len;
 
   /* For ReadHuffmanCode. */
-  uint32_t symbol;
-  uint32_t repeat;
-  uint32_t space;
+  brotli_reg_t symbol;
+  brotli_reg_t repeat;
+  brotli_reg_t space;
 
   /* Huffman table for "histograms". */
   HuffmanCode table[32];
@@ -239,15 +239,15 @@ typedef struct BrotliMetablockHeaderArena {
   HuffmanCode* next;
 
   /* For DecodeContextMap. */
-  uint32_t context_index;
-  uint32_t max_run_length_prefix;
-  uint32_t code;
+  brotli_reg_t context_index;
+  brotli_reg_t max_run_length_prefix;
+  brotli_reg_t code;
   HuffmanCode context_map_table[BROTLI_HUFFMAN_MAX_SIZE_272];
 } BrotliMetablockHeaderArena;
 
 typedef struct BrotliMetablockBodyArena {
   uint8_t dist_extra_bits[544];
-  uint32_t dist_offset[544];
+  brotli_reg_t dist_offset[544];
 } BrotliMetablockBodyArena;
 
 struct BrotliDecoderStateStruct {
@@ -268,7 +268,7 @@ struct BrotliDecoderStateStruct {
     uint64_t u64;
     uint8_t u8[8];
   } buffer;
-  uint32_t buffer_length;
+  brotli_reg_t buffer_length;
 
   int pos;
   int max_backward_distance;
@@ -298,14 +298,14 @@ struct BrotliDecoderStateStruct {
   /* Distance context is actual after command is decoded and before distance is
      computed. After distance computation it is used as a temporary variable. */
   int distance_context;
+  brotli_reg_t block_length[3];
   int meta_block_remaining_len;
-  uint32_t block_length_index;
-  uint32_t block_length[3];
-  uint32_t num_block_types[3];
-  uint32_t block_type_rb[6];
-  uint32_t distance_postfix_bits;
-  uint32_t num_direct_distance_codes;
-  uint32_t num_dist_htrees;
+  brotli_reg_t block_length_index;
+  brotli_reg_t num_block_types[3];
+  brotli_reg_t block_type_rb[6];
+  brotli_reg_t distance_postfix_bits;
+  brotli_reg_t num_direct_distance_codes;
+  brotli_reg_t num_dist_htrees;
   uint8_t* dist_context_map;
   HuffmanCode* literal_htree;
   uint8_t dist_htree_index;
@@ -318,7 +318,7 @@ struct BrotliDecoderStateStruct {
   size_t partial_pos_out;  /* how much output to the user in total */
 
   /* For InverseMoveToFrontTransform. */
-  uint32_t mtf_upper_bound;
+  brotli_reg_t mtf_upper_bound;
   uint32_t mtf[64 + 1];
 
   /* Less used attributes are at the end of this struct. */
@@ -343,11 +343,11 @@ struct BrotliDecoderStateStruct {
   unsigned int canny_ringbuffer_allocation : 1;
   unsigned int large_window : 1;
   unsigned int size_nibbles : 8;
-  uint32_t window_bits;
+  brotli_reg_t window_bits;
 
   int new_ringbuffer_size;
 
-  uint32_t num_literal_htrees;
+  brotli_reg_t num_literal_htrees;
   uint8_t* context_map;
   uint8_t* context_modes;
 
@@ -372,8 +372,9 @@ BROTLI_INTERNAL void BrotliDecoderStateMetablockBegin(BrotliDecoderState* s);
 BROTLI_INTERNAL void BrotliDecoderStateCleanupAfterMetablock(
     BrotliDecoderState* s);
 BROTLI_INTERNAL BROTLI_BOOL BrotliDecoderHuffmanTreeGroupInit(
-    BrotliDecoderState* s, HuffmanTreeGroup* group, uint32_t alphabet_size_max,
-    uint32_t alphabet_size_limit, uint32_t ntrees);
+    BrotliDecoderState* s, HuffmanTreeGroup* group,
+    brotli_reg_t alphabet_size_max, brotli_reg_t alphabet_size_limit,
+    brotli_reg_t ntrees);
 
 #define BROTLI_DECODER_ALLOC(S, L) S->alloc_func(S->memory_manager_opaque, L)
 

@@ -14,13 +14,6 @@ def create_msvc_config():
   # be removed.
   if hasattr(cc_common, "do_not_use_tools_cpp_compiler_present"):
     native.config_setting(
-      name = "clang-cl",
-      flag_values = {
-          "@bazel_tools//tools/cpp:compiler": "clang-cl",
-      },
-      visibility = ["//visibility:public"],
-    )
-    native.config_setting(
       name = "msvc",
       flag_values = {
           "@bazel_tools//tools/cpp:compiler": "msvc-cl",
@@ -28,11 +21,6 @@ def create_msvc_config():
       visibility = ["//visibility:public"],
     )
   else:
-    native.config_setting(
-      name = "clang-cl",
-      values = {"compiler": "clang-cl"},
-      visibility = ["//visibility:public"],
-    )
     native.config_setting(
       name = "msvc",
       values = {"compiler": "msvc-cl"},

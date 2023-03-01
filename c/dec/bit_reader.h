@@ -22,13 +22,13 @@ extern "C" {
 
 #define BROTLI_SHORT_FILL_BIT_WINDOW_READ (sizeof(brotli_reg_t) >> 1)
 
-BROTLI_INTERNAL extern const uint32_t kBrotliBitMask[33];
+BROTLI_INTERNAL extern const brotli_reg_t kBrotliBitMask[33];
 
-static BROTLI_INLINE uint32_t BitMask(uint32_t n) {
+static BROTLI_INLINE brotli_reg_t BitMask(brotli_reg_t n) {
   if (BROTLI_IS_CONSTANT(n) || BROTLI_HAS_UBFX) {
     /* Masking with this expression turns to a single
        "Unsigned Bit Field Extract" UBFX instruction on ARM. */
-    return ~((0xFFFFFFFFu) << n);
+    return ~(~((brotli_reg_t)0) << n);
   } else {
     return kBrotliBitMask[n];
   }
@@ -36,33 +36,33 @@ static BROTLI_INLINE uint32_t BitMask(uint32_t n) {
 
 typedef struct {
   brotli_reg_t val_;       /* pre-fetched bits */
-  uint32_t bit_pos_;       /* current bit-reading position in val_ */
+  brotli_reg_t bit_pos_;   /* current bit-reading position in val_ */
   const uint8_t* next_in;  /* the byte we're reading from */
   size_t avail_in;
 } BrotliBitReader;
 
 typedef struct {
   brotli_reg_t val_;
-  uint32_t bit_pos_;
+  brotli_reg_t bit_pos_;
   const uint8_t* next_in;
   size_t avail_in;
 } BrotliBitReaderState;
 
 /* Initializes the BrotliBitReader fields. */
-BROTLI_INTERNAL void BrotliInitBitReader(BrotliBitReader* const br);
+BROTLI_INTERNAL void BrotliInitBitReader(BrotliBitReader* br);
 
 /* Ensures that accumulator is not empty.
    May consume up to sizeof(brotli_reg_t) - 1 bytes of input.
    Returns BROTLI_FALSE if data is required but there is no input available.
    For !BROTLI_UNALIGNED_READ_FAST this function also prepares bit reader for
    aligned reading. */
-BROTLI_INTERNAL BROTLI_BOOL BrotliWarmupBitReader(BrotliBitReader* const br);
+BROTLI_INTERNAL BROTLI_BOOL BrotliWarmupBitReader(BrotliBitReader* br);
 
 /* Fallback for BrotliSafeReadBits32. Extracted as noninlined method to unburden
    the main code-path. Never called for RFC brotli streams, required only for
    "large-window" mode and other extensions. */
 BROTLI_INTERNAL BROTLI_NOINLINE BROTLI_BOOL BrotliSafeReadBits32Slow(
-    BrotliBitReader* const br, uint32_t n_bits, uint32_t* val);
+    BrotliBitReader* br, brotli_reg_t n_bits, brotli_reg_t* val);
 
 static BROTLI_INLINE void BrotliBitReaderSaveState(
     BrotliBitReader* const from, BrotliBitReaderState* to) {
@@ -80,7 +80,7 @@ static BROTLI_INLINE void BrotliBitReaderRestoreState(
   to->avail_in = from->avail_in;
 }
 
-static BROTLI_INLINE uint32_t BrotliGetAvailableBits(
+static BROTLI_INLINE brotli_reg_t BrotliGetAvailableBits(
     const BrotliBitReader* br) {
   return (BROTLI_64_BITS ? 64 : 32) - br->bit_pos_;
 }
@@ -106,11 +106,11 @@ static BROTLI_INLINE BROTLI_BOOL BrotliCheckInputAmount(
    |n_bits| should be in the range [1..24] for regular build. For portable
    non-64-bit little-endian build only 16 bits are safe to request. */
 static BROTLI_INLINE void BrotliFillBitWindow(
-    BrotliBitReader* const br, uint32_t n_bits) {
+    BrotliBitReader* const br, brotli_reg_t n_bits) {
 #if (BROTLI_64_BITS)
   if (BROTLI_UNALIGNED_READ_FAST && BROTLI_IS_CONSTANT(n_bits) &&
       (n_bits <= 8)) {
-    uint32_t bit_pos = br->bit_pos_;
+    brotli_reg_t bit_pos = br->bit_pos_;
     if (bit_pos >= 56) {
       br->val_ =
           (br->val_ >> 56) | (BROTLI_UNALIGNED_LOAD64LE(br->next_in) << 8);
@@ -121,7 +121,7 @@ static BROTLI_INLINE void BrotliFillBitWindow(
     }
   } else if (BROTLI_UNALIGNED_READ_FAST && BROTLI_IS_CONSTANT(n_bits) &&
              (n_bits <= 16)) {
-    uint32_t bit_pos = br->bit_pos_;
+    brotli_reg_t bit_pos = br->bit_pos_;
     if (bit_pos >= 48) {
       br->val_ =
           (br->val_ >> 48) | (BROTLI_UNALIGNED_LOAD64LE(br->next_in) << 16);
@@ -131,7 +131,7 @@ static BROTLI_INLINE void BrotliFillBitWindow(
       br->next_in += 6;
     }
   } else {
-    uint32_t bit_pos = br->bit_pos_;
+    brotli_reg_t bit_pos = br->bit_pos_;
     if (bit_pos >= 32) {
       br->val_ = (br->val_ >> 32) |
                  (((uint64_t)BROTLI_UNALIGNED_LOAD32LE(br->next_in)) << 32);
@@ -144,7 +144,7 @@ static BROTLI_INLINE void BrotliFillBitWindow(
 #else
   if (BROTLI_UNALIGNED_READ_FAST && BROTLI_IS_CONSTANT(n_bits) &&
       (n_bits <= 8)) {
-    uint32_t bit_pos = br->bit_pos_;
+    brotli_reg_t bit_pos = br->bit_pos_;
     if (bit_pos >= 24) {
       br->val_ =
           (br->val_ >> 24) | (BROTLI_UNALIGNED_LOAD32LE(br->next_in) << 8);
@@ -154,10 +154,10 @@ static BROTLI_INLINE void BrotliFillBitWindow(
       br->next_in += 3;
     }
   } else {
-    uint32_t bit_pos = br->bit_pos_;
+    brotli_reg_t bit_pos = br->bit_pos_;
     if (bit_pos >= 16) {
       br->val_ = (br->val_ >> 16) |
-                 (((uint32_t)BROTLI_UNALIGNED_LOAD16LE(br->next_in)) << 16);
+                 (((brotli_reg_t)BROTLI_UNALIGNED_LOAD16LE(br->next_in)) << 16);
       br->bit_pos_ =
           bit_pos ^ 16; /* here same as -= 16 because of the if condition */
       br->avail_in -= BROTLI_SHORT_FILL_BIT_WINDOW_READ;
@@ -183,7 +183,7 @@ static BROTLI_INLINE BROTLI_BOOL BrotliPullByte(BrotliBitReader* const br) {
 #if (BROTLI_64_BITS)
   br->val_ |= ((uint64_t)*br->next_in) << 56;
 #else
-  br->val_ |= ((uint32_t)*br->next_in) << 24;
+  br->val_ |= ((brotli_reg_t)*br->next_in) << 24;
 #endif
   br->bit_pos_ -= 8;
   --br->avail_in;
@@ -200,42 +200,42 @@ static BROTLI_INLINE brotli_reg_t BrotliGetBitsUnmasked(
 
 /* Like BrotliGetBits, but does not mask the result.
    The result contains at least 16 valid bits. */
-static BROTLI_INLINE uint32_t BrotliGet16BitsUnmasked(
+static BROTLI_INLINE brotli_reg_t BrotliGet16BitsUnmasked(
     BrotliBitReader* const br) {
   BrotliFillBitWindow(br, 16);
-  return (uint32_t)BrotliGetBitsUnmasked(br);
+  return (brotli_reg_t)BrotliGetBitsUnmasked(br);
 }
 
 /* Returns the specified number of bits from |br| without advancing bit
    position. */
-static BROTLI_INLINE uint32_t BrotliGetBits(
-    BrotliBitReader* const br, uint32_t n_bits) {
+static BROTLI_INLINE brotli_reg_t BrotliGetBits(
+    BrotliBitReader* const br, brotli_reg_t n_bits) {
   BrotliFillBitWindow(br, n_bits);
-  return (uint32_t)BrotliGetBitsUnmasked(br) & BitMask(n_bits);
+  return BrotliGetBitsUnmasked(br) & BitMask(n_bits);
 }
 
 /* Tries to peek the specified amount of bits. Returns BROTLI_FALSE, if there
    is not enough input. */
 static BROTLI_INLINE BROTLI_BOOL BrotliSafeGetBits(
-    BrotliBitReader* const br, uint32_t n_bits, uint32_t* val) {
+    BrotliBitReader* const br, brotli_reg_t n_bits, brotli_reg_t* val) {
   while (BrotliGetAvailableBits(br) < n_bits) {
     if (!BrotliPullByte(br)) {
       return BROTLI_FALSE;
     }
   }
-  *val = (uint32_t)BrotliGetBitsUnmasked(br) & BitMask(n_bits);
+  *val = BrotliGetBitsUnmasked(br) & BitMask(n_bits);
   return BROTLI_TRUE;
 }
 
 /* Advances the bit pos by |n_bits|. */
 static BROTLI_INLINE void BrotliDropBits(
-    BrotliBitReader* const br, uint32_t n_bits) {
+    BrotliBitReader* const br, brotli_reg_t n_bits) {
   br->bit_pos_ += n_bits;
 }
 
 static BROTLI_INLINE void BrotliBitReaderUnload(BrotliBitReader* br) {
-  uint32_t unused_bytes = BrotliGetAvailableBits(br) >> 3;
-  uint32_t unused_bits = unused_bytes << 3;
+  brotli_reg_t unused_bytes = BrotliGetAvailableBits(br) >> 3;
+  brotli_reg_t unused_bits = unused_bytes << 3;
   br->avail_in += unused_bytes;
   br->next_in -= unused_bytes;
   if (unused_bits == sizeof(br->val_) << 3) {
@@ -249,8 +249,8 @@ static BROTLI_INLINE void BrotliBitReaderUnload(BrotliBitReader* br) {
 /* Reads the specified number of bits from |br| and advances the bit pos.
    Precondition: accumulator MUST contain at least |n_bits|. */
 static BROTLI_INLINE void BrotliTakeBits(
-  BrotliBitReader* const br, uint32_t n_bits, uint32_t* val) {
-  *val = (uint32_t)BrotliGetBitsUnmasked(br) & BitMask(n_bits);
+  BrotliBitReader* const br, brotli_reg_t n_bits, brotli_reg_t* val) {
+  *val = BrotliGetBitsUnmasked(br) & BitMask(n_bits);
   BROTLI_LOG(("[BrotliTakeBits]  %d %d %d val: %6x\n",
       (int)br->avail_in, (int)br->bit_pos_, (int)n_bits, (int)*val));
   BrotliDropBits(br, n_bits);
@@ -259,17 +259,17 @@ static BROTLI_INLINE void BrotliTakeBits(
 /* Reads the specified number of bits from |br| and advances the bit pos.
    Assumes that there is enough input to perform BrotliFillBitWindow.
    Up to 24 bits are allowed to be requested from this method. */
-static BROTLI_INLINE uint32_t BrotliReadBits24(
-    BrotliBitReader* const br, uint32_t n_bits) {
+static BROTLI_INLINE brotli_reg_t BrotliReadBits24(
+    BrotliBitReader* const br, brotli_reg_t n_bits) {
   BROTLI_DCHECK(n_bits <= 24);
   if (BROTLI_64_BITS || (n_bits <= 16)) {
-    uint32_t val;
+    brotli_reg_t val;
     BrotliFillBitWindow(br, n_bits);
     BrotliTakeBits(br, n_bits, &val);
     return val;
   } else {
-    uint32_t low_val;
-    uint32_t high_val;
+    brotli_reg_t low_val;
+    brotli_reg_t high_val;
     BrotliFillBitWindow(br, 16);
     BrotliTakeBits(br, 16, &low_val);
     BrotliFillBitWindow(br, 8);
@@ -279,17 +279,17 @@ static BROTLI_INLINE uint32_t BrotliReadBits24(
 }
 
 /* Same as BrotliReadBits24, but allows reading up to 32 bits. */
-static BROTLI_INLINE uint32_t BrotliReadBits32(
-    BrotliBitReader* const br, uint32_t n_bits) {
+static BROTLI_INLINE brotli_reg_t BrotliReadBits32(
+    BrotliBitReader* const br, brotli_reg_t n_bits) {
   BROTLI_DCHECK(n_bits <= 32);
   if (BROTLI_64_BITS || (n_bits <= 16)) {
-    uint32_t val;
+    brotli_reg_t val;
     BrotliFillBitWindow(br, n_bits);
     BrotliTakeBits(br, n_bits, &val);
     return val;
   } else {
-    uint32_t low_val;
-    uint32_t high_val;
+    brotli_reg_t low_val;
+    brotli_reg_t high_val;
     BrotliFillBitWindow(br, 16);
     BrotliTakeBits(br, 16, &low_val);
     BrotliFillBitWindow(br, 16);
@@ -302,7 +302,7 @@ static BROTLI_INLINE uint32_t BrotliReadBits32(
    is not enough input. |n_bits| MUST be positive.
    Up to 24 bits are allowed to be requested from this method. */
 static BROTLI_INLINE BROTLI_BOOL BrotliSafeReadBits(
-    BrotliBitReader* const br, uint32_t n_bits, uint32_t* val) {
+    BrotliBitReader* const br, brotli_reg_t n_bits, brotli_reg_t* val) {
   BROTLI_DCHECK(n_bits <= 24);
   while (BrotliGetAvailableBits(br) < n_bits) {
     if (!BrotliPullByte(br)) {
@@ -315,7 +315,7 @@ static BROTLI_INLINE BROTLI_BOOL BrotliSafeReadBits(
 
 /* Same as BrotliSafeReadBits, but allows reading up to 32 bits. */
 static BROTLI_INLINE BROTLI_BOOL BrotliSafeReadBits32(
-    BrotliBitReader* const br, uint32_t n_bits, uint32_t* val) {
+    BrotliBitReader* const br, brotli_reg_t n_bits, brotli_reg_t* val) {
   BROTLI_DCHECK(n_bits <= 32);
   if (BROTLI_64_BITS || (n_bits <= 24)) {
     while (BrotliGetAvailableBits(br) < n_bits) {
@@ -333,8 +333,8 @@ static BROTLI_INLINE BROTLI_BOOL BrotliSafeReadBits32(
 /* Advances the bit reader position to the next byte boundary and verifies
    that any skipped bits are set to zero. */
 static BROTLI_INLINE BROTLI_BOOL BrotliJumpToByteBoundary(BrotliBitReader* br) {
-  uint32_t pad_bits_count = BrotliGetAvailableBits(br) & 0x7;
-  uint32_t pad_bits = 0;
+  brotli_reg_t pad_bits_count = BrotliGetAvailableBits(br) & 0x7;
+  brotli_reg_t pad_bits = 0;
   if (pad_bits_count != 0) {
     BrotliTakeBits(br, pad_bits_count, &pad_bits);
   }
@@ -361,6 +361,25 @@ static BROTLI_INLINE void BrotliCopyBytes(uint8_t* dest,
     memcpy(dest, br->next_in, num);
     BrotliDropBytes(br, num);
   }
+}
+
+BROTLI_UNUSED_FUNCTION void BrotliBitReaderSuppressUnusedFunctions(void) {
+  BROTLI_UNUSED(&BrotliBitReaderSuppressUnusedFunctions);
+  BROTLI_UNUSED(&BrotliBitReaderSaveState);
+  BROTLI_UNUSED(&BrotliBitReaderRestoreState);
+  BROTLI_UNUSED(&BrotliGetRemainingBytes);
+  BROTLI_UNUSED(&BrotliCheckInputAmount);
+  BROTLI_UNUSED(&BrotliFillBitWindow16);
+  BROTLI_UNUSED(&BrotliGet16BitsUnmasked);
+  BROTLI_UNUSED(&BrotliGetBits);
+  BROTLI_UNUSED(&BrotliSafeGetBits);
+  BROTLI_UNUSED(&BrotliBitReaderUnload);
+  BROTLI_UNUSED(&BrotliReadBits24);
+  BROTLI_UNUSED(&BrotliReadBits32);
+  BROTLI_UNUSED(&BrotliSafeReadBits);
+  BROTLI_UNUSED(&BrotliSafeReadBits32);
+  BROTLI_UNUSED(&BrotliJumpToByteBoundary);
+  BROTLI_UNUSED(&BrotliCopyBytes);
 }
 
 #if defined(__cplusplus) || defined(c_plusplus)

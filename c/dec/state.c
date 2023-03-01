@@ -158,8 +158,8 @@ void BrotliDecoderStateCleanup(BrotliDecoderState* s) {
 }
 
 BROTLI_BOOL BrotliDecoderHuffmanTreeGroupInit(BrotliDecoderState* s,
-    HuffmanTreeGroup* group, uint32_t alphabet_size_max,
-    uint32_t alphabet_size_limit, uint32_t ntrees) {
+    HuffmanTreeGroup* group, brotli_reg_t alphabet_size_max,
+    brotli_reg_t alphabet_size_limit, brotli_reg_t ntrees) {
   /* 376 = 256 (1-st level table) + 4 + 7 + 15 + 31 + 63 (2-nd level mix-tables)
      This number is discovered "unlimited" "enough" calculator; it is actually
      a wee bigger than required in several cases (especially for alphabets with

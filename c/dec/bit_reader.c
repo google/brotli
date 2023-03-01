@@ -16,7 +16,7 @@
 extern "C" {
 #endif
 
-const uint32_t kBrotliBitMask[33] = {   0x00000000,
+const brotli_reg_t kBrotliBitMask[33] = {   0x00000000,
     0x00000001, 0x00000003, 0x00000007, 0x0000000F,
     0x0000001F, 0x0000003F, 0x0000007F, 0x000000FF,
     0x000001FF, 0x000003FF, 0x000007FF, 0x00000FFF,
@@ -56,9 +56,9 @@ BROTLI_BOOL BrotliWarmupBitReader(BrotliBitReader* const br) {
 }
 
 BROTLI_BOOL BrotliSafeReadBits32Slow(BrotliBitReader* const br,
-    uint32_t n_bits, uint32_t* val) {
-  uint32_t low_val;
-  uint32_t high_val;
+    brotli_reg_t n_bits, brotli_reg_t* val) {
+  brotli_reg_t low_val;
+  brotli_reg_t high_val;
   BrotliBitReaderState memento;
   BROTLI_DCHECK(n_bits <= 32);
   BROTLI_DCHECK(n_bits > 24);

@@ -33,7 +33,7 @@ jobs:
             build_system: cmake
             c_compiler: gcc-9
             cxx_compiler: g++-9
-            os: ubuntu-20.04
+            os: ubuntu-18.04
 
           # TODO: consider running this combination in docker
           #- name: cmake:clang3.5
@@ -114,13 +114,12 @@ jobs:
           # TODO: consider running this combination in docker
           #- name: python2.7:gcc5
 
-          # TODO: consider running this combination in docker
-          #- name: python27:clang9
-          #  build_system: python
-          #  c_compiler: clang-9
-          #  python_version: 2.7
-          #  cxx_compiler: clang++-9
-          #  os: ubuntu-20.04
+          - name: python27:clang9
+            build_system: python
+            c_compiler: clang-9
+            python_version: 2.7
+            cxx_compiler: clang++-9
+            os: ubuntu-18.04
 
           # TODO: consider running this combination in docker
           #- name: python27-win
@@ -203,7 +202,7 @@ jobs:
           - name: bazel-win:root
             build_system: bazel
             bazel_project: .
-            os: windows-2019
+            os: windows-latest
 
           # TODO: use single dll on windows, otherwise it fails to link
           #- name: bazel-win:go
@@ -214,7 +213,7 @@ jobs:
           - name: bazel-win:java
             build_system: bazel
             bazel_project: java
-            os: windows-2019
+            os: windows-latest
 
           # TODO: blocked by Bazel Closure rules issue
           #- name: bazel-win:js
@@ -225,7 +224,7 @@ jobs:
           - name: bazel-win:research
             build_system: bazel
             bazel_project: research
-            os: windows-2019
+            os: windows-latest
 
           - name: make
             build_system: make
@@ -246,7 +245,7 @@ jobs:
     steps:
     - name: Install extra deps @ Ubuntu
       if: ${{ runner.os == 'Linux' }}
-      # Already installed: bazel, clang{10-12}, cmake, gcc{9,10}, java{8,11}, maven, python{3.5-3.9}
+      # Already installed: bazel, clang{10-12}, cmake, gcc{9,10}, java{8,11}, maven, python{2.7,3.5-3.9}
       run: |
         EXTRA_PACKAGES="${{ matrix.extra_apt_pkgs || '' }}"
         sudo apt update
@@ -294,7 +293,7 @@ jobs:
       if: ${{ matrix.build_system == 'bazel' }}
       run: |
         cd ${GITHUB_WORKSPACE}/${{ matrix.bazel_project }}
-        bazelisk build -c opt ...:all
+        bazel build -c opt ...:all
 
     - name: Fix symlinks for Bazel (Windows)
       if: ${{ matrix.build_system == 'bazel' && runner.os == 'Windows' && matrix.bazel_project == 'java' }}
@@ -338,9 +337,9 @@ jobs:
       if: ${{ matrix.build_system == 'bazel' }}
       run: |
         cd ${GITHUB_WORKSPACE}/${{ matrix.bazel_project }}
-        bazelisk query "tests(...)" --output=label > ${RUNNER_TEMP}/tests.lst
-        [ -s ${RUNNER_TEMP}/tests.lst ] && bazelisk test -c opt ...:all
-        bazelisk clean
+        bazel query "tests(...)" --output=label > ${RUNNER_TEMP}/tests.lst
+        [ -s ${RUNNER_TEMP}/tests.lst ] && bazel test -c opt ...:all
+        bazel clean
 
     - name: Build / Test with Maven
       if: ${{ matrix.build_system == 'maven' }}

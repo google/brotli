@@ -45,17 +45,6 @@ create_msvc_config()
 
 STRICT_C_OPTIONS = select({
     ":msvc": [],
-    ":clang-cl": [
-        "/W4",
-        "-Wconversion",
-        "-Wlong-long",
-        "-Wmissing-declarations",
-        "-Wmissing-prototypes",
-        "-Wno-strict-aliasing",
-        "-Wshadow",
-        "-Wsign-compare",
-        "-Wno-sign-conversion",
-    ],
     "//conditions:default": [
         "--pedantic-errors",
         "-Wall",
@@ -135,7 +124,6 @@ cc_library(
     hdrs = [":enc_headers"],
     copts = STRICT_C_OPTIONS,
     linkopts = select({
-        ":clang-cl": [],
         ":msvc": [],
         "//conditions:default": ["-lm"],
     }),
