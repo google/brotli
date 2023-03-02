@@ -1962,9 +1962,7 @@ CommandInner:
         goto saveStateAndReturn;
       }
       if (BROTLI_PREDICT_FALSE(s->block_length[0] == 0)) {
-        BROTLI_SAFE(DecodeLiteralBlockSwitch(s));
-        PreloadSymbol(safe, s->literal_htree, br, &bits, &value);
-        if (!s->trivial_literal_context) goto CommandInner;
+        goto NextLiteralBlock;
       }
       if (!safe) {
         s->ringbuffer[pos] =
@@ -1998,8 +1996,7 @@ CommandInner:
         goto saveStateAndReturn;
       }
       if (BROTLI_PREDICT_FALSE(s->block_length[0] == 0)) {
-        BROTLI_SAFE(DecodeLiteralBlockSwitch(s));
-        if (s->trivial_literal_context) goto CommandInner;
+        goto NextLiteralBlock;
       }
       context = BROTLI_CONTEXT(p1, p2, s->context_lookup);
       BROTLI_LOG_UINT(context);
@@ -2237,6 +2234,10 @@ CommandPostWrapCopy:
   } else {
     goto CommandBegin;
   }
+
+NextLiteralBlock:
+  BROTLI_SAFE(DecodeLiteralBlockSwitch(s));
+  goto CommandInner;
 
 saveStateAndReturn:
   s->pos = pos;
