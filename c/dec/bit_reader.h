@@ -84,7 +84,7 @@ static BROTLI_INLINE void BrotliBitReaderSaveState(
 static BROTLI_INLINE void BrotliBitReaderSetInput(
     BrotliBitReader* const br, const uint8_t* next_in, size_t avail_in) {
   br->next_in = next_in;
-  br->last_in = next_in + avail_in;
+  br->last_in = (avail_in == 0) ? next_in : (next_in + avail_in);
   if (avail_in + 1 > BROTLI_FAST_INPUT_SLACK) {
     br->guard_in = next_in + (avail_in + 1 - BROTLI_FAST_INPUT_SLACK);
   } else {
@@ -251,7 +251,8 @@ static BROTLI_INLINE void BrotliDropBits(
 static BROTLI_INLINE void BrotliBitReaderUnload(BrotliBitReader* br) {
   brotli_reg_t unused_bytes = BrotliGetAvailableBits(br) >> 3;
   brotli_reg_t unused_bits = unused_bytes << 3;
-  br->next_in -= unused_bytes;
+  br->next_in =
+      (unused_bytes == 0) ? br->next_in : (br->next_in - unused_bytes);
   if (unused_bits == sizeof(br->val_) << 3) {
     br->val_ = 0;
   } else {
