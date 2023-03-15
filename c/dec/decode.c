@@ -611,7 +611,7 @@ static BrotliDecoderErrorCode ReadSymbolCodeLengths(
     const HuffmanCode* p = h->table;
     brotli_reg_t code_len;
     BROTLI_HC_MARK_TABLE_FOR_FAST_LOAD(p);
-    if (!BrotliCheckInputAmount(br, BROTLI_SHORT_FILL_BIT_WINDOW_READ)) {
+    if (!BrotliCheckInputAmount(br)) {
       h->symbol = symbol;
       h->repeat = repeat;
       h->prev_code_len = prev_code_len;
@@ -1876,11 +1876,11 @@ static BROTLI_INLINE BROTLI_BOOL SafeReadCommand(
 }
 
 static BROTLI_INLINE BROTLI_BOOL CheckInputAmount(
-    int safe, BrotliBitReader* const br, size_t num) {
+    int safe, BrotliBitReader* const br) {
   if (safe) {
     return BROTLI_TRUE;
   }
-  return BrotliCheckInputAmount(br, num);
+  return BrotliCheckInputAmount(br);
 }
 
 #define BROTLI_SAFE(METHOD)                       \
@@ -1903,7 +1903,7 @@ static BROTLI_INLINE BrotliDecoderErrorCode ProcessCommandsInternal(
   BrotliBitReader* br = &s->br;
   int compound_dictionary_size = GetCompoundDictionarySize(s);
 
-  if (!CheckInputAmount(safe, br, 28)) {
+  if (!CheckInputAmount(safe, br)) {
     result = BROTLI_DECODER_NEEDS_MORE_INPUT;
     goto saveStateAndReturn;
   }
@@ -1928,7 +1928,7 @@ CommandBegin:
   if (safe) {
     s->state = BROTLI_STATE_COMMAND_BEGIN;
   }
-  if (!CheckInputAmount(safe, br, 28)) {  /* 156 bits + 7 bytes */
+  if (!CheckInputAmount(safe, br)) {
     s->state = BROTLI_STATE_COMMAND_BEGIN;
     result = BROTLI_DECODER_NEEDS_MORE_INPUT;
     goto saveStateAndReturn;
@@ -1956,7 +1956,7 @@ CommandInner:
     brotli_reg_t value;
     PreloadSymbol(safe, s->literal_htree, br, &bits, &value);
     do {
-      if (!CheckInputAmount(safe, br, 28)) {  /* 162 bits + 7 bytes */
+      if (!CheckInputAmount(safe, br)) {
         s->state = BROTLI_STATE_COMMAND_INNER;
         result = BROTLI_DECODER_NEEDS_MORE_INPUT;
         goto saveStateAndReturn;
@@ -1990,7 +1990,7 @@ CommandInner:
     do {
       const HuffmanCode* hc;
       uint8_t context;
-      if (!CheckInputAmount(safe, br, 28)) {  /* 162 bits + 7 bytes */
+      if (!CheckInputAmount(safe, br)) {
         s->state = BROTLI_STATE_COMMAND_INNER;
         result = BROTLI_DECODER_NEEDS_MORE_INPUT;
         goto saveStateAndReturn;
@@ -2315,14 +2315,13 @@ BrotliDecoderResult BrotliDecoderDecompressStream(
   }
   if (!*available_out) next_out = 0;
   if (s->buffer_length == 0) {  /* Just connect bit reader to input stream. */
-    br->avail_in = *available_in;
-    br->next_in = *next_in;
+    BrotliBitReaderSetInput(br, *next_in, *available_in);
   } else {
     /* At least one byte of input is required. More than one byte of input may
        be required to complete the transaction -> reading more data must be
        done in a loop -> do it in a main loop. */
     result = BROTLI_DECODER_NEEDS_MORE_INPUT;
-    br->next_in = &s->buffer.u8[0];
+    BrotliBitReaderSetInput(br, &s->buffer.u8[0], s->buffer_length);
   }
   /* State machine */
   for (;;) {
@@ -2339,15 +2338,14 @@ BrotliDecoderResult BrotliDecoderDecompressStream(
           }
         }
         if (s->buffer_length != 0) {  /* Used with internal buffer. */
-          if (br->avail_in == 0) {
+          if (br->next_in == br->last_in) {
             /* Successfully finished read transaction.
                Accumulator contains less than 8 bits, because internal buffer
                is expanded byte-by-byte until it is enough to complete read. */
             s->buffer_length = 0;
             /* Switch to input stream and restart. */
             result = BROTLI_DECODER_SUCCESS;
-            br->avail_in = *available_in;
-            br->next_in = *next_in;
+            BrotliBitReaderSetInput(br, *next_in, *available_in);
             continue;
           } else if (*available_in != 0) {
             /* Not enough data in buffer, but can take one more byte from
@@ -2355,7 +2353,7 @@ BrotliDecoderResult BrotliDecoderDecompressStream(
             result = BROTLI_DECODER_SUCCESS;
             s->buffer.u8[s->buffer_length] = **next_in;
             s->buffer_length++;
-            br->avail_in = s->buffer_length;
+            BrotliBitReaderSetInput(br, &s->buffer.u8[0], s->buffer_length);
             (*next_in)++;
             (*available_in)--;
             /* Retry with more data in buffer. */
@@ -2366,7 +2364,7 @@ BrotliDecoderResult BrotliDecoderDecompressStream(
         } else {  /* Input stream doesn't contain enough input. */
           /* Copy tail to internal buffer and return. */
           *next_in = br->next_in;
-          *available_in = br->avail_in;
+          *available_in = BrotliBitReaderGetAvailIn(br);
           while (*available_in) {
             s->buffer.u8[s->buffer_length] = **next_in;
             s->buffer_length++;
@@ -2389,7 +2387,7 @@ BrotliDecoderResult BrotliDecoderDecompressStream(
            stream it has less than 8 bits in accumulator, so it is safe to
            return unused accumulator bits there. */
         BrotliBitReaderUnload(br);
-        *available_in = br->avail_in;
+        *available_in = BrotliBitReaderGetAvailIn(br);
         *next_in = br->next_in;
       }
       break;
@@ -2756,7 +2754,7 @@ BrotliDecoderResult BrotliDecoderDecompressStream(
         }
         if (s->buffer_length == 0) {
           BrotliBitReaderUnload(br);
-          *available_in = br->avail_in;
+          *available_in = BrotliBitReaderGetAvailIn(br);
           *next_in = br->next_in;
         }
         s->state = BROTLI_STATE_DONE;

@@ -22,6 +22,9 @@ extern "C" {
 
 #define BROTLI_SHORT_FILL_BIT_WINDOW_READ (sizeof(brotli_reg_t) >> 1)
 
+/* 162 bits + 7 bytes */
+#define BROTLI_FAST_INPUT_SLACK 28
+
 BROTLI_INTERNAL extern const brotli_reg_t kBrotliBitMask[33];
 
 static BROTLI_INLINE brotli_reg_t BitMask(brotli_reg_t n) {
@@ -38,7 +41,8 @@ typedef struct {
   brotli_reg_t val_;       /* pre-fetched bits */
   brotli_reg_t bit_pos_;   /* current bit-reading position in val_ */
   const uint8_t* next_in;  /* the byte we're reading from */
-  size_t avail_in;
+  const uint8_t* guard_in; /* position from which "fast-path" is prohibited */
+  const uint8_t* last_in;  /* == next_in + avail_in */
 } BrotliBitReader;
 
 typedef struct {
@@ -64,12 +68,28 @@ BROTLI_INTERNAL BROTLI_BOOL BrotliWarmupBitReader(BrotliBitReader* br);
 BROTLI_INTERNAL BROTLI_NOINLINE BROTLI_BOOL BrotliSafeReadBits32Slow(
     BrotliBitReader* br, brotli_reg_t n_bits, brotli_reg_t* val);
 
+static BROTLI_INLINE size_t
+BrotliBitReaderGetAvailIn(BrotliBitReader* const br) {
+  return (size_t)(br->last_in - br->next_in);
+}
+
 static BROTLI_INLINE void BrotliBitReaderSaveState(
     BrotliBitReader* const from, BrotliBitReaderState* to) {
   to->val_ = from->val_;
   to->bit_pos_ = from->bit_pos_;
   to->next_in = from->next_in;
-  to->avail_in = from->avail_in;
+  to->avail_in = BrotliBitReaderGetAvailIn(from);
+}
+
+static BROTLI_INLINE void BrotliBitReaderSetInput(
+    BrotliBitReader* const br, const uint8_t* next_in, size_t avail_in) {
+  br->next_in = next_in;
+  br->last_in = next_in + avail_in;
+  if (avail_in + 1 > BROTLI_FAST_INPUT_SLACK) {
+    br->guard_in = next_in + (avail_in + 1 - BROTLI_FAST_INPUT_SLACK);
+  } else {
+    br->guard_in = next_in;
+  }
 }
 
 static BROTLI_INLINE void BrotliBitReaderRestoreState(
@@ -77,7 +97,7 @@ static BROTLI_INLINE void BrotliBitReaderRestoreState(
   to->val_ = from->val_;
   to->bit_pos_ = from->bit_pos_;
   to->next_in = from->next_in;
-  to->avail_in = from->avail_in;
+  BrotliBitReaderSetInput(to, from->next_in, from->avail_in);
 }
 
 static BROTLI_INLINE brotli_reg_t BrotliGetAvailableBits(
@@ -90,15 +110,16 @@ static BROTLI_INLINE brotli_reg_t BrotliGetAvailableBits(
    maximal ring-buffer size (larger number won't be utilized anyway). */
 static BROTLI_INLINE size_t BrotliGetRemainingBytes(BrotliBitReader* br) {
   static const size_t kCap = (size_t)1 << BROTLI_LARGE_MAX_WBITS;
-  if (br->avail_in > kCap) return kCap;
-  return br->avail_in + (BrotliGetAvailableBits(br) >> 3);
+  size_t avail_in = BrotliBitReaderGetAvailIn(br);
+  if (avail_in > kCap) return kCap;
+  return avail_in + (BrotliGetAvailableBits(br) >> 3);
 }
 
 /* Checks if there is at least |num| bytes left in the input ring-buffer
    (excluding the bits remaining in br->val_). */
 static BROTLI_INLINE BROTLI_BOOL BrotliCheckInputAmount(
-    BrotliBitReader* const br, size_t num) {
-  return TO_BROTLI_BOOL(br->avail_in >= num);
+    BrotliBitReader* const br) {
+  return TO_BROTLI_BOOL(br->next_in < br->guard_in);
 }
 
 /* Guarantees that there are at least |n_bits| + 1 bits in accumulator.
@@ -116,7 +137,6 @@ static BROTLI_INLINE void BrotliFillBitWindow(
           (br->val_ >> 56) | (BROTLI_UNALIGNED_LOAD64LE(br->next_in) << 8);
       br->bit_pos_ =
           bit_pos ^ 56; /* here same as -= 56 because of the if condition */
-      br->avail_in -= 7;
       br->next_in += 7;
     }
   } else if (BROTLI_UNALIGNED_READ_FAST && BROTLI_IS_CONSTANT(n_bits) &&
@@ -127,7 +147,6 @@ static BROTLI_INLINE void BrotliFillBitWindow(
           (br->val_ >> 48) | (BROTLI_UNALIGNED_LOAD64LE(br->next_in) << 16);
       br->bit_pos_ =
           bit_pos ^ 48; /* here same as -= 48 because of the if condition */
-      br->avail_in -= 6;
       br->next_in += 6;
     }
   } else {
@@ -137,7 +156,6 @@ static BROTLI_INLINE void BrotliFillBitWindow(
                  (((uint64_t)BROTLI_UNALIGNED_LOAD32LE(br->next_in)) << 32);
       br->bit_pos_ =
           bit_pos ^ 32; /* here same as -= 32 because of the if condition */
-      br->avail_in -= BROTLI_SHORT_FILL_BIT_WINDOW_READ;
       br->next_in += BROTLI_SHORT_FILL_BIT_WINDOW_READ;
     }
   }
@@ -150,7 +168,6 @@ static BROTLI_INLINE void BrotliFillBitWindow(
           (br->val_ >> 24) | (BROTLI_UNALIGNED_LOAD32LE(br->next_in) << 8);
       br->bit_pos_ =
           bit_pos ^ 24; /* here same as -= 24 because of the if condition */
-      br->avail_in -= 3;
       br->next_in += 3;
     }
   } else {
@@ -160,7 +177,6 @@ static BROTLI_INLINE void BrotliFillBitWindow(
                  (((brotli_reg_t)BROTLI_UNALIGNED_LOAD16LE(br->next_in)) << 16);
       br->bit_pos_ =
           bit_pos ^ 16; /* here same as -= 16 because of the if condition */
-      br->avail_in -= BROTLI_SHORT_FILL_BIT_WINDOW_READ;
       br->next_in += BROTLI_SHORT_FILL_BIT_WINDOW_READ;
     }
   }
@@ -176,7 +192,7 @@ static BROTLI_INLINE void BrotliFillBitWindow16(BrotliBitReader* const br) {
 /* Tries to pull one byte of input to accumulator.
    Returns BROTLI_FALSE if there is no input available. */
 static BROTLI_INLINE BROTLI_BOOL BrotliPullByte(BrotliBitReader* const br) {
-  if (br->avail_in == 0) {
+  if (br->next_in == br->last_in) {
     return BROTLI_FALSE;
   }
   br->val_ >>= 8;
@@ -186,7 +202,6 @@ static BROTLI_INLINE BROTLI_BOOL BrotliPullByte(BrotliBitReader* const br) {
   br->val_ |= ((brotli_reg_t)*br->next_in) << 24;
 #endif
   br->bit_pos_ -= 8;
-  --br->avail_in;
   ++br->next_in;
   return BROTLI_TRUE;
 }
@@ -236,7 +251,6 @@ static BROTLI_INLINE void BrotliDropBits(
 static BROTLI_INLINE void BrotliBitReaderUnload(BrotliBitReader* br) {
   brotli_reg_t unused_bytes = BrotliGetAvailableBits(br) >> 3;
   brotli_reg_t unused_bits = unused_bytes << 3;
-  br->avail_in += unused_bytes;
   br->next_in -= unused_bytes;
   if (unused_bits == sizeof(br->val_) << 3) {
     br->val_ = 0;
@@ -248,11 +262,13 @@ static BROTLI_INLINE void BrotliBitReaderUnload(BrotliBitReader* br) {
 
 /* Reads the specified number of bits from |br| and advances the bit pos.
    Precondition: accumulator MUST contain at least |n_bits|. */
-static BROTLI_INLINE void BrotliTakeBits(
-  BrotliBitReader* const br, brotli_reg_t n_bits, brotli_reg_t* val) {
+static BROTLI_INLINE void BrotliTakeBits(BrotliBitReader* const br,
+                                         brotli_reg_t n_bits,
+                                         brotli_reg_t* val) {
   *val = BrotliGetBitsUnmasked(br) & BitMask(n_bits);
   BROTLI_LOG(("[BrotliTakeBits]  %d %d %d val: %6x\n",
-      (int)br->avail_in, (int)br->bit_pos_, (int)n_bits, (int)*val));
+              (int)BrotliBitReaderGetAvailIn(br), (int)br->bit_pos_,
+              (int)n_bits, (int)*val));
   BrotliDropBits(br, n_bits);
 }
 
@@ -342,7 +358,6 @@ static BROTLI_INLINE BROTLI_BOOL BrotliJumpToByteBoundary(BrotliBitReader* br) {
 }
 
 static BROTLI_INLINE void BrotliDropBytes(BrotliBitReader* br, size_t num) {
-  br->avail_in -= num;
   br->next_in += num;
 }
 
@@ -365,21 +380,24 @@ static BROTLI_INLINE void BrotliCopyBytes(uint8_t* dest,
 
 BROTLI_UNUSED_FUNCTION void BrotliBitReaderSuppressUnusedFunctions(void) {
   BROTLI_UNUSED(&BrotliBitReaderSuppressUnusedFunctions);
-  BROTLI_UNUSED(&BrotliBitReaderSaveState);
+
+  BROTLI_UNUSED(&BrotliBitReaderGetAvailIn);
   BROTLI_UNUSED(&BrotliBitReaderRestoreState);
-  BROTLI_UNUSED(&BrotliGetRemainingBytes);
+  BROTLI_UNUSED(&BrotliBitReaderSaveState);
+  BROTLI_UNUSED(&BrotliBitReaderSetInput);
+  BROTLI_UNUSED(&BrotliBitReaderUnload);
   BROTLI_UNUSED(&BrotliCheckInputAmount);
+  BROTLI_UNUSED(&BrotliCopyBytes);
   BROTLI_UNUSED(&BrotliFillBitWindow16);
   BROTLI_UNUSED(&BrotliGet16BitsUnmasked);
   BROTLI_UNUSED(&BrotliGetBits);
-  BROTLI_UNUSED(&BrotliSafeGetBits);
-  BROTLI_UNUSED(&BrotliBitReaderUnload);
+  BROTLI_UNUSED(&BrotliGetRemainingBytes);
+  BROTLI_UNUSED(&BrotliJumpToByteBoundary);
   BROTLI_UNUSED(&BrotliReadBits24);
   BROTLI_UNUSED(&BrotliReadBits32);
+  BROTLI_UNUSED(&BrotliSafeGetBits);
   BROTLI_UNUSED(&BrotliSafeReadBits);
   BROTLI_UNUSED(&BrotliSafeReadBits32);
-  BROTLI_UNUSED(&BrotliJumpToByteBoundary);
-  BROTLI_UNUSED(&BrotliCopyBytes);
 }
 
 #if defined(__cplusplus) || defined(c_plusplus)
