@@ -4,8 +4,6 @@
    See file LICENSE for detail or copy at https://opensource.org/licenses/MIT
 */
 import {BrotliDecode} from "./decode.js";
-const testSuite = goog.require('goog.testing.testSuite');
-goog.require('goog.testing.asserts');
 
 /**
  * NB: Use intermediate chunks to avoid "Maximum call stack size exceeded".
@@ -42,13 +40,13 @@ function checkSynth(compressed, expectSuccess, expectedOutput) {
   } catch (ex) {
     success = false;
   }
-  assertEquals(expectSuccess, success);
+  expect(expectSuccess).toEqual(success);
   if (expectSuccess) {
-    assertEquals(expectedOutput, bytesToString(actual));
+    expect(expectedOutput).toEqual(bytesToString(actual));
   }
 }
 
-testSuite({
+const allTests = {
 /* GENERATED CODE START */
 
 testAllTransforms10() {
@@ -2278,4 +2276,12 @@ testZeroCostLiterals() {
 },
 
 /* GENERATED CODE END */
+};
+
+describe("DecodeSynthTest", () => {
+  const testNames = Object.keys(allTests);
+  for (let i = 0; i < testNames.length; ++i) {
+    const testName = testNames[i];
+    it(testName, allTests[testName]);
+  }
 });

@@ -5,8 +5,6 @@
 */
 import {BrotliDecode} from "./decode.js";
 import {makeTestData} from "./test_data.js";
-goog.require('goog.testing.asserts');
-const testSuite = goog.require('goog.testing.testSuite');
 
 const CRC_64_POLY = new Uint32Array([0xD7870F42, 0xC96C5795]);
 
@@ -55,18 +53,17 @@ function checkEntry(entry, data) {
   const expectedCrc = entry.substring(0, 16);
   const decompressed = BrotliDecode(data);
   const crc = calculateCrc64(decompressed);
-  assertEquals(expectedCrc, crc);
+  expect(expectedCrc).toEqual(crc);
 }
 
-let allTests = {};
-const testData = makeTestData();
-for (let entry in testData) {
-  if (!testData.hasOwnProperty(entry)) {
-    continue;
+describe("BundleTest", () => {
+  const testData = makeTestData();
+  for (let entry in testData) {
+    if (!testData.hasOwnProperty(entry)) {
+      continue;
+    }
+    const name = entry.substring(17);
+    const data = testData[entry];
+    it('test_' + name, checkEntry.bind(null, entry, data));
   }
-  const name = entry.substring(17);
-  const data = testData[entry];
-  allTests['test_' + name] = checkEntry.bind(null, entry, data);
-}
-
-testSuite(allTests);
+});

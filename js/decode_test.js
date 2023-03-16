@@ -4,8 +4,6 @@
    See file LICENSE for detail or copy at https://opensource.org/licenses/MIT
 */
 import {BrotliDecode} from "./decode.js";
-const testSuite = goog.require('goog.testing.testSuite');
-goog.require('goog.testing.asserts');
 
 /**
  * @param {!Int8Array} bytes
@@ -25,20 +23,20 @@ function stringToBytes(str) {
   return out;
 }
 
-testSuite({
-  testMetadata() {
-    assertEquals(
-        '', bytesToString(BrotliDecode(Int8Array.from([1, 11, 0, 42, 3]))));
-  },
+describe('DecodeTest', () => {
+  it('testMetadata', () => {
+    expect('').toEqual(
+        bytesToString(BrotliDecode(Int8Array.from([1, 11, 0, 42, 3]))));
+  });
 
-  testCompoundDictionary() {
+  it('testCompoundDictionary', () => {
     const txt = 'kot lomom kolol slona\n';
     const dictionary = stringToBytes(txt);
     const compressed =
         [0xa1, 0xa8, 0x00, 0xc0, 0x2f, 0x01, 0x10, 0xc4, 0x44, 0x09, 0x00];
-    assertEquals(txt.length, compressed.length * 2);
+    expect(txt.length).toEqual(compressed.length * 2);
     const options = {'customDictionary': dictionary};
-    assertEquals(
-        txt, bytesToString(BrotliDecode(Int8Array.from(compressed), options)));
-  }
+    expect(txt).toEqual(
+        bytesToString(BrotliDecode(Int8Array.from(compressed), options)));
+  });
 });
