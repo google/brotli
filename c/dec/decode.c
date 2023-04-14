@@ -116,6 +116,10 @@ static BROTLI_NOINLINE BrotliDecoderResult SaveErrorCode(
     BrotliDecoderState* s, BrotliDecoderErrorCode e, size_t consumed_input) {
   s->error_code = (int)e;
   s->used_input += consumed_input;
+  if ((s->buffer_length != 0) && (s->br.next_in == s->br.last_in)) {
+    /* If internal buffer is depleted at last, reset it. */
+    s->buffer_length = 0;
+  }
   switch (e) {
     case BROTLI_DECODER_SUCCESS:
       return BROTLI_DECODER_RESULT_SUCCESS;
@@ -2351,6 +2355,7 @@ BrotliDecoderResult BrotliDecoderDecompressStream(
             /* Not enough data in buffer, but can take one more byte from
                input stream. */
             result = BROTLI_DECODER_SUCCESS;
+            BROTLI_DCHECK(s->buffer_length < 8);
             s->buffer.u8[s->buffer_length] = **next_in;
             s->buffer_length++;
             BrotliBitReaderSetInput(br, &s->buffer.u8[0], s->buffer_length);
