@@ -61,14 +61,14 @@ final class BitReader {
       }
       throw new BrotliRuntimeException("No more input");
     }
-    int readOffset = s.halfOffset << LOG_HALF_SIZE;
+    final int readOffset = s.halfOffset << LOG_HALF_SIZE;
     int bytesInBuffer = CAPACITY - readOffset;
     // Move unused bytes to the head of the buffer.
     Utils.copyBytesWithin(s.byteBuffer, 0, readOffset, CAPACITY);
     s.halfOffset = 0;
     while (bytesInBuffer < CAPACITY) {
-      int spaceLeft = CAPACITY - bytesInBuffer;
-      int len = Utils.readInput(s.input, s.byteBuffer, bytesInBuffer, spaceLeft);
+      final int spaceLeft = CAPACITY - bytesInBuffer;
+      final int len = Utils.readInput(s.input, s.byteBuffer, bytesInBuffer, spaceLeft);
       // EOF is -1 in Java, but 0 in C#.
       if (len <= 0) {
         s.endOfStreamReached = 1;
@@ -85,7 +85,7 @@ final class BitReader {
     if (s.endOfStreamReached == 0) {
       return;
     }
-    int byteOffset = (s.halfOffset << LOG_HALF_SIZE) + ((s.bitOffset + 7) >> 3) - BYTENESS;
+    final int byteOffset = (s.halfOffset << LOG_HALF_SIZE) + ((s.bitOffset + 7) >> 3) - BYTENESS;
     if (byteOffset > s.tailBytes) {
       throw new BrotliRuntimeException("Read after end");
     }
@@ -146,7 +146,7 @@ final class BitReader {
    * otherwise BitReader will become broken.
    */
   static int readFewBits(State s, int n) {
-    int val = peekBits(s) & ((1 << n) - 1);
+    final int val = peekBits(s) & ((1 << n) - 1);
     s.bitOffset += n;
     return val;
   }
@@ -160,7 +160,7 @@ final class BitReader {
   }
 
   private static int readManyBits(State s, int n) {
-    int low = readFewBits(s, 16);
+    final int low = readFewBits(s, 16);
     doFillBitWindow(s);
     return low | (readFewBits(s, n - 16) << 16);
   }
@@ -194,9 +194,9 @@ final class BitReader {
   }
 
   static void jumpToByteBoundary(State s) {
-    int padding = (BITNESS - s.bitOffset) & 7;
+    final int padding = (BITNESS - s.bitOffset) & 7;
     if (padding != 0) {
-      int paddingBits = readFewBits(s, padding);
+      final int paddingBits = readFewBits(s, padding);
       if (paddingBits != 0) {
         throw new BrotliRuntimeException("Corrupted padding bits");
       }
@@ -227,10 +227,10 @@ final class BitReader {
     }
 
     // Get data from shadow buffer with "sizeof(int)" granularity.
-    int copyNibbles = Math.min(halfAvailable(s), length >> LOG_HALF_SIZE);
+    final int copyNibbles = Math.min(halfAvailable(s), length >> LOG_HALF_SIZE);
     if (copyNibbles > 0) {
-      int readOffset = s.halfOffset << LOG_HALF_SIZE;
-      int delta = copyNibbles << LOG_HALF_SIZE;
+      final int readOffset = s.halfOffset << LOG_HALF_SIZE;
+      final int delta = copyNibbles << LOG_HALF_SIZE;
       System.arraycopy(s.byteBuffer, readOffset, data, offset, delta);
       offset += delta;
       length -= delta;
@@ -255,7 +255,7 @@ final class BitReader {
 
     // Now it is possible to copy bytes directly.
     while (length > 0) {
-      int len = Utils.readInput(s.input, data, offset, length);
+      final int len = Utils.readInput(s.input, data, offset, length);
       if (len == -1) {
         throw new BrotliRuntimeException("Unexpected end of input");
       }
@@ -268,10 +268,10 @@ final class BitReader {
    * Translates bytes to halves (int/short).
    */
   static void bytesToNibbles(State s, int byteLen) {
-    byte[] byteBuffer = s.byteBuffer;
-    int halfLen = byteLen >> LOG_HALF_SIZE;
+    final byte[] byteBuffer = s.byteBuffer;
+    final int halfLen = byteLen >> LOG_HALF_SIZE;
     if (BITNESS == 64) {
-      int[] intBuffer = s.intBuffer;
+      final int[] intBuffer = s.intBuffer;
       for (int i = 0; i < halfLen; ++i) {
         intBuffer[i] = ((byteBuffer[i * 4] & 0xFF))
             | ((byteBuffer[(i * 4) + 1] & 0xFF) << 8)
@@ -279,7 +279,7 @@ final class BitReader {
             | ((byteBuffer[(i * 4) + 3] & 0xFF) << 24);
       }
     } else {
-      short[] shortBuffer = s.shortBuffer;
+      final short[] shortBuffer = s.shortBuffer;
       for (int i = 0; i < halfLen; ++i) {
         shortBuffer[i] = (short) ((byteBuffer[i * 2] & 0xFF)
             | ((byteBuffer[(i * 2) + 1] & 0xFF) << 8));

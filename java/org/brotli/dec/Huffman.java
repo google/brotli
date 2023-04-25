@@ -63,12 +63,12 @@ final class Huffman {
    */
   static int buildHuffmanTable(int[] tableGroup, int tableIdx, int rootBits, int[] codeLengths,
       int codeLengthsSize) {
-    int tableOffset = tableGroup[tableIdx];
+    final int tableOffset = tableGroup[tableIdx];
     int key; // Reversed prefix code.
-    int[] sorted = new int[codeLengthsSize]; // Symbols sorted by code length.
+    final int[] sorted = new int[codeLengthsSize]; // Symbols sorted by code length.
     // TODO(eustas): fill with zeroes?
-    int[] count = new int[MAX_LENGTH + 1]; // Number of codes of each length.
-    int[] offset = new int[MAX_LENGTH + 1]; // Offsets in sorted table for each length.
+    final int[] count = new int[MAX_LENGTH + 1]; // Number of codes of each length.
+    final int[] offset = new int[MAX_LENGTH + 1]; // Offsets in sorted table for each length.
     int symbol;
 
     // Build histogram of code lengths.
@@ -113,7 +113,7 @@ final class Huffman {
     }
 
     // Fill in 2nd level tables and add pointers to root table.
-    int mask = totalSize - 1;
+    final int mask = totalSize - 1;
     int low = -1;
     int currentOffset = tableOffset;
     for (int len = rootBits + 1, step = 2; len <= MAX_LENGTH; len++, step <<= 1) {

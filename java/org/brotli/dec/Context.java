@@ -34,8 +34,8 @@ final class Context {
     }
     int offset = 1280;
     for (int k = 0; k < 19; ++k) {
-      int value = k & 3;
-      int rep = rle.charAt(k) - 32;
+      final int value = k & 3;
+      final int rep = rle.charAt(k) - 32;
       for (int i = 0; i < rep; ++i) {
         lookup[offset++] = value;
       }
