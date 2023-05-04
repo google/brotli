@@ -102,7 +102,7 @@ static BROTLI_INLINE void BrotliBitReaderRestoreState(
 
 static BROTLI_INLINE brotli_reg_t BrotliGetAvailableBits(
     const BrotliBitReader* br) {
-  return (BROTLI_64_BITS ? 64 : 32) - br->bit_pos_;
+  return br->bit_pos_;
 }
 
 /* Returns amount of unread bytes the bit reader still has buffered from the
@@ -122,6 +122,17 @@ static BROTLI_INLINE BROTLI_BOOL BrotliCheckInputAmount(
   return TO_BROTLI_BOOL(br->next_in < br->guard_in);
 }
 
+/* Load more bits into accumulator. */
+static BROTLI_INLINE brotli_reg_t BrotliBitReaderLoadBits(brotli_reg_t val,
+                                                          brotli_reg_t new_bits,
+                                                          brotli_reg_t count,
+                                                          brotli_reg_t offset) {
+  BROTLI_DCHECK(
+      !((val >> offset) & ~new_bits & ~(~((brotli_reg_t)0) << count)));
+  (void)count;
+  return val | (new_bits << offset);
+}
+
 /* Guarantees that there are at least |n_bits| + 1 bits in accumulator.
    Precondition: accumulator contains at least 1 bit.
    |n_bits| should be in the range [1..24] for regular build. For portable
@@ -132,30 +143,27 @@ static BROTLI_INLINE void BrotliFillBitWindow(
   if (BROTLI_UNALIGNED_READ_FAST && BROTLI_IS_CONSTANT(n_bits) &&
       (n_bits <= 8)) {
     brotli_reg_t bit_pos = br->bit_pos_;
-    if (bit_pos >= 56) {
-      br->val_ =
-          (br->val_ >> 56) | (BROTLI_UNALIGNED_LOAD64LE(br->next_in) << 8);
-      br->bit_pos_ =
-          bit_pos ^ 56; /* here same as -= 56 because of the if condition */
+    if (bit_pos <= 8) {
+      br->val_ = BrotliBitReaderLoadBits(br->val_,
+          BROTLI_UNALIGNED_LOAD64LE(br->next_in), 56, bit_pos);
+      br->bit_pos_ = bit_pos + 56;
       br->next_in += 7;
     }
   } else if (BROTLI_UNALIGNED_READ_FAST && BROTLI_IS_CONSTANT(n_bits) &&
              (n_bits <= 16)) {
     brotli_reg_t bit_pos = br->bit_pos_;
-    if (bit_pos >= 48) {
-      br->val_ =
-          (br->val_ >> 48) | (BROTLI_UNALIGNED_LOAD64LE(br->next_in) << 16);
-      br->bit_pos_ =
-          bit_pos ^ 48; /* here same as -= 48 because of the if condition */
+    if (bit_pos <= 16) {
+      br->val_ = BrotliBitReaderLoadBits(br->val_,
+          BROTLI_UNALIGNED_LOAD64LE(br->next_in), 48, bit_pos);
+      br->bit_pos_ = bit_pos + 48;
       br->next_in += 6;
     }
   } else {
     brotli_reg_t bit_pos = br->bit_pos_;
-    if (bit_pos >= 32) {
-      br->val_ = (br->val_ >> 32) |
-                 (((uint64_t)BROTLI_UNALIGNED_LOAD32LE(br->next_in)) << 32);
-      br->bit_pos_ =
-          bit_pos ^ 32; /* here same as -= 32 because of the if condition */
+    if (bit_pos <= 32) {
+      br->val_ = BrotliBitReaderLoadBits(br->val_,
+          (uint64_t)BROTLI_UNALIGNED_LOAD32LE(br->next_in), 32, bit_pos);
+      br->bit_pos_ = bit_pos + 32;
       br->next_in += BROTLI_SHORT_FILL_BIT_WINDOW_READ;
     }
   }
@@ -163,20 +171,18 @@ static BROTLI_INLINE void BrotliFillBitWindow(
   if (BROTLI_UNALIGNED_READ_FAST && BROTLI_IS_CONSTANT(n_bits) &&
       (n_bits <= 8)) {
     brotli_reg_t bit_pos = br->bit_pos_;
-    if (bit_pos >= 24) {
-      br->val_ =
-          (br->val_ >> 24) | (BROTLI_UNALIGNED_LOAD32LE(br->next_in) << 8);
-      br->bit_pos_ =
-          bit_pos ^ 24; /* here same as -= 24 because of the if condition */
+    if (bit_pos <= 8) {
+      br->val_ = BrotliBitReaderLoadBits(br->val_,
+          BROTLI_UNALIGNED_LOAD32LE(br->next_in), 24, bit_pos);
+      br->bit_pos_ = bit_pos + 24;
       br->next_in += 3;
     }
   } else {
     brotli_reg_t bit_pos = br->bit_pos_;
-    if (bit_pos >= 16) {
-      br->val_ = (br->val_ >> 16) |
-                 (((brotli_reg_t)BROTLI_UNALIGNED_LOAD16LE(br->next_in)) << 16);
-      br->bit_pos_ =
-          bit_pos ^ 16; /* here same as -= 16 because of the if condition */
+    if (bit_pos <= 16) {
+      br->val_ = BrotliBitReaderLoadBits(br->val_,
+          (uint32_t)BROTLI_UNALIGNED_LOAD16LE(br->next_in), 16, bit_pos);
+      br->bit_pos_ = bit_pos + 16;
       br->next_in += BROTLI_SHORT_FILL_BIT_WINDOW_READ;
     }
   }
@@ -195,13 +201,9 @@ static BROTLI_INLINE BROTLI_BOOL BrotliPullByte(BrotliBitReader* const br) {
   if (br->next_in == br->last_in) {
     return BROTLI_FALSE;
   }
-  br->val_ >>= 8;
-#if (BROTLI_64_BITS)
-  br->val_ |= ((uint64_t)*br->next_in) << 56;
-#else
-  br->val_ |= ((brotli_reg_t)*br->next_in) << 24;
-#endif
-  br->bit_pos_ -= 8;
+  br->val_ = BrotliBitReaderLoadBits(br->val_,
+      (brotli_reg_t)*br->next_in, 8, br->bit_pos_);
+  br->bit_pos_ += 8;
   ++br->next_in;
   return BROTLI_TRUE;
 }
@@ -210,7 +212,7 @@ static BROTLI_INLINE BROTLI_BOOL BrotliPullByte(BrotliBitReader* const br) {
    The number of valid bits could be calculated by BrotliGetAvailableBits. */
 static BROTLI_INLINE brotli_reg_t BrotliGetBitsUnmasked(
     BrotliBitReader* const br) {
-  return br->val_ >> br->bit_pos_;
+  return br->val_;
 }
 
 /* Like BrotliGetBits, but does not mask the result.
@@ -245,7 +247,8 @@ static BROTLI_INLINE BROTLI_BOOL BrotliSafeGetBits(
 /* Advances the bit pos by |n_bits|. */
 static BROTLI_INLINE void BrotliDropBits(
     BrotliBitReader* const br, brotli_reg_t n_bits) {
-  br->bit_pos_ += n_bits;
+  br->bit_pos_ -= n_bits;
+  br->val_ >>= n_bits;
 }
 
 static BROTLI_INLINE void BrotliBitReaderUnload(BrotliBitReader* br) {
@@ -253,12 +256,11 @@ static BROTLI_INLINE void BrotliBitReaderUnload(BrotliBitReader* br) {
   brotli_reg_t unused_bits = unused_bytes << 3;
   br->next_in =
       (unused_bytes == 0) ? br->next_in : (br->next_in - unused_bytes);
-  if (unused_bits == sizeof(br->val_) << 3) {
+  br->bit_pos_ -= unused_bits;
+  /* Prepare for possible input discontinuity. */
+  if (br->bit_pos_ == 0) {
     br->val_ = 0;
-  } else {
-    br->val_ <<= unused_bits;
   }
-  br->bit_pos_ += unused_bits;
 }
 
 /* Reads the specified number of bits from |br| and advances the bit pos.
@@ -373,6 +375,10 @@ static BROTLI_INLINE void BrotliCopyBytes(uint8_t* dest,
     ++dest;
     --num;
   }
+  /* Prepare for possible input discontinuity. */
+  if (br->bit_pos_ == 0) {
+    br->val_ = 0;
+  }
   if (num > 0) {
     memcpy(dest, br->next_in, num);
     BrotliDropBytes(br, num);
@@ -383,6 +389,7 @@ BROTLI_UNUSED_FUNCTION void BrotliBitReaderSuppressUnusedFunctions(void) {
   BROTLI_UNUSED(&BrotliBitReaderSuppressUnusedFunctions);
 
   BROTLI_UNUSED(&BrotliBitReaderGetAvailIn);
+  BROTLI_UNUSED(&BrotliBitReaderLoadBits);
   BROTLI_UNUSED(&BrotliBitReaderRestoreState);
   BROTLI_UNUSED(&BrotliBitReaderSaveState);
   BROTLI_UNUSED(&BrotliBitReaderSetInput);

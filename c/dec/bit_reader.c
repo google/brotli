@@ -29,7 +29,7 @@ const brotli_reg_t kBrotliBitMask[33] = {   0x00000000,
 
 void BrotliInitBitReader(BrotliBitReader* const br) {
   br->val_ = 0;
-  br->bit_pos_ = sizeof(br->val_) << 3;
+  br->bit_pos_ = 0;
 }
 
 BROTLI_BOOL BrotliWarmupBitReader(BrotliBitReader* const br) {
@@ -41,6 +41,7 @@ BROTLI_BOOL BrotliWarmupBitReader(BrotliBitReader* const br) {
     aligned_read_mask = 0;
   }
   if (BrotliGetAvailableBits(br) == 0) {
+    br->val_ = 0;
     if (!BrotliPullByte(br)) {
       return BROTLI_FALSE;
     }
