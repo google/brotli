@@ -208,8 +208,13 @@ OR:
 #define BROTLI_TARGET_RISCV64
 #endif
 
+#if defined(__loongarch_lp64)
+#define BROTLI_TARGET_LOONGARCH64
+#endif
+
 #if defined(BROTLI_TARGET_X64) || defined(BROTLI_TARGET_ARMV8_64) || \
-    defined(BROTLI_TARGET_POWERPC64) || defined(BROTLI_TARGET_RISCV64)
+    defined(BROTLI_TARGET_POWERPC64) || defined(BROTLI_TARGET_RISCV64) || \
+    defined(BROTLI_TARGET_LOONGARCH64)
 #define BROTLI_TARGET_64_BITS 1
 #else
 #define BROTLI_TARGET_64_BITS 0
@@ -268,7 +273,7 @@ OR:
 #define BROTLI_UNALIGNED_READ_FAST (!!0)
 #elif defined(BROTLI_TARGET_X86) || defined(BROTLI_TARGET_X64) ||       \
     defined(BROTLI_TARGET_ARMV7) || defined(BROTLI_TARGET_ARMV8_ANY) || \
-    defined(BROTLI_TARGET_RISCV64)
+    defined(BROTLI_TARGET_RISCV64) || defined(BROTLI_TARGET_LOONGARCH64)
 /* These targets are known to generate efficient code for unaligned reads
  * (e.g. a single instruction, not multiple 1-byte loads, shifted and or'd
  * together). */
