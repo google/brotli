@@ -1,0 +1,59 @@
+name: "CodeQL"
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    # The branches below must be a subset of the branches above
+    branches: [ "master" ]
+  schedule:
+    - cron: '18 15 * * 0'
+
+jobs:
+  analyze:
+    name: Analyze
+    runs-on: 'ubuntu-latest'
+    timeout-minutes: 360
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [ 'cpp', 'java', 'javascript', 'python' ]
+        # CodeQL supports [ 'cpp', 'csharp', 'go', 'java', 'javascript', 'python', 'ruby', 'swift' ]
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+
+    # Initializes the CodeQL tools for scanning.
+    - name: Initialize CodeQL
+      uses: github/codeql-action/init@v2
+      with:
+        languages: ${{ matrix.language }}
+
+    - if: matrix.language == 'cpp'
+      name: Build CPP
+      uses: github/codeql-action/autobuild@v2
+
+    - if: matrix.language == 'java'
+      name: Build Java
+      run: |
+        cd ${GITHUB_WORKSPACE}/java
+        bazelisk build --spawn_strategy=local --nouse_action_cache -c opt ...:all
+
+    - if: matrix.language == 'javascript'
+      name: Build JS
+      uses: github/codeql-action/autobuild@v2
+
+    - if: matrix.language == 'python'
+      name: Build Python
+      uses: github/codeql-action/autobuild@v2
+
+    - name: Perform CodeQL Analysis
+      uses: github/codeql-action/analyze@v2
+      with:
+        category: "/language:${{matrix.language}}"
