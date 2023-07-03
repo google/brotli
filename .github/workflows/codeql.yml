@@ -34,12 +34,15 @@ jobs:
       uses: github/codeql-action/init@v2
       with:
         languages: ${{ matrix.language }}
+        config: |
+          paths-ignore: 
+            - research
 
     - if: matrix.language == 'cpp'
       name: Build CPP
       uses: github/codeql-action/autobuild@v2
 
-    - if: matrix.language == 'java'
+    - if: matrix.language == 'cpp' || matrix.language == 'java'
       name: Build Java
       run: |
         cd ${GITHUB_WORKSPACE}/java
@@ -49,9 +52,10 @@ jobs:
       name: Build JS
       uses: github/codeql-action/autobuild@v2
 
-    - if: matrix.language == 'python'
+    - if: matrix.language == 'cpp' || matrix.language == 'python'
       name: Build Python
-      uses: github/codeql-action/autobuild@v2
+      run: |
+        python setup.py build_ext
 
     - name: Perform CodeQL Analysis
       uses: github/codeql-action/analyze@v2
