@@ -45,6 +45,8 @@ TESTDATA_FILES = [
     'random_org_10k.bin',  # Small data
     'mapsdatazrh',  # Large data
     'ukkonooa',  # Poem
+    'cp1251-utf16le',  # Codepage 1251 table saved in UTF16-LE encoding
+    'cp852-utf8',  # Codepage 852 table saved in UTF8 encoding
 ]
 
 # Some files might be missing in a lightweight sources pack.
