@@ -2289,7 +2289,8 @@ testZeroCostLiterals() {
 describe("DecodeSynthTest", () => {
   const testNames = Object.keys(allTests);
   for (let i = 0; i < testNames.length; ++i) {
-    const testName = testNames[i];
-    it(testName, allTests[testName]);
+    const key = testNames[i];
+    const testName = key.replace(/\$/g, '');
+    it(testName, allTests[key]);
   }
 });

@@ -19,6 +19,18 @@ closure_js_library(
     ],
 )
 
+closure_js_library(
+    name = "jasmine-polyfill",
+    srcs = ["jasmine-polyfill.js"],
+    suppress = [
+        "JSC_MISSING_JSDOC",
+        "JSC_UNKNOWN_EXPR_TYPE",
+        "JSC_MISSING_PROVIDE",
+    ],
+    deps = ["@io_bazel_rules_closure//closure/library:testing"],
+    testonly = True,
+)
+
 # Do NOT use this artifact; it is for test purposes only.
 closure_js_library(
     name = "decode",
@@ -28,13 +40,45 @@ closure_js_library(
 )
 
 closure_js_test(
-    name = "all_tests",
+    name = "decode_test",
     srcs = ["decode_test.js"],
     entry_points = ["decode_test.js"],
     suppress = ["moduleLoad"],
     deps = [
         ":decode",
+        ":jasmine-polyfill",
         ":polyfill",
-        "@io_bazel_rules_closure//closure/library:testing",
+    ],
+)
+
+closure_js_test(
+    name = "decode_synth_test",
+    srcs = ["decode_synth_test.js"],
+    entry_points = ["decode_synth_test.js"],
+    suppress = ["moduleLoad"],
+    deps = [
+        ":decode",
+        ":jasmine-polyfill",
+        ":polyfill",
+    ],
+)
+
+closure_js_library(
+    name = "test_data_js",
+    testonly = True,
+    srcs = ["test_data.js"],
+    suppress = ["lintChecks"],
+)
+
+closure_js_test(
+    name = "bundle_test",
+    srcs = ["bundle_test.js"],
+    entry_points = ["bundle_test.js"],
+    suppress = ["moduleLoad"],
+    deps = [
+        ":decode",
+        ":jasmine-polyfill",
+        ":polyfill",
+        ":test_data_js",
     ],
 )
