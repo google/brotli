@@ -6,9 +6,9 @@
   },
   "files": [
     "cli.js",
-    "decode.js",
+    "decode.js"
   ],
   "dependencies": {
     "yargs": "~8.0.2"
-  },
+  }
 }

@@ -2024,7 +2024,7 @@ let makeBrotliDecode = () => {
     this.cdBrLength = 0;
     /** @type {number} */
     this.cdBrCopied = 0;
-    /** @type {!Array} */
+    /** @type {!Array<?Int8Array>} */
     this.cdChunks = new Array(0);
     /** @type {!Int32Array} */
     this.cdChunkOffsets = new Int32Array(0);
