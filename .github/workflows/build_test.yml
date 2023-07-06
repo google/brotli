@@ -21,6 +21,7 @@ jobs:
       run:
         shell: bash
     strategy:
+      fail-fast: false
       matrix:
         include:
           # TODO: consider running this combination in docker
