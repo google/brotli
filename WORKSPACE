@@ -1,6 +1,11 @@
 workspace(name = "org_brotli")
 
 local_repository(
+    name = "ignore_org_brotli_fuzz",
+    path = "c/fuzz",
+)
+
+local_repository(
     name = "ignore_org_brotli_go",
     path = "go",
 )

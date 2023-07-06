@@ -13,6 +13,10 @@ on:
   pull_request:
     types: [opened, reopened, labeled, synchronize]
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   ubuntu_build:
     name: Build and test ${{ matrix.name }}
@@ -288,8 +292,15 @@ jobs:
     - name: Quick Fuzz
       if: ${{ matrix.build_system == 'fuzz' }}
       run: |
-        export ASAN_OPTIONS=detect_leaks=0
-        ./c/fuzz/test_fuzzer.sh
+        mkdir ${RUNNER_TEMP}/decode_corpora
+        unzip java/org/brotli/integration/fuzz_data.zip -d ${RUNNER_TEMP}/decode_corpora
+        cd ${GITHUB_WORKSPACE}/c/fuzz
+        bazelisk build --config=asan-libfuzzer :decode_fuzzer
+        for f in `ls ${RUNNER_TEMP}/decode_corpora`
+        do
+          echo "Testing $f"
+          ./bazel-bin/decode_fuzzer_bin ${RUNNER_TEMP}/decode_corpora/$f
+        done
 
     - name: Build with Bazel
       if: ${{ matrix.build_system == 'bazel' }}
