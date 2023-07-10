@@ -988,6 +988,22 @@ static void PrintFileProcessingProgress(Context* context) {
   fprintf(stderr, " in %1.2f sec", (double)(context->end_time - context->start_time) / CLOCKS_PER_SEC);
 }
 
+static const char* PrettyDecoderErrorString(BrotliDecoderErrorCode code) {
+  /* "_ERROR_domain_" is in only added in newer versions. If CLI is linked
+     against older shared library, return error string as is; result might be
+     a bit confusing, e.g. "RESERVED" instead of "FORMAT_RESERVED" */
+  const char* prefix = "_ERROR_";
+  size_t prefix_len = strlen(prefix);
+  const char* error_str = BrotliDecoderErrorString(code);
+  size_t error_len = strlen(error_str);
+  if (error_len > prefix_len) {
+    if (strncmp(error_str, prefix, prefix_len) == 0) {
+      error_str += prefix_len;
+    }
+  }
+  return error_str;
+}
+
 static BROTLI_BOOL DecompressFile(Context* context, BrotliDecoderState* s) {
   BrotliDecoderResult result = BROTLI_DECODER_RESULT_NEEDS_MORE_INPUT;
   InitializeBuffers(context);
@@ -996,6 +1012,9 @@ static BROTLI_BOOL DecompressFile(Context* context, BrotliDecoderState* s) {
       if (!HasMoreInput(context)) {
         fprintf(stderr, "corrupt input [%s]\n",
                 PrintablePath(context->current_input_path));
+        if (context->verbosity > 0) {
+          fprintf(stderr, "reason: truncated input\n");
+        }
         return BROTLI_FALSE;
       }
       if (!ProvideInput(context)) return BROTLI_FALSE;
@@ -1008,6 +1027,9 @@ static BROTLI_BOOL DecompressFile(Context* context, BrotliDecoderState* s) {
       if (has_more_input) {
         fprintf(stderr, "corrupt input [%s]\n",
                 PrintablePath(context->current_input_path));
+        if (context->verbosity > 0) {
+          fprintf(stderr, "reason: extra input\n");
+        }
         return BROTLI_FALSE;
       }
       if (context->verbosity > 0) {
@@ -1017,9 +1039,14 @@ static BROTLI_BOOL DecompressFile(Context* context, BrotliDecoderState* s) {
         fprintf(stderr, "\n");
       }
       return BROTLI_TRUE;
-    } else {
+    } else {  /* result == BROTLI_DECODER_RESULT_ERROR */
       fprintf(stderr, "corrupt input [%s]\n",
               PrintablePath(context->current_input_path));
+      if (context->verbosity > 0) {
+        BrotliDecoderErrorCode error = BrotliDecoderGetErrorCode(s);
+        const char* error_str = PrettyDecoderErrorString(error);
+        fprintf(stderr, "reason: %s (%d)\n", error_str, error);
+      }
       return BROTLI_FALSE;
     }
 

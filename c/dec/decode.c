@@ -2831,7 +2831,7 @@ BrotliDecoderErrorCode BrotliDecoderGetErrorCode(const BrotliDecoderState* s) {
 const char* BrotliDecoderErrorString(BrotliDecoderErrorCode c) {
   switch (c) {
 #define BROTLI_ERROR_CODE_CASE_(PREFIX, NAME, CODE) \
-    case BROTLI_DECODER ## PREFIX ## NAME: return #NAME;
+    case BROTLI_DECODER ## PREFIX ## NAME: return #PREFIX #NAME;
 #define BROTLI_NOTHING_
     BROTLI_DECODER_ERROR_CODES_LIST(BROTLI_ERROR_CODE_CASE_, BROTLI_NOTHING_)
 #undef BROTLI_ERROR_CODE_CASE_
