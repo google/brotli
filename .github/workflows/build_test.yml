@@ -98,19 +98,6 @@ jobs:
             cmake_config: Debug
             os: windows-2019
 
-          # TODO: consider running this combination in docker
-          #- name: autotools:gcc5
-
-          - name: autotools:gcc10
-            build_system: autotools
-            c_compiler: gcc-10
-            cxx_compiler: g++-10
-
-          - name: autotools:clang12
-            build_system: autotools
-            c_compiler: clang-12
-            cxx_compiler: clang++12
-
           - name: fuzz:clang12
             build_system: fuzz
             c_compiler: clang-12
@@ -232,18 +219,6 @@ jobs:
             bazel_project: research
             os: windows-2019
 
-          - name: make
-            build_system: make
-
-          - name: make-osx
-            build_system: make
-            os: macos-latest
-
-          # TODO: add 32/64-bit x MSYS2/mingw/Cygwin toolchain support.
-          - name: make-win
-            build_system: make
-            os: windows-latest
-
     env:
       CC: ${{ matrix.c_compiler || 'gcc' }}
       CXX: ${{ matrix.cxx_compiler || 'gcc' }}
@@ -362,17 +337,6 @@ jobs:
         mvn -B install
         cd integration
         mvn -B verify
-
-    - name: Build / Test with Autotools
-      if: ${{ matrix.build_system == 'autotools' }}
-      run: |
-        ./bootstrap && ./configure && make
-
-    - name: Build / Test with Make
-      if: ${{ matrix.build_system == 'make' }}
-      run: |
-        make brotli
-        make test
 
     - uses: actions/setup-python@v2
       if: ${{ matrix.build_system == 'python' }}

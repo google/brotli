@@ -43,21 +43,6 @@ You can download and install brotli using the [vcpkg](https://github.com/Microso
 
 The brotli port in vcpkg is kept up to date by Microsoft team members and community contributors. If the version is out of date, please [create an issue or pull request](https://github.com/Microsoft/vcpkg) on the vcpkg repository.
 
-#### Autotools-style CMake
-
-[configure-cmake](https://github.com/nemequ/configure-cmake) is an
-autotools-style configure script for CMake-based projects (not supported on Windows).
-
-The basic commands to build, test and install brotli are:
-
-    $ mkdir out && cd out
-    $ ../configure-cmake
-    $ make
-    $ make test
-    $ make install
-
-By default, debug binaries are built. To generate "release" `Makefile` specify `--disable-debug` option to `configure-cmake`.
-
 #### Bazel
 
 See [Bazel](http://www.bazel.build/)
@@ -71,10 +56,6 @@ The basic commands to build and install brotli are:
     $ cmake --build . --config Release --target install
 
 You can use other [CMake](https://cmake.org/) configuration.
-
-#### Premake5
-
-See [Premake5](https://premake.github.io/)
 
 #### Python
 
