@@ -12,7 +12,6 @@ import static org.junit.Assert.fail;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.util.Arrays;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -61,6 +60,14 @@ public class SynthTest {
         fail("expected to succeed decoding, but failed");
       }
     }
+  }
+
+  private static String times(int count, String str) {
+    StringBuilder out = new StringBuilder(count * str.length());
+    for (int i = 0; i < count; ++i) {
+      out.append(str);
+    }
+    return out.toString();
   }
 
 /* GENERATED CODE START */
@@ -575,7 +582,8 @@ public class SynthTest {
      */
       compressed,
       true,
-      "aaaaaaaaaaaaaaaaaaaaaaaaaaaatime"
+      times(28, "a")
+      + "time"
     );
   }
 
@@ -839,18 +847,8 @@ public class SynthTest {
      */
       compressed,
       true,
-      "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-      + "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-      + "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-      + "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-      + "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-      + "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-      + "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-      + "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-      + "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-      + "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-      + "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-      + "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaabbbbbbbbbb"
+      times(1022, "a")
+      + times(10, "b")
     );
   }
 
@@ -878,18 +876,8 @@ public class SynthTest {
      */
       compressed,
       true,
-      "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-      + "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-      + "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-      + "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-      + "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-      + "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-      + "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-      + "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-      + "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-      + "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-      + "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-      + "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaabbbbbbbbbb"
+      times(1022, "a")
+      + times(10, "b")
     );
   }
 
@@ -2545,13 +2533,7 @@ public class SynthTest {
      */
       compressed,
       true,
-      "abababababababababababababababababababababababababababababababababababababababababababababab"
-      + "ababababababababababababababababababababababababababababababababababababababababababababab"
-      + "ababababababababababababababababababababababababababababababababababababababababababababab"
-      + "ababababababababababababababababababababababababababababababababababababababababababababab"
-      + "ababababababababababababababababababababababababababababababababababababababababababababab"
-      + "ababababababababababababababababababababababababababababababababababababababababababababab"
-      + "ababababababababababababababababababababababababababababab"
+      times(300, "ab")
     );
   }
 
@@ -2769,8 +2751,6 @@ public class SynthTest {
       (byte) 0x37, (byte) 0x38, (byte) 0x39, (byte) 0x41, (byte) 0x42, (byte) 0x43, (byte) 0x44,
       (byte) 0x45, (byte) 0x46, (byte) 0x03
     };
-    /* This line is added manually. */
-    char[] stub = new char[8388602]; Arrays.fill(stub, 'c'); String hex = "0123456789ABCDEF";
     checkSynth(
     /*
      * main_header: 24
@@ -2823,8 +2803,10 @@ public class SynthTest {
      */
       compressed,
       true,
-      /* This line is modified manually. */
-      "abc" + new String(stub) + "abc" + hex + hex + hex
+      "abc"
+      + times(8388602, "c")
+      + "abc"
+      + times(3, "0123456789ABCDEF")
     );
   }
 
@@ -2908,6 +2890,28 @@ public class SynthTest {
   }
 
   @Test
+  public void testZeroCostCommand() {
+    byte[] compressed = {
+      (byte) 0xa1, (byte) 0xf8, (byte) 0x1f, (byte) 0x00, (byte) 0x00, (byte) 0xa1, (byte) 0x12,
+      (byte) 0x82, (byte) 0x04, (byte) 0x00
+    };
+    checkSynth(
+    /*
+     * main_header: 10
+     * metablock_header_begin: 1, 0, 1024, 0  // last, not empty, length, compressed
+     * metablock_header_trivial_context
+     * huffman_simple: 0,1,256, 42  // literal: any
+     * huffman_simple: 0,1,704, 130  // command: insert = 0, copy = 4, distance_code = -1
+     * huffman_simple: 0,1,64, 0 // distance: last
+     * // 256 0-bit commands with direct distances
+     */
+      compressed,
+      true,
+      times(256, "left")
+    );
+  }
+
+  @Test
   public void testZeroCostLiterals() {
     byte[] compressed = {
       (byte) 0x9b, (byte) 0xff, (byte) 0xff, (byte) 0xff, (byte) 0x00, (byte) 0x20, (byte) 0x54,
@@ -2915,8 +2919,6 @@ public class SynthTest {
       (byte) 0x12, (byte) 0x00, (byte) 0x00, (byte) 0x77, (byte) 0xda, (byte) 0xcc, (byte) 0xe1,
       (byte) 0x7b, (byte) 0xfa, (byte) 0x0f
     };
-    /* This line is added manually. */
-    char[] expected = new char[16777216]; Arrays.fill(expected, '*');
     checkSynth(
     /*
      * main_header
@@ -2930,8 +2932,7 @@ public class SynthTest {
      */
       compressed,
       true,
-      /* This line is modified manually. */
-      new String(expected)
+      times(16777216, "*")
     );
   }
 
