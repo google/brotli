@@ -8,6 +8,7 @@ package org.brotli.dec;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.fail;
+import static org.junit.Assume.assumeTrue;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -2641,6 +2642,41 @@ public class SynthTest {
   }
 
   @Test
+  public void testPeculiarWrap() {
+    byte[] compressed = {
+      (byte) 0x21, (byte) 0xfc, (byte) 0x1f, (byte) 0x00, (byte) 0x00, (byte) 0xa1, (byte) 0x12,
+      (byte) 0x82, (byte) 0x04, (byte) 0x60, (byte) 0x1d, (byte) 0x00, (byte) 0xca, (byte) 0xfe,
+      (byte) 0xba, (byte) 0xbe, (byte) 0xde, (byte) 0xad, (byte) 0xbe, (byte) 0xef, (byte) 0x21,
+      (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x38, (byte) 0x4e,
+      (byte) 0xdb, (byte) 0x00, (byte) 0x00, (byte) 0x70, (byte) 0xb0, (byte) 0x65, (byte) 0x12,
+      (byte) 0x03, (byte) 0x24, (byte) 0x00, (byte) 0x00, (byte) 0xee, (byte) 0xb4, (byte) 0x91,
+      (byte) 0x61, (byte) 0x68, (byte) 0x64, (byte) 0x0c
+    };
+    checkSynth(
+    /*
+     * main_header: 10
+     * // See ZeroCostCommand
+     * metablock_header_begin: 0, 0, 2048, 0
+     * metablock_header_trivial_context
+     * huffman_simple: 0,1,256, 42
+     * huffman_simple: 0,1,704, 130
+     * huffman_simple: 0,1,64, 0
+     * // Metadata block; at least 8 bytes long
+     * bits: "0", "11", "0", "01", "00000111"
+     * byte_boundary
+     * bits: "11001010", "11111110", "10111010", "10111110"
+     * bits: "11011110", "10101101", "10111110", "11101111"
+     * metablock_header_easy: 3, 1
+     * command_easy: 0, "abc", 0
+     */
+      compressed,
+      true,
+      times(512, "left")
+      + "abc"
+    );
+  }
+
+  @Test
   public void testSimplePrefix() {
     byte[] compressed = {
       (byte) 0x1b, (byte) 0x03, (byte) 0x00, (byte) 0x00, (byte) 0xa0, (byte) 0xc3, (byte) 0xc4,
@@ -2712,9 +2748,9 @@ public class SynthTest {
     );
   }
 
-/* DISABLED: Java decoder does not tolerate extra input after the brotli stream.
   @Test
   public void testSimplePrefixPlusExtraData() {
+    assumeTrue(false);
     byte[] compressed = {
       (byte) 0x1b, (byte) 0x03, (byte) 0x00, (byte) 0x00, (byte) 0xa0, (byte) 0xc3, (byte) 0xc4,
       (byte) 0xc6, (byte) 0xc8, (byte) 0x02, (byte) 0x00, (byte) 0x70, (byte) 0xb0, (byte) 0x65,
@@ -2722,12 +2758,23 @@ public class SynthTest {
       (byte) 0x51, (byte) 0xa0, (byte) 0x1d, (byte) 0x55, (byte) 0xaa
     };
     checkSynth(
+    /*
+     * main_header
+     * metablock_header_begin: 1, 0, 4, 0
+     * metablock_header_trivial_context
+     * huffman_simple: 1,4,256, 97,98,99,100  // ASCII codes for a, b, c, d
+     * huffman_fixed: 704
+     * huffman_fixed: 64
+     * command_inscopy_easy: 4, 0
+     * command_literal_bits: 0, 10, 110, 111  // a, b, c, d
+     * byte_boundary
+     * bits: "01010101", "10101010"
+     */
       compressed,
       true,
       "abcd"
     );
   }
-*/
 
   @Test
   public void testStressReadDistanceExtraBits() {

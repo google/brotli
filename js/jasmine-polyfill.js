@@ -3,6 +3,8 @@ goog.require('goog.testing.asserts');
 goog.require('goog.testing.jsunit');
 
 let test_case_;
+/** @type{?function(): void} */
+let pending = null;
 
 function describe(caseName, callback) {
   test_case_ = new goog.testing.TestCase(caseName);
