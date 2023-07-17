@@ -251,16 +251,23 @@ static BROTLI_INLINE void BrotliDropBits(
   br->val_ >>= n_bits;
 }
 
+/* Make sure that there are no spectre bits in accumulator.
+   This is important for the cases when some bytes are skipped
+   (i.e. never placed into accumulator). */
+static BROTLI_INLINE void BrotliBitReaderNormalize(BrotliBitReader* br) {
+  /* Actually, it is enough to normalize when br->bit_pos_ == 0 */
+  if (br->bit_pos_ < (sizeof(brotli_reg_t) << 3u)) {
+    br->val_ &= (((brotli_reg_t)1) << br->bit_pos_) - 1;
+  }
+}
+
 static BROTLI_INLINE void BrotliBitReaderUnload(BrotliBitReader* br) {
   brotli_reg_t unused_bytes = BrotliGetAvailableBits(br) >> 3;
   brotli_reg_t unused_bits = unused_bytes << 3;
   br->next_in =
       (unused_bytes == 0) ? br->next_in : (br->next_in - unused_bytes);
   br->bit_pos_ -= unused_bits;
-  /* Prepare for possible input discontinuity. */
-  if (br->bit_pos_ == 0) {
-    br->val_ = 0;
-  }
+  BrotliBitReaderNormalize(br);
 }
 
 /* Reads the specified number of bits from |br| and advances the bit pos.
@@ -357,10 +364,14 @@ static BROTLI_INLINE BROTLI_BOOL BrotliJumpToByteBoundary(BrotliBitReader* br) {
   if (pad_bits_count != 0) {
     BrotliTakeBits(br, pad_bits_count, &pad_bits);
   }
+  BrotliBitReaderNormalize(br);
   return TO_BROTLI_BOOL(pad_bits == 0);
 }
 
 static BROTLI_INLINE void BrotliDropBytes(BrotliBitReader* br, size_t num) {
+  /* Check detour is legal: accumulator must to be empty. */
+  BROTLI_DCHECK(br->bit_pos_ == 0);
+  BROTLI_DCHECK(br->val_ == 0);
   br->next_in += num;
 }
 
@@ -375,10 +386,7 @@ static BROTLI_INLINE void BrotliCopyBytes(uint8_t* dest,
     ++dest;
     --num;
   }
-  /* Prepare for possible input discontinuity. */
-  if (br->bit_pos_ == 0) {
-    br->val_ = 0;
-  }
+  BrotliBitReaderNormalize(br);
   if (num > 0) {
     memcpy(dest, br->next_in, num);
     BrotliDropBytes(br, num);
