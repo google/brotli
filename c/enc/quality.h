@@ -133,7 +133,6 @@ static BROTLI_INLINE void ChooseHasher(const BrotliEncoderParams* params,
     hparams->type = 6;
     hparams->block_bits = params->quality - 1;
     hparams->bucket_bits = 15;
-    hparams->hash_len = 5;
     hparams->num_last_distances_to_check =
         params->quality < 7 ? 4 : params->quality < 9 ? 10 : 16;
   } else {
