@@ -68,3 +68,5 @@ jobs:
       uses: github/codeql-action/analyze@v2
       with:
         category: "/language:${{matrix.language}}"
+        ref: "${{ github.ref != 'master' && github.ref || '/refs/heads/master' }}"
+        sha: "${{ github.sha }}"
