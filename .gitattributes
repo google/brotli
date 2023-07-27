@@ -4,24 +4,19 @@ tests/testdata/* binary
 **/** export-ignore
 
 # Add top-level files
-bootstrap !export-ignore
-BUILD !export-ignore
+BUILD.bazel !export-ignore
+CHANGELOG.md !export-ignore
 CMakeLists.txt !export-ignore
 compiler_config_setting.bzl !export-ignore
-configure !export-ignore
-configure-cmake !export-ignore
-configure.ac !export-ignore
 CONTRIBUTING.md !export-ignore
 LICENSE !export-ignore
-Makefile !export-ignore
-Makefile.am !export-ignore
 MANIFEST.in !export-ignore
-premake5.lua !export-ignore
 README !export-ignore
 README.md !export-ignore
-setup.py !export-ignore
+SECURITY.md !export-ignore
 setup.cfg !export-ignore
-WORKSPACE !export-ignore
+setup.py !export-ignore
+WORKSPACE.bazel !export-ignore
 
 # Add sources
 c !export-ignore
@@ -40,7 +35,6 @@ python/** !export-ignore
 
 # Add more build files.
 scripts !export-ignore
-scripts/sources.lst !export-ignore
 scripts/libbrotli*.pc.in !export-ignore
 
 # Add testdata
