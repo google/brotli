@@ -24,21 +24,15 @@ public class Decoder {
     return totalOut;
   }
 
-  public static void main(String... args) throws IOException {
-    if (args.length != 2) {
-      System.out.println("Usage: decoder <compressed_in> <decompressed_out>");
-      return;
-    }
-
-    byte[] buffer = new byte[1024 * 1024];
+  private static void decompress(String fromPath, String toPath, byte[] buffer) throws IOException {
     long start;
     long bytesDecoded;
     long end;
     InputStream in = null;
     OutputStream out = null;
     try {
-      in = new FileInputStream(args[0]);
-      out = new FileOutputStream(args[1]);
+      in = new FileInputStream(fromPath);
+      out = new FileOutputStream(toPath);
       start = System.nanoTime();
       bytesDecoded = decodeBytes(in, out, buffer);
       end = System.nanoTime();
@@ -57,5 +51,22 @@ public class Decoder {
     }
     double mbDecoded = bytesDecoded / (1024.0 * 1024.0);
     System.out.println(mbDecoded / timeDelta + " MiB/s");
+  }
+
+  public static void main(String... args) throws IOException {
+    if (args.length != 2 && args.length != 3) {
+      System.out.println("Usage: decoder <compressed_in> <decompressed_out> [repeat]");
+      return;
+    }
+
+    int repeat = 1;
+    if (args.length == 3) {
+      repeat = Integer.parseInt(args[2]);
+    }
+
+    byte[] buffer = new byte[1024 * 1024];
+    for (int i = 0; i < repeat; ++i) {
+      decompress(args[0], args[1], buffer);
+    }
   }
 }
