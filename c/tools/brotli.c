@@ -561,9 +561,9 @@ static Command ParseParams(Context* params) {
 }
 
 static void PrintVersion(void) {
-  int major = BROTLI_VERSION >> 24;
-  int minor = (BROTLI_VERSION >> 12) & 0xFFF;
-  int patch = BROTLI_VERSION & 0xFFF;
+  int major = BROTLI_VERSION_MAJOR;
+  int minor = BROTLI_VERSION_MINOR;
+  int patch = BROTLI_VERSION_PATCH;
   fprintf(stdout, "brotli %d.%d.%d\n", major, minor, patch);
 }
 

@@ -23,106 +23,109 @@ from distutils import log
 CURR_DIR = os.path.abspath(os.path.dirname(os.path.realpath(__file__)))
 
 
+def read_define(path, macro):
+  """ Return macro value from the given file. """
+  with open(path, 'r') as f:
+    for line in f:
+      m = re.match(rf'#define\s{macro}\s+(.+)', line)
+      if m:
+        return m.group(1)
+  return ''
+
+
 def get_version():
-    """ Return BROTLI_VERSION string as defined in 'common/version.h' file. """
-    version_file_path = os.path.join(CURR_DIR, 'c', 'common', 'version.h')
-    version = 0
-    with open(version_file_path, 'r') as f:
-        for line in f:
-            m = re.match(r'#define\sBROTLI_VERSION\s+0x([0-9a-fA-F]+)', line)
-            if m:
-                version = int(m.group(1), 16)
-    if version == 0:
-        return ''
-    # Semantic version is calculated as (MAJOR << 24) | (MINOR << 12) | PATCH.
-    major = version >> 24
-    minor = (version >> 12) & 0xFFF
-    patch = version & 0xFFF
-    return '{0}.{1}.{2}'.format(major, minor, patch)
+  """ Return library version string from 'common/version.h' file. """
+  version_file_path = os.path.join(CURR_DIR, 'c', 'common', 'version.h')
+  major = read_define(version_file_path, 'BROTLI_VERSION_MAJOR')
+  minor = read_define(version_file_path, 'BROTLI_VERSION_MINOR')
+  patch = read_define(version_file_path, 'BROTLI_VERSION_PATCH')
+  if not major or not minor or not patch:
+    return ''
+  return f'{major}.{minor}.{patch}'
 
 
 def get_test_suite():
-    test_loader = unittest.TestLoader()
-    test_suite = test_loader.discover('python', pattern='*_test.py')
-    return test_suite
+  test_loader = unittest.TestLoader()
+  test_suite = test_loader.discover('python', pattern='*_test.py')
+  return test_suite
 
 
 class BuildExt(build_ext):
 
-    def get_source_files(self):
-        filenames = build_ext.get_source_files(self)
-        for ext in self.extensions:
-            filenames.extend(ext.depends)
-        return filenames
+  def get_source_files(self):
+    filenames = build_ext.get_source_files(self)
+    for ext in self.extensions:
+      filenames.extend(ext.depends)
+    return filenames
 
-    def build_extension(self, ext):
-        if ext.sources is None or not isinstance(ext.sources, (list, tuple)):
-            raise errors.DistutilsSetupError(
-                "in 'ext_modules' option (extension '%s'), "
-                "'sources' must be present and must be "
-                "a list of source filenames" % ext.name)
+  def build_extension(self, ext):
+    if ext.sources is None or not isinstance(ext.sources, (list, tuple)):
+      raise errors.DistutilsSetupError(
+        "in 'ext_modules' option (extension '%s'), "
+        "'sources' must be present and must be "
+        "a list of source filenames" % ext.name)
 
-        ext_path = self.get_ext_fullpath(ext.name)
-        depends = ext.sources + ext.depends
-        if not (self.force or dep_util.newer_group(depends, ext_path, 'newer')):
-            log.debug("skipping '%s' extension (up-to-date)", ext.name)
-            return
-        else:
-            log.info("building '%s' extension", ext.name)
+    ext_path = self.get_ext_fullpath(ext.name)
+    depends = ext.sources + ext.depends
+    if not (self.force or dep_util.newer_group(depends, ext_path, 'newer')):
+      log.debug("skipping '%s' extension (up-to-date)", ext.name)
+      return
+    else:
+      log.info("building '%s' extension", ext.name)
 
-        c_sources = []
-        for source in ext.sources:
-            if source.endswith('.c'):
-                c_sources.append(source)
-        extra_args = ext.extra_compile_args or []
+    c_sources = []
+    for source in ext.sources:
+      if source.endswith('.c'):
+        c_sources.append(source)
+    extra_args = ext.extra_compile_args or []
 
-        objects = []
+    objects = []
 
-        macros = ext.define_macros[:]
-        if platform.system() == 'Darwin':
-            macros.append(('OS_MACOSX', '1'))
-        elif self.compiler.compiler_type == 'mingw32':
-            # On Windows Python 2.7, pyconfig.h defines "hypot" as "_hypot",
-            # This clashes with GCC's cmath, and causes compilation errors when
-            # building under MinGW: http://bugs.python.org/issue11566
-            macros.append(('_hypot', 'hypot'))
-        for undef in ext.undef_macros:
-            macros.append((undef,))
+    macros = ext.define_macros[:]
+    if platform.system() == 'Darwin':
+      macros.append(('OS_MACOSX', '1'))
+    elif self.compiler.compiler_type == 'mingw32':
+      # On Windows Python 2.7, pyconfig.h defines "hypot" as "_hypot",
+      # This clashes with GCC's cmath, and causes compilation errors when
+      # building under MinGW: http://bugs.python.org/issue11566
+      macros.append(('_hypot', 'hypot'))
+    for undef in ext.undef_macros:
+      macros.append((undef,))
 
-        objs = self.compiler.compile(
-            c_sources,
-            output_dir=self.build_temp,
-            macros=macros,
-            include_dirs=ext.include_dirs,
-            debug=self.debug,
-            extra_postargs=extra_args,
-            depends=ext.depends)
-        objects.extend(objs)
+    objs = self.compiler.compile(
+        c_sources,
+        output_dir=self.build_temp,
+        macros=macros,
+        include_dirs=ext.include_dirs,
+        debug=self.debug,
+        extra_postargs=extra_args,
+        depends=ext.depends)
+    objects.extend(objs)
 
-        self._built_objects = objects[:]
-        if ext.extra_objects:
-            objects.extend(ext.extra_objects)
-        extra_args = ext.extra_link_args or []
-        # when using GCC on Windows, we statically link libgcc and libstdc++,
-        # so that we don't need to package extra DLLs
-        if self.compiler.compiler_type == 'mingw32':
-            extra_args.extend(['-static-libgcc', '-static-libstdc++'])
+    self._built_objects = objects[:]
+    if ext.extra_objects:
+      objects.extend(ext.extra_objects)
+    extra_args = ext.extra_link_args or []
+    # when using GCC on Windows, we statically link libgcc and libstdc++,
+    # so that we don't need to package extra DLLs
+    if self.compiler.compiler_type == 'mingw32':
+        extra_args.extend(['-static-libgcc', '-static-libstdc++'])
 
-        ext_path = self.get_ext_fullpath(ext.name)
-        # Detect target language, if not provided
-        language = ext.language or self.compiler.detect_language(c_sources)
+    ext_path = self.get_ext_fullpath(ext.name)
+    # Detect target language, if not provided
+    language = ext.language or self.compiler.detect_language(c_sources)
 
-        self.compiler.link_shared_object(
-            objects,
-            ext_path,
-            libraries=self.get_libraries(ext),
-            library_dirs=ext.library_dirs,
-            runtime_library_dirs=ext.runtime_library_dirs,
-            extra_postargs=extra_args,
-            export_symbols=self.get_export_symbols(ext),
-            debug=self.debug,
-            build_temp=self.build_temp,
-            target_lang=language)
+    self.compiler.link_shared_object(
+        objects,
+        ext_path,
+        libraries=self.get_libraries(ext),
+        library_dirs=ext.library_dirs,
+        runtime_library_dirs=ext.runtime_library_dirs,
+        extra_postargs=extra_args,
+        export_symbols=self.get_export_symbols(ext),
+        debug=self.debug,
+        build_temp=self.build_temp,
+        target_lang=language)
 
 
 NAME = 'Brotli'

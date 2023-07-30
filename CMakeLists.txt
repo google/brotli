@@ -50,55 +50,23 @@ mark_as_advanced(BROTLI_BUNDLED_MODE)
 
 include(GNUInstallDirs)
 
-# Parse version information from common/version.h. Normally we would
-# define these values here and write them out to configuration file(s)
-# (i.e., config.h), but in this case we parse them from
-# common/version.h to be less intrusive.
-function(hex_to_dec HEXADECIMAL DECIMAL)
-  string(TOUPPER "${HEXADECIMAL}" _tail)
-  set(_decimal 0)
-  string(LENGTH "${_tail}" _tail_length)
-  while (_tail_length GREATER 0)
-    math(EXPR _decimal "${_decimal} * 16")
-    string(SUBSTRING "${_tail}" 0 1 _digit)
-    string(SUBSTRING "${_tail}" 1 -1 _tail)
-    if (_digit STREQUAL "A")
-      math(EXPR _decimal "${_decimal} + 10")
-    elseif (_digit STREQUAL "B")
-      math(EXPR _decimal "${_decimal} + 11")
-    elseif (_digit STREQUAL "C")
-      math(EXPR _decimal "${_decimal} + 12")
-    elseif (_digit STREQUAL "D")
-      math(EXPR _decimal "${_decimal} + 13")
-    elseif (_digit STREQUAL "E")
-      math(EXPR _decimal "${_decimal} + 14")
-    elseif (_digit STREQUAL "F")
-      math(EXPR _decimal "${_decimal} + 15")
-    else()
-      math(EXPR _decimal "${_decimal} + ${_digit}")
-    endif()
-    string(LENGTH "${_tail}" _tail_length)
-  endwhile()
-  set(${DECIMAL} ${_decimal} PARENT_SCOPE)
-endfunction(hex_to_dec)
+# Reads macro from .h file; it is expected to be a single-line define.
+function(read_macro PATH MACRO OUTPUT)
+  file(STRINGS ${PATH} _line REGEX "^#define +${MACRO} +(.+)$")
+  string(REGEX REPLACE "^#define +${MACRO} +(.+)$" "\\1" _val "${_line}")
+  set(${OUTPUT} ${_val} PARENT_SCOPE)
+endfunction(read_macro)
 
 # Version information
-file(STRINGS "c/common/version.h" _brotli_version_line REGEX "^#define BROTLI_VERSION (0x[0-9a-fA-F]+)$")
-string(REGEX REPLACE "^#define BROTLI_VERSION 0x([0-9a-fA-F]+)$" "\\1" _brotli_version_hex "${_brotli_version_line}")
-hex_to_dec("${_brotli_version_hex}" _brotli_version)
-math(EXPR BROTLI_VERSION_MAJOR "${_brotli_version} >> 24")
-math(EXPR BROTLI_VERSION_MINOR "(${_brotli_version} >> 12) & 4095")
-math(EXPR BROTLI_VERSION_PATCH "${_brotli_version} & 4095")
-set(BROTLI_VERSION "${BROTLI_VERSION_MAJOR}.${BROTLI_VERSION_MINOR}.${BROTLI_VERSION_PATCH}")
+read_macro("c/common/version.h" "BROTLI_VERSION_MAJOR" BROTLI_VERSION_MAJOR)
+read_macro("c/common/version.h" "BROTLI_VERSION_MINOR" BROTLI_VERSION_MINOR)
+read_macro("c/common/version.h" "BROTLI_VERSION_PATCH" BROTLI_VERSION_PATCH)
 mark_as_advanced(BROTLI_VERSION BROTLI_VERSION_MAJOR BROTLI_VERSION_MINOR BROTLI_VERSION_PATCH)
 
 # ABI Version information
-file(STRINGS "c/common/version.h" _brotli_abi_info_line REGEX "^#define BROTLI_ABI_VERSION (0x[0-9a-fA-F]+)$")
-string(REGEX REPLACE "^#define BROTLI_ABI_VERSION 0x([0-9a-fA-F]+)$" "\\1" _brotli_abi_info_hex "${_brotli_abi_info_line}")
-hex_to_dec("${_brotli_abi_info_hex}" _brotli_abi_info)
-math(EXPR BROTLI_ABI_CURRENT "${_brotli_abi_info} >> 24")
-math(EXPR BROTLI_ABI_REVISION "(${_brotli_abi_info} >> 12) & 4095")
-math(EXPR BROTLI_ABI_AGE "${_brotli_abi_info} & 4095")
+read_macro("c/common/version.h" "BROTLI_ABI_CURRENT" BROTLI_ABI_CURRENT)
+read_macro("c/common/version.h" "BROTLI_ABI_REVISION" BROTLI_ABI_REVISION)
+read_macro("c/common/version.h" "BROTLI_ABI_AGE" BROTLI_ABI_AGE)
 math(EXPR BROTLI_ABI_COMPATIBILITY "${BROTLI_ABI_CURRENT} - ${BROTLI_ABI_AGE}")
 mark_as_advanced(BROTLI_ABI_CURRENT BROTLI_ABI_REVISION BROTLI_ABI_AGE BROTLI_ABI_COMPATIBILITY)
 
@@ -147,24 +115,18 @@ elseif(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
   set(CMAKE_INSTALL_NAME_DIR "${CMAKE_INSTALL_PREFIX}/lib")
 endif()
 
-function(transform_sources_list INPUT_FILE OUTPUT_FILE)
-  file(READ ${INPUT_FILE} TEXT)
-  string(REGEX REPLACE "\\\\\n" "~continuation~" TEXT ${TEXT})
-  string(REGEX REPLACE "([a-zA-Z_][a-zA-Z0-9_]*)[\t ]*=[\t ]*([^\n]*)" "SET(\\1 \\2)" TEXT ${TEXT})
-  string(REPLACE "~continuation~" "\n" TEXT ${TEXT})
-  file(WRITE ${OUTPUT_FILE} ${TEXT})
-endfunction()
-
-transform_sources_list("scripts/sources.lst" "${CMAKE_CURRENT_BINARY_DIR}/sources.lst.cmake")
-include("${CMAKE_CURRENT_BINARY_DIR}/sources.lst.cmake")
-
 if(BROTLI_EMSCRIPTEN)
   set(BUILD_SHARED_LIBS OFF)
 endif()
 
-add_library(brotlicommon ${BROTLI_COMMON_C})
-add_library(brotlidec ${BROTLI_DEC_C})
-add_library(brotlienc ${BROTLI_ENC_C})
+file(GLOB_RECURSE BROTLI_COMMON_SOURCES RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} c/common/*.c)
+add_library(brotlicommon ${BROTLI_COMMON_SOURCES})
+
+file(GLOB_RECURSE BROTLI_DEC_SOURCES RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} c/dec/*.c)
+add_library(brotlidec ${BROTLI_DEC_SOURCES})
+
+file(GLOB_RECURSE BROTLI_ENC_SOURCES RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} c/enc/*.c)
+add_library(brotlienc ${BROTLI_ENC_SOURCES})
 
 # Older CMake versions does not understand INCLUDE_DIRECTORIES property.
 include_directories(${BROTLI_INCLUDE_DIRS})
@@ -206,7 +168,7 @@ if(BROTLI_PARENT_DIRECTORY)
 endif()
 
 # Build the brotli executable
-add_executable(brotli ${BROTLI_CLI_C})
+add_executable(brotli c/tools/brotli.c)
 target_link_libraries(brotli ${BROTLI_LIBRARIES})
 
 # Installation
