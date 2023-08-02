@@ -78,8 +78,7 @@ typedef struct HasherSearchResult {
      for this use.
    * The number has been tuned heuristically against compression benchmarks. */
 static const uint32_t kHashMul32 = 0x1E35A7BD;
-static const uint64_t kHashMul64 = BROTLI_MAKE_UINT64_T(0x1E35A7BD, 0x1E35A7BD);
-static const uint64_t kHashMul64Long =
+static const uint64_t kHashMul64 =
     BROTLI_MAKE_UINT64_T(0x1FE35A7Bu, 0xD3579BD3u);
 
 static BROTLI_INLINE uint32_t Hash14(const uint8_t* data) {
