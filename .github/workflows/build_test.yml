@@ -338,7 +338,7 @@ jobs:
         cd integration
         mvn -B verify
 
-    - uses: actions/setup-python@v2
+    - uses: actions/setup-python@v4
       if: ${{ matrix.build_system == 'python' }}
       with:
         python-version: ${{ matrix.python_version }}
