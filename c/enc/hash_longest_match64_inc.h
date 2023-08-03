@@ -217,8 +217,12 @@ static BROTLI_INLINE void FN(FindLongestMatch)(
     const size_t down =
         (num[key] > self->block_size_) ?
         (num[key] - self->block_size_) : 0u;
-    for (i = num[key]; i > down;) {
+    const uint32_t first4 = BrotliUnalignedRead32(data + cur_ix_masked);
+    const size_t max_length_m4 = max_length - 4;
+    i = num[key];
+    for (; i > down;) {
       size_t prev_ix = bucket[--i & self->block_mask_];
+      uint32_t current4;
       const size_t backward = cur_ix - prev_ix;
       if (BROTLI_PREDICT_FALSE(backward > max_backward)) {
         break;
@@ -229,22 +233,19 @@ static BROTLI_INLINE void FN(FindLongestMatch)(
           data[cur_ix_masked + best_len] != data[prev_ix + best_len]) {
         continue;
       }
+      current4 = BrotliUnalignedRead32(data + prev_ix);
+      if (first4 != current4) continue;
       {
-        const size_t len = FindMatchLengthWithLimit(&data[prev_ix],
-                                                    &data[cur_ix_masked],
-                                                    max_length);
-        if (len >= 4) {
-          /* Comparing for >= 3 does not change the semantics, but just saves
-             for a few unnecessary binary logarithms in backward reference
-             score, since we are not interested in such short matches. */
-          score_t score = BackwardReferenceScore(len, backward);
-          if (best_score < score) {
-            best_score = score;
-            best_len = len;
-            out->len = best_len;
-            out->distance = backward;
-            out->score = best_score;
-          }
+        const size_t len = FindMatchLengthWithLimit(&data[prev_ix + 4],
+                                                    &data[cur_ix_masked + 4],
+                                                    max_length_m4) + 4;
+        const score_t score = BackwardReferenceScore(len, backward);
+        if (best_score < score) {
+          best_score = score;
+          best_len = len;
+          out->len = best_len;
+          out->distance = backward;
+          out->score = best_score;
         }
       }
     }
