@@ -98,9 +98,9 @@ BROTLI_BOOL BrotliDecoderStateInit(BrotliDecoderState* s,
 
 void BrotliDecoderStateMetablockBegin(BrotliDecoderState* s) {
   s->meta_block_remaining_len = 0;
-  s->block_length[0] = 1U << 24;
-  s->block_length[1] = 1U << 24;
-  s->block_length[2] = 1U << 24;
+  s->block_length[0] = BROTLI_BLOCK_SIZE_CAP;
+  s->block_length[1] = BROTLI_BLOCK_SIZE_CAP;
+  s->block_length[2] = BROTLI_BLOCK_SIZE_CAP;
   s->num_block_types[0] = 1;
   s->num_block_types[1] = 1;
   s->num_block_types[2] = 1;

@@ -149,7 +149,7 @@ static BrotliDecoderErrorCode DecodeWindowBits(BrotliDecoderState* s,
   }
   BrotliTakeBits(br, 3, &n);
   if (n != 0) {
-    s->window_bits = 17 + n;
+    s->window_bits = (17u + n) & 63u;
     return BROTLI_DECODER_SUCCESS;
   }
   BrotliTakeBits(br, 3, &n);
@@ -166,7 +166,7 @@ static BrotliDecoderErrorCode DecodeWindowBits(BrotliDecoderState* s,
     }
   }
   if (n != 0) {
-    s->window_bits = 8 + n;
+    s->window_bits = (8u + n) & 63u;
     return BROTLI_DECODER_SUCCESS;
   }
   s->window_bits = 17;
@@ -2422,7 +2422,7 @@ BrotliDecoderResult BrotliDecoderDecompressStream(
           result = BROTLI_DECODER_NEEDS_MORE_INPUT;
           break;
         }
-        s->window_bits = (brotli_reg_t)bits;
+        s->window_bits = bits & 63u;
         if (s->window_bits < BROTLI_LARGE_MIN_WBITS ||
             s->window_bits > BROTLI_LARGE_MAX_WBITS) {
           result = BROTLI_FAILURE(BROTLI_DECODER_ERROR_FORMAT_WINDOW_BITS);

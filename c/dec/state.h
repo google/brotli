@@ -233,6 +233,7 @@ typedef struct BrotliMetablockHeaderArena {
   uint8_t code_length_code_lengths[BROTLI_CODE_LENGTH_CODES];
   /* Population counts for the code lengths. */
   uint16_t code_length_histo[16];
+  /* TODO(eustas): +2 bytes padding */
 
   /* For HuffmanTreeGroupDecode. */
   int htree_index;
@@ -278,6 +279,8 @@ struct BrotliDecoderStateStruct {
   int dist_rb_idx;
   int dist_rb[4];
   int error_code;
+  int meta_block_remaining_len;
+
   uint8_t* ringbuffer;
   uint8_t* ringbuffer_end;
   HuffmanCode* htree_command;
@@ -299,7 +302,6 @@ struct BrotliDecoderStateStruct {
      computed. After distance computation it is used as a temporary variable. */
   int distance_context;
   brotli_reg_t block_length[3];
-  int meta_block_remaining_len;
   brotli_reg_t block_length_index;
   brotli_reg_t num_block_types[3];
   brotli_reg_t block_type_rb[6];
@@ -308,10 +310,6 @@ struct BrotliDecoderStateStruct {
   brotli_reg_t num_dist_htrees;
   uint8_t* dist_context_map;
   HuffmanCode* literal_htree;
-  uint8_t dist_htree_index;
-
-  int copy_length;
-  int distance_code;
 
   /* For partial write operations. */
   size_t rb_roundtrips;  /* how many times we went around the ring-buffer */
@@ -320,6 +318,12 @@ struct BrotliDecoderStateStruct {
   /* For InverseMoveToFrontTransform. */
   brotli_reg_t mtf_upper_bound;
   uint32_t mtf[64 + 1];
+
+  int copy_length;
+  int distance_code;
+
+  uint8_t dist_htree_index;
+  /* TODO(eustas): +3 bytes padding */
 
   /* Less used attributes are at the end of this struct. */
 
@@ -336,16 +340,18 @@ struct BrotliDecoderStateStruct {
   BrotliRunningDecodeUint8State substate_decode_uint8;
   BrotliRunningReadBlockLengthState substate_read_block_length;
 
+  int new_ringbuffer_size;
+  /* TODO(eustas): +4 bytes padding */
+
   unsigned int is_last_metablock : 1;
   unsigned int is_uncompressed : 1;
   unsigned int is_metadata : 1;
   unsigned int should_wrap_ringbuffer : 1;
   unsigned int canny_ringbuffer_allocation : 1;
   unsigned int large_window : 1;
+  unsigned int window_bits : 6;
   unsigned int size_nibbles : 8;
-  brotli_reg_t window_bits;
-
-  int new_ringbuffer_size;
+  /* TODO(eustas): +12 bits padding */
 
   brotli_reg_t num_literal_htrees;
   uint8_t* context_map;
@@ -382,6 +388,10 @@ BROTLI_INTERNAL BROTLI_BOOL BrotliDecoderHuffmanTreeGroupInit(
   S->free_func(S->memory_manager_opaque, X); \
   X = NULL;                                  \
 }
+
+/* Literal/Command/Distance block size maximum; same as maximum metablock size;
+   used as block size when there is no block switching. */
+#define BROTLI_BLOCK_SIZE_CAP (1U << 24)
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }  /* extern "C" */
