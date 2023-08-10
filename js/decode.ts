@@ -886,9 +886,15 @@ function decompress(s: State): void {
         ringBufferMask = s.ringBufferSize - 1;
         ringBuffer = s.ringBuffer;
         continue;
+      // Fallthrough case in switch is intentional.
+      // tslint:disable-next-line:ban-ts-suppressions
+      // @ts-ignore error TS7029: Fallthrough case in switch.
       case 3:
         readMetablockHuffmanCodesAndContextMaps(s);
         s.runningState = 4;
+      // Fallthrough case in switch is intentional.
+      // tslint:disable-next-line:ban-ts-suppressions
+      // @ts-ignore error TS7029: Fallthrough case in switch.
       case 4:
         if (s.metaBlockLength <= 0) {
           s.runningState = 2;
@@ -924,6 +930,9 @@ function decompress(s: State): void {
         s.copyLength = copyLengthOffset + ((copyLengthExtraBits <= 16) ? readFewBits(s, copyLengthExtraBits) : readManyBits(s, copyLengthExtraBits));
         s.j = 0;
         s.runningState = 7;
+      // Fallthrough case in switch is intentional.
+      // tslint:disable-next-line:ban-ts-suppressions
+      // @ts-ignore error TS7029: Fallthrough case in switch.
       case 7:
         if (s.trivialLiteralContext !== 0) {
           while (s.j < s.insertLength) {
@@ -1106,6 +1115,9 @@ function decompress(s: State): void {
       case 6:
         copyUncompressedData(s);
         continue;
+      // Fallthrough case in switch is intentional.
+      // tslint:disable-next-line:ban-ts-suppressions
+      // @ts-ignore error TS7029: Fallthrough case in switch.
       case 12:
         s.ringBufferBytesReady = Math.min(s.pos, s.ringBufferSize);
         s.runningState = 13;

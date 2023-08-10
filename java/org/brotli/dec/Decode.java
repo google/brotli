@@ -1109,8 +1109,8 @@ final class Decode {
         case COMPRESSED_BLOCK_START:
           readMetablockHuffmanCodesAndContextMaps(s);
           s.runningState = MAIN_LOOP;
-          // Fall through
 
+        // fall through
         case MAIN_LOOP:
           if (s.metaBlockLength <= 0) {
             s.runningState = BLOCK_START;
@@ -1141,7 +1141,7 @@ final class Decode {
           s.j = 0;
           s.runningState = INSERT_LOOP;
 
-          // Fall through
+        // fall through
         case INSERT_LOOP:
           if (s.trivialLiteralContext != 0) {
             while (s.j < s.insertLength) {
@@ -1248,7 +1248,8 @@ final class Decode {
           }
           s.j = 0;
           s.runningState = COPY_LOOP;
-          // fall through
+
+        // fall through
         case COPY_LOOP:
           int src = (s.pos - s.distance) & ringBufferMask;
           int dst = s.pos;
@@ -1320,7 +1321,8 @@ final class Decode {
         case INIT_WRITE:
           s.ringBufferBytesReady = Math.min(s.pos, s.ringBufferSize);
           s.runningState = WRITE;
-          // fall through
+
+        // fall through
         case WRITE:
           if (writeRingBuffer(s) == 0) {
             // Output buffer is full.
