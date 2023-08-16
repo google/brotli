@@ -928,8 +928,8 @@ static void ExtendLastCommand(BrotliEncoderState* s, uint32_t* bytes,
    If |*out_size| is positive, |*output| points to the start of the output
    data. If |is_last| or |force_flush| is BROTLI_TRUE, an output meta-block is
    always created. However, until |is_last| is BROTLI_TRUE encoder may retain up
-   to 7 bits of the last byte of output. To force encoder to dump the remaining
-   bits use WriteMetadata() to append an empty meta-data block.
+   to 7 bits of the last byte of output. Byte-alignment could be enforced by
+   emitting an empty meta-data block.
    Returns BROTLI_FALSE if the size of the input data is larger than
    input_block_size().
  */
