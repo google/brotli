@@ -20,9 +20,11 @@
 extern "C" {
 #endif
 
-#define MAX_PERM_ALLOCATED 128
+/* TODO(eustas): fine-tune for "many slots" case */
 #define MAX_NEW_ALLOCATED 64
 #define MAX_NEW_FREED 64
+#define MAX_PERM_ALLOCATED \
+  (BROTLI_ENCODER_MEMORY_MANAGER_SLOTS - MAX_NEW_ALLOCATED - MAX_NEW_FREED)
 
 #define PERM_ALLOCATED_OFFSET 0
 #define NEW_ALLOCATED_OFFSET MAX_PERM_ALLOCATED
@@ -68,6 +70,7 @@ void BrotliWipeOutMemoryManager(MemoryManager* m) {
 
 static void SortPointers(void** items, const size_t n) {
   /* Shell sort. */
+  /* TODO(eustas): fine-tune for "many slots" case */
   static const size_t gaps[] = {23, 10, 4, 1};
   int g = 0;
   for (; g < 4; ++g) {

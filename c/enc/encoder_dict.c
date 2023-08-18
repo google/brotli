@@ -77,6 +77,7 @@ static void BrotliDestroyEncoderDictionary(MemoryManager* m,
   BrotliTrieFree(m, &dict->trie);
 }
 
+#if defined(BROTLI_EXPERIMENTAL)
 /* Word length must be at least 4 bytes */
 static uint32_t Hash(const uint8_t* data, int bits) {
   uint32_t h = BROTLI_UNALIGNED_LOAD32LE(data) * kHashMul32;
@@ -481,6 +482,7 @@ static BROTLI_BOOL ComputeDictionary(MemoryManager* m, int quality,
 
   return BROTLI_TRUE;
 }
+#endif  /* BROTLI_EXPERIMENTAL */
 
 void BrotliInitSharedEncoderDictionary(SharedEncoderDictionary* dict) {
   dict->magic = kSharedDictionaryMagic;
@@ -501,6 +503,7 @@ void BrotliInitSharedEncoderDictionary(SharedEncoderDictionary* dict) {
   dict->max_quality = BROTLI_MAX_QUALITY;
 }
 
+#if defined(BROTLI_EXPERIMENTAL)
 /* TODO(eustas): make sure that tooling will warn user if not all the cutoff
    transforms are available (for low-quality encoder). */
 static BROTLI_BOOL InitCustomSharedEncoderDictionary(
@@ -586,6 +589,7 @@ BROTLI_BOOL BrotliInitCustomSharedEncoderDictionary(
   BrotliSharedDictionaryDestroyInstance(decoded_dict);
   return success;
 }
+#endif  /* BROTLI_EXPERIMENTAL */
 
 void BrotliCleanupSharedEncoderDictionary(MemoryManager* m,
                                           SharedEncoderDictionary* dict) {

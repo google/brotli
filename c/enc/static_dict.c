@@ -79,6 +79,7 @@ static BROTLI_BOOL BrotliFindAllStaticDictionaryMatchesFor(
     const BrotliEncoderDictionary* dictionary, const uint8_t* data,
     size_t min_length, size_t max_length, uint32_t* matches) {
   BROTLI_BOOL has_found_match = BROTLI_FALSE;
+#if defined(BROTLI_EXPERIMENTAL)
   if (dictionary->has_words_heavy) {
     const BrotliTrieNode* node = &dictionary->trie.root;
     size_t l = 0;
@@ -93,6 +94,7 @@ static BROTLI_BOOL BrotliFindAllStaticDictionaryMatchesFor(
     }
     return has_found_match;
   }
+#endif  /* BROTLI_EXPERIMENTAL */
   {
     size_t offset = dictionary->buckets[Hash(data)];
     BROTLI_BOOL end = !offset;

@@ -24,6 +24,14 @@ extern "C" {
 #define BROTLI_ENCODER_EXIT_ON_OOM
 #endif
 
+#if !defined(BROTLI_ENCODER_EXIT_ON_OOM)
+#if defined(BROTLI_EXPERIMENTAL)
+#define BROTLI_ENCODER_MEMORY_MANAGER_SLOTS 6144
+#else  /* BROTLI_EXPERIMENTAL */
+#define BROTLI_ENCODER_MEMORY_MANAGER_SLOTS 256
+#endif  /* BROTLI_EXPERIMENTAL */
+#endif  /* BROTLI_ENCODER_EXIT_ON_OOM */
+
 typedef struct MemoryManager {
   brotli_alloc_func alloc_func;
   brotli_free_func free_func;
@@ -33,7 +41,7 @@ typedef struct MemoryManager {
   size_t perm_allocated;
   size_t new_allocated;
   size_t new_freed;
-  void* pointers[256];
+  void* pointers[BROTLI_ENCODER_MEMORY_MANAGER_SLOTS];
 #endif  /* BROTLI_ENCODER_EXIT_ON_OOM */
 } MemoryManager;
 

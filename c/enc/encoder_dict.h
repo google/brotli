@@ -52,8 +52,11 @@ typedef struct BrotliTrie {
   BrotliTrieNode root;
 } BrotliTrie;
 
+#if defined(BROTLI_EXPERIMENTAL)
 BROTLI_INTERNAL const BrotliTrieNode* BrotliTrieSub(const BrotliTrie* trie,
     const BrotliTrieNode* node, uint8_t c);
+#endif  /* BROTLI_EXPERIMENTAL */
+
 /* Dictionary data (words and transforms) for 1 possible context */
 typedef struct BrotliEncoderDictionary {
   const BrotliDictionary* words;
@@ -129,12 +132,14 @@ typedef struct ManagedDictionary {
 BROTLI_INTERNAL void BrotliInitSharedEncoderDictionary(
     SharedEncoderDictionary* dict);
 
+#if defined(BROTLI_EXPERIMENTAL)
 /* Initializes to shared dictionary that will be parsed from
    encoded_dict. Requires that you keep the encoded_dict buffer
    around, parts of data will point to it. */
 BROTLI_INTERNAL BROTLI_BOOL BrotliInitCustomSharedEncoderDictionary(
     MemoryManager* m, const uint8_t* encoded_dict, size_t size,
     int quality, SharedEncoderDictionary* dict);
+#endif  /* BROTLI_EXPERIMENTAL */
 
 BROTLI_INTERNAL void BrotliCleanupSharedEncoderDictionary(
     MemoryManager* m, SharedEncoderDictionary* dict);

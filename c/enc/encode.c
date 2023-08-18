@@ -7,6 +7,8 @@
 /* Implementation of Brotli compressor. */
 
 #include <brotli/encode.h>
+#include <brotli/shared_dictionary.h>
+#include <brotli/types.h>
 
 #include <stdlib.h>  /* free, malloc */
 #include <string.h>  /* memcpy, memset */
@@ -1707,8 +1709,12 @@ BrotliEncoderPreparedDictionary* BrotliEncoderPrepareDictionary(
     const uint8_t data[BROTLI_ARRAY_PARAM(size)], int quality,
     brotli_alloc_func alloc_func, brotli_free_func free_func, void* opaque) {
   ManagedDictionary* managed_dictionary = NULL;
-  if (type != BROTLI_SHARED_DICTIONARY_RAW &&
-      type != BROTLI_SHARED_DICTIONARY_SERIALIZED) {
+  BROTLI_BOOL type_is_known = BROTLI_FALSE;
+  type_is_known |= (type == BROTLI_SHARED_DICTIONARY_RAW);
+#if defined(BROTLI_EXPERIMENTAL)
+  type_is_known |= (type == BROTLI_SHARED_DICTIONARY_SERIALIZED);
+#endif  /* BROTLI_EXPERIMENTAL */
+  if (!type_is_known) {
     return NULL;
   }
   managed_dictionary =
@@ -1719,7 +1725,9 @@ BrotliEncoderPreparedDictionary* BrotliEncoderPrepareDictionary(
   if (type == BROTLI_SHARED_DICTIONARY_RAW) {
     managed_dictionary->dictionary = (uint32_t*)CreatePreparedDictionary(
         &managed_dictionary->memory_manager_, data, size);
-  } else {
+  }
+#if defined(BROTLI_EXPERIMENTAL)
+  if (type == BROTLI_SHARED_DICTIONARY_SERIALIZED) {
     SharedEncoderDictionary* dict = (SharedEncoderDictionary*)BrotliAllocate(
         &managed_dictionary->memory_manager_, sizeof(SharedEncoderDictionary));
     managed_dictionary->dictionary = (uint32_t*)dict;
@@ -1732,6 +1740,9 @@ BrotliEncoderPreparedDictionary* BrotliEncoderPrepareDictionary(
       }
     }
   }
+#else  /* BROTLI_EXPERIMENTAL */
+  (void)quality;
+#endif  /* BROTLI_EXPERIMENTAL */
   if (managed_dictionary->dictionary == NULL) {
     BrotliDestroyManagedDictionary(managed_dictionary);
     return NULL;
