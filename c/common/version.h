@@ -18,8 +18,8 @@
    BrotliEncoderVersion methods. */
 
 #define BROTLI_VERSION_MAJOR 1
-#define BROTLI_VERSION_MINOR 0
-#define BROTLI_VERSION_PATCH 9
+#define BROTLI_VERSION_MINOR 1
+#define BROTLI_VERSION_PATCH 0
 
 #define BROTLI_VERSION BROTLI_MAKE_HEX_VERSION(                     \
   BROTLI_VERSION_MAJOR, BROTLI_VERSION_MINOR, BROTLI_VERSION_PATCH)
@@ -32,8 +32,20 @@
     - interfaces not changed                          -> current:revision+1:age
  */
 
-#define BROTLI_ABI_CURRENT  1
-#define BROTLI_ABI_REVISION 9
-#define BROTLI_ABI_AGE      0
+#define BROTLI_ABI_CURRENT  2
+#define BROTLI_ABI_REVISION 0
+#define BROTLI_ABI_AGE      1
+
+#if BROTLI_VERSION_MAJOR != (BROTLI_ABI_CURRENT - BROTLI_ABI_AGE)
+#error ABI/API version inconsistency
+#endif
+
+#if BROTLI_VERSION_MINOR != BROTLI_ABI_AGE
+#error ABI/API version inconsistency
+#endif
+
+#if BROTLI_VERSION_PATCH != BROTLI_ABI_REVISION
+#error ABI/API version inconsistency
+#endif
 
 #endif  /* BROTLI_COMMON_VERSION_H_ */
