@@ -8,5 +8,5 @@ URL: https://github.com/google/brotli
 Description: Brotli encoder library
 Version: @PACKAGE_VERSION@
 Libs: -L${libdir} -lbrotlienc
-Requires.private: libbrotlicommon >= 1.0.2
+Requires.private: libbrotlicommon >= 1.1.0
 Cflags: -I${includedir}
