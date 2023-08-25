@@ -75,17 +75,23 @@ static int ms_open(const char* filename, int oflag, int pmode) {
 #define MAKE_BINARY(FILENO) (FILENO)
 #endif  /* defined(_WIN32) */
 
-#if defined(__APPLE__) && !defined(_POSIX_C_SOURCE)
+#if defined(_POSIX_C_SOURCE) && (_POSIX_C_SOURCE >= 200809L)
 #define HAVE_UTIMENSAT 1
+#elif defined(_ATFILE_SOURCE)
+#define HAVE_UTIMENSAT 1
+#else
+#define HAVE_UTIMENSAT 0
+#endif
+
+#if HAVE_UTIMENSAT
+#if defined(__APPLE__)
 #define ATIME_NSEC(S) ((S)->st_atimespec.tv_nsec)
 #define MTIME_NSEC(S) ((S)->st_mtimespec.tv_nsec)
-#elif defined(_WIN32) || !defined(AT_SYMLINK_NOFOLLOW)
-#define HAVE_UTIMENSAT 0
-#else
-#define HAVE_UTIMENSAT 1
+#else  /* defined(__APPLE__) */
 #define ATIME_NSEC(S) ((S)->st_atim.tv_nsec)
 #define MTIME_NSEC(S) ((S)->st_mtim.tv_nsec)
 #endif
+#endif  /* HAVE_UTIMENSAT */
 
 typedef enum {
   COMMAND_COMPRESS,
