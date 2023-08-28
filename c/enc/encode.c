@@ -1836,15 +1836,8 @@ BROTLI_BOOL BrotliEncoderAttachPreparedDictionary(BrotliEncoderState* state,
 size_t BrotliEncoderEstimatePeakMemoryUsage(int quality, int lgwin,
                                             size_t input_size) {
   BrotliEncoderParams params;
-  size_t memory_manager_slots = 0;
-  size_t memory_manager_size = 0;
-#if !defined(BROTLI_ENCODER_EXIT_ON_OOM)
-  memory_manager_slots = 256;
-#if defined(BROTLI_EXPERIMENTAL)
-  memory_manager_slots = 32768;
-#endif  /* BROTLI_EXPERIMENTAL */
-#endif  /* BROTLI_ENCODER_EXIT_ON_OOM */
-  memory_manager_size = memory_manager_slots * sizeof(void*);
+  size_t memory_manager_slots = BROTLI_ENCODER_MEMORY_MANAGER_SLOTS;
+  size_t memory_manager_size = memory_manager_slots * sizeof(void*);
   BrotliEncoderInitParams(&params);
   params.quality = quality;
   params.lgwin = lgwin;
