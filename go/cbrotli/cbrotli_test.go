@@ -141,7 +141,8 @@ func TestEncoderLargeInput(t *testing.T) {
 }
 
 func TestEncoderFlush(t *testing.T) {
-	input := make([]byte, 1000)
+	const payload = 32766 // Enough to force encoder emit 2 chunks
+	input := make([]byte, payload)
 	rand.Read(input)
 	out := bytes.Buffer{}
 	e := NewWriter(&out, WriterOptions{Quality: 5})
@@ -156,11 +157,16 @@ func TestEncoderFlush(t *testing.T) {
 	if out.Len() == 0 {
 		t.Fatalf("0 bytes written after Flush()")
 	}
-	decompressed := make([]byte, 1000)
+	decompressed := make([]byte, payload)
 	reader := NewReader(bytes.NewReader(out.Bytes()))
 	n, err := reader.Read(decompressed)
+	if n >= len(decompressed) || err != nil {
+		t.Errorf("Expected {<%v, nil}, but got {%v, %v}", len(decompressed), n, err)
+	}
+	m, err := reader.Read(decompressed[n:])
+	n += m
 	if n != len(decompressed) || err != nil {
-		t.Errorf("Expected <%v, nil>, but <%v, %v>", len(decompressed), n, err)
+		t.Errorf("Expected {%v, nil}, but got {%v, %v}", len(decompressed), n, err)
 	}
 	reader.Close()
 	if !bytes.Equal(decompressed, input) {
