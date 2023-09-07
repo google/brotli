@@ -276,9 +276,14 @@ CMD_CLASS = {
     'build_ext': BuildExt,
 }
 
+with open("README.md", "r") as f:
+    README = f.read()
+
 setup(
     name=NAME,
     description=DESCRIPTION,
+    long_description=README,
+    long_description_content_type="text/markdown",
     version=VERSION,
     url=URL,
     author=AUTHOR,
