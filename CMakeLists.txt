@@ -359,6 +359,10 @@ if(NOT BROTLI_BUNDLED_MODE)
     DESTINATION "${CMAKE_INSTALL_LIBDIR}/pkgconfig")
 endif()  # BROTLI_BUNDLED_MODE
 
+INSTALL(FILES "docs/brotli.1" DESTINATION "${SHARE_INSTALL_PREFIX}/man/man1")
+INSTALL(FILES docs/constants.h.3 docs/decode.h.3 docs/encode.h.3 docs/types.h.3
+  DESTINATION "${SHARE_INSTALL_PREFIX}/man/man3")
+
 if (ENABLE_COVERAGE STREQUAL "yes")
   SETUP_TARGET_FOR_COVERAGE(coverage test coverage)
 endif ()
