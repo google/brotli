@@ -357,3 +357,39 @@ jobs:
         python -VV
         python -c "import sys; sys.exit('Invalid python version') if '.'.join(map(str,sys.version_info[0:2])) != '${{ matrix.python_version }}' else True"
         python setup.py ${{ matrix.py_setuptools_cmd || 'test'}}
+
+  archive_build:
+    name: Build and test from archive
+    runs-on: 'ubuntu-latest'
+    defaults:
+      run:
+        shell: bash
+    steps:
+
+    - name: Checkout the source
+      uses: actions/checkout@v3
+      with:
+        submodules: false
+        fetch-depth: 1
+
+    - name: Archive
+      run: |
+        git archive HEAD -o archive.tgz
+
+    - name: Extract
+      run: |
+        mkdir archive
+        cd archive
+        tar xvzf ../archive.tgz
+
+    - name: Configure and Build
+      run: |
+        cd archive
+        cmake -B out .
+        cmake --build out
+
+    - name: Test
+      run: |
+        cd archive
+        cd out
+        ctest
