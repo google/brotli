@@ -261,7 +261,7 @@ if(NOT BROTLI_DISABLE_TESTS)
             -P ${CMAKE_CURRENT_SOURCE_DIR}/tests/run-roundtrip-test.cmake)
       endforeach()
     else()
-      message(WARNING "Test file ${INPUT} does not exist.")
+      message(NOTICE "Test file ${INPUT} does not exist; OK on tarball builds")
     endif()
   endforeach()
 
