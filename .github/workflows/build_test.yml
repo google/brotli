@@ -233,14 +233,14 @@ jobs:
         sudo apt install -y ${EXTRA_PACKAGES}
 
     - name: Checkout the source
-      uses: actions/checkout@v4
+      uses: actions/checkout@3df4ab11eba7bda6032a0b82a6bb43b11571feac # v4.0.0
       with:
         submodules: false
         fetch-depth: 1
 
     #- name: Checkout VC9 for Python
     #  if: ${{ runner.os == 'Windows' && matrix.build_system == 'python' &&  matrix.python_version == '2.7' }}
-    #  uses: actions/checkout@v4
+    #  uses: actions/checkout@3df4ab11eba7bda6032a0b82a6bb43b11571feac # v4.0.0
     #  with:
     #    repository: reider-roque/sulley-win-installer
     #    path: third_party/VCForPython27
@@ -338,7 +338,7 @@ jobs:
         cd integration
         mvn -B verify
 
-    - uses: actions/setup-python@v4
+    - uses: actions/setup-python@61a6322f88396a6271a6ee3565807d608ecaddd1 # v4.7.0
       if: ${{ matrix.build_system == 'python' }}
       with:
         python-version: ${{ matrix.python_version }}
@@ -367,7 +367,7 @@ jobs:
     steps:
 
     - name: Checkout the source
-      uses: actions/checkout@v4
+      uses: actions/checkout@3df4ab11eba7bda6032a0b82a6bb43b11571feac # v4.0.0
       with:
         submodules: false
         fetch-depth: 1
