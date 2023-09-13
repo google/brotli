@@ -119,4 +119,73 @@ jobs:
       uses: softprops/action-gh-release@de2c0eb89ae2a093876385947365aca7b0e5f844 # v0.1.15
       with:
         files: brotli-${{matrix.triplet}}.zip
-        tag_name: dev/null
+
+  testdata_upload:
+    name: Upload testdata
+    runs-on: 'ubuntu-latest'
+    defaults:
+      run:
+        shell: bash
+    steps:
+
+    - name: Checkout the source
+      uses: actions/checkout@3df4ab11eba7bda6032a0b82a6bb43b11571feac # v4.0.0
+      with:
+        submodules: false
+        fetch-depth: 1
+
+    - name: Compress testdata
+      run: |
+        tar cvfJ testdata.txz tests/testdata
+
+    - name: Upload archive to release
+      if: github.event_name == 'release'
+      uses: softprops/action-gh-release@de2c0eb89ae2a093876385947365aca7b0e5f844 # v0.1.15
+      with:
+        files: testdata.txz
+
+  archive_build:
+    needs: testdata_upload
+    name: Build and test from archive
+    runs-on: 'ubuntu-latest'
+    defaults:
+      run:
+        shell: bash
+    steps:
+
+    - name: Checkout the source
+      uses: actions/checkout@3df4ab11eba7bda6032a0b82a6bb43b11571feac # v4.0.0
+      with:
+        submodules: false
+        fetch-depth: 1
+
+    - name: Archive
+      run: |
+        git archive HEAD -o archive.tgz
+
+    - name: Pick tag
+      run: |
+        echo "BROTLI_TAG=$(git describe --tags --abbrev=0)" >> $GITHUB_ENV
+
+    - name: Extract
+      run: |
+        mkdir archive
+        cd archive
+        tar xvzf ../archive.tgz
+
+    - name: Download testdata
+      run: |
+        cd archive
+        scripts/download_testdata.sh
+
+    - name: Configure and Build
+      run: |
+        cd archive
+        cmake -B out .
+        cmake --build out
+
+    - name: Test
+      run: |
+        cd archive
+        cd out
+        ctest

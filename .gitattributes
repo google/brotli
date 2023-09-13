@@ -35,6 +35,7 @@ python/** !export-ignore
 
 # Add more build files.
 scripts !export-ignore
+scripts/download_testdata.sh !export-ignore
 scripts/libbrotli*.pc.in !export-ignore
 
 # Add testdata
