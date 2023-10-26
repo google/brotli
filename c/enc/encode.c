@@ -271,18 +271,18 @@ static void ChooseContextMap(int quality,
   uint32_t two_prefix_histo[6] = { 0 };
   size_t total;
   size_t i;
-  size_t dummy;
+  size_t sink;
   double entropy[4];
   for (i = 0; i < 9; ++i) {
     monogram_histo[i % 3] += bigram_histo[i];
     two_prefix_histo[i % 6] += bigram_histo[i];
   }
-  entropy[1] = ShannonEntropy(monogram_histo, 3, &dummy);
-  entropy[2] = (ShannonEntropy(two_prefix_histo, 3, &dummy) +
-                ShannonEntropy(two_prefix_histo + 3, 3, &dummy));
+  entropy[1] = ShannonEntropy(monogram_histo, 3, &sink);
+  entropy[2] = (ShannonEntropy(two_prefix_histo, 3, &sink) +
+                ShannonEntropy(two_prefix_histo + 3, 3, &sink));
   entropy[3] = 0;
   for (i = 0; i < 3; ++i) {
-    entropy[3] += ShannonEntropy(bigram_histo + 3 * i, 3, &dummy);
+    entropy[3] += ShannonEntropy(bigram_histo + 3 * i, 3, &sink);
   }
 
   total = monogram_histo[0] + monogram_histo[1] + monogram_histo[2];
@@ -348,7 +348,7 @@ static BROTLI_BOOL ShouldUseComplexStaticContextMap(const uint8_t* input,
     uint32_t* BROTLI_RESTRICT const context_histo = arena + 32;
     uint32_t total = 0;
     double entropy[3];
-    size_t dummy;
+    size_t sink;
     size_t i;
     ContextLut utf8_lut = BROTLI_CONTEXT_LUT(CONTEXT_UTF8);
     memset(arena, 0, sizeof(arena[0]) * 32 * 14);
@@ -370,10 +370,10 @@ static BROTLI_BOOL ShouldUseComplexStaticContextMap(const uint8_t* input,
         prev1 = literal;
       }
     }
-    entropy[1] = ShannonEntropy(combined_histo, 32, &dummy);
+    entropy[1] = ShannonEntropy(combined_histo, 32, &sink);
     entropy[2] = 0;
     for (i = 0; i < 13; ++i) {
-      entropy[2] += ShannonEntropy(context_histo + (i << 5), 32, &dummy);
+      entropy[2] += ShannonEntropy(context_histo + (i << 5), 32, &sink);
     }
     entropy[0] = 1.0 / (double)total;
     entropy[1] *= entropy[0];
@@ -817,7 +817,7 @@ static void CopyInputToRingBuffer(BrotliEncoderState* s,
      reading new bytes from the input. However, at the last few indexes of
      the ring buffer, there are not enough bytes to build full-length
      substrings from. Since the hash table always contains full-length
-     substrings, we erase with dummy zeros here to make sure that those
+     substrings, we overwrite with zeros here to make sure that those
      substrings will contain zeros at the end instead of uninitialized
      data.
 
