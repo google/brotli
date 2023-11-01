@@ -44,7 +44,7 @@ See [Bazel](http://www.bazel.build/)
 The basic commands to build and install brotli are:
 
     $ mkdir out && cd out
-    $ cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=./installed ..
+    $ cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=./installed -DSHARE_INSTALL_PREFIX=./installed ..
     $ cmake --build . --config Release --target install
 
 You can use other [CMake](https://cmake.org/) configuration.
