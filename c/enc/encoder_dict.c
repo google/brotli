@@ -118,8 +118,8 @@ static uint32_t BrotliTrieAlloc(MemoryManager* m, size_t num, BrotliTrie* trie,
     keep_index = (uint32_t)(*keep - trie->pool);
   }
   if (trie->pool_size == 0) {
-    /* Have a dummy node in the front. We do not want the result to be 0, it
-    must be at least 1, 0 represents "null pointer" */
+    /* Have a placeholder node in the front. We do not want the result to be 0,
+       it must be at least 1, 0 represents "null pointer" */
     trie->pool_size = 1;
   }
   BROTLI_ENSURE_CAPACITY(m, BrotliTrieNode, trie->pool, trie->pool_capacity,
