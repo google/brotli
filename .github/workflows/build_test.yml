@@ -43,28 +43,28 @@ jobs:
           # TODO: consider running this combination in docker
           #- name: cmake:clang3.5
 
-          - name: cmake:clang12
+          - name: cmake:clang15
             build_system: cmake
-            c_compiler: clang-12
-            cxx_compiler: clang++12
+            c_compiler: clang-15
+            cxx_compiler: clang++15
 
-          - name: cmake:clang12:asan
+          - name: cmake:clang15:asan
             build_system: cmake
             sanitizer: address
-            c_compiler: clang-12
-            cxx_compiler: clang++12
+            c_compiler: clang-15
+            cxx_compiler: clang++15
 
-          - name: cmake:clang12:tsan
+          - name: cmake:clang15:tsan
             build_system: cmake
             sanitizer: thread
-            c_compiler: clang-12
-            cxx_compiler: clang++12
+            c_compiler: clang-15
+            cxx_compiler: clang++15
 
-          - name: cmake:clang12:ubsan
+          - name: cmake:clang15:ubsan
             build_system: cmake
             sanitizer: undefined
-            c_compiler: clang-12
-            cxx_compiler: clang++-12
+            c_compiler: clang-15
+            cxx_compiler: clang++-15
             c_flags: -fno-sanitize-recover=undefined,integer
 
           - name: cmake:qemu-arm-neon-gcc
@@ -98,10 +98,10 @@ jobs:
             cmake_config: Debug
             os: windows-2019
 
-          - name: fuzz:clang12
+          - name: fuzz:clang15
             build_system: fuzz
-            c_compiler: clang-12
-            cxx_compiler: clang++12
+            c_compiler: clang-15
+            cxx_compiler: clang++15
 
           # TODO: consider running this combination in docker
           #- name: python2.7:gcc5
@@ -131,15 +131,15 @@ jobs:
           # TODO: consider running this combination in docker
           #- name: python3.8:gcc5
 
-          - name: python39:clang12
+          - name: python3.10:clang15
             build_system: python
-            python_version: 3.9
-            c_compiler: clang-12
-            cxx_compiler: clang++-12
+            python_version: "3.10"
+            c_compiler: clang-15
+            cxx_compiler: clang++-15
 
-          - name: python39-win
+          - name: python3.10-win
             build_system: python
-            python_version: 3.9
+            python_version: "3.10"
             # TODO: investigate why win-builds can't run tests
             py_setuptools_cmd: build_ext
             os: windows-2019
@@ -195,7 +195,7 @@ jobs:
           - name: bazel-win:root
             build_system: bazel
             bazel_project: .
-            os: windows-2019
+            os: windows-latest
 
           # TODO: use single dll on windows, otherwise it fails to link
           #- name: bazel-win:go
@@ -206,7 +206,7 @@ jobs:
           - name: bazel-win:java
             build_system: bazel
             bazel_project: java
-            os: windows-2019
+            os: windows-latest
 
           # TODO: blocked by Bazel Closure rules issue
           #- name: bazel-win:js
@@ -217,7 +217,7 @@ jobs:
           - name: bazel-win:research
             build_system: bazel
             bazel_project: research
-            os: windows-2019
+            os: windows-latest
 
     env:
       CC: ${{ matrix.c_compiler || 'gcc' }}
@@ -226,7 +226,7 @@ jobs:
     steps:
     - name: Install extra deps @ Ubuntu
       if: ${{ runner.os == 'Linux' }}
-      # Already installed: bazel, clang{10-12}, cmake, gcc{9,10}, java{8,11}, maven, python{3.5-3.9}
+      # Already installed: bazel, clang{13-15}, cmake, gcc{9.5-13.1}, java{8,11,17,21}, maven, python{3.10}
       run: |
         EXTRA_PACKAGES="${{ matrix.extra_apt_pkgs || '' }}"
         sudo apt update
