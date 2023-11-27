@@ -11,10 +11,11 @@ cmake_policy(SET CMP0048 NEW)
 project(brotli C)
 
 option(BUILD_SHARED_LIBS "Build shared libraries" ON)
+set(BROTLI_BUILD_TOOLS ON CACHE BOOL "Build/install CLI tools")
 
 if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
   message(STATUS "Setting build type to Release as none was specified.")
-  set(CMAKE_BUILD_TYPE "Release" CACHE STRING "Choose the type of build." FORCE)
+  set(CMAKE_BUILD_TYPE "Release" CACHE STRING "Choose the type of build" FORCE)
 else()
   message(STATUS "Build type is '${CMAKE_BUILD_TYPE}'")
 endif()
@@ -81,7 +82,7 @@ include(CheckFunctionExists)
 set(LIBM_LIBRARY)
 CHECK_FUNCTION_EXISTS(log2 LOG2_RES)
 if(NOT LOG2_RES)
-  set(orig_req_libs "${CMAKE_REQUIRED_LIBRARIES}")
+  set(_ORIG_REQ_LIBS "${CMAKE_REQUIRED_LIBRARIES}")
   set(CMAKE_REQUIRED_LIBRARIES "${CMAKE_REQUIRED_LIBRARIES};m")
   CHECK_FUNCTION_EXISTS(log2 LOG2_LIBM_RES)
   if(LOG2_LIBM_RES)
@@ -91,9 +92,9 @@ if(NOT LOG2_RES)
     add_definitions(-DBROTLI_HAVE_LOG2=0)
   endif()
 
-  set(CMAKE_REQUIRED_LIBRARIES "${orig_req_libs}")
+  set(CMAKE_REQUIRED_LIBRARIES "${_ORIG_REQ_LIBS}")
   unset(LOG2_LIBM_RES)
-  unset(orig_req_libs)
+  unset(_ORIG_REQ_LIBS)
 else()
   add_definitions(-DBROTLI_HAVE_LOG2=1)
 endif()
@@ -153,8 +154,8 @@ foreach(lib ${BROTLI_LIBRARIES_CORE})
 endforeach()
 
 if(NOT BROTLI_EMSCRIPTEN)
-target_link_libraries(brotlidec brotlicommon)
-target_link_libraries(brotlienc brotlicommon)
+  target_link_libraries(brotlidec brotlicommon)
+  target_link_libraries(brotlienc brotlicommon)
 endif()
 
 # For projects stuck on older versions of CMake, this will set the
@@ -169,15 +170,19 @@ if(BROTLI_PARENT_DIRECTORY)
 endif()
 
 # Build the brotli executable
-add_executable(brotli c/tools/brotli.c)
-target_link_libraries(brotli ${BROTLI_LIBRARIES})
+if(BROTLI_BUILD_TOOLS)
+  add_executable(brotli c/tools/brotli.c)
+  target_link_libraries(brotli ${BROTLI_LIBRARIES})
+endif()
 
 # Installation
 if(NOT BROTLI_BUNDLED_MODE)
-  install(
-    TARGETS brotli
-    RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}"
-  )
+  if (BROTLI_BUILD_TOOLS)
+    install(
+      TARGETS brotli
+      RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}"
+    )
+  endif()
 
   install(
     TARGETS ${BROTLI_LIBRARIES_CORE}
@@ -194,9 +199,10 @@ endif()  # BROTLI_BUNDLED_MODE
 
 # Tests
 
-# If we're targeting Windows but not running on Windows, we need Wine
-# to run the tests...
-if(NOT BROTLI_DISABLE_TESTS)
+# Integration tests, those depend on `brotli` binary
+if(NOT BROTLI_DISABLE_TESTS AND BROTLI_BUILD_TOOLS)
+  # If we're targeting Windows but not running on Windows, we need Wine
+  # to run the tests...
   if(WIN32 AND NOT CMAKE_HOST_WIN32)
     find_program(BROTLI_WRAPPER NAMES wine)
 
@@ -205,11 +211,8 @@ if(NOT BROTLI_DISABLE_TESTS)
       set(BROTLI_DISABLE_TESTS TRUE)
     endif()
   endif()
-endif()
-
-# If our compiler is a cross-compiler that we know about (arm/aarch64),
-# then we need to use qemu to execute the tests.
-if(NOT BROTLI_DISABLE_TESTS)
+  # If our compiler is a cross-compiler that we know about (arm/aarch64),
+  # then we need to use qemu to execute the tests.
   if ("${CMAKE_C_COMPILER}" MATCHES "^.*/arm-linux-gnueabihf-.*$")
     message(STATUS "Detected arm-linux-gnueabihf cross-compilation")
     set(BROTLI_WRAPPER "qemu-arm")
@@ -227,9 +230,7 @@ if(NOT BROTLI_DISABLE_TESTS)
     set(BROTLI_WRAPPER "qemu-aarch64")
     set(BROTLI_WRAPPER_LD_PREFIX "/usr/aarch64-linux-gnu")
   endif()
-endif()
 
-if(NOT BROTLI_DISABLE_TESTS)
   include(CTest)
   enable_testing()
 
@@ -279,7 +280,7 @@ if(NOT BROTLI_DISABLE_TESTS)
         -DINPUT=${CMAKE_CURRENT_SOURCE_DIR}/${INPUT}
         -P ${CMAKE_CURRENT_SOURCE_DIR}/tests/run-compatibility-test.cmake)
   endforeach()
-endif()
+endif()  # BROTLI_DISABLE_TESTS
 
 # Generate a pkg-config files
 
@@ -359,10 +360,14 @@ if(NOT BROTLI_BUNDLED_MODE)
     DESTINATION "${CMAKE_INSTALL_LIBDIR}/pkgconfig")
 endif()  # BROTLI_BUNDLED_MODE
 
-INSTALL(FILES "docs/brotli.1" DESTINATION "${SHARE_INSTALL_PREFIX}/man/man1")
-INSTALL(FILES docs/constants.h.3 docs/decode.h.3 docs/encode.h.3 docs/types.h.3
+if (BROTLI_BUILD_TOOLS)
+  install(FILES "docs/brotli.1"
+    DESTINATION "${SHARE_INSTALL_PREFIX}/man/man1")
+endif()
+
+install(FILES docs/constants.h.3 docs/decode.h.3 docs/encode.h.3 docs/types.h.3
   DESTINATION "${SHARE_INSTALL_PREFIX}/man/man3")
 
 if (ENABLE_COVERAGE STREQUAL "yes")
-  SETUP_TARGET_FOR_COVERAGE(coverage test coverage)
-endif ()
+  setup_target_for_coverage(coverage test coverage)
+endif()
