@@ -23,7 +23,7 @@ concurrency:
 jobs:
   windows_build:
     name: Windows Build (vcpkg / ${{ matrix.triplet }})
-    runs-on: [windows-2022]
+    runs-on: [windows-latest]
     strategy:
       fail-fast: false
       matrix:
