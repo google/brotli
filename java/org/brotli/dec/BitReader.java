@@ -68,7 +68,7 @@ final class BitReader {
     s.halfOffset = 0;
     while (bytesInBuffer < CAPACITY) {
       final int spaceLeft = CAPACITY - bytesInBuffer;
-      final int len = Utils.readInput(s.input, s.byteBuffer, bytesInBuffer, spaceLeft);
+      final int len = Utils.readInput(s, s.byteBuffer, bytesInBuffer, spaceLeft);
       // EOF is -1 in Java, but 0 in C#.
       if (len <= 0) {
         s.endOfStreamReached = 1;
@@ -255,7 +255,7 @@ final class BitReader {
 
     // Now it is possible to copy bytes directly.
     while (length > 0) {
-      final int len = Utils.readInput(s.input, data, offset, length);
+      final int len = Utils.readInput(s, data, offset, length);
       if (len == -1) {
         throw new BrotliRuntimeException("Unexpected end of input");
       }
