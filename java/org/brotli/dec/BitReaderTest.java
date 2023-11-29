@@ -22,7 +22,8 @@ public class BitReaderTest {
   @Test
   public void testReadAfterEos() {
     State reader = new State();
-    Decode.initState(reader, new ByteArrayInputStream(new byte[1]));
+    reader.input = new ByteArrayInputStream(new byte[1]);
+    Decode.initState(reader);
     BitReader.readBits(reader, 9);
     try {
       BitReader.checkHealth(reader, 0);
@@ -36,7 +37,8 @@ public class BitReaderTest {
   @Test
   public void testAccumulatorUnderflowDetected() {
     State reader = new State();
-    Decode.initState(reader, new ByteArrayInputStream(new byte[8]));
+    reader.input = new ByteArrayInputStream(new byte[8]);
+    Decode.initState(reader);
     // 65 bits is enough for both 32 and 64 bit systems.
     BitReader.readBits(reader, 13);
     BitReader.readBits(reader, 13);
