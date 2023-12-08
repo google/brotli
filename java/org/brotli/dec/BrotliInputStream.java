@@ -86,7 +86,8 @@ public class BrotliInputStream extends InputStream {
     this.remainingBufferBytes = 0;
     this.bufferOffset = 0;
     try {
-      Decode.initState(state, source);
+      state.input = source;
+      Decode.initState(state);
     } catch (BrotliRuntimeException ex) {
       throw new IOException("Brotli decoder initialization failed", ex);
     }

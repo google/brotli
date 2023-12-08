@@ -2240,7 +2240,7 @@ __test__ = {
 
 'file': """
     >>> try: Layout(BitStream(
-    ... open("H:/Downloads/brotli-master/tests/testdata/10x10y.compressed",'rb')
+    ... open("./tests/testdata/10x10y.compressed",'rb')
     ...     .read())).processStream()
     ... except NotImplementedError: pass
     addr  hex               binary context explanation
