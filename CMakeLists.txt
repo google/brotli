@@ -114,7 +114,7 @@ elseif(${CMAKE_SYSTEM_NAME} MATCHES "FreeBSD")
 elseif(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
   add_definitions(-DOS_MACOSX)
   set(CMAKE_MACOS_RPATH TRUE)
-  set(CMAKE_INSTALL_NAME_DIR "${CMAKE_INSTALL_PREFIX}/lib")
+  set(CMAKE_INSTALL_NAME_DIR "${CMAKE_INSTALL_FULL_LIBDIR}")
 endif()
 
 if(BROTLI_EMSCRIPTEN)
@@ -362,11 +362,11 @@ endif()  # BROTLI_BUNDLED_MODE
 
 if (BROTLI_BUILD_TOOLS)
   install(FILES "docs/brotli.1"
-    DESTINATION "${SHARE_INSTALL_PREFIX}/man/man1")
+    DESTINATION "${CMAKE_INSTALL_FULL_MANDIR}/man1")
 endif()
 
 install(FILES docs/constants.h.3 docs/decode.h.3 docs/encode.h.3 docs/types.h.3
-  DESTINATION "${SHARE_INSTALL_PREFIX}/man/man3")
+  DESTINATION "${CMAKE_INSTALL_FULL_MANDIR}/man3")
 
 if (ENABLE_COVERAGE STREQUAL "yes")
   setup_target_for_coverage(coverage test coverage)
