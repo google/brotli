@@ -193,10 +193,9 @@ let makeBrotliDecode = () => {
   }
   /**
    * @param {!State} s
-   * @param {!InputStream} input
    * @return {void}
    */
-  function initState(s, input) {
+  function initState(s) {
     if (s.runningState !== 0) {
       throw new Error("State MUST be uninitialized");
     }
@@ -206,7 +205,6 @@ let makeBrotliDecode = () => {
     const /** @type {number} */ maxDistanceAlphabetLimit = calculateDistanceAlphabetLimit(0x7FFFFFFC, 3, 120);
     s.distExtraBits = new Int8Array(maxDistanceAlphabetLimit);
     s.distOffset = new Int32Array(maxDistanceAlphabetLimit);
-    s.input = input;
     initBitReader(s);
     s.runningState = 1;
   }
@@ -222,9 +220,7 @@ let makeBrotliDecode = () => {
       return;
     }
     s.runningState = 11;
-    if (s.input !== null) {
-      s.input = null;
-    }
+    s.input = null;
   }
   /**
    * @param {!State} s
@@ -1666,7 +1662,7 @@ let makeBrotliDecode = () => {
     s.halfOffset = 0;
     while (bytesInBuffer < 4096) {
       const /** @type {number} */ spaceLeft = 4096 - bytesInBuffer;
-      const /** @type {number} */ len = readInput(s.input, s.byteBuffer, bytesInBuffer, spaceLeft);
+      const /** @type {number} */ len = readInput(s, s.byteBuffer, bytesInBuffer, spaceLeft);
       if (len <= 0) {
         s.endOfStreamReached = 1;
         s.tailBytes = bytesInBuffer;
@@ -1820,7 +1816,7 @@ let makeBrotliDecode = () => {
       return;
     }
     while (length > 0) {
-      const /** @type {number} */ len = readInput(s.input, data, offset, length);
+      const /** @type {number} */ len = readInput(s, data, offset, length);
       if (len === -1) {
         throw new Error("Unexpected end of input");
       }
@@ -2151,16 +2147,17 @@ let makeBrotliDecode = () => {
   }
 
   /**
-   * @param {?InputStream} src
+   * @param {!State} s
    * @param {!Int8Array} dst
    * @param {number} offset
    * @param {number} length
    * @return {number}
    */
-  function readInput(src, dst, offset, length) {
-    if (src === null) {
+  function readInput(s, dst, offset, length) {
+    if (s.input === null) {
       return -1;
     }
+    const /** @type {!InputStream} */ src = s.input;
     let /** @type {number} */ end = Math.min(src.offset + length, src.data.length);
     let /** @type {number} */ bytesRead = end - src.offset;
     dst.set(src.data.subarray(src.offset, end), offset);
@@ -2192,7 +2189,8 @@ let makeBrotliDecode = () => {
    */
   function decode(bytes, options) {
     let /** @type {!State} */ s = new State();
-    initState(s, new InputStream(bytes));
+    s.input = new InputStream(bytes);
+    initState(s);
     if (options) {
       let customDictionary =
           /** @type {?Int8Array} */ (options["customDictionary"]);
