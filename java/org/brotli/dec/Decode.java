@@ -7,7 +7,6 @@
 package org.brotli.dec;
 
 import java.io.IOException;
-import java.io.InputStream;
 import java.nio.ByteBuffer;
 
 /**
@@ -290,7 +289,7 @@ final class Decode {
    * @param s uninitialized state without associated input
    * @param input compressed data source
    */
-  static void initState(State s, InputStream input) {
+  static void initState(State s) {
     if (s.runningState != UNINITIALIZED) {
       throw new IllegalStateException("State MUST be uninitialized");
     }
@@ -302,7 +301,6 @@ final class Decode {
         calculateDistanceAlphabetLimit(MAX_ALLOWED_DISTANCE, 3, 15 << 3);
     s.distExtraBits = new byte[maxDistanceAlphabetLimit];
     s.distOffset = new int[maxDistanceAlphabetLimit];
-    s.input = input;
     BitReader.initBitReader(s);
     s.runningState = INITIALIZED;
   }
@@ -315,10 +313,7 @@ final class Decode {
       return;
     }
     s.runningState = CLOSED;
-    if (s.input != null) {
-      Utils.closeInput(s.input);
-      s.input = null;
-    }
+    Utils.closeInput(s);
   }
 
   /**

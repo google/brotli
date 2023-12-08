@@ -136,7 +136,7 @@ function attachDictionaryChunk(s: State, data: Int8Array): void {
   s.cdTotalSize += data.length;
   s.cdChunkOffsets[s.cdNumChunks] = s.cdTotalSize;
 }
-function initState(s: State, input: InputStream): void {
+function initState(s: State): void {
   if (s.runningState !== 0) {
     throw new Error("State MUST be uninitialized");
   }
@@ -146,7 +146,6 @@ function initState(s: State, input: InputStream): void {
   const maxDistanceAlphabetLimit: number = calculateDistanceAlphabetLimit(0x7FFFFFFC, 3, 120);
   s.distExtraBits = new Int8Array(maxDistanceAlphabetLimit);
   s.distOffset = new Int32Array(maxDistanceAlphabetLimit);
-  s.input = input;
   initBitReader(s);
   s.runningState = 1;
 }
@@ -158,9 +157,7 @@ function close(s: State): void {
     return;
   }
   s.runningState = 11;
-  if (s.input !== null) {
-    s.input = null;
-  }
+  s.input = null;
 }
 function decodeVarLenUnsignedByte(s: State): number {
   if (s.bitOffset >= 16) {
@@ -1398,7 +1395,7 @@ function doReadMoreInput(s: State): void {
   s.halfOffset = 0;
   while (bytesInBuffer < 4096) {
     const spaceLeft: number = 4096 - bytesInBuffer;
-    const len: number = readInput(s.input, s.byteBuffer, bytesInBuffer, spaceLeft);
+    const len: number = readInput(s, s.byteBuffer, bytesInBuffer, spaceLeft);
     if (len <= 0) {
       s.endOfStreamReached = 1;
       s.tailBytes = bytesInBuffer;
@@ -1510,7 +1507,7 @@ function copyRawBytes(s: State, data: Int8Array, offset: number, length: number)
     return;
   }
   while (length > 0) {
-    const len: number = readInput(s.input, data, offset, length);
+    const len: number = readInput(s, data, offset, length);
     if (len === -1) {
       throw new Error("Unexpected end of input");
     }
@@ -1728,10 +1725,11 @@ function valueOf(x: number): string {
   return x.toString();
 }
 
-function readInput(src: InputStream|null, dst: Int8Array, offset: number, length: number): number {
-  if (src === null) {
+function readInput(s: State, dst: Int8Array, offset: number, length: number): number {
+  if (s.input === null) {
     return -1;
   }
+  const src: InputStream = s.input;
   const end: number = Math.min(src.offset + length, src.data.length);
   const bytesRead: number = end - src.offset;
   dst.set(src.data.subarray(src.offset, end), offset);
@@ -1757,7 +1755,8 @@ type ByteBuffer = Int8Array;
 export function brotliDecode(
     bytes: Int8Array, options?: BrotliDecodeOptions): Int8Array {
   const s = new State();
-  initState(s, new InputStream(bytes));
+  s.input = new InputStream(bytes);
+  initState(s);
   if (options) {
     const customDictionary: Int8Array|null = options.customDictionary;
     if (customDictionary) attachDictionaryChunk(s, customDictionary);
