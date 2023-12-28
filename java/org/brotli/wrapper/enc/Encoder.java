@@ -227,7 +227,7 @@ public class Encoder {
     int totalOutputSize = 0;
     try {
       encoder.getInputBuffer().put(data, offset, length);
-      encoder.push(EncoderJNI.Operation.FINISH, data.length);
+      encoder.push(EncoderJNI.Operation.FINISH, length);
       while (true) {
         if (!encoder.isSuccess()) {
           throw new IOException("encoding failed");
