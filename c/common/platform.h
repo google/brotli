@@ -475,7 +475,7 @@ BROTLI_MIN_MAX(size_t) BROTLI_MIN_MAX(uint32_t) BROTLI_MIN_MAX(uint8_t)
     BROTLI_INTEL_VERSION_CHECK(16, 0, 0)
 #define BROTLI_TZCNT64 __builtin_ctzll
 #elif BROTLI_MSVC_VERSION_CHECK(18, 0, 0)
-#if defined(BROTLI_TARGET_X64)
+#if defined(BROTLI_TARGET_X64) && !defined(_M_ARM64EC)
 #define BROTLI_TZCNT64 _tzcnt_u64
 #else /* BROTLI_TARGET_X64 */
 static BROTLI_INLINE uint32_t BrotliBsf64Msvc(uint64_t x) {

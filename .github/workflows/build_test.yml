@@ -159,10 +159,6 @@ jobs:
             build_system: bazel
             bazel_project: java
 
-          - name: bazel:js
-            build_system: bazel
-            bazel_project: js
-
           - name: bazel:research
             build_system: bazel
             bazel_project: research
@@ -180,11 +176,6 @@ jobs:
           - name: bazel-osx:java
             build_system: bazel
             bazel_project: java
-            os: macos-latest
-
-          - name: bazel-osx:js
-            build_system: bazel
-            bazel_project: js
             os: macos-latest
 
           - name: bazel-osx:research
@@ -207,12 +198,6 @@ jobs:
             build_system: bazel
             bazel_project: java
             os: windows-latest
-
-          # TODO: blocked by Bazel Closure rules issue
-          #- name: bazel-win:js
-          #  build_system: bazel
-          #  bazel_project: js
-          #  os: windows-latest
 
           - name: bazel-win:research
             build_system: bazel
