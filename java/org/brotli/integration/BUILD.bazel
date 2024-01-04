@@ -37,8 +37,8 @@ java_binary(
 
 java_test(
     name = "bundle_checker_data_test",
-    args = ["org/brotli/integration/test_data.zip"],
-    data = ["test_data.zip"],
+    args = ["$(location :test_data)"],
+    data = [":test_data"],
     main_class = "org.brotli.integration.BundleChecker",
     use_testrunner = 0,
     runtime_deps = [":bundle_checker"],
@@ -48,26 +48,28 @@ java_test(
     name = "bundle_checker_fuzz_test",
     args = [
         "-s",
-        "org/brotli/integration/fuzz_data.zip",
+        "$(location :fuzz_data)",
     ],
-    data = ["fuzz_data.zip"],
+    data = [":fuzz_data"],
     main_class = "org.brotli.integration.BundleChecker",
     use_testrunner = 0,
     runtime_deps = [":bundle_checker"],
 )
 
 filegroup(
+    name = "fuzz_data",
+    srcs = ["fuzz_data.zip"],
+    visibility = ["//visibility:private"],
+)
+
+filegroup(
     name = "test_data",
     srcs = ["test_data.zip"],
-    visibility = [
-        "//org/brotli/wrapper/dec:__pkg__",
-    ],
+    visibility = ["//org/brotli/wrapper/dec:__pkg__"],
 )
 
 filegroup(
     name = "test_corpus",
     srcs = ["test_corpus.zip"],
-    visibility = [
-        "//org/brotli/wrapper/enc:__pkg__",
-    ],
+    visibility = ["//org/brotli/wrapper/enc:__pkg__"],
 )
