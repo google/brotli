@@ -30,27 +30,27 @@ maven_install(
 http_file(
     name = "openjdk_jni_h",
     downloaded_file_path = "jni.h",
-    urls = ["https://hg.openjdk.java.net/jdk8/jdk8/jdk/raw-file/687fd7c7986d/src/share/javavm/export/jni.h"],
+    urls = ["https://raw.githubusercontent.com/openjdk/jdk/jdk8-b120/jdk/src/share/javavm/export/jni.h"],
     sha256 = "ed99792df48670072b78028faf704a8dcb6868fe140ccc7eced9b01dfa62fef4",
 )
 
 http_file(
     name = "openjdk_solaris_jni_md_h",
     downloaded_file_path = "jni_md.h",
-    urls = ["https://hg.openjdk.java.net/jdk8/jdk8/jdk/raw-file/687fd7c7986d/src/solaris/javavm/export/jni_md.h"],
-    sha256 = "ecbe6944fe1a4290644d5a6b3c8f68576798a53b9da12cd31c58c48569595ff7",
+    urls = ["https://raw.githubusercontent.com/openjdk/jdk/jdk8-b120/jdk/src/solaris/javavm/export/jni_md.h"],
+    sha256 = "b6cf7b06e5bba38d2daa2ff0789f99d396b3cb3bcc37d0367c8360fdccdef294",
 )
 
 http_file(
     name = "openjdk_macosx_jni_md_h",
     downloaded_file_path = "jni_md.h",
-    urls = ["https://hg.openjdk.java.net/jdk8/jdk8/jdk/raw-file/687fd7c7986d/src/macosx/javavm/export/jni_md.h"],
+    urls = ["https://raw.githubusercontent.com/openjdk/jdk/jdk8-b120/jdk/src/macosx/javavm/export/jni_md.h"],
     sha256 = "8f718071022e7e7f2fc9a229984b7e83582db91ed83861b49ce1461436fe8dc4",
 )
 
 http_file(
     name = "openjdk_windows_jni_md_h",
     downloaded_file_path = "jni_md.h",
-    urls = ["https://hg.openjdk.java.net/jdk8/jdk8/jdk/raw-file/687fd7c7986d/src/windows/javavm/export/jni_md.h"],
+    urls = ["https://raw.githubusercontent.com/openjdk/jdk/jdk8-b120/jdk/src/windows/javavm/export/jni_md.h"],
     sha256 = "5479fb385ea1e11619f5c0cdfd9ccb3ea3a3fea0f5bc6176fb3ce62be29d759b",
 )

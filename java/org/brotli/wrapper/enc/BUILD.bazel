@@ -9,7 +9,7 @@ filegroup(
 
 filegroup(
     name = "brotli_jni",
-    srcs = ["//:brotli_jni.dll"],
+    srcs = ["@org_brotli_java//:brotli_jni.dll"],
 )
 
 java_library(

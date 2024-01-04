@@ -86,17 +86,17 @@ jobs:
             cxx_compiler: g++
             os: macos-latest
 
-          - name: cmake-win64:msvc2019-rel
+          - name: cmake-win64:msvc-rel
             build_system: cmake
-            cmake_generator: Visual Studio 16 2019
+            cmake_generator: Visual Studio 17 2022
             cmake_config: Release
-            os: windows-2019
+            os: windows-latest
 
-          - name: cmake-win64:msvc2019-dbg
+          - name: cmake-win64:msvc-dbg
             build_system: cmake
-            cmake_generator: Visual Studio 16 2019
+            cmake_generator: Visual Studio 17 2022
             cmake_config: Debug
-            os: windows-2019
+            os: windows-latest
 
           - name: fuzz:clang15
             build_system: fuzz
@@ -288,9 +288,9 @@ jobs:
           with open(match) as manifest:
             for entry in manifest:
               entry = entry.strip()
-              if not entry.startswith("org_brotli_java"):
+              if not entry.startswith("_main"):
                 continue
-              if entry.startswith('org_brotli_java/external'):
+              if entry.startswith("_main/external"):
                 continue
               (alias, space, link) = entry.partition(' ')
               if alias.endswith('.jar') or alias.endswith('.exe'):

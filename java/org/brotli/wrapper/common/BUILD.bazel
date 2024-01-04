@@ -9,7 +9,7 @@ filegroup(
 
 filegroup(
     name = "brotli_jni_no_dictionary_data",
-    srcs = ["//:brotli_jni_no_dictionary_data.dll"],
+    srcs = ["@org_brotli_java//:brotli_jni_no_dictionary_data.dll"],
 )
 
 java_library(
