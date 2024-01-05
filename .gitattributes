@@ -4,10 +4,10 @@ tests/testdata/* binary
 **/** export-ignore
 
 # Add top-level files
+.bazelignore !export-ignore
 BUILD.bazel !export-ignore
 CHANGELOG.md !export-ignore
 CMakeLists.txt !export-ignore
-compiler_config_setting.bzl !export-ignore
 CONTRIBUTING.md !export-ignore
 LICENSE !export-ignore
 MANIFEST.in !export-ignore
