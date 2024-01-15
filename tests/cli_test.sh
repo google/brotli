@@ -13,6 +13,7 @@ function test::brotli_cli::setup() {
   BROTLI="${BROTLI_PKG}/tools/brotli"
   cd ${TEMP_DIR}
   echo "Kot lomom kolol slona" > text.orig
+  echo "Lorem ipsum dolor sit amet. " > ipsum.orig
 }
 
 function test::brotli_cli::teardown() {
@@ -79,6 +80,17 @@ function test::brotli_cli::comment_ignore_tab_cr_lf_sp() {
 
 function test::brotli_cli::comment_invalid_chars() {
   EXPECT_FAIL "${BROTLI} -Zfk -C S.GVsbG8= text.orig -o text.br"
+}
+
+function test::brotli_cli::concatenated() {
+  ${BROTLI} -Zfk ipsum.orig -o one.br
+  ${BROTLI} -Zfk text.orig -o two.br
+  cat one.br two.br > full.br
+  EXPECT_FAIL "${BROTLI} -dc full.br  > full.unbr"
+  EXPECT_SUCCEED "${BROTLI} -dKc full.br > full.unbr"
+  EXPECT_SUCCEED "${BROTLI} -dc --concatenated full.br > full.unbr"
+  cat ipsum.orig text.orig > full.orig
+  EXPECT_FILE_CONTENT_EQ full.orig full.unbr
 }
 
 gbash::unit::main "$@"
