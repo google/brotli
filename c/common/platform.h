@@ -29,17 +29,7 @@
 #include <brotli/port.h>
 #include <brotli/types.h>
 
-#if defined(OS_LINUX) || defined(OS_CYGWIN) || defined(__EMSCRIPTEN__)
-#include <endian.h>
-#elif defined(OS_FREEBSD)
-#include <machine/endian.h>
-#elif defined(OS_MACOSX)
-#include <machine/endian.h>
-/* Let's try and follow the Linux convention */
-#define BROTLI_X_BYTE_ORDER BYTE_ORDER
-#define BROTLI_X_LITTLE_ENDIAN LITTLE_ENDIAN
-#define BROTLI_X_BIG_ENDIAN BIG_ENDIAN
-#endif
+#include <sys/types.h>  /* should include endian.h for us */
 
 #if BROTLI_MSVC_VERSION_CHECK(18, 0, 0)
 #include <intrin.h>
@@ -248,13 +238,12 @@ OR:
 #define BROTLI_LITTLE_ENDIAN 1
 #elif defined(__BYTE_ORDER__) && (__BYTE_ORDER__ == __ORDER_BIG_ENDIAN__)
 #define BROTLI_BIG_ENDIAN 1
-#elif defined(BROTLI_X_BYTE_ORDER)
-#if BROTLI_X_BYTE_ORDER == BROTLI_X_LITTLE_ENDIAN
+/* Likely target platform is iOS / OSX. */
+#elif defined(BYTE_ORDER) && (BYTE_ORDER == LITTLE_ENDIAN)
 #define BROTLI_LITTLE_ENDIAN 1
-#elif BROTLI_X_BYTE_ORDER == BROTLI_X_BIG_ENDIAN
+#elif defined(BYTE_ORDER) && (BYTE_ORDER == BIG_ENDIAN)
 #define BROTLI_BIG_ENDIAN 1
 #endif
-#endif  /* BROTLI_X_BYTE_ORDER */
 
 #if !defined(BROTLI_LITTLE_ENDIAN)
 #define BROTLI_LITTLE_ENDIAN 0
@@ -262,12 +251,6 @@ OR:
 
 #if !defined(BROTLI_BIG_ENDIAN)
 #define BROTLI_BIG_ENDIAN 0
-#endif
-
-#if defined(BROTLI_X_BYTE_ORDER)
-#undef BROTLI_X_BYTE_ORDER
-#undef BROTLI_X_LITTLE_ENDIAN
-#undef BROTLI_X_BIG_ENDIAN
 #endif
 
 #if defined(BROTLI_BUILD_NO_UNALIGNED_READ_FAST)
