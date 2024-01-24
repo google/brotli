@@ -43,10 +43,10 @@ final class DictionaryData {
 
     // Toggle high bit using run-length delta encoded "skipFlip".
     int offset = 0;
-    final int n = skipFlip.length();
-    for (int i = 0; i < n; i += 2) {
-      final int skip = skipFlip.charAt(i) - 36;
-      final int flip = skipFlip.charAt(i + 1) - 36;
+    final int n = skipFlip.length() >> 1;
+    for (int i = 0; i < n; ++i) {
+      final int skip = skipFlip.charAt(2 * i) - 36;
+      final int flip = skipFlip.charAt(2 * i + 1) - 36;
       for (int j = 0; j < skip; ++j) {
         dict[offset] ^= 3;
         offset++;

@@ -64,28 +64,26 @@ final class Huffman {
   static int buildHuffmanTable(int[] tableGroup, int tableIdx, int rootBits, int[] codeLengths,
       int codeLengthsSize) {
     final int tableOffset = tableGroup[tableIdx];
-    int key; // Reversed prefix code.
     final int[] sorted = new int[codeLengthsSize]; // Symbols sorted by code length.
     // TODO(eustas): fill with zeroes?
     final int[] count = new int[MAX_LENGTH + 1]; // Number of codes of each length.
     final int[] offset = new int[MAX_LENGTH + 1]; // Offsets in sorted table for each length.
-    int symbol;
 
     // Build histogram of code lengths.
-    for (symbol = 0; symbol < codeLengthsSize; symbol++) {
-      count[codeLengths[symbol]]++;
+    for (int sym = 0; sym < codeLengthsSize; ++sym) {
+      count[codeLengths[sym]]++;
     }
 
     // Generate offsets into sorted symbol table by code length.
     offset[1] = 0;
-    for (int len = 1; len < MAX_LENGTH; len++) {
+    for (int len = 1; len < MAX_LENGTH; ++len) {
       offset[len + 1] = offset[len] + count[len];
     }
 
     // Sort symbols by length, by symbol order within each length.
-    for (symbol = 0; symbol < codeLengthsSize; symbol++) {
-      if (codeLengths[symbol] != 0) {
-        sorted[offset[codeLengths[symbol]]++] = symbol;
+    for (int sym = 0; sym < codeLengthsSize; ++sym) {
+      if (codeLengths[sym] != 0) {
+        sorted[offset[codeLengths[sym]]++] = sym;
       }
     }
 
@@ -95,20 +93,23 @@ final class Huffman {
 
     // Special case code with only one value.
     if (offset[MAX_LENGTH] == 1) {
-      for (key = 0; key < totalSize; key++) {
-        tableGroup[tableOffset + key] = sorted[0];
+      for (int k = 0; k < totalSize; ++k) {
+        tableGroup[tableOffset + k] = sorted[0];
       }
       return totalSize;
     }
 
     // Fill in root table.
-    key = 0;
-    symbol = 0;
-    for (int len = 1, step = 2; len <= rootBits; len++, step <<= 1) {
-      for (; count[len] > 0; count[len]--) {
+    int key = 0;  // Reversed prefix code.
+    int symbol = 0;
+    int step = 1;
+    for (int len = 1; len <= rootBits; ++len) {
+      step <<= 1;
+      while (count[len] > 0) {
         replicateValue(tableGroup, tableOffset + key, step, tableSize,
             len << 16 | sorted[symbol++]);
         key = getNextKey(key, len);
+        count[len]--;
       }
     }
 
@@ -116,8 +117,10 @@ final class Huffman {
     final int mask = totalSize - 1;
     int low = -1;
     int currentOffset = tableOffset;
-    for (int len = rootBits + 1, step = 2; len <= MAX_LENGTH; len++, step <<= 1) {
-      for (; count[len] > 0; count[len]--) {
+    step = 1;
+    for (int len = rootBits + 1; len <= MAX_LENGTH; ++len) {
+      step <<= 1;
+      while (count[len] > 0) {
         if ((key & mask) != low) {
           currentOffset += tableSize;
           tableBits = nextTableBitSize(count, len, rootBits);
@@ -130,6 +133,7 @@ final class Huffman {
         replicateValue(tableGroup, currentOffset + (key >> rootBits), step, tableSize,
             (len - rootBits) << 16 | sorted[symbol++]);
         key = getNextKey(key, len);
+        count[len]--;
       }
     }
     return totalSize;

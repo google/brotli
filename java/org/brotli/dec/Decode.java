@@ -351,7 +351,7 @@ final class Decode {
       if (sizeBytes == 0) {
         return;
       }
-      for (int i = 0; i < sizeBytes; i++) {
+      for (int i = 0; i < sizeBytes; ++i) {
         BitReader.fillBitWindow(s);
         final int bits = BitReader.readFewBits(s, 8);
         if (bits == 0 && i + 1 == sizeBytes && sizeBytes > 1) {
@@ -360,7 +360,7 @@ final class Decode {
         s.metaBlockLength |= bits << (i * 8);
       }
     } else {
-      for (int i = 0; i < sizeNibbles; i++) {
+      for (int i = 0; i < sizeNibbles; ++i) {
         BitReader.fillBitWindow(s);
         final int bits = BitReader.readFewBits(s, 4);
         if (bits == 0 && i + 1 == sizeNibbles && sizeNibbles > 4) {
@@ -405,18 +405,19 @@ final class Decode {
 
   private static void moveToFront(int[] v, int index) {
     final int value = v[index];
-    for (; index > 0; index--) {
+    while (index > 0) {
       v[index] = v[index - 1];
+      index--;
     }
     v[0] = value;
   }
 
   private static void inverseMoveToFrontTransform(byte[] v, int vLen) {
     final int[] mtf = new int[256];
-    for (int i = 0; i < 256; i++) {
+    for (int i = 0; i < 256; ++i) {
       mtf[i] = i;
     }
-    for (int i = 0; i < vLen; i++) {
+    for (int i = 0; i < vLen; ++i) {
       final int index = v[i] & 0xFF;
       v[i] = (byte) mtf[index];
       if (index != 0) {
@@ -470,7 +471,7 @@ final class Decode {
         if (symbol + repeatDelta > numSymbols) {
           throw new BrotliRuntimeException("symbol + repeatDelta > numSymbols"); // COV_NF_LINE
         }
-        for (int i = 0; i < repeatDelta; i++) {
+        for (int i = 0; i < repeatDelta; ++i) {
           codeLengths[symbol++] = repeatCodeLen;
         }
         if (repeatCodeLen != 0) {
@@ -507,7 +508,7 @@ final class Decode {
     final int maxBits = 1 + log2floor(alphabetSizeMax - 1);
 
     final int numSymbols = BitReader.readFewBits(s, 2) + 1;
-    for (int i = 0; i < numSymbols; i++) {
+    for (int i = 0; i < numSymbols; ++i) {
       BitReader.fillBitWindow(s);
       final int symbol = BitReader.readFewBits(s, maxBits);
       if (symbol >= alphabetSizeLimit) {
@@ -569,7 +570,7 @@ final class Decode {
     final int[] codeLengthCodeLengths = new int[CODE_LENGTH_CODES];
     int space = 32;
     int numCodes = 0;
-    for (int i = skip; i < CODE_LENGTH_CODES && space > 0; i++) {
+    for (int i = skip; i < CODE_LENGTH_CODES; ++i) {
       final int codeLenIdx = CODE_LENGTH_CODE_ORDER[i];
       BitReader.fillBitWindow(s);
       final int p = BitReader.peekBits(s) & 15;
@@ -580,6 +581,7 @@ final class Decode {
       if (v != 0) {
         space -= (32 >> v);
         numCodes++;
+        if (space <= 0) break;
       }
     }
     if (space != 0 && numCodes != 1) {
@@ -630,7 +632,8 @@ final class Decode {
     final int[] table = new int[tableSize + 1];
     final int tableIdx = table.length - 1;
     readHuffmanCode(alphabetSize, alphabetSize, table, tableIdx, s);
-    for (int i = 0; i < contextMapSize; ) {
+    int i = 0;
+    while (i < contextMapSize) {
       BitReader.readMoreInput(s);
       BitReader.fillBitWindow(s);
       final int code = readSymbol(table, tableIdx, s);
@@ -829,22 +832,24 @@ final class Decode {
     s.numDirectDistanceCodes = BitReader.readFewBits(s, 4) << s.distancePostfixBits;
     // TODO(eustas): Reuse?
     s.contextModes = new byte[s.numLiteralBlockTypes];
-    for (int i = 0; i < s.numLiteralBlockTypes;) {
+    int i = 0;
+    while (i < s.numLiteralBlockTypes) {
       /* Ensure that less than 256 bits read between readMoreInput. */
       final int limit = Math.min(i + 96, s.numLiteralBlockTypes);
-      for (; i < limit; ++i) {
+      while (i < limit) {
         BitReader.fillBitWindow(s);
         s.contextModes[i] = (byte) BitReader.readFewBits(s, 2);
+        i++;
       }
       BitReader.readMoreInput(s);
     }
 
     // TODO(eustas): Reuse?
-    s.contextMap = new byte[s.numLiteralBlockTypes << LITERAL_CONTEXT_BITS];
-    final int numLiteralTrees = decodeContextMap(s.numLiteralBlockTypes << LITERAL_CONTEXT_BITS,
-        s.contextMap, s);
+    final int contextMapLength = s.numLiteralBlockTypes << LITERAL_CONTEXT_BITS;
+    s.contextMap = new byte[contextMapLength];
+    final int numLiteralTrees = decodeContextMap(contextMapLength, s.contextMap, s);
     s.trivialLiteralContext = 1;
-    for (int j = 0; j < s.numLiteralBlockTypes << LITERAL_CONTEXT_BITS; j++) {
+    for (int j = 0; j < contextMapLength; ++j) {
       if (s.contextMap[j] != j >> LITERAL_CONTEXT_BITS) {
         s.trivialLiteralContext = 0;
         break;
@@ -1253,7 +1258,8 @@ final class Decode {
           final int dstEnd = dst + copyLength;
           if ((srcEnd < ringBufferMask) && (dstEnd < ringBufferMask)) {
             if (copyLength < 12 || (srcEnd > dst && dstEnd > src)) {
-              for (int k = 0; k < copyLength; k += 4) {
+              final int numQuads = (copyLength + 3) >> 2;
+              for (int k = 0; k < numQuads; ++k) {
                 ringBuffer[dst++] = ringBuffer[src++];
                 ringBuffer[dst++] = ringBuffer[src++];
                 ringBuffer[dst++] = ringBuffer[src++];
@@ -1266,7 +1272,7 @@ final class Decode {
             s.metaBlockLength -= copyLength;
             s.pos += copyLength;
           } else {
-            for (; s.j < s.copyLength;) {
+            while (s.j < s.copyLength) {
               ringBuffer[s.pos] =
                   ringBuffer[(s.pos - s.distance) & ringBufferMask];
               s.metaBlockLength--;
