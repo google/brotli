@@ -21,7 +21,7 @@ final class Huffman {
   private static int getNextKey(int key, int len) {
     int step = 1 << (len - 1);
     while ((key & step) != 0) {
-      step >>= 1;
+      step = step >> 1;
     }
     return (key & (step - 1)) + step;
   }
@@ -32,10 +32,11 @@ final class Huffman {
    * <p> Assumes that end is an integer multiple of step.
    */
   private static void replicateValue(int[] table, int offset, int step, int end, int item) {
+    int pos = end;
     do {
-      end -= step;
-      table[offset + end] = item;
-    } while (end > 0);
+      pos -= step;
+      table[offset + pos] = item;
+    } while (pos > 0);
   }
 
   /**
@@ -44,16 +45,17 @@ final class Huffman {
    * @return table width of the next 2nd level table.
    */
   private static int nextTableBitSize(int[] count, int len, int rootBits) {
-    int left = 1 << (len - rootBits);
-    while (len < MAX_LENGTH) {
-      left -= count[len];
+    int bits = len;
+    int left = 1 << (bits - rootBits);
+    while (bits < MAX_LENGTH) {
+      left -= count[bits];
       if (left <= 0) {
         break;
       }
-      len++;
-      left <<= 1;
+      bits++;
+      left = left << 1;
     }
-    return len - rootBits;
+    return bits - rootBits;
   }
 
   /**
@@ -104,7 +106,7 @@ final class Huffman {
     int symbol = 0;
     int step = 1;
     for (int len = 1; len <= rootBits; ++len) {
-      step <<= 1;
+      step = step << 1;
       while (count[len] > 0) {
         replicateValue(tableGroup, tableOffset + key, step, tableSize,
             len << 16 | sorted[symbol++]);
@@ -119,7 +121,7 @@ final class Huffman {
     int currentOffset = tableOffset;
     step = 1;
     for (int len = rootBits + 1; len <= MAX_LENGTH; ++len) {
-      step <<= 1;
+      step = step << 1;
       while (count[len] > 0) {
         if ((key & mask) != low) {
           currentOffset += tableSize;

@@ -26,7 +26,7 @@ final class Context {
     }
     // UTF8
     for (int i = 0; i < 128; ++i) {
-      lookup[1024 + i] = 4 * (map.charAt(i) - 32);
+      lookup[1024 + i] = 4 * ((int) map.charAt(i) - 32);
     }
     for (int i = 0; i < 64; ++i) {
       lookup[1152 + i] = i & 1;
@@ -35,7 +35,7 @@ final class Context {
     int offset = 1280;
     for (int k = 0; k < 19; ++k) {
       final int value = k & 3;
-      final int rep = rle.charAt(k) - 32;
+      final int rep = (int) rle.charAt(k) - 32;
       for (int i = 0; i < rep; ++i) {
         lookup[offset++] = value;
       }

@@ -146,9 +146,9 @@ final class BitReader {
    * otherwise BitReader will become broken.
    */
   static int readFewBits(State s, int n) {
-    final int val = peekBits(s) & ((1 << n) - 1);
+    final int v = peekBits(s) & ((1 << n) - 1);
     s.bitOffset += n;
-    return val;
+    return v;
   }
 
   static int readBits(State s, int n) {
@@ -212,31 +212,33 @@ final class BitReader {
   }
 
   static void copyRawBytes(State s, byte[] data, int offset, int length) {
+    int pos = offset;
+    int len = length;
     if ((s.bitOffset & 7) != 0) {
       throw new BrotliRuntimeException("Unaligned copyBytes");
     }
 
     // Drain accumulator.
-    while ((s.bitOffset != BITNESS) && (length != 0)) {
-      data[offset++] = (byte) peekBits(s);
+    while ((s.bitOffset != BITNESS) && (len != 0)) {
+      data[pos++] = (byte) peekBits(s);
       s.bitOffset += 8;
-      length--;
+      len--;
     }
-    if (length == 0) {
+    if (len == 0) {
       return;
     }
 
     // Get data from shadow buffer with "sizeof(int)" granularity.
-    final int copyNibbles = Math.min(halfAvailable(s), length >> LOG_HALF_SIZE);
+    final int copyNibbles = Math.min(halfAvailable(s), len >> LOG_HALF_SIZE);
     if (copyNibbles > 0) {
       final int readOffset = s.halfOffset << LOG_HALF_SIZE;
       final int delta = copyNibbles << LOG_HALF_SIZE;
-      System.arraycopy(s.byteBuffer, readOffset, data, offset, delta);
-      offset += delta;
-      length -= delta;
+      System.arraycopy(s.byteBuffer, readOffset, data, pos, delta);
+      pos += delta;
+      len -= delta;
       s.halfOffset += copyNibbles;
     }
-    if (length == 0) {
+    if (len == 0) {
       return;
     }
 
@@ -244,23 +246,23 @@ final class BitReader {
     if (halfAvailable(s) > 0) {
       // length = 1..3
       fillBitWindow(s);
-      while (length != 0) {
-        data[offset++] = (byte) peekBits(s);
+      while (len != 0) {
+        data[pos++] = (byte) peekBits(s);
         s.bitOffset += 8;
-        length--;
+        len--;
       }
       checkHealth(s, 0);
       return;
     }
 
     // Now it is possible to copy bytes directly.
-    while (length > 0) {
-      final int len = Utils.readInput(s, data, offset, length);
-      if (len == -1) {
+    while (len > 0) {
+      final int chunkLen = Utils.readInput(s, data, pos, len);
+      if (chunkLen == -1) {
         throw new BrotliRuntimeException("Unexpected end of input");
       }
-      offset += len;
-      length -= len;
+      pos += chunkLen;
+      len -= chunkLen;
     }
   }
 
@@ -273,16 +275,16 @@ final class BitReader {
     if (BITNESS == 64) {
       final int[] intBuffer = s.intBuffer;
       for (int i = 0; i < halfLen; ++i) {
-        intBuffer[i] = ((byteBuffer[i * 4] & 0xFF))
-            | ((byteBuffer[(i * 4) + 1] & 0xFF) << 8)
-            | ((byteBuffer[(i * 4) + 2] & 0xFF) << 16)
-            | ((byteBuffer[(i * 4) + 3] & 0xFF) << 24);
+        intBuffer[i] = ((int) byteBuffer[i * 4] & 0xFF)
+            | (((int) byteBuffer[(i * 4) + 1] & 0xFF) << 8)
+            | (((int) byteBuffer[(i * 4) + 2] & 0xFF) << 16)
+            | (((int) byteBuffer[(i * 4) + 3] & 0xFF) << 24);
       }
     } else {
       final short[] shortBuffer = s.shortBuffer;
       for (int i = 0; i < halfLen; ++i) {
-        shortBuffer[i] = (short) ((byteBuffer[i * 2] & 0xFF)
-            | ((byteBuffer[(i * 2) + 1] & 0xFF) << 8));
+        shortBuffer[i] = (short) (((int) byteBuffer[i * 2] & 0xFF)
+            | (((int) byteBuffer[(i * 2) + 1] & 0xFF) << 8));
       }
     }
   }

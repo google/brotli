@@ -47,14 +47,16 @@ let makeBrotliDecode = () => {
   function log2floor(i) {
     let /** @type {number} */ result = -1;
     let /** @type {number} */ step = 16;
+    let /** @type {number} */ v = i;
     while (step > 0) {
-      if ((i >>> step) !== 0) {
+      let /** @type {number} */ next = v >>> step;
+      if (next !== 0) {
         result += step;
-        i = i >>> step;
+        v = next;
       }
       step = step >> 1;
     }
-    return result + i;
+    return result + v;
   }
   /**
    * @param {number} npostfix
@@ -85,12 +87,12 @@ let makeBrotliDecode = () => {
    * @return {void}
    */
   function unpackCommandLookupTable(cmdLookup) {
-    const /** @type {!Int16Array} */ insertLengthOffsets = new Int16Array(24);
-    const /** @type {!Int16Array} */ copyLengthOffsets = new Int16Array(24);
+    const /** @type {!Int32Array} */ insertLengthOffsets = new Int32Array(24);
+    const /** @type {!Int32Array} */ copyLengthOffsets = new Int32Array(24);
     copyLengthOffsets[0] = 2;
     for (let /** @type {number} */ i = 0; i < 23; ++i) {
-      insertLengthOffsets[i + 1] = (insertLengthOffsets[i] + (1 << INSERT_LENGTH_N_BITS[i]));
-      copyLengthOffsets[i + 1] = (copyLengthOffsets[i] + (1 << COPY_LENGTH_N_BITS[i]));
+      insertLengthOffsets[i + 1] = insertLengthOffsets[i] + (1 << INSERT_LENGTH_N_BITS[i]);
+      copyLengthOffsets[i + 1] = copyLengthOffsets[i] + (1 << COPY_LENGTH_N_BITS[i]);
     }
     for (let /** @type {number} */ cmdCode = 0; cmdCode < 704; ++cmdCode) {
       let /** @type {number} */ rangeIdx = cmdCode >>> 6;
@@ -102,9 +104,9 @@ let makeBrotliDecode = () => {
       const /** @type {number} */ insertCode = (((0x29850 >>> (rangeIdx * 2)) & 0x3) << 3) | ((cmdCode >>> 3) & 7);
       const /** @type {number} */ copyCode = (((0x26244 >>> (rangeIdx * 2)) & 0x3) << 3) | (cmdCode & 7);
       const /** @type {number} */ copyLengthOffset = copyLengthOffsets[copyCode];
-      const /** @type {number} */ distanceContext = distanceContextOffset + (copyLengthOffset > 4 ? 3 : copyLengthOffset - 2);
+      const /** @type {number} */ distanceContext = distanceContextOffset + (copyLengthOffset > 4 ? 3 : (copyLengthOffset - 2));
       const /** @type {number} */ index = cmdCode * 4;
-      cmdLookup[index] = (INSERT_LENGTH_N_BITS[insertCode] | (COPY_LENGTH_N_BITS[copyCode] << 8));
+      cmdLookup[index] = INSERT_LENGTH_N_BITS[insertCode] | (COPY_LENGTH_N_BITS[copyCode] << 8);
       cmdLookup[index + 1] = insertLengthOffsets[insertCode];
       cmdLookup[index + 2] = copyLengthOffsets[copyCode];
       cmdLookup[index + 3] = distanceContext;
@@ -220,7 +222,7 @@ let makeBrotliDecode = () => {
       return;
     }
     s.runningState = 11;
-    s.input = null;
+    s.input = new InputStream(new Int8Array(0));
   }
   /**
    * @param {!State} s
@@ -267,7 +269,7 @@ let makeBrotliDecode = () => {
       if (sizeBytes === 0) {
         return;
       }
-      for (let /** @type {number} */ i = 0; i < sizeBytes; i++) {
+      for (let /** @type {number} */ i = 0; i < sizeBytes; ++i) {
         if (s.bitOffset >= 16) {
           s.accumulator32 = (s.shortBuffer[s.halfOffset++] << 16) | (s.accumulator32 >>> 16);
           s.bitOffset -= 16;
@@ -276,10 +278,10 @@ let makeBrotliDecode = () => {
         if (bits === 0 && i + 1 === sizeBytes && sizeBytes > 1) {
           throw new Error("Exuberant nibble");
         }
-        s.metaBlockLength |= bits << (i * 8);
+        s.metaBlockLength += bits << (i * 8);
       }
     } else {
-      for (let /** @type {number} */ i = 0; i < sizeNibbles; i++) {
+      for (let /** @type {number} */ i = 0; i < sizeNibbles; ++i) {
         if (s.bitOffset >= 16) {
           s.accumulator32 = (s.shortBuffer[s.halfOffset++] << 16) | (s.accumulator32 >>> 16);
           s.bitOffset -= 16;
@@ -288,7 +290,7 @@ let makeBrotliDecode = () => {
         if (bits === 0 && i + 1 === sizeNibbles && sizeNibbles > 4) {
           throw new Error("Exuberant nibble");
         }
-        s.metaBlockLength |= bits << (i * 4);
+        s.metaBlockLength += bits << (i * 4);
       }
     }
     s.metaBlockLength++;
@@ -304,8 +306,8 @@ let makeBrotliDecode = () => {
    */
   function readSymbol(tableGroup, tableIdx, s) {
     let /** @type {number} */ offset = tableGroup[tableIdx];
-    const /** @type {number} */ val = (s.accumulator32 >>> s.bitOffset);
-    offset += val & 0xFF;
+    const /** @type {number} */ v = s.accumulator32 >>> s.bitOffset;
+    offset += v & 0xFF;
     const /** @type {number} */ bits = tableGroup[offset] >> 16;
     const /** @type {number} */ sym = tableGroup[offset] & 0xFFFF;
     if (bits <= 8) {
@@ -314,8 +316,8 @@ let makeBrotliDecode = () => {
     }
     offset += sym;
     const /** @type {number} */ mask = (1 << bits) - 1;
-    offset += (val & mask) >>> 8;
-    s.bitOffset += ((tableGroup[offset] >> 16) + 8);
+    offset += (v & mask) >>> 8;
+    s.bitOffset += (tableGroup[offset] >> 16) + 8;
     return tableGroup[offset] & 0xFFFF;
   }
   /**
@@ -343,9 +345,11 @@ let makeBrotliDecode = () => {
    * @return {void}
    */
   function moveToFront(v, index) {
-    const /** @type {number} */ value = v[index];
-    for (; index > 0; index--) {
-      v[index] = v[index - 1];
+    let /** @type {number} */ i = index;
+    const /** @type {number} */ value = v[i];
+    while (i > 0) {
+      v[i] = v[i - 1];
+      i--;
     }
     v[0] = value;
   }
@@ -356,10 +360,10 @@ let makeBrotliDecode = () => {
    */
   function inverseMoveToFrontTransform(v, vLen) {
     const /** @type {!Int32Array} */ mtf = new Int32Array(256);
-    for (let /** @type {number} */ i = 0; i < 256; i++) {
+    for (let /** @type {number} */ i = 0; i < 256; ++i) {
       mtf[i] = i;
     }
-    for (let /** @type {number} */ i = 0; i < vLen; i++) {
+    for (let /** @type {number} */ i = 0; i < vLen; ++i) {
       const /** @type {number} */ index = v[i] & 0xFF;
       v[i] = mtf[index];
       if (index !== 0) {
@@ -414,7 +418,7 @@ let makeBrotliDecode = () => {
         const /** @type {number} */ oldRepeat = repeat;
         if (repeat > 0) {
           repeat -= 2;
-          repeat <<= extraBits;
+          repeat = repeat << extraBits;
         }
         if (s.bitOffset >= 16) {
           s.accumulator32 = (s.shortBuffer[s.halfOffset++] << 16) | (s.accumulator32 >>> 16);
@@ -425,7 +429,7 @@ let makeBrotliDecode = () => {
         if (symbol + repeatDelta > numSymbols) {
           throw new Error("symbol + repeatDelta > numSymbols");
         }
-        for (let /** @type {number} */ i = 0; i < repeatDelta; i++) {
+        for (let /** @type {number} */ i = 0; i < repeatDelta; ++i) {
           codeLengths[symbol++] = repeatCodeLen;
         }
         if (repeatCodeLen !== 0) {
@@ -465,7 +469,7 @@ let makeBrotliDecode = () => {
     const /** @type {!Int32Array} */ symbols = new Int32Array(4);
     const /** @type {number} */ maxBits = 1 + log2floor(alphabetSizeMax - 1);
     const /** @type {number} */ numSymbols = readFewBits(s, 2) + 1;
-    for (let /** @type {number} */ i = 0; i < numSymbols; i++) {
+    for (let /** @type {number} */ i = 0; i < numSymbols; ++i) {
       if (s.bitOffset >= 16) {
         s.accumulator32 = (s.shortBuffer[s.halfOffset++] << 16) | (s.accumulator32 >>> 16);
         s.bitOffset -= 16;
@@ -524,7 +528,7 @@ let makeBrotliDecode = () => {
     const /** @type {!Int32Array} */ codeLengthCodeLengths = new Int32Array(18);
     let /** @type {number} */ space = 32;
     let /** @type {number} */ numCodes = 0;
-    for (let /** @type {number} */ i = skip; i < 18 && space > 0; i++) {
+    for (let /** @type {number} */ i = skip; i < 18; ++i) {
       const /** @type {number} */ codeLenIdx = CODE_LENGTH_CODE_ORDER[i];
       if (s.bitOffset >= 16) {
         s.accumulator32 = (s.shortBuffer[s.halfOffset++] << 16) | (s.accumulator32 >>> 16);
@@ -535,8 +539,10 @@ let makeBrotliDecode = () => {
       const /** @type {number} */ v = FIXED_TABLE[p] & 0xFFFF;
       codeLengthCodeLengths[codeLenIdx] = v;
       if (v !== 0) {
-        space -= (32 >> v);
+        space -= 32 >> v;
         numCodes++;
+        if (space <= 0)
+          break;
       }
     }
     if (space !== 0 && numCodes !== 1) {
@@ -597,7 +603,8 @@ let makeBrotliDecode = () => {
     const /** @type {!Int32Array} */ table = new Int32Array(tableSize + 1);
     const /** @type {number} */ tableIdx = table.length - 1;
     readHuffmanCode(alphabetSize, alphabetSize, table, tableIdx, s);
-    for (let /** @type {number} */ i = 0; i < contextMapSize; ) {
+    let /** @type {number} */ i = 0;
+    while (i < contextMapSize) {
       if (s.halfOffset > 2030) {
         doReadMoreInput(s);
       }
@@ -624,7 +631,7 @@ let makeBrotliDecode = () => {
           reps--;
         }
       } else {
-        contextMap[i] = (code - maxRunLengthPrefix);
+        contextMap[i] = code - maxRunLengthPrefix;
         i++;
       }
     }
@@ -704,7 +711,7 @@ let makeBrotliDecode = () => {
     if (newSize > s.expectedTotalSize) {
       const /** @type {number} */ minimalNewSize = s.expectedTotalSize;
       while ((newSize >> 1) > minimalNewSize) {
-        newSize >>= 1;
+        newSize = newSize >> 1;
       }
       if ((s.inputEnd === 0) && newSize < 16384 && s.maxRingBufferSize >= 16384) {
         newSize = 16384;
@@ -715,8 +722,9 @@ let makeBrotliDecode = () => {
     }
     const /** @type {number} */ ringBufferSizeWithSlack = newSize + 37;
     const /** @type {!Int8Array} */ newBuffer = new Int8Array(ringBufferSizeWithSlack);
-    if (s.ringBuffer.length !== 0) {
-      newBuffer.set(s.ringBuffer.subarray(0, s.ringBufferSize), 0);
+    const /** @type {!Int8Array} */ oldBuffer = s.ringBuffer;
+    if (oldBuffer.length !== 0) {
+      newBuffer.set(oldBuffer.subarray(0, s.ringBufferSize), 0);
     }
     s.ringBuffer = newBuffer;
     s.ringBufferSize = newSize;
@@ -830,23 +838,26 @@ let makeBrotliDecode = () => {
     s.distancePostfixBits = readFewBits(s, 2);
     s.numDirectDistanceCodes = readFewBits(s, 4) << s.distancePostfixBits;
     s.contextModes = new Int8Array(s.numLiteralBlockTypes);
-    for (let /** @type {number} */ i = 0; i < s.numLiteralBlockTypes; ) {
+    let /** @type {number} */ i = 0;
+    while (i < s.numLiteralBlockTypes) {
       const /** @type {number} */ limit = Math.min(i + 96, s.numLiteralBlockTypes);
-      for (; i < limit; ++i) {
+      while (i < limit) {
         if (s.bitOffset >= 16) {
           s.accumulator32 = (s.shortBuffer[s.halfOffset++] << 16) | (s.accumulator32 >>> 16);
           s.bitOffset -= 16;
         }
         s.contextModes[i] = readFewBits(s, 2);
+        i++;
       }
       if (s.halfOffset > 2030) {
         doReadMoreInput(s);
       }
     }
-    s.contextMap = new Int8Array(s.numLiteralBlockTypes << 6);
-    const /** @type {number} */ numLiteralTrees = decodeContextMap(s.numLiteralBlockTypes << 6, s.contextMap, s);
+    const /** @type {number} */ contextMapLength = s.numLiteralBlockTypes << 6;
+    s.contextMap = new Int8Array(contextMapLength);
+    const /** @type {number} */ numLiteralTrees = decodeContextMap(contextMapLength, s.contextMap, s);
     s.trivialLiteralContext = 1;
-    for (let /** @type {number} */ j = 0; j < s.numLiteralBlockTypes << 6; j++) {
+    for (let /** @type {number} */ j = 0; j < contextMapLength; ++j) {
       if (s.contextMap[j] !== j >> 6) {
         s.trivialLiteralContext = 0;
         break;
@@ -1264,7 +1275,8 @@ let makeBrotliDecode = () => {
           const /** @type {number} */ dstEnd = dst + copyLength;
           if ((srcEnd < ringBufferMask) && (dstEnd < ringBufferMask)) {
             if (copyLength < 12 || (srcEnd > dst && dstEnd > src)) {
-              for (let /** @type {number} */ k = 0; k < copyLength; k += 4) {
+              const /** @type {number} */ numQuads = (copyLength + 3) >> 2;
+              for (let /** @type {number} */ k = 0; k < numQuads; ++k) {
                 ringBuffer[dst++] = ringBuffer[src++];
                 ringBuffer[dst++] = ringBuffer[src++];
                 ringBuffer[dst++] = ringBuffer[src++];
@@ -1277,7 +1289,7 @@ let makeBrotliDecode = () => {
             s.metaBlockLength -= copyLength;
             s.pos += copyLength;
           } else {
-            for (; s.j < s.copyLength; ) {
+            while (s.j < s.copyLength) {
               ringBuffer[s.pos] = ringBuffer[(s.pos - s.distance) & ringBufferMask];
               s.metaBlockLength--;
               s.pos++;
@@ -1336,7 +1348,7 @@ let makeBrotliDecode = () => {
             if (s.pos > s.ringBufferSize) {
               ringBuffer.copyWithin(0, s.ringBufferSize, s.pos);
             }
-            s.pos &= ringBufferMask;
+            s.pos = s.pos & ringBufferMask;
             s.ringBufferBytesWritten = 0;
           }
           s.runningState = s.nextRunningState;
@@ -1413,12 +1425,12 @@ let makeBrotliDecode = () => {
    * @param {number} dstOffset
    * @param {!Int8Array} src
    * @param {number} srcOffset
-   * @param {number} len
+   * @param {number} wordLen
    * @param {!Transforms} transforms
    * @param {number} transformIndex
    * @return {number}
    */
-  function transformDictionaryWord(dst, dstOffset, src, srcOffset, len, transforms, transformIndex) {
+  function transformDictionaryWord(dst, dstOffset, src, srcOffset, wordLen, transforms, transformIndex) {
     let /** @type {number} */ offset = dstOffset;
     const /** @type {!Int32Array} */ triplets = transforms.triplets;
     const /** @type {!Int8Array} */ prefixSuffixStorage = transforms.prefixSuffixStorage;
@@ -1442,15 +1454,16 @@ let makeBrotliDecode = () => {
     while (prefix !== prefixEnd) {
       dst[offset++] = prefixSuffixStorage[prefix++];
     }
+    let /** @type {number} */ len = wordLen;
     if (omitFirst > len) {
       omitFirst = len;
     }
-    srcOffset += omitFirst;
+    let /** @type {number} */ dictOffset = srcOffset + omitFirst;
     len -= omitFirst;
     len -= omitLast;
     let /** @type {number} */ i = len;
     while (i > 0) {
-      dst[offset++] = src[srcOffset++];
+      dst[offset++] = src[dictOffset++];
       i--;
     }
     if (transformType === 10 || transformType === 11) {
@@ -1462,16 +1475,16 @@ let makeBrotliDecode = () => {
         const /** @type {number} */ c0 = dst[uppercaseOffset] & 0xFF;
         if (c0 < 0xC0) {
           if (c0 >= 97 && c0 <= 122) {
-            dst[uppercaseOffset] ^= 32;
+            dst[uppercaseOffset] = dst[uppercaseOffset] ^ 32;
           }
           uppercaseOffset += 1;
           len -= 1;
         } else if (c0 < 0xE0) {
-          dst[uppercaseOffset + 1] ^= 32;
+          dst[uppercaseOffset + 1] = dst[uppercaseOffset + 1] ^ 32;
           uppercaseOffset += 2;
           len -= 2;
         } else {
-          dst[uppercaseOffset + 2] ^= 5;
+          dst[uppercaseOffset + 2] = dst[uppercaseOffset + 2] ^ 5;
           uppercaseOffset += 3;
           len -= 3;
         }
@@ -1485,14 +1498,14 @@ let makeBrotliDecode = () => {
         const /** @type {number} */ c0 = dst[shiftOffset] & 0xFF;
         if (c0 < 0x80) {
           scalar += c0;
-          dst[shiftOffset] = (scalar & 0x7F);
+          dst[shiftOffset] = scalar & 0x7F;
         } else if (c0 < 0xC0) {
         } else if (c0 < 0xE0) {
           if (len >= 2) {
             const /** @type {number} */ c1 = dst[shiftOffset + 1];
             scalar += (c1 & 0x3F) | ((c0 & 0x1F) << 6);
-            dst[shiftOffset] = (0xC0 | ((scalar >> 6) & 0x1F));
-            dst[shiftOffset + 1] = ((c1 & 0xC0) | (scalar & 0x3F));
+            dst[shiftOffset] = 0xC0 | ((scalar >> 6) & 0x1F);
+            dst[shiftOffset + 1] = (c1 & 0xC0) | (scalar & 0x3F);
             step = 2;
           } else {
             step = len;
@@ -1502,9 +1515,9 @@ let makeBrotliDecode = () => {
             const /** @type {number} */ c1 = dst[shiftOffset + 1];
             const /** @type {number} */ c2 = dst[shiftOffset + 2];
             scalar += (c2 & 0x3F) | ((c1 & 0x3F) << 6) | ((c0 & 0x0F) << 12);
-            dst[shiftOffset] = (0xE0 | ((scalar >> 12) & 0x0F));
-            dst[shiftOffset + 1] = ((c1 & 0xC0) | ((scalar >> 6) & 0x3F));
-            dst[shiftOffset + 2] = ((c2 & 0xC0) | (scalar & 0x3F));
+            dst[shiftOffset] = 0xE0 | ((scalar >> 12) & 0x0F);
+            dst[shiftOffset + 1] = (c1 & 0xC0) | ((scalar >> 6) & 0x3F);
+            dst[shiftOffset + 2] = (c2 & 0xC0) | (scalar & 0x3F);
             step = 3;
           } else {
             step = len;
@@ -1515,10 +1528,10 @@ let makeBrotliDecode = () => {
             const /** @type {number} */ c2 = dst[shiftOffset + 2];
             const /** @type {number} */ c3 = dst[shiftOffset + 3];
             scalar += (c3 & 0x3F) | ((c2 & 0x3F) << 6) | ((c1 & 0x3F) << 12) | ((c0 & 0x07) << 18);
-            dst[shiftOffset] = (0xF0 | ((scalar >> 18) & 0x07));
-            dst[shiftOffset + 1] = ((c1 & 0xC0) | ((scalar >> 12) & 0x3F));
-            dst[shiftOffset + 2] = ((c2 & 0xC0) | ((scalar >> 6) & 0x3F));
-            dst[shiftOffset + 3] = ((c3 & 0xC0) | (scalar & 0x3F));
+            dst[shiftOffset] = 0xF0 | ((scalar >> 18) & 0x07);
+            dst[shiftOffset + 1] = (c1 & 0xC0) | ((scalar >> 12) & 0x3F);
+            dst[shiftOffset + 2] = (c2 & 0xC0) | ((scalar >> 6) & 0x3F);
+            dst[shiftOffset + 3] = (c3 & 0xC0) | (scalar & 0x3F);
             step = 4;
           } else {
             step = len;
@@ -1545,7 +1558,7 @@ let makeBrotliDecode = () => {
   function getNextKey(key, len) {
     let /** @type {number} */ step = 1 << (len - 1);
     while ((key & step) !== 0) {
-      step >>= 1;
+      step = step >> 1;
     }
     return (key & (step - 1)) + step;
   }
@@ -1558,10 +1571,11 @@ let makeBrotliDecode = () => {
    * @return {void}
    */
   function replicateValue(table, offset, step, end, item) {
+    let /** @type {number} */ pos = end;
     do {
-      end -= step;
-      table[offset + end] = item;
-    } while (end > 0);
+      pos -= step;
+      table[offset + pos] = item;
+    } while (pos > 0);
   }
   /**
    * @param {!Int32Array} count
@@ -1570,16 +1584,17 @@ let makeBrotliDecode = () => {
    * @return {number}
    */
   function nextTableBitSize(count, len, rootBits) {
-    let /** @type {number} */ left = 1 << (len - rootBits);
-    while (len < 15) {
-      left -= count[len];
+    let /** @type {number} */ bits = len;
+    let /** @type {number} */ left = 1 << (bits - rootBits);
+    while (bits < 15) {
+      left -= count[bits];
       if (left <= 0) {
         break;
       }
-      len++;
-      left <<= 1;
+      bits++;
+      left = left << 1;
     }
-    return len - rootBits;
+    return bits - rootBits;
   }
   /**
    * @param {!Int32Array} tableGroup
@@ -1591,45 +1606,48 @@ let makeBrotliDecode = () => {
    */
   function buildHuffmanTable(tableGroup, tableIdx, rootBits, codeLengths, codeLengthsSize) {
     const /** @type {number} */ tableOffset = tableGroup[tableIdx];
-    let /** @type {number} */ key;
     const /** @type {!Int32Array} */ sorted = new Int32Array(codeLengthsSize);
     const /** @type {!Int32Array} */ count = new Int32Array(16);
     const /** @type {!Int32Array} */ offset = new Int32Array(16);
-    let /** @type {number} */ symbol;
-    for (symbol = 0; symbol < codeLengthsSize; symbol++) {
-      count[codeLengths[symbol]]++;
+    for (let /** @type {number} */ sym = 0; sym < codeLengthsSize; ++sym) {
+      count[codeLengths[sym]]++;
     }
     offset[1] = 0;
-    for (let /** @type {number} */ len = 1; len < 15; len++) {
+    for (let /** @type {number} */ len = 1; len < 15; ++len) {
       offset[len + 1] = offset[len] + count[len];
     }
-    for (symbol = 0; symbol < codeLengthsSize; symbol++) {
-      if (codeLengths[symbol] !== 0) {
-        sorted[offset[codeLengths[symbol]]++] = symbol;
+    for (let /** @type {number} */ sym = 0; sym < codeLengthsSize; ++sym) {
+      if (codeLengths[sym] !== 0) {
+        sorted[offset[codeLengths[sym]]++] = sym;
       }
     }
     let /** @type {number} */ tableBits = rootBits;
     let /** @type {number} */ tableSize = 1 << tableBits;
     let /** @type {number} */ totalSize = tableSize;
     if (offset[15] === 1) {
-      for (key = 0; key < totalSize; key++) {
-        tableGroup[tableOffset + key] = sorted[0];
+      for (let /** @type {number} */ k = 0; k < totalSize; ++k) {
+        tableGroup[tableOffset + k] = sorted[0];
       }
       return totalSize;
     }
-    key = 0;
-    symbol = 0;
-    for (let /** @type {number} */ len = 1, /** @type {number} */ step = 2; len <= rootBits; len++, step <<= 1) {
-      for (; count[len] > 0; count[len]--) {
+    let /** @type {number} */ key = 0;
+    let /** @type {number} */ symbol = 0;
+    let /** @type {number} */ step = 1;
+    for (let /** @type {number} */ len = 1; len <= rootBits; ++len) {
+      step = step << 1;
+      while (count[len] > 0) {
         replicateValue(tableGroup, tableOffset + key, step, tableSize, len << 16 | sorted[symbol++]);
         key = getNextKey(key, len);
+        count[len]--;
       }
     }
     const /** @type {number} */ mask = totalSize - 1;
     let /** @type {number} */ low = -1;
     let /** @type {number} */ currentOffset = tableOffset;
-    for (let /** @type {number} */ len = rootBits + 1, /** @type {number} */ step = 2; len <= 15; len++, step <<= 1) {
-      for (; count[len] > 0; count[len]--) {
+    step = 1;
+    for (let /** @type {number} */ len = rootBits + 1; len <= 15; ++len) {
+      step = step << 1;
+      while (count[len] > 0) {
         if ((key & mask) !== low) {
           currentOffset += tableSize;
           tableBits = nextTableBitSize(count, len, rootBits);
@@ -1640,6 +1658,7 @@ let makeBrotliDecode = () => {
         }
         replicateValue(tableGroup, currentOffset + (key >> rootBits), step, tableSize, (len - rootBits) << 16 | sorted[symbol++]);
         key = getNextKey(key, len);
+        count[len]--;
       }
     }
     return totalSize;
@@ -1696,9 +1715,9 @@ let makeBrotliDecode = () => {
    * @return {number}
    */
   function readFewBits(s, n) {
-    const /** @type {number} */ val = (s.accumulator32 >>> s.bitOffset) & ((1 << n) - 1);
+    const /** @type {number} */ v = (s.accumulator32 >>> s.bitOffset) & ((1 << n) - 1);
     s.bitOffset += n;
-    return val;
+    return v;
   }
   /**
    * @param {!State} s
@@ -1779,27 +1798,29 @@ let makeBrotliDecode = () => {
    * @return {void}
    */
   function copyRawBytes(s, data, offset, length) {
+    let /** @type {number} */ pos = offset;
+    let /** @type {number} */ len = length;
     if ((s.bitOffset & 7) !== 0) {
       throw new Error("Unaligned copyBytes");
     }
-    while ((s.bitOffset !== 32) && (length !== 0)) {
-      data[offset++] = (s.accumulator32 >>> s.bitOffset);
+    while ((s.bitOffset !== 32) && (len !== 0)) {
+      data[pos++] = s.accumulator32 >>> s.bitOffset;
       s.bitOffset += 8;
-      length--;
+      len--;
     }
-    if (length === 0) {
+    if (len === 0) {
       return;
     }
-    const /** @type {number} */ copyNibbles = Math.min(halfAvailable(s), length >> 1);
+    const /** @type {number} */ copyNibbles = Math.min(halfAvailable(s), len >> 1);
     if (copyNibbles > 0) {
       const /** @type {number} */ readOffset = s.halfOffset << 1;
       const /** @type {number} */ delta = copyNibbles << 1;
-      data.set(s.byteBuffer.subarray(readOffset, readOffset + delta), offset);
-      offset += delta;
-      length -= delta;
+      data.set(s.byteBuffer.subarray(readOffset, readOffset + delta), pos);
+      pos += delta;
+      len -= delta;
       s.halfOffset += copyNibbles;
     }
-    if (length === 0) {
+    if (len === 0) {
       return;
     }
     if (halfAvailable(s) > 0) {
@@ -1807,21 +1828,21 @@ let makeBrotliDecode = () => {
         s.accumulator32 = (s.shortBuffer[s.halfOffset++] << 16) | (s.accumulator32 >>> 16);
         s.bitOffset -= 16;
       }
-      while (length !== 0) {
-        data[offset++] = (s.accumulator32 >>> s.bitOffset);
+      while (len !== 0) {
+        data[pos++] = s.accumulator32 >>> s.bitOffset;
         s.bitOffset += 8;
-        length--;
+        len--;
       }
       checkHealth(s, 0);
       return;
     }
-    while (length > 0) {
-      const /** @type {number} */ len = readInput(s, data, offset, length);
-      if (len === -1) {
+    while (len > 0) {
+      const /** @type {number} */ chunkLen = readInput(s, data, pos, len);
+      if (chunkLen === -1) {
         throw new Error("Unexpected end of input");
       }
-      offset += len;
-      length -= len;
+      pos += chunkLen;
+      len -= chunkLen;
     }
   }
   /**
@@ -1834,7 +1855,7 @@ let makeBrotliDecode = () => {
     const /** @type {number} */ halfLen = byteLen >> 1;
     const /** @type {!Int16Array} */ shortBuffer = s.shortBuffer;
     for (let /** @type {number} */ i = 0; i < halfLen; ++i) {
-      shortBuffer[i] = ((byteBuffer[i * 2] & 0xFF) | ((byteBuffer[(i * 2) + 1] & 0xFF) << 8));
+      shortBuffer[i] = (byteBuffer[i * 2] & 0xFF) | ((byteBuffer[(i * 2) + 1] & 0xFF) << 8);
     }
   }
 
@@ -2028,8 +2049,8 @@ let makeBrotliDecode = () => {
     this.cdBlockBits = 0;
     /** @type {!Int8Array} */
     this.cdBlockMap = new Int8Array(0);
-    /** @type {!InputStream|null} */
-    this.input = null;
+    /** @type {!InputStream} */
+    this.input = new InputStream(new Int8Array(0));
     this.ringBuffer = new Int8Array(0);
     this.rings = new Int32Array(10);
     this.rings[0] = 16;
@@ -2100,16 +2121,16 @@ let makeBrotliDecode = () => {
       throw new Error("Corrupted brotli dictionary");
     }
     let /** @type {number} */ offset = 0;
-    const /** @type {number} */ n = skipFlip.length;
-    for (let /** @type {number} */ i = 0; i < n; i += 2) {
-      const /** @type {number} */ skip = skipFlip.charCodeAt(i) - 36;
-      const /** @type {number} */ flip = skipFlip.charCodeAt(i + 1) - 36;
+    const /** @type {number} */ n = skipFlip.length >> 1;
+    for (let /** @type {number} */ i = 0; i < n; ++i) {
+      const /** @type {number} */ skip = skipFlip.charCodeAt(2 * i) - 36;
+      const /** @type {number} */ flip = skipFlip.charCodeAt(2 * i + 1) - 36;
       for (let /** @type {number} */ j = 0; j < skip; ++j) {
-        dict[offset] ^= 3;
+        dict[offset] = dict[offset] ^ 3;
         offset++;
       }
       for (let /** @type {number} */ j = 0; j < flip; ++j) {
-        dict[offset] ^= 236;
+        dict[offset] = dict[offset] ^ 236;
         offset++;
       }
     }
@@ -2158,8 +2179,8 @@ let makeBrotliDecode = () => {
       return -1;
     }
     const /** @type {!InputStream} */ src = s.input;
-    let /** @type {number} */ end = Math.min(src.offset + length, src.data.length);
-    let /** @type {number} */ bytesRead = end - src.offset;
+    const /** @type {number} */ end = Math.min(src.offset + length, src.data.length);
+    const /** @type {number} */ bytesRead = end - src.offset;
     dst.set(src.data.subarray(src.offset, end), offset);
     src.offset += bytesRead;
     return bytesRead;
@@ -2169,8 +2190,8 @@ let makeBrotliDecode = () => {
    * @return {!Int8Array}
    */
   function toUsAsciiBytes(src) {
-    let /** @type {number} */ n = src.length;
-    let /** @type {!Int8Array} */ result = new Int8Array(n);
+    const /** @type {number} */ n = src.length;
+    const /** @type {!Int8Array} */ result = new Int8Array(n);
     for (let /** @type {number} */ i = 0; i < n; ++i) {
       result[i] = src.charCodeAt(i);
     }

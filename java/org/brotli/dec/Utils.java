@@ -6,7 +6,9 @@
 
 package org.brotli.dec;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.UnsupportedEncodingException;
 import java.nio.Buffer;
 import java.nio.ByteBuffer;
@@ -74,11 +76,13 @@ final class Utils {
     }
   }
 
+  static InputStream makeEmptyInput() {
+    return new ByteArrayInputStream(new byte[0]);
+  }
+
   static void closeInput(State s) throws IOException {
-    if (s.input != null) {
-      s.input.close();
-      s.input = null;
-    }
+    s.input.close();
+    s.input = makeEmptyInput();
   }
 
   static byte[] toUsAsciiBytes(String src) {

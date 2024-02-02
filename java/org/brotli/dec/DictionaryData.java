@@ -45,20 +45,20 @@ final class DictionaryData {
     int offset = 0;
     final int n = skipFlip.length() >> 1;
     for (int i = 0; i < n; ++i) {
-      final int skip = skipFlip.charAt(2 * i) - 36;
-      final int flip = skipFlip.charAt(2 * i + 1) - 36;
+      final int skip = (int) skipFlip.charAt(2 * i) - 36;
+      final int flip = (int) skipFlip.charAt(2 * i + 1) - 36;
       for (int j = 0; j < skip; ++j) {
-        dict[offset] ^= 3;
+        dict[offset] = (byte) ((int) dict[offset] ^ 3);
         offset++;
       }
       for (int j = 0; j < flip; ++j) {
-        dict[offset] ^= 236;
+        dict[offset] = (byte) ((int) dict[offset] ^ 236);
         offset++;
       }
     }
 
     for (int i = 0; i < sizeBitsData.length(); ++i) {
-      sizeBits[i] = sizeBitsData.charAt(i) - 65;
+      sizeBits[i] = (int) sizeBitsData.charAt(i) - 65;
     }
 
     dictionary.put(dict);
