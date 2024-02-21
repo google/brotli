@@ -6,6 +6,8 @@
 
 package org.brotli.dec;
 
+import static org.brotli.dec.TestUtils.newBrotliInputStream;
+import static org.brotli.dec.TestUtils.readUniBytes;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.fail;
 import static org.junit.Assume.assumeTrue;
@@ -13,29 +15,20 @@ import static org.junit.Assume.assumeTrue;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link Decode}.
- */
+/** Tests for {@link BrotliInputStream}. */
 @RunWith(JUnit4.class)
 public class SynthTest {
-
-  static byte[] readUniBytes(String uniBytes) {
-    byte[] result = new byte[uniBytes.length()];
-    for (int i = 0; i < result.length; ++i) {
-      result[i] = (byte) uniBytes.charAt(i);
-    }
-    return result;
-  }
 
   private byte[] decompress(byte[] data) throws IOException {
     byte[] buffer = new byte[65536];
     ByteArrayInputStream input = new ByteArrayInputStream(data);
     ByteArrayOutputStream output = new ByteArrayOutputStream();
-    BrotliInputStream brotliInput = new BrotliInputStream(input);
+    InputStream brotliInput = newBrotliInputStream(input);
     while (true) {
       int len = brotliInput.read(buffer, 0, buffer.length);
       if (len <= 0) {
@@ -47,8 +40,7 @@ public class SynthTest {
     return output.toByteArray();
   }
 
-  private void checkSynth(byte[] compressed, boolean expectSuccess,
-      String expectedOutput) {
+  private void checkSynth(byte[] compressed, boolean expectSuccess, String expectedOutput) {
     byte[] expected = readUniBytes(expectedOutput);
     try {
       byte[] actual = decompress(compressed);

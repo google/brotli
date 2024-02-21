@@ -320,8 +320,9 @@ jobs:
         export MAVEN_OPTS=-Dorg.slf4j.simpleLogger.log.org.apache.maven.cli.transfer.Slf4jMavenTransferListener=warn
         cd java/org/brotli
         mvn -B install
-        cd integration
-        mvn -B verify
+        # TODO(eustas): nuke maven build?
+        # cd integration
+        # mvn -B verify
 
     - uses: actions/setup-python@0a5c61591373683505ea898e09a3ea4f39ef2b9c # v5.0.0
       if: ${{ matrix.build_system == 'python' }}

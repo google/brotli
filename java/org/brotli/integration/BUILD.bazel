@@ -23,9 +23,10 @@ java_library(
 java_library(
     name = "bundle_checker",
     srcs = ["BundleChecker.java"],
+    runtime_deps = ["//org/brotli/dec"],
     deps = [
         ":bundle_helper",
-        "//org/brotli/dec",
+        "//org/brotli/dec:test_utils",
     ],
 )
 

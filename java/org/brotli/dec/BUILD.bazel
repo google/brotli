@@ -9,6 +9,7 @@ licenses(["notice"])  # MIT
 
 TEST_DEPS = [
     ":dec",
+    ":test_utils",
     "@maven//:junit_junit",
 ]
 
@@ -25,6 +26,12 @@ java_library(
     resources = ["//:license"],
 )
 
+java_library(
+    name = "test_utils",
+    srcs = ["TestUtils.java"],
+    deps = [":dec"],
+)
+
 brotli_java_test(
     name = "BitReaderTest",
     srcs = ["BitReaderTest.java"],
@@ -34,6 +41,7 @@ brotli_java_test(
 brotli_java_test(
     name = "DecodeTest",
     srcs = ["DecodeTest.java"],
+    test_kotlin = True,
     deps = TEST_DEPS,
 )
 
@@ -52,6 +60,7 @@ brotli_java_test(
 brotli_java_test(
     name = "SynthTest",
     srcs = ["SynthTest.java"],
+    test_kotlin = True,
     deps = TEST_DEPS,
 )
 

@@ -6,7 +6,8 @@
 
 package org.brotli.integration;
 
-import org.brotli.dec.BrotliInputStream;
+import static org.brotli.dec.TestUtils.newBrotliInputStream;
+
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FilterInputStream;
@@ -45,7 +46,7 @@ public class BundleChecker implements Runnable {
       public void close() {}
     };
 
-    BrotliInputStream decompressedStream = new BrotliInputStream(entryStream);
+    InputStream decompressedStream = newBrotliInputStream(entryStream);
     long crc;
     try {
       crc = BundleHelper.fingerprintStream(decompressedStream);
