@@ -298,8 +298,6 @@ void BrotliBuildMetaBlock(MemoryManager* m,
 #include "metablock_inc.h"  /* NOLINT(build/include) */
 #undef FN
 
-#define BROTLI_MAX_STATIC_CONTEXTS 13
-
 /* Greedy block splitter for one block category (literal, command or distance).
    Gathers histograms for all context buckets. */
 typedef struct ContextBlockSplitter {

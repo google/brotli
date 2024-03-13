@@ -351,7 +351,7 @@ static BROTLI_BOOL ShouldUseComplexStaticContextMap(const uint8_t* input,
     size_t sink;
     size_t i;
     ContextLut utf8_lut = BROTLI_CONTEXT_LUT(CONTEXT_UTF8);
-    memset(arena, 0, sizeof(arena[0]) * 32 * 14);
+    memset(arena, 0, sizeof(arena[0]) * 32 * (BROTLI_MAX_STATIC_CONTEXTS + 1));
     for (; start_pos + 64 <= end_pos; start_pos += 4096) {
       const size_t stride_end_pos = start_pos + 64;
       uint8_t prev2 = input[start_pos & mask];
@@ -372,7 +372,7 @@ static BROTLI_BOOL ShouldUseComplexStaticContextMap(const uint8_t* input,
     }
     entropy[1] = ShannonEntropy(combined_histo, 32, &sink);
     entropy[2] = 0;
-    for (i = 0; i < 13; ++i) {
+    for (i = 0; i < BROTLI_MAX_STATIC_CONTEXTS; ++i) {
       entropy[2] += ShannonEntropy(context_histo + (i << 5), 32, &sink);
     }
     entropy[0] = 1.0 / (double)total;
@@ -388,7 +388,7 @@ static BROTLI_BOOL ShouldUseComplexStaticContextMap(const uint8_t* input,
     if (entropy[2] > 3.0 || entropy[1] - entropy[2] < 0.2) {
       return BROTLI_FALSE;
     } else {
-      *num_literal_contexts = 13;
+      *num_literal_contexts = BROTLI_MAX_STATIC_CONTEXTS;
       *literal_context_map = kStaticContextMapComplexUTF8;
       return BROTLI_TRUE;
     }
@@ -532,7 +532,8 @@ static void WriteMetaBlockInternal(MemoryManager* m,
       const uint32_t* literal_context_map = NULL;
       if (!params->disable_literal_context_modeling) {
         /* TODO(eustas): pull to higher level and reuse. */
-        uint32_t* arena = BROTLI_ALLOC(m, uint32_t, 14 * 32);
+        uint32_t* arena =
+            BROTLI_ALLOC(m, uint32_t, 32 * (BROTLI_MAX_STATIC_CONTEXTS + 1));
         if (BROTLI_IS_OOM(m) || BROTLI_IS_NULL(arena)) return;
         DecideOverLiteralContextModeling(
             data, wrapped_last_flush_pos, bytes, mask, params->quality,

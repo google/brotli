@@ -24,6 +24,8 @@
 extern "C" {
 #endif
 
+#define BROTLI_MAX_STATIC_CONTEXTS 13
+
 typedef struct MetaBlockSplit {
   BlockSplit literal_split;
   BlockSplit command_split;
