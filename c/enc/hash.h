@@ -586,8 +586,7 @@ static BROTLI_INLINE void FindCompoundDictionaryMatch(
     limit = source_size - offset;
     limit = (limit > max_length) ? max_length : limit;
     if (distance > max_distance) continue;
-    if (cur_ix_masked + best_len > ring_buffer_mask ||
-        best_len >= limit ||
+    if (best_len >= limit ||
         data[cur_ix_masked + best_len] != source[offset + best_len]) {
       continue;
     }
@@ -664,8 +663,7 @@ static BROTLI_INLINE size_t FindAllCompoundDictionaryMatches(
     limit = source_size - offset;
     limit = (limit > max_length) ? max_length : limit;
     if (distance > max_distance) continue;
-    if (cur_ix_masked + best_len > ring_buffer_mask ||
-        best_len >= limit ||
+    if (best_len >= limit ||
         data[cur_ix_masked + best_len] != source[offset + best_len]) {
       continue;
     }

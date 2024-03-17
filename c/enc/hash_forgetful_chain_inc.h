@@ -255,8 +255,7 @@ static BROTLI_INLINE void FN(FindLongestMatch)(
       prev_ix = (cur_ix - backward) & ring_buffer_mask;
       slot = banks[bank].slots[last].next;
       delta = banks[bank].slots[last].delta;
-      if (cur_ix_masked + best_len > ring_buffer_mask ||
-          prev_ix + best_len > ring_buffer_mask ||
+      if (prev_ix + best_len > ring_buffer_mask ||
           data[cur_ix_masked + best_len] != data[prev_ix + best_len]) {
         continue;
       }
