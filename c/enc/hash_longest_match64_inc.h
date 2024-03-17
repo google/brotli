@@ -20,9 +20,8 @@ static BROTLI_INLINE size_t FN(HashTypeLength)(void) { return 8; }
 static BROTLI_INLINE size_t FN(StoreLookahead)(void) { return 8; }
 
 /* HashBytes is the function that chooses the bucket to place the address in. */
-static BROTLI_INLINE size_t FN(HashBytes)(const uint8_t* BROTLI_RESTRICT data,
-                                          uint64_t hash_mul) {
-  const uint64_t h = BROTLI_UNALIGNED_LOAD64LE(data) * hash_mul;
+static BROTLI_INLINE size_t FN(HashBytes)(const uint8_t* BROTLI_RESTRICT data) {
+  const uint64_t h = BROTLI_UNALIGNED_LOAD64LE(data) * (kHashMul64 << (64 - 5 * 8));
   /* The higher bits contain more mixture from the multiplication,
      so we take our results from there. */
   return (size_t)(h >> (64 - 15));
@@ -34,8 +33,6 @@ typedef struct HashLongestMatch {
   /* Only block_size_ newest backward references are kept,
      and the older are forgotten. */
   size_t block_size_;
-  /* Hash multiplier tuned to match length. */
-  uint64_t hash_mul_;
   /* Mask for accessing entries in a block (in a ring-buffer manner). */
   uint32_t block_mask_;
 
@@ -60,7 +57,6 @@ static void FN(Initialize)(
   self->common_ = common;
 
   BROTLI_UNUSED(params);
-  self->hash_mul_ = kHashMul64 << (64 - 5 * 8);
   BROTLI_DCHECK(common->params.bucket_bits == 15);
   self->bucket_size_ = (size_t)1 << common->params.bucket_bits;
   self->block_bits_ = common->params.block_bits;
@@ -81,7 +77,7 @@ static void FN(Prepare)(
   if (one_shot && input_size <= partial_prepare_threshold) {
     size_t i;
     for (i = 0; i < input_size; ++i) {
-      const size_t key = FN(HashBytes)(&data[i], self->hash_mul_);
+      const size_t key = FN(HashBytes)(&data[i]);
       num[key] = 0;
     }
   } else {
@@ -107,7 +103,7 @@ static BROTLI_INLINE void FN(Store)(
     const size_t mask, const size_t ix) {
   uint16_t* BROTLI_RESTRICT num = self->num_;
   uint32_t* BROTLI_RESTRICT buckets = self->buckets_;
-  const size_t key = FN(HashBytes)(&data[ix & mask], self->hash_mul_);
+  const size_t key = FN(HashBytes)(&data[ix & mask]);
   const size_t minor_ix = num[key] & self->block_mask_;
   const size_t offset = minor_ix + (key << self->block_bits_);
   ++num[key];
@@ -212,7 +208,7 @@ static BROTLI_INLINE void FN(FindLongestMatch)(
     }
   }
   {
-    const size_t key = FN(HashBytes)(&data[cur_ix_masked], self->hash_mul_);
+    const size_t key = FN(HashBytes)(&data[cur_ix_masked]);
     uint32_t* BROTLI_RESTRICT bucket = &buckets[key << self->block_bits_];
     const size_t down =
         (num[key] > self->block_size_) ?
