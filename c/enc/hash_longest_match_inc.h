@@ -104,11 +104,13 @@ static BROTLI_INLINE void FN(HashMemAllocInBytes)(
 static BROTLI_INLINE void FN(Store)(
     HashLongestMatch* BROTLI_RESTRICT self, const uint8_t* BROTLI_RESTRICT data,
     const size_t mask, const size_t ix) {
+  uint16_t* BROTLI_RESTRICT num = self->num_;
+  uint32_t* BROTLI_RESTRICT buckets = self->buckets_;
   const uint32_t key = FN(HashBytes)(&data[ix & mask], self->hash_shift_);
-  const size_t minor_ix = self->num_[key] & self->block_mask_;
+  const size_t minor_ix = num[key] & self->block_mask_;
   const size_t offset = minor_ix + (key << self->block_bits_);
-  self->buckets_[offset] = (uint32_t)ix;
-  ++self->num_[key];
+  ++num[key];
+  buckets[offset] = (uint32_t)ix;
 }
 
 static BROTLI_INLINE void FN(StoreRange)(HashLongestMatch* BROTLI_RESTRICT self,
