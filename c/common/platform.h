@@ -24,12 +24,11 @@
 #ifndef BROTLI_COMMON_PLATFORM_H_
 #define BROTLI_COMMON_PLATFORM_H_
 
-#include <string.h>  /* memcpy */
-
 #include <brotli/port.h>
 #include <brotli/types.h>
-
-#include <sys/types.h>  /* should include endian.h for us */
+#include <immintrin.h>
+#include <string.h>    /* memcpy */
+#include <sys/types.h> /* should include endian.h for us */
 
 #if BROTLI_MSVC_VERSION_CHECK(18, 0, 0)
 #include <intrin.h>
@@ -488,6 +487,38 @@ BROTLI_COMMON_API void* BrotliDefaultAllocFunc(void* opaque, size_t size);
 
 /* Default brotli_free_func */
 BROTLI_COMMON_API void BrotliDefaultFreeFunc(void* opaque, void* address);
+
+static BROTLI_INLINE uint64_t RotateRightU64(uint64_t const value,
+                                             size_t count) {
+  count &= 0x3F; /* for fickle pattern recognition */
+  return (value >> count) | (uint64_t)(value << ((0U - count) & 0x3F));
+}
+static BROTLI_INLINE uint32_t RotateRightU32(uint32_t const value,
+                                             size_t count) {
+  count &= 0x1F; /* for fickle pattern recognition */
+  return (value >> count) | (uint32_t)(value << ((0U - count) & 0x1F));
+}
+static BROTLI_INLINE uint16_t RotateRightU16(uint16_t const value,
+                                             size_t count) {
+  count &= 0x0F; /* for fickle pattern recognition */
+  return (value >> count) | (uint16_t)(value << ((0U - count) & 0x0F));
+}
+static BROTLI_INLINE uint64_t GetMatchingTagMask(
+    size_t chunk_count, const uint8_t tag,
+    const uint8_t* BROTLI_RESTRICT tag_bucket, const size_t head) {
+  const __m128i comparisonMask = _mm_set1_epi8((char)tag);
+  uint64_t matches = 0;
+  size_t i;
+  for (i = 0; i < chunk_count && i < 4; i++) {
+    const __m128i chunk =
+        _mm_loadu_si128((const __m128i*)(const void*)(tag_bucket + 16 * i));
+    const __m128i equalMask = _mm_cmpeq_epi8(chunk, comparisonMask);
+    matches |= (uint64_t)_mm_movemask_epi8(equalMask) << 16 * i;
+  }
+  if (chunk_count == 1) return RotateRightU16((uint16_t)matches, head);
+  if (chunk_count == 2) return RotateRightU32((uint32_t)matches, head);
+  return RotateRightU64(matches, head);
+}
 
 BROTLI_UNUSED_FUNCTION void BrotliSuppressUnusedFunctions(void) {
   BROTLI_UNUSED(&BrotliSuppressUnusedFunctions);
