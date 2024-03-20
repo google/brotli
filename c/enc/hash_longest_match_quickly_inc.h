@@ -155,6 +155,7 @@ static BROTLI_INLINE void FN(FindLongestMatch)(
   uint32_t* BROTLI_RESTRICT buckets = self->buckets_;
   const size_t best_len_in = out->len;
   const size_t cur_ix_masked = cur_ix & ring_buffer_mask;
+  /* TODO: compare 4 bytes at once (and set the minimum best len to 4) */
   int compare_char = data[cur_ix_masked + best_len_in];
   size_t key = FN(HashBytes)(&data[cur_ix_masked]);
   size_t key_out;

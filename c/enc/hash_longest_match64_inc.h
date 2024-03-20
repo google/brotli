@@ -211,6 +211,11 @@ static BROTLI_INLINE void FN(FindLongestMatch)(
       }
     }
   }
+  /* we require matches of len >4, so increase best_len to 3, so we can compare
+   * 4 bytes all the time. */
+  if (best_len < 3) {
+    best_len = 3;
+  }
   {
     const size_t key = FN(HashBytes)(&data[cur_ix_masked], self->hash_mul_);
     uint32_t* BROTLI_RESTRICT bucket = &buckets[key << self->block_bits_];
@@ -230,7 +235,9 @@ static BROTLI_INLINE void FN(FindLongestMatch)(
       prev_ix &= ring_buffer_mask;
       if (cur_ix_masked + best_len > ring_buffer_mask ||
           prev_ix + best_len > ring_buffer_mask ||
-          data[cur_ix_masked + best_len] != data[prev_ix + best_len]) {
+          /* compare 4 bytes ending at best_len + 1 */
+          BrotliUnalignedRead32(&data[cur_ix_masked + best_len - 3]) !=
+              BrotliUnalignedRead32(&data[prev_ix + best_len - 3])) {
         continue;
       }
       current4 = BrotliUnalignedRead32(data + prev_ix);
