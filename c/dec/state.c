@@ -17,8 +17,24 @@
 extern "C" {
 #endif
 
+#ifdef BROTLI_REPORTING
+/* When BROTLI_REPORTING is defined extra reporting module have to be linked. */
+void BrotliDecoderOnStart(const BrotliDecoderState* s);
+void BrotliDecoderOnFinish(const BrotliDecoderState* s);
+#define BROTLI_DECODER_ON_START(s) BrotliDecoderOnStart(s);
+#define BROTLI_DECODER_ON_FINISH(s) BrotliDecoderOnFinish(s);
+#else
+#if !defined(BROTLI_DECODER_ON_START)
+#define BROTLI_DECODER_ON_START(s) (void)(s);
+#endif
+#if !defined(BROTLI_DECODER_ON_FINISH)
+#define BROTLI_DECODER_ON_FINISH(s) (void)(s);
+#endif
+#endif
+
 BROTLI_BOOL BrotliDecoderStateInit(BrotliDecoderState* s,
     brotli_alloc_func alloc_func, brotli_free_func free_func, void* opaque) {
+  BROTLI_DECODER_ON_START(s);
   if (!alloc_func) {
     s->alloc_func = BrotliDefaultAllocFunc;
     s->free_func = BrotliDefaultFreeFunc;
@@ -134,16 +150,6 @@ void BrotliDecoderStateCleanupAfterMetablock(BrotliDecoderState* s) {
   BROTLI_DECODER_FREE(s, s->insert_copy_hgroup.htrees);
   BROTLI_DECODER_FREE(s, s->distance_hgroup.htrees);
 }
-
-#ifdef BROTLI_REPORTING
-/* When BROTLI_REPORTING is defined extra reporting module have to be linked. */
-void BrotliDecoderOnFinish(const BrotliDecoderState* s);
-#define BROTLI_DECODER_ON_FINISH(s) BrotliDecoderOnFinish(s);
-#else
-#if !defined(BROTLI_DECODER_ON_FINISH)
-#define BROTLI_DECODER_ON_FINISH(s) (void)(s);
-#endif
-#endif
 
 void BrotliDecoderStateCleanup(BrotliDecoderState* s) {
   BrotliDecoderStateCleanupAfterMetablock(s);
