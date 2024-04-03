@@ -1,5 +1,7 @@
 """Utilities for Java brotli tests."""
 
+load("//third_party/bazel_rules/rules_java/java:java_test.bzl", "java_test")
+
 _TEST_JVM_FLAGS = [
     "-DBROTLI_ENABLE_ASSERTS=true",
 ]
@@ -30,8 +32,7 @@ def brotli_java_test(name, main_class = None, jvm_flags = None, test_kotlin = Fa
         test_class = test_package + "." + name
     else:
         test_class = None
-
-    native.java_test(
+    java_test(
         name = name + "_32",
         main_class = main_class,
         test_class = test_class,
@@ -40,8 +41,7 @@ def brotli_java_test(name, main_class = None, jvm_flags = None, test_kotlin = Fa
         runtime_deps = runtime_deps,
         **kwargs
     )
-
-    native.java_test(
+    java_test(
         name = name + "_64",
         main_class = main_class,
         test_class = test_class,
@@ -52,7 +52,7 @@ def brotli_java_test(name, main_class = None, jvm_flags = None, test_kotlin = Fa
     )
 
     if test_kotlin:
-        native.java_test(
+        java_test(
             name = name + "_kt",
             main_class = main_class,
             test_class = test_class,
