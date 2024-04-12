@@ -557,7 +557,7 @@ static BROTLI_INLINE void FindCompoundDictionaryMatch(
     offset = distance_offset - distance;
     limit = source_size - offset;
     limit = limit > max_length ? max_length : limit;
-    BROTLI_DCHECK(cur_ix_masked + limit <= ring_buffer_mask)
+    BROTLI_DCHECK(cur_ix_masked + limit <= ring_buffer_mask);
     len = FindMatchLengthWithLimit(&source[offset], &data[cur_ix_masked],
                                    limit);
     if (len >= 2) {

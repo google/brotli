@@ -164,12 +164,12 @@ static BROTLI_INLINE void FN(FindLongestMatch)(
   uint16_t* BROTLI_RESTRICT num = self->num_;
   uint32_t* BROTLI_RESTRICT buckets = self->buckets_;
   const size_t cur_ix_masked = cur_ix & ring_buffer_mask;
-  BROTLI_DCHECK(cur_ix_masked + max_length <= ring_buffer_mask)
   /* Don't accept a short copy from far away. */
   score_t min_score = out->score;
   score_t best_score = out->score;
   size_t best_len = out->len;
   size_t i;
+  BROTLI_DCHECK(cur_ix_masked + max_length <= ring_buffer_mask);
   out->len = 0;
   out->len_code_delta = 0;
   /* Try last distance first. */

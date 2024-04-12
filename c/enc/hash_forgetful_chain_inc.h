@@ -203,12 +203,12 @@ static BROTLI_INLINE void FN(FindLongestMatch)(
   uint8_t* BROTLI_RESTRICT tiny_hashes = FN(TinyHash)(self->extra[0]);
   FN(Bank)* BROTLI_RESTRICT banks = FN(Banks)(self->extra[1]);
   const size_t cur_ix_masked = cur_ix & ring_buffer_mask;
-  BROTLI_DCHECK(cur_ix_masked + max_length <= ring_buffer_mask)
   /* Don't accept a short copy from far away. */
   score_t min_score = out->score;
   score_t best_score = out->score;
   size_t best_len = out->len;
   size_t i;
+  BROTLI_DCHECK(cur_ix_masked + max_length <= ring_buffer_mask);
   const size_t key = FN(HashBytes)(&data[cur_ix_masked]);
   const uint8_t tiny_hash = (uint8_t)(key);
   out->len = 0;
