@@ -164,6 +164,7 @@ static BROTLI_INLINE void FN(FindLongestMatch)(
   uint16_t* BROTLI_RESTRICT num = self->num_;
   uint32_t* BROTLI_RESTRICT buckets = self->buckets_;
   const size_t cur_ix_masked = cur_ix & ring_buffer_mask;
+  BROTLI_DCHECK(cur_ix_masked + max_length <= ring_buffer_mask)
   /* Don't accept a short copy from far away. */
   score_t min_score = out->score;
   score_t best_score = out->score;
@@ -183,8 +184,7 @@ static BROTLI_INLINE void FN(FindLongestMatch)(
     }
     prev_ix &= ring_buffer_mask;
 
-    if (cur_ix_masked + best_len > ring_buffer_mask ||
-        prev_ix + best_len > ring_buffer_mask ||
+    if (prev_ix + best_len > ring_buffer_mask ||
         data[cur_ix_masked + best_len] != data[prev_ix + best_len]) {
       continue;
     }
@@ -228,8 +228,7 @@ static BROTLI_INLINE void FN(FindLongestMatch)(
         break;
       }
       prev_ix &= ring_buffer_mask;
-      if (cur_ix_masked + best_len > ring_buffer_mask ||
-          prev_ix + best_len > ring_buffer_mask ||
+      if (prev_ix + best_len > ring_buffer_mask ||
           /* compare 4 bytes ending at best_len + 1 */
           BrotliUnalignedRead32(&data[cur_ix_masked + best_len - 3]) !=
               BrotliUnalignedRead32(&data[prev_ix + best_len - 3])) {
