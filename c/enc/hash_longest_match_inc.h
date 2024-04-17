@@ -169,6 +169,9 @@ static BROTLI_INLINE void FN(FindLongestMatch)(
   score_t best_score = out->score;
   size_t best_len = out->len;
   size_t i;
+
+  BROTLI_DCHECK(cur_ix_masked + max_length <= ring_buffer_mask);
+
   out->len = 0;
   out->len_code_delta = 0;
   /* Try last distance first. */

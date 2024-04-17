@@ -212,6 +212,9 @@ static BROTLI_INLINE void FN(FindLongestMatch)(
   const uint8_t tiny_hash = (uint8_t)(key);
   out->len = 0;
   out->len_code_delta = 0;
+
+  BROTLI_DCHECK(cur_ix_masked + max_length <= ring_buffer_mask);
+
   /* Try last distance first. */
   for (i = 0; i < NUM_LAST_DISTANCES_TO_CHECK; ++i) {
     const size_t backward = (size_t)distance_cache[i];

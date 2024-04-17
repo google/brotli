@@ -435,6 +435,8 @@ static size_t UpdateNodes(
   const CompoundDictionary* addon = &params->dictionary.compound;
   size_t gap = addon->total_size;
 
+  BROTLI_DCHECK(cur_ix_masked + max_length <= ringbuffer_mask);
+
   EvaluateNode(block_start + stream_offset, pos, max_backward_limit, gap,
       starting_dist_cache, model, queue, nodes);
 

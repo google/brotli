@@ -548,6 +548,8 @@ static BROTLI_INLINE void FindCompoundDictionaryMatch(
     source = (const uint8_t*)BROTLI_UNALIGNED_LOAD_PTR((const uint8_t**)tail);
   }
 
+  BROTLI_DCHECK(cur_ix_masked + max_length <= ring_buffer_mask);
+
   for (i = 0; i < 4; ++i) {
     const size_t distance = (size_t)distance_cache[i];
     size_t offset;
@@ -656,6 +658,8 @@ static BROTLI_INLINE size_t FindAllCompoundDictionaryMatches(
     /* kLeanPreparedDictionaryMagic */
     source = (const uint8_t*)BROTLI_UNALIGNED_LOAD_PTR((const uint8_t**)tail);
   }
+
+  BROTLI_DCHECK(cur_ix_masked + max_length <= ring_buffer_mask);
 
   while (item == 0) {
     size_t offset;
