@@ -731,8 +731,8 @@ static void PrintHelp(const char* name, BROTLI_BOOL error) {
 "  -h, --help                  display this help and exit\n");
   fprintf(media,
 "  -j, --rm                    remove source file(s)\n"
-"  -s, --squash                remove destination file if larger than source\n"
 "  -k, --keep                  keep source file(s) (default)\n"
+"  -s, --squash                remove destination file if larger than source\n"
 "  -n, --no-copy-stat          do not copy source file(s) attributes\n"
 "  -o FILE, --output=FILE      output file (only if 1 input file)\n");
   fprintf(media,
