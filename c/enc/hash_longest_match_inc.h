@@ -169,11 +169,17 @@ static BROTLI_INLINE void FN(FindLongestMatch)(
   score_t best_score = out->score;
   size_t best_len = out->len;
   size_t i;
+  /* Precalculate the hash key and prefetch the bucket. */
+  const uint32_t key =
+      FN(HashBytes)(&data[cur_ix_masked], self->hash_shift_);
+  uint32_t* BROTLI_RESTRICT bucket = &buckets[key << self->block_bits_];
+  PREFETCH_L1(bucket);
+  if (self->block_bits_ > 4) PREFETCH_L1(bucket + 16);
+  out->len = 0;
+  out->len_code_delta = 0;
 
   BROTLI_DCHECK(cur_ix_masked + max_length <= ring_buffer_mask);
 
-  out->len = 0;
-  out->len_code_delta = 0;
   /* Try last distance first. */
   for (i = 0; i < (size_t)self->num_last_distances_to_check_; ++i) {
     const size_t backward = (size_t)distance_cache[i];
@@ -219,9 +225,6 @@ static BROTLI_INLINE void FN(FindLongestMatch)(
     best_len = 3;
   }
   {
-    const uint32_t key =
-        FN(HashBytes)(&data[cur_ix_masked], self->hash_shift_);
-    uint32_t* BROTLI_RESTRICT bucket = &buckets[key << self->block_bits_];
     const size_t down =
         (num[key] > self->block_size_) ? (num[key] - self->block_size_) : 0u;
     for (i = num[key]; i > down;) {

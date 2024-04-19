@@ -519,6 +519,21 @@ BROTLI_UNUSED_FUNCTION void BrotliSuppressUnusedFunctions(void) {
 #if BROTLI_ENABLE_DUMP
   BROTLI_UNUSED(&BrotliDump);
 #endif
+
+#if defined(_MSC_VER) && (defined(_M_X64) || defined(_M_I86)) && !defined(_M_ARM64EC)  /* _mm_prefetch() is not defined outside of x86/x64 */
+#  include <mmintrin.h>   /* https://msdn.microsoft.com/fr-fr/library/84szxsww(v=vs.90).aspx */
+#  define PREFETCH_L1(ptr)  _mm_prefetch((const char*)(ptr), _MM_HINT_T0)
+#  define PREFETCH_L2(ptr)  _mm_prefetch((const char*)(ptr), _MM_HINT_T1)
+#elif BROTLI_GNUC_HAS_BUILTIN(__builtin_prefetch, 3, 1, 0)
+#  define PREFETCH_L1(ptr)  __builtin_prefetch((ptr), 0 /* rw==read */, 3 /* locality */)
+#  define PREFETCH_L2(ptr)  __builtin_prefetch((ptr), 0 /* rw==read */, 2 /* locality */)
+#elif defined(__aarch64__)
+#  define PREFETCH_L1(ptr)  do { __asm__ __volatile__("prfm pldl1keep, %0" ::"Q"(*(ptr))); } while (0)
+#  define PREFETCH_L2(ptr)  do { __asm__ __volatile__("prfm pldl2keep, %0" ::"Q"(*(ptr))); } while (0)
+#else
+#  define PREFETCH_L1(ptr) do { (void)(ptr); } while (0)  /* disabled */
+#  define PREFETCH_L2(ptr) do { (void)(ptr); } while (0)  /* disabled */
+#endif
 }
 
 #endif  /* BROTLI_COMMON_PLATFORM_H_ */
