@@ -102,7 +102,7 @@ jobs:
         cmake --build out --config Release --target install
         cp LICENSE prefix/bin/LICENSE.brotli
     - name: Upload artifacts
-      uses: actions/upload-artifact@c7d193f32edcb7bfad88892161225aeda64e9392 # v4.0.0
+      uses: actions/upload-artifact@1746f4ab65b179e0ea60a494b83293b640dd5bba # v4.3.2
       with:
         name: brotli-${{matrix.triplet}}
         path: |
