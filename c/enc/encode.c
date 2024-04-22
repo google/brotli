@@ -687,7 +687,23 @@ static void BrotliEncoderCleanupParams(MemoryManager* m,
   BrotliCleanupSharedEncoderDictionary(m, &params->dictionary);
 }
 
+#ifdef BROTLI_REPORTING
+/* When BROTLI_REPORTING is defined extra reporting module have to be linked. */
+void BrotliEncoderOnStart(const BrotliEncoderState* s);
+void BrotliEncoderOnFinish(const BrotliEncoderState* s);
+#define BROTLI_ENCODER_ON_START(s) BrotliEncoderOnStart(s);
+#define BROTLI_ENCODER_ON_FINISH(s) BrotliEncoderOnFinish(s);
+#else
+#if !defined(BROTLI_ENCODER_ON_START)
+#define BROTLI_ENCODER_ON_START(s) (void)(s);
+#endif
+#if !defined(BROTLI_ENCODER_ON_FINISH)
+#define BROTLI_ENCODER_ON_FINISH(s) (void)(s);
+#endif
+#endif
+
 static void BrotliEncoderInitState(BrotliEncoderState* s) {
+  BROTLI_ENCODER_ON_START(s);
   BrotliEncoderInitParams(&s->params);
   s->input_pos_ = 0;
   s->num_commands_ = 0;
@@ -742,16 +758,6 @@ BrotliEncoderState* BrotliEncoderCreateInstance(
   BrotliEncoderInitState(state);
   return state;
 }
-
-#ifdef BROTLI_REPORTING
-/* When BROTLI_REPORTING is defined extra reporting module have to be linked. */
-void BrotliEncoderOnFinish(const BrotliEncoderState* s);
-#define BROTLI_ENCODER_ON_FINISH(s) BrotliEncoderOnFinish(s);
-#else
-#if !defined(BROTLI_ENCODER_ON_FINISH)
-#define BROTLI_ENCODER_ON_FINISH(s) (void)(s);
-#endif
-#endif
 
 static void BrotliEncoderCleanupState(BrotliEncoderState* s) {
   MemoryManager* m = &s->memory_manager_;
