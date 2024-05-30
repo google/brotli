@@ -282,6 +282,11 @@ static BROTLI_INLINE uint64_t BrotliUnalignedRead64(const void* p) {
   memcpy(&t, p, sizeof t);
   return t;
 }
+static BROTLI_INLINE size_t BrotliUnalignedReadSizeT(const void* p) {
+  size_t t;
+  memcpy(&t, p, sizeof t);
+  return t;
+}
 static BROTLI_INLINE void BrotliUnalignedWrite64(void* p, uint64_t v) {
   memcpy(p, &v, sizeof v);
 }
@@ -489,11 +494,29 @@ BROTLI_COMMON_API void* BrotliDefaultAllocFunc(void* opaque, size_t size);
 /* Default brotli_free_func */
 BROTLI_COMMON_API void BrotliDefaultFreeFunc(void* opaque, void* address);
 
+/* Circular logical rotates. */
+static BROTLI_INLINE uint16_t BrotliRotateRight16(uint16_t const value,
+                                             size_t count) {
+  count &= 0x0F; /* for fickle pattern recognition */
+  return (value >> count) | (uint16_t)(value << ((0U - count) & 0x0F));
+}
+static BROTLI_INLINE uint32_t BrotliRotateRight32(uint32_t const value,
+                                             size_t count) {
+  count &= 0x1F; /* for fickle pattern recognition */
+  return (value >> count) | (uint32_t)(value << ((0U - count) & 0x1F));
+}
+static BROTLI_INLINE uint64_t BrotliRotateRight64(uint64_t const value,
+                                             size_t count) {
+  count &= 0x3F; /* for fickle pattern recognition */
+  return (value >> count) | (uint64_t)(value << ((0U - count) & 0x3F));
+}
+
 BROTLI_UNUSED_FUNCTION void BrotliSuppressUnusedFunctions(void) {
   BROTLI_UNUSED(&BrotliSuppressUnusedFunctions);
   BROTLI_UNUSED(&BrotliUnalignedRead16);
   BROTLI_UNUSED(&BrotliUnalignedRead32);
   BROTLI_UNUSED(&BrotliUnalignedRead64);
+  BROTLI_UNUSED(&BrotliUnalignedReadSizeT);
   BROTLI_UNUSED(&BrotliUnalignedWrite64);
   BROTLI_UNUSED(&BROTLI_UNALIGNED_LOAD16LE);
   BROTLI_UNUSED(&BROTLI_UNALIGNED_LOAD32LE);
@@ -516,6 +539,9 @@ BROTLI_UNUSED_FUNCTION void BrotliSuppressUnusedFunctions(void) {
   BROTLI_UNUSED(&brotli_max_uint8_t);
   BROTLI_UNUSED(&BrotliDefaultAllocFunc);
   BROTLI_UNUSED(&BrotliDefaultFreeFunc);
+  BROTLI_UNUSED(&BrotliRotateRight16);
+  BROTLI_UNUSED(&BrotliRotateRight32);
+  BROTLI_UNUSED(&BrotliRotateRight64);
 #if BROTLI_ENABLE_DUMP
   BROTLI_UNUSED(&BrotliDump);
 #endif
@@ -533,6 +559,13 @@ BROTLI_UNUSED_FUNCTION void BrotliSuppressUnusedFunctions(void) {
 #else
 #  define PREFETCH_L1(ptr) do { (void)(ptr); } while (0)  /* disabled */
 #  define PREFETCH_L2(ptr) do { (void)(ptr); } while (0)  /* disabled */
+#endif
+
+/* The SIMD matchers are only faster at certain quality levels. */
+#if defined(_M_X64) && defined(BROTLI_TZCNT64)
+#define BROTLI_MAX_SIMD_QUALITY 7
+#elif defined(BROTLI_TZCNT64)
+#define BROTLI_MAX_SIMD_QUALITY 6
 #endif
 }
 
