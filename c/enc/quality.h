@@ -194,14 +194,14 @@ static BROTLI_INLINE void ChooseHasher(const BrotliEncoderParams* params,
        hasher already works well with large window. So the changes are:
        H3 --> H35: for quality 3.
        H54 --> H55: for quality 4 with size hint > 1MB
-       H6 --> H65: for qualities 5, 6, 7, 8, 9. */
+       H6/H68 --> H65: for qualities 5, 6, 7, 8, 9. */
     if (hparams->type == 3) {
       hparams->type = 35;
     }
     if (hparams->type == 54) {
       hparams->type = 55;
     }
-    if (hparams->type == 6) {
+    if (hparams->type == 6 || hparams->type == 68) {
       hparams->type = 65;
     }
   }
