@@ -1901,6 +1901,7 @@ static BROTLI_INLINE BROTLI_BOOL CheckInputAmount(
 
 static BROTLI_INLINE BrotliDecoderErrorCode ProcessCommandsInternal(
     int safe, BrotliDecoderState* s) {
+  const int kMaximalOverread = 4;
   int pos = s->pos;
   int i = s->loop_counter;
   BrotliDecoderErrorCode result = BROTLI_DECODER_SUCCESS;
@@ -1959,35 +1960,85 @@ CommandInner:
     brotli_reg_t bits;
     brotli_reg_t value;
     PreloadSymbol(safe, s->literal_htree, br, &bits, &value);
-    do {
-      if (!CheckInputAmount(safe, br)) {
-        s->state = BROTLI_STATE_COMMAND_INNER;
-        result = BROTLI_DECODER_NEEDS_MORE_INPUT;
-        goto saveStateAndReturn;
+    if (!safe) {
+      // This is a hottest part of the decode, so we copy the loop below
+      // and optimize it by calculating the number of steps where all checks
+      // evaluate to false (ringbuffer size/block size/input size).
+      // Since all checks are loop invariant, we just need to find
+      // minimal number of iterations for a simple loop, and run
+      // the full version for the remainder.
+      int num_steps = i - 1;
+      if (num_steps > 0 && ((brotli_reg_t)(num_steps) > s->block_length[0])) {
+        // Safe cast, since block_length < steps
+        num_steps = (int)s->block_length[0];
       }
-      if (BROTLI_PREDICT_FALSE(s->block_length[0] == 0)) {
-        goto NextLiteralBlock;
+      if (s->ringbuffer_size >= pos &&
+          (s->ringbuffer_size - pos) <= num_steps) {
+        num_steps = s->ringbuffer_size - pos - 1;
       }
-      if (!safe) {
+      // Calculate range where CheckInputAmount is always true.
+      // We consume at most 15 bit (2 bytes) per symbol, so if we have
+      // x bytes, that are safe to read, with 1 iteration per symbol
+      // we are only guaranteed x/2 safe symbol reads. Bitreader
+      // also reads in brotli_reg_t sized chunks, so we over-read by
+      // at most 8 bytes / 2 = 4 iterations.
+      ptrdiff_t new_lim = (8 * (br->guard_in - br->next_in)) / 15;
+      if ((new_lim - kMaximalOverread) <= num_steps) {
+        // Safe cast, since new_lim is already < num_steps
+        num_steps = (int)(new_lim - kMaximalOverread);
+      }
+      if (num_steps < 0) {
+        num_steps = 0;
+      }
+      int pos_limit = pos + num_steps;
+      for (; pos < pos_limit; pos++) {
         s->ringbuffer[pos] =
             (uint8_t)ReadPreloadedSymbol(s->literal_htree, br, &bits, &value);
-      } else {
+        BROTLI_LOG_ARRAY_INDEX(s->ringbuffer, pos);
+      }
+      s->block_length[0] -= (brotli_reg_t)num_steps;
+      i -= num_steps;
+      do {
+        if (!CheckInputAmount(safe, br)) {
+          s->state = BROTLI_STATE_COMMAND_INNER;
+          result = BROTLI_DECODER_NEEDS_MORE_INPUT;
+          goto saveStateAndReturn;
+        }
+        if (BROTLI_PREDICT_FALSE(s->block_length[0] == 0)) {
+          goto NextLiteralBlock;
+        }
+        s->ringbuffer[pos] =
+            (uint8_t)ReadPreloadedSymbol(s->literal_htree, br, &bits, &value);
+        --s->block_length[0];
+        BROTLI_LOG_ARRAY_INDEX(s->ringbuffer, pos);
+        ++pos;
+        if (BROTLI_PREDICT_FALSE(pos == s->ringbuffer_size)) {
+          s->state = BROTLI_STATE_COMMAND_INNER_WRITE;
+          --i;
+          goto saveStateAndReturn;
+        }
+      } while (--i != 0);
+    } else { /* safe */
+      do {
+        if (BROTLI_PREDICT_FALSE(s->block_length[0] == 0)) {
+          goto NextLiteralBlock;
+        }
         brotli_reg_t literal;
         if (!SafeReadSymbol(s->literal_htree, br, &literal)) {
           result = BROTLI_DECODER_NEEDS_MORE_INPUT;
           goto saveStateAndReturn;
         }
         s->ringbuffer[pos] = (uint8_t)literal;
-      }
-      --s->block_length[0];
-      BROTLI_LOG_ARRAY_INDEX(s->ringbuffer, pos);
-      ++pos;
-      if (BROTLI_PREDICT_FALSE(pos == s->ringbuffer_size)) {
-        s->state = BROTLI_STATE_COMMAND_INNER_WRITE;
-        --i;
-        goto saveStateAndReturn;
-      }
-    } while (--i != 0);
+        --s->block_length[0];
+        BROTLI_LOG_ARRAY_INDEX(s->ringbuffer, pos);
+        ++pos;
+        if (BROTLI_PREDICT_FALSE(pos == s->ringbuffer_size)) {
+          s->state = BROTLI_STATE_COMMAND_INNER_WRITE;
+          --i;
+          goto saveStateAndReturn;
+        }
+      } while (--i != 0);
+    }
   } else {
     uint8_t p1 = s->ringbuffer[(pos - 1) & s->ringbuffer_mask];
     uint8_t p2 = s->ringbuffer[(pos - 2) & s->ringbuffer_mask];
