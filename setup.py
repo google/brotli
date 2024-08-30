@@ -186,7 +186,7 @@ PACKAGE_DIR = {'': 'python'}
 PY_MODULES = ['brotli']
 
 USE_SYSTEM_BROTLI = bool_from_environ('USE_SYSTEM_BROTLI')
-print(f"[EUGO] USE_SYSTEM_BROTLI={USE_SYSTEM_BROTLI}")
+print(f"[BROTLI] USE_SYSTEM_BROTLI={USE_SYSTEM_BROTLI}")
 if USE_SYSTEM_BROTLI:
     brotli_extension = Extension(
                             '_brotli',
@@ -198,11 +198,11 @@ if USE_SYSTEM_BROTLI:
     REQUIRED_BROTLI_SYSTEM_LIBRARIES = ["libbrotlicommon", "libbrotlienc", "libbrotlidec"]
     pkgconfig_configure_extension(brotli_extension, " ".join(REQUIRED_BROTLI_SYSTEM_LIBRARIES))
 
-    print(f"[EUGO] {brotli_extension.include_dirs}")
-    print(f"[EUGO] {brotli_extension.library_dirs}")
-    print(f"[EUGO] {brotli_extension.libraries}")
-    print(f"[EUGO] {brotli_extension.extra_compile_args}")
-    print(f"[EUGO] {brotli_extension.extra_link_args}")
+    print(f"[BROTLI] {brotli_extension.include_dirs}")
+    print(f"[BROTLI] {brotli_extension.library_dirs}")
+    print(f"[BROTLI] {brotli_extension.libraries}")
+    print(f"[BROTLI] {brotli_extension.extra_compile_args}")
+    print(f"[BROTLI] {brotli_extension.extra_link_args}")
 
     EXT_MODULES = [brotli_extension]
 else:
