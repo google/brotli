@@ -22,6 +22,7 @@
 #include "encoder_dict.h"
 #include "fast_log.h"
 #include "find_match_length.h"
+#include "matching_tag_mask.h"
 #include "memory.h"
 #include "quality.h"
 #include "static_dict.h"
@@ -297,6 +298,16 @@ static BROTLI_INLINE size_t BackwardMatchLengthCode(const BackwardMatch* self) {
 #include "hash_longest_match64_inc.h"  /* NOLINT(build/include) */
 #undef HASHER
 
+#if defined(BROTLI_MAX_SIMD_QUALITY)
+#define HASHER() H58
+#include "hash_longest_match_simd_inc.h" /* NOLINT(build/include) */
+#undef HASHER
+
+#define HASHER() H68
+#include "hash_longest_match64_simd_inc.h" /* NOLINT(build/include) */
+#undef HASHER
+#endif
+
 #define BUCKET_BITS 15
 
 #define NUM_LAST_DISTANCES_TO_CHECK 4
@@ -388,7 +399,13 @@ static BROTLI_INLINE size_t BackwardMatchLengthCode(const BackwardMatch* self) {
 #undef CAT
 #undef EXPAND_CAT
 
-#define FOR_SIMPLE_HASHERS(H) H(2) H(3) H(4) H(5) H(6) H(40) H(41) H(42) H(54)
+#if defined(BROTLI_MAX_SIMD_QUALITY)
+#define FOR_SIMPLE_HASHERS(H) \
+  H(2) H(3) H(4) H(5) H(6) H(40) H(41) H(42) H(54) H(58) H(68)
+#else
+#define FOR_SIMPLE_HASHERS(H) \
+  H(2) H(3) H(4) H(5) H(6) H(40) H(41) H(42) H(54)
+#endif
 #define FOR_COMPOSITE_HASHERS(H) H(35) H(55) H(65)
 #define FOR_GENERIC_HASHERS(H) FOR_SIMPLE_HASHERS(H) FOR_COMPOSITE_HASHERS(H)
 #define FOR_ALL_HASHERS(H) FOR_GENERIC_HASHERS(H) H(10)
