@@ -23,6 +23,7 @@ typedef struct {
     PyObject *list;
     /* Number of whole allocated size. */
     Py_ssize_t allocated;
+    Py_ssize_t size_limit;
 } BlocksOutputBuffer;
 
 static const char unable_allocate_msg[] = "Unable to allocate output buffer.";
@@ -69,11 +70,17 @@ static const Py_ssize_t BUFFER_BLOCK_SIZE[] =
    Return -1 on failure
 */
 static inline int
-BlocksOutputBuffer_InitAndGrow(BlocksOutputBuffer *buffer,
+BlocksOutputBuffer_InitAndGrow(BlocksOutputBuffer *buffer, Py_ssize_t size_limit,
                                size_t *avail_out, uint8_t **next_out)
 {
     PyObject *b;
-    const Py_ssize_t block_size = BUFFER_BLOCK_SIZE[0];
+    Py_ssize_t block_size = BUFFER_BLOCK_SIZE[0];
+
+    assert(size_limit > 0);
+
+    if (size_limit < block_size) {
+      block_size = size_limit;
+    }
 
     // Ensure .list was set to NULL, for BlocksOutputBuffer_OnError().
     assert(buffer->list == NULL);
@@ -94,6 +101,7 @@ BlocksOutputBuffer_InitAndGrow(BlocksOutputBuffer *buffer,
 
     // Set variables
     buffer->allocated = block_size;
+    buffer->size_limit = size_limit;
 
     *avail_out = (size_t) block_size;
     *next_out = (uint8_t*) PyBytes_AS_STRING(b);
@@ -122,10 +130,16 @@ BlocksOutputBuffer_Grow(BlocksOutputBuffer *buffer,
         block_size = BUFFER_BLOCK_SIZE[Py_ARRAY_LENGTH(BUFFER_BLOCK_SIZE) - 1];
     }
 
-    // Check buffer->allocated overflow
-    if (block_size > PY_SSIZE_T_MAX - buffer->allocated) {
-        PyErr_SetString(PyExc_MemoryError, unable_allocate_msg);
-        return -1;
+    if (block_size > buffer->size_limit - buffer->allocated) {
+      block_size = buffer->size_limit - buffer->allocated;
+    }
+
+    if (block_size == 0) {
+      // We are at the size_limit (either the provided one, in which case we
+      // shouldn't have been called, or the implicit PY_SSIZE_T_MAX one, in
+      // which case we wouldn't be able to concatenate the blocks at the end).
+      PyErr_SetString(PyExc_MemoryError, "too long");
+      return -1;
     }
 
     // Create the block
@@ -291,7 +305,7 @@ static PyObject* compress_stream(BrotliEncoderState* enc, BrotliEncoderOperation
   BlocksOutputBuffer buffer = {.list=NULL};
   PyObject *ret;
 
-  if (BlocksOutputBuffer_InitAndGrow(&buffer, &available_out, &next_out) < 0) {
+  if (BlocksOutputBuffer_InitAndGrow(&buffer, PY_SSIZE_T_MAX, &available_out, &next_out) < 0) {
     goto error;
   }
 
@@ -604,7 +618,7 @@ static PyObject* decompress_stream(BrotliDecoderState* dec,
   BlocksOutputBuffer buffer = {.list=NULL};
   PyObject *ret;
 
-  if (BlocksOutputBuffer_InitAndGrow(&buffer, &available_out, &next_out) < 0) {
+  if (BlocksOutputBuffer_InitAndGrow(&buffer, PY_SSIZE_T_MAX, &available_out, &next_out) < 0) {
     goto error;
   }
 
@@ -877,7 +891,7 @@ static PyObject* brotli_decompress(PyObject *self, PyObject *args, PyObject *key
   next_in = (uint8_t*) input.buf;
   available_in = input.len;
 
-  if (BlocksOutputBuffer_InitAndGrow(&buffer, &available_out, &next_out) < 0) {
+  if (BlocksOutputBuffer_InitAndGrow(&buffer, PY_SSIZE_T_MAX, &available_out, &next_out) < 0) {
     goto error;
   }
 
