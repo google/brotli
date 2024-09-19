@@ -466,6 +466,53 @@ static BROTLI_INLINE brotli_reg_t ReadPreloadedSymbol(const HuffmanCode* table,
   return result;
 }
 
+/* Reads up to limit symbols from br and copies them into ringbuffer,
+   starting from pos. Caller must ensure that there is enough space
+   for the write. Returns the amount of symbols actually copied. */
+static BROTLI_INLINE int BrotliCopyPreloadedSymbolsToU8(const HuffmanCode* table,
+                                                        BrotliBitReader* br,
+                                                        brotli_reg_t* bits,
+                                                        brotli_reg_t* value,
+                                                        uint8_t* ringbuffer,
+                                                        int pos,
+                                                        const int limit) {
+  /* Calculate range where CheckInputAmount is always true.
+     Start with the number of bytes we can read. */
+  int64_t new_lim = br->guard_in - br->next_in;
+  /* Convert to bits, since sybmols use variable number of bits. */
+  new_lim *= 8;
+  /* At most 15 bits per symbol, so this is safe. */
+  new_lim /= 15;
+  const int kMaximalOverread = 4;
+  int pos_limit = limit;
+  int copies = 0;
+  if ((new_lim - kMaximalOverread) <= limit) {
+    // Safe cast, since new_lim is already < num_steps
+    pos_limit = (int)(new_lim - kMaximalOverread);
+  }
+  if (pos_limit < 0) {
+    pos_limit = 0;
+  }
+  copies = pos_limit;
+  pos_limit += pos;
+  /* Fast path, caller made sure it is safe to write,
+     we verified that is is safe to read. */
+  for (; pos < pos_limit; pos++) {
+    BROTLI_DCHECK(BrotliCheckInputAmount(br));
+    ringbuffer[pos] = (uint8_t)ReadPreloadedSymbol(table, br, bits, value);
+    BROTLI_LOG_ARRAY_INDEX(ringbuffer, pos);
+  }
+  /* Do the remainder, caller made sure it is safe to write,
+     we need to bverify that it is safe to read. */
+  while (BrotliCheckInputAmount(br) && copies < limit) {
+    ringbuffer[pos] = (uint8_t)ReadPreloadedSymbol(table, br, bits, value);
+    BROTLI_LOG_ARRAY_INDEX(ringbuffer, pos);
+    pos++;
+    copies++;
+  }
+  return copies;
+}
+
 static BROTLI_INLINE brotli_reg_t Log2Floor(brotli_reg_t x) {
   brotli_reg_t result = 0;
   while (x) {
@@ -1969,8 +2016,8 @@ CommandInner:
         goto NextLiteralBlock;
       }
       if (!safe) {
-        s->ringbuffer[pos] =
-            (uint8_t)ReadPreloadedSymbol(s->literal_htree, br, &bits, &value);
+        BrotliCopyPreloadedSymbolsToU8(s->literal_htree, br, &bits, &value,
+                                       s->ringbuffer, pos, 1);
       } else {
         brotli_reg_t literal;
         if (!SafeReadSymbol(s->literal_htree, br, &literal)) {
