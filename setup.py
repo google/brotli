@@ -122,7 +122,7 @@ class VersionedExtension(Extension):
 
     if IS_PYTHON3 and CIBUILDWHEEL:
       kwargs['py_limited_api'] = True
-      define_macros.append(('Py_LIMITED_API', '0x03060000'))
+      define_macros.append(('Py_LIMITED_API', '3'))
     
     if platform.system() == 'Darwin':
       define_macros.append(('OS_MACOSX', '1'))
@@ -247,7 +247,7 @@ if IS_PYTHON3 and CIBUILDWHEEL:
 
         if python.startswith("cp"):
           # on CPython, our wheels are abi3 and compatible back to 3.6
-          return "cp36", "abi3", plat
+          return "cp32", "abi3", plat
 
         return python, abi, plat
       
