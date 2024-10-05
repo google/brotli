@@ -89,6 +89,12 @@ class BuildExt(build_ext):
       # This clashes with GCC's cmath, and causes compilation errors when
       # building under MinGW: http://bugs.python.org/issue11566
       macros.append(('_hypot', 'hypot'))
+    elif self.compiler.compiler_type == 'msvc':
+      # msvc links dynamicall to vc_runtime140.dll,
+      # which isn't installed by default on Windows 10+
+      # Therefore it should be statically linked
+      extra_args.append("/MT")
+    
     for undef in ext.undef_macros:
       macros.append((undef,))
 
