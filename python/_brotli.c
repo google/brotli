@@ -1051,22 +1051,26 @@ PyMODINIT_FUNC INIT_BROTLI(void) {
   }
 
   #ifdef Py_LIMITED_API
-  PyTypeObject* brotli_CompressorType = (PyTypeObject *) PyType_FromSpec(&brotli_Compressor_Spec);
+  PyTypeObject* brotli_CompressorType_ref = (PyTypeObject *) PyType_FromSpec(&brotli_Compressor_Spec);
+  #else
+  PyTypeObject* brotli_CompressorType_ref = &brotli_CompressorType;
   #endif
-  if (PyType_Ready(&brotli_CompressorType) < 0) {
+  if (PyType_Ready(brotli_CompressorType_ref) < 0) {
     RETURN_NULL;
   }
-  Py_INCREF(&brotli_CompressorType);
-  PyModule_AddObject(m, "Compressor", (PyObject *)&brotli_CompressorType);
+  Py_INCREF(brotli_CompressorType_ref);
+  PyModule_AddObject(m, "Compressor", (PyObject *)brotli_CompressorType_ref);
 
   #ifdef Py_LIMITED_API
-  PyTypeObject* brotli_DecompressorType = (PyTypeObject *) PyType_FromSpec(&brotli_Decompressor_Spec);
+  PyTypeObject* brotli_DecompressorType_ref = (PyTypeObject *) PyType_FromSpec(&brotli_Decompressor_Spec);
+  #else
+  PyTypeObject* brotli_DecompressorType_ref = &brotli_DecompressorType;
   #endif
-  if (PyType_Ready(&brotli_DecompressorType) < 0) {
+  if (PyType_Ready(brotli_DecompressorType_ref) < 0) {
     RETURN_NULL;
   }
-  Py_INCREF(&brotli_DecompressorType);
-  PyModule_AddObject(m, "Decompressor", (PyObject *)&brotli_DecompressorType);
+  Py_INCREF(brotli_DecompressorType_ref);
+  PyModule_AddObject(m, "Decompressor", (PyObject *)brotli_DecompressorType_ref);
 
   PyModule_AddIntConstant(m, "MODE_GENERIC", (int) BROTLI_MODE_GENERIC);
   PyModule_AddIntConstant(m, "MODE_TEXT", (int) BROTLI_MODE_TEXT);
