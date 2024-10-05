@@ -114,8 +114,6 @@ CLASSIFIERS = [
 
 PACKAGE_DIR = {'': 'python'}
 
-PY_MODULES = ['brotli']
-
 class VersionedExtension(Extension):
   def __init__(self, *args, **kwargs):
     define_macros = []
@@ -268,7 +266,8 @@ setup(
     platforms=PLATFORMS,
     classifiers=CLASSIFIERS,
     package_dir=PACKAGE_DIR,
-    py_modules=PY_MODULES,
+    packages=[''],
+    package_data={'': ['__init__.py', 'brotli.py', 'brotli.pyi', 'py.typed']},
     ext_modules=EXT_MODULES,
     test_suite=TEST_SUITE,
     cmdclass=CMD_CLASS)
