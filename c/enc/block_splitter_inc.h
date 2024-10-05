@@ -129,7 +129,7 @@ static size_t FN(FindBlocks)(const DataType* data, const size_t length,
     }
     /* More blocks for the beginning. */
     if (byte_ix < 2000) {
-      block_switch_cost *= 0.77 + 0.00003 * (double)byte_ix;
+      block_switch_cost *= 0.77 + 0.000035 * (double)byte_ix;
     }
     for (k = 0; k < num_histograms; ++k) {
       cost[k] -= min_cost;
