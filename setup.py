@@ -122,7 +122,7 @@ class VersionedExtension(Extension):
 
     if IS_PYTHON3 and CIBUILDWHEEL:
       kwargs['py_limited_api'] = True
-      define_macros.append(('Py_LIMITED_API', '3'))
+      define_macros.append(('Py_LIMITED_API', '0x03060000'))
     
     if platform.system() == 'Darwin':
       define_macros.append(('OS_MACOSX', '1'))
@@ -238,18 +238,17 @@ CMD_CLASS = {
 
 if IS_PYTHON3 and CIBUILDWHEEL:
   from wheel.bdist_wheel import bdist_wheel
+  # adopted from:
+  # https://github.com/joerick/python-abi3-package-sample/blob/7f05b22b9e0cfb4e60293bc85252e95278a80720/setup.py
   class bdist_wheel_abi3(bdist_wheel):
-    # adopted from:
-    # https://github.com/joerick/python-abi3-package-sample/blob/7f05b22b9e0cfb4e60293bc85252e95278a80720/setup.py
-    class bdist_wheel_abi3(bdist_wheel):
-      def get_tag(self):
-        python, abi, plat = super().get_tag()
+    def get_tag(self):
+      python, abi, plat = super().get_tag()
 
-        if python.startswith("cp"):
-          # on CPython, our wheels are abi3 and compatible back to 3.6
-          return "cp32", "abi3", plat
+      if python.startswith("cp"):
+        # on CPython, our wheels are abi3 and compatible back to 3.6
+        return "cp36", "abi3", plat
 
-        return python, abi, plat
+      return python, abi, plat
       
   CMD_CLASS["bdist_wheel"] = bdist_wheel_abi3
 
