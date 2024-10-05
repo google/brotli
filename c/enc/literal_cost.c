@@ -121,7 +121,7 @@ static void EstimateBitCostsForLiteralsUTF8(size_t pos, size_t len, size_t mask,
          rapidly in the beginning of the file, perhaps because the beginning
          of the data is a statistical "anomaly". */
       if (i < 2000) {
-        lit_cost += 0.7 - ((double)(2000 - i) / 2000.0 * 0.35);
+        lit_cost += 0.7 - ((double)(2000 - i) * 0.000175);
       }
       cost[i] = (float)lit_cost;
     }
