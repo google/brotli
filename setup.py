@@ -7,6 +7,7 @@ import os
 import platform
 import re
 import unittest
+import sys
 
 try:
     from setuptools import Extension
@@ -15,10 +16,12 @@ except:
     from distutils.core import Extension
     from distutils.core import setup
 from distutils.command.build_ext import build_ext
-from distutils import errors
 from distutils import dep_util
 from distutils import log
 
+
+IS_PYTHON3 = sys.version_info[0] == 3
+CIBUILDWHEEL = os.environ.get('CIBUILDWHEEL', '0') == '1'
 
 CURR_DIR = os.path.abspath(os.path.dirname(os.path.realpath(__file__)))
 
@@ -27,7 +30,7 @@ def read_define(path, macro):
   """ Return macro value from the given file. """
   with open(path, 'r') as f:
     for line in f:
-      m = re.match(rf'#define\s{macro}\s+(.+)', line)
+      m = re.match('#define\\s{macro}\\s+(.+)'.format(macro=macro), line)
       if m:
         return m.group(1)
   return ''
@@ -41,7 +44,7 @@ def get_version():
   patch = read_define(version_file_path, 'BROTLI_VERSION_PATCH')
   if not major or not minor or not patch:
     return ''
-  return f'{major}.{minor}.{patch}'
+  return '{major}.{minor}.{patch}'.format(major=major, minor=minor, patch=patch)
 
 
 def get_test_suite():
@@ -51,20 +54,7 @@ def get_test_suite():
 
 
 class BuildExt(build_ext):
-
-  def get_source_files(self):
-    filenames = build_ext.get_source_files(self)
-    for ext in self.extensions:
-      filenames.extend(ext.depends)
-    return filenames
-
   def build_extension(self, ext):
-    if ext.sources is None or not isinstance(ext.sources, (list, tuple)):
-      raise errors.DistutilsSetupError(
-        "in 'ext_modules' option (extension '%s'), "
-        "'sources' must be present and must be "
-        "a list of source filenames" % ext.name)
-
     ext_path = self.get_ext_fullpath(ext.name)
     depends = ext.sources + ext.depends
     if not (self.force or dep_util.newer_group(depends, ext_path, 'newer')):
@@ -73,59 +63,13 @@ class BuildExt(build_ext):
     else:
       log.info("building '%s' extension", ext.name)
 
-    c_sources = []
-    for source in ext.sources:
-      if source.endswith('.c'):
-        c_sources.append(source)
-    extra_args = ext.extra_compile_args or []
-
-    objects = []
-
-    macros = ext.define_macros[:]
-    if platform.system() == 'Darwin':
-      macros.append(('OS_MACOSX', '1'))
-    elif self.compiler.compiler_type == 'mingw32':
+    if self.compiler.compiler_type == 'mingw32':
       # On Windows Python 2.7, pyconfig.h defines "hypot" as "_hypot",
       # This clashes with GCC's cmath, and causes compilation errors when
       # building under MinGW: http://bugs.python.org/issue11566
-      macros.append(('_hypot', 'hypot'))
-    for undef in ext.undef_macros:
-      macros.append((undef,))
+      ext.define_macros.append(('_hypot', 'hypot'))
 
-    objs = self.compiler.compile(
-        c_sources,
-        output_dir=self.build_temp,
-        macros=macros,
-        include_dirs=ext.include_dirs,
-        debug=self.debug,
-        extra_postargs=extra_args,
-        depends=ext.depends)
-    objects.extend(objs)
-
-    self._built_objects = objects[:]
-    if ext.extra_objects:
-      objects.extend(ext.extra_objects)
-    extra_args = ext.extra_link_args or []
-    # when using GCC on Windows, we statically link libgcc and libstdc++,
-    # so that we don't need to package extra DLLs
-    if self.compiler.compiler_type == 'mingw32':
-        extra_args.extend(['-static-libgcc', '-static-libstdc++'])
-
-    ext_path = self.get_ext_fullpath(ext.name)
-    # Detect target language, if not provided
-    language = ext.language or self.compiler.detect_language(c_sources)
-
-    self.compiler.link_shared_object(
-        objects,
-        ext_path,
-        libraries=self.get_libraries(ext),
-        library_dirs=ext.library_dirs,
-        runtime_library_dirs=ext.runtime_library_dirs,
-        extra_postargs=extra_args,
-        export_symbols=self.get_export_symbols(ext),
-        debug=self.debug,
-        build_temp=self.build_temp,
-        target_lang=language)
+    build_ext.build_extension(self, ext)
 
 
 NAME = 'Brotli'
@@ -172,9 +116,25 @@ PACKAGE_DIR = {'': 'python'}
 
 PY_MODULES = ['brotli']
 
+class VersionedExtension(Extension):
+  def __init__(self, *args, **kwargs):
+    define_macros = []
+
+    if IS_PYTHON3 and CIBUILDWHEEL:
+      kwargs['py_limited_api'] = True
+      define_macros.append(('Py_LIMITED_API', '0x03060000'))
+    
+    if platform.system() == 'Darwin':
+      define_macros.append(('OS_MACOSX', '1'))
+    
+    kwargs['define_macros'] = kwargs.get('define_macros', []) + define_macros
+    
+    Extension.__init__(self, *args, **kwargs)
+
+
 EXT_MODULES = [
-    Extension(
-        '_brotli',
+    VersionedExtension(
+        name='_brotli',
         sources=[
             'python/_brotli.c',
             'c/common/constants.c',
@@ -275,6 +235,24 @@ TEST_SUITE = 'setup.get_test_suite'
 CMD_CLASS = {
     'build_ext': BuildExt,
 }
+
+if IS_PYTHON3 and CIBUILDWHEEL:
+  from wheel.bdist_wheel import bdist_wheel
+  class bdist_wheel_abi3(bdist_wheel):
+    # adopted from:
+    # https://github.com/joerick/python-abi3-package-sample/blob/7f05b22b9e0cfb4e60293bc85252e95278a80720/setup.py
+    class bdist_wheel_abi3(bdist_wheel):
+      def get_tag(self):
+        python, abi, plat = super().get_tag()
+
+        if python.startswith("cp"):
+          # on CPython, our wheels are abi3 and compatible back to 3.6
+          return "cp36", "abi3", plat
+
+        return python, abi, plat
+      
+  CMD_CLASS["bdist_wheel"] = bdist_wheel_abi3
+
 
 with open("README.md", "r") as f:
     README = f.read()
