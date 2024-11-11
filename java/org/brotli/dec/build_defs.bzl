@@ -1,6 +1,6 @@
 """Utilities for Java brotli tests."""
 
-load("//third_party/bazel_rules/rules_java/java:java_test.bzl", "java_test")
+load("@rules_java//java:java_test.bzl", "java_test")
 
 _TEST_JVM_FLAGS = [
     "-DBROTLI_ENABLE_ASSERTS=true",
