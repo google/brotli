@@ -310,8 +310,9 @@ jobs:
       if: ${{ matrix.build_system == 'bazel' }}
       run: |
         cd ${GITHUB_WORKSPACE}/${{ matrix.bazel_project }}
+        realpath bazel-bin
         bazelisk query "tests(...)" --output=label > ${RUNNER_TEMP}/tests.lst
-        [ -s ${RUNNER_TEMP}/tests.lst ] && bazelisk test -c opt ...:all
+        [ -s ${RUNNER_TEMP}/tests.lst ] && bazelisk test -c opt ...:all --java_runtime_version=remotejdk_21 --test_output=all
         bazelisk clean
 
     - name: Build / Test with Maven
