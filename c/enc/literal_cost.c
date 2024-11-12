@@ -106,6 +106,7 @@ static void EstimateBitCostsForLiteralsUTF8(size_t pos, size_t len, size_t mask,
       size_t utf8_pos = UTF8Position(last_c, c, max_utf8);
       size_t masked_pos = (pos + i) & mask;
       size_t histo = histogram[256 * utf8_pos + data[masked_pos]];
+      static const double threshold = 0.35 / 2000.0;
       double lit_cost;
       if (histo == 0) {
         histo = 1;
@@ -121,7 +122,7 @@ static void EstimateBitCostsForLiteralsUTF8(size_t pos, size_t len, size_t mask,
          rapidly in the beginning of the file, perhaps because the beginning
          of the data is a statistical "anomaly". */
       if (i < 2000) {
-        lit_cost += 0.7 - ((double)(2000 - i) * 0.000175);
+        lit_cost += 0.7 - ((double)(2000 - i) * threshold);
       }
       cost[i] = (float)lit_cost;
     }
