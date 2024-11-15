@@ -441,7 +441,7 @@ static BROTLI_BOOL ShouldCompress(
       static const double kMinEntropy = 7.92;
       const double bit_cost_threshold =
           (double)bytes * kMinEntropy * invKSampleRate;
-      size_t t = (bytes + kSampleRate - 1) * invKSampleRate;
+      size_t t = (double)(bytes + kSampleRate - 1) * invKSampleRate;
       uint32_t pos = (uint32_t)last_flush_pos;
       size_t i;
       for (i = 0; i < t; i++) {
