@@ -437,9 +437,10 @@ static BROTLI_BOOL ShouldCompress(
     if ((double)num_literals > 0.99 * (double)bytes) {
       uint32_t literal_histo[256] = { 0 };
       static const uint32_t kSampleRate = 13;
+      static const double kInvSampleRate = 1.0 / 13.0;
       static const double kMinEntropy = 7.92;
       const double bit_cost_threshold =
-          (double)bytes * kMinEntropy / kSampleRate;
+          (double)bytes * kMinEntropy * kInvSampleRate;
       size_t t = (bytes + kSampleRate - 1) / kSampleRate;
       uint32_t pos = (uint32_t)last_flush_pos;
       size_t i;
