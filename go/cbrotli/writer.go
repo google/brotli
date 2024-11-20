@@ -22,11 +22,18 @@ struct CompressStreamResult {
 
 static struct CompressStreamResult CompressStream(
     BrotliEncoderState* s, BrotliEncoderOperation op,
-    const uint8_t* data, size_t data_size) {
+    const uint8_t* data, size_t data_size,
+    const uint8_t* dictionary_data, size_t dictionary_size) {
   struct CompressStreamResult result;
   size_t available_in = data_size;
   const uint8_t* next_in = data;
   size_t available_out = 0;
+  if (dictionary_size > 0) {
+    BrotliEncoderPreparedDictionary* prepared_dictionary = BrotliEncoderPrepareDictionary(
+      BROTLI_SHARED_DICTIONARY_RAW, dictionary_size,
+      dictionary_data, BROTLI_MAX_QUALITY, NULL, NULL, NULL);
+    BrotliEncoderAttachPreparedDictionary(s, prepared_dictionary);
+  }
   result.success = BrotliEncoderCompressStream(s, op,
       &available_in, &next_in, &available_out, 0, 0) ? 1 : 0;
   result.bytes_consumed = data_size - available_in;
@@ -87,7 +94,7 @@ func NewWriter(dst io.Writer, options WriterOptions) *Writer {
 	}
 }
 
-func (w *Writer) writeChunk(p []byte, op C.BrotliEncoderOperation) (n int, err error) {
+func (w *Writer) writeChunk(p []byte, d []byte, op C.BrotliEncoderOperation) (n int, err error) {
 	if w.state == nil {
 		return 0, errWriterClosed
 	}
@@ -97,7 +104,11 @@ func (w *Writer) writeChunk(p []byte, op C.BrotliEncoderOperation) (n int, err e
 		if len(p) != 0 {
 			data = (*C.uint8_t)(&p[0])
 		}
-		result := C.CompressStream(w.state, op, data, C.size_t(len(p)))
+		var dictionary *C.uint8_t
+		if len(d) != 0 {
+			dictionary = (*C.uint8_t)(&d[0])
+		}
+		result := C.CompressStream(w.state, op, data, C.size_t(len(p)), dictionary, C.size_t(len(d)))
 		if result.success == 0 {
 			return n, errEncode
 		}
