@@ -45,8 +45,53 @@ import (
 	"bytes"
 	"errors"
 	"io"
+	"runtime"
 	"unsafe"
 )
+
+// PreparedDictionary is a handle to native object.
+type PreparedDictionary struct {
+	opaque *C.BrotliEncoderPreparedDictionary
+	pinner *runtime.Pinner
+}
+
+// DictionaryType is type for shared dictionary
+type DictionaryType int
+
+const (
+	// DtRaw denotes LZ77 prefix dictionary
+	DtRaw DictionaryType = 0
+	// DtSerialized denotes serialized format
+	DtSerialized DictionaryType = 1
+)
+
+// NewPreparedDictionary prepares dictionary data for encoder.
+// Same instance can be used for multiple encoding sessions.
+// Close MUST be called to free resources.
+func NewPreparedDictionary(data []byte, dictionaryType DictionaryType, quality int) *PreparedDictionary {
+	var ptr *C.uint8_t
+	if len(data) != 0 {
+		ptr = (*C.uint8_t)(&data[0])
+	}
+	p := new(runtime.Pinner)
+	p.Pin(&data[0])
+	d := C.BrotliEncoderPrepareDictionary(C.BrotliSharedDictionaryType(dictionaryType), C.size_t(len(data)), ptr, C.int(quality), nil, nil, nil)
+	return &PreparedDictionary{
+		opaque: d,
+		pinner: p,
+	}
+}
+
+// Close frees C resources.
+// IMPORTANT: calling Close until all encoders that use that dictionary are closed as well will
+// cause crash.
+func (p *PreparedDictionary) Close() error {
+	// C-Brotli tolerates `nil` pointer here.
+	C.BrotliEncoderDestroyPreparedDictionary(p.opaque)
+	p.opaque = nil
+	p.pinner.Unpin()
+	return nil
+}
 
 // WriterOptions configures Writer.
 type WriterOptions struct {
@@ -56,38 +101,56 @@ type WriterOptions struct {
 	// LGWin is the base 2 logarithm of the sliding window size.
 	// Range is 10 to 24. 0 indicates automatic configuration based on Quality.
 	LGWin int
+	// Prepared shared dictionary
+	Dictionary *PreparedDictionary
 }
 
 // Writer implements io.WriteCloser by writing Brotli-encoded data to an
 // underlying Writer.
 type Writer struct {
+	healthy      bool
 	dst          io.Writer
 	state        *C.BrotliEncoderState
 	buf, encoded []byte
 }
 
 var (
-	errEncode       = errors.New("cbrotli: encode error")
-	errWriterClosed = errors.New("cbrotli: Writer is closed")
+	errEncode          = errors.New("cbrotli: encode error")
+	errWriterClosed    = errors.New("cbrotli: Writer is closed")
+	errWriterUnhealthy = errors.New("cbrotli: Writer is unhealthy")
 )
 
 // NewWriter initializes new Writer instance.
 // Close MUST be called to free resources.
 func NewWriter(dst io.Writer, options WriterOptions) *Writer {
 	state := C.BrotliEncoderCreateInstance(nil, nil, nil)
-	C.BrotliEncoderSetParameter(
-		state, C.BROTLI_PARAM_QUALITY, (C.uint32_t)(options.Quality))
+	healthy := state != nil
+	if C.BrotliEncoderSetParameter(
+		state, C.BROTLI_PARAM_QUALITY, (C.uint32_t)(options.Quality)) == 0 {
+		healthy = false
+	}
 	if options.LGWin > 0 {
-		C.BrotliEncoderSetParameter(
-			state, C.BROTLI_PARAM_LGWIN, (C.uint32_t)(options.LGWin))
+		if C.BrotliEncoderSetParameter(
+			state, C.BROTLI_PARAM_LGWIN, (C.uint32_t)(options.LGWin)) == 0 {
+			healthy = false
+		}
+	}
+	if options.Dictionary != nil {
+		if C.BrotliEncoderAttachPreparedDictionary(state, options.Dictionary.opaque) == 0 {
+			healthy = false
+		}
 	}
 	return &Writer{
-		dst:   dst,
-		state: state,
+		healthy: healthy,
+		dst:     dst,
+		state:   state,
 	}
 }
 
 func (w *Writer) writeChunk(p []byte, op C.BrotliEncoderOperation) (n int, err error) {
+	if !w.healthy {
+		return 0, errWriterUnhealthy
+	}
 	if w.state == nil {
 		return 0, errWriterClosed
 	}

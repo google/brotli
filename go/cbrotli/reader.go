@@ -33,6 +33,7 @@ import (
 	"errors"
 	"io"
 	"io/ioutil"
+	"runtime"
 )
 
 type decodeError C.BrotliDecoderErrorCode
@@ -49,10 +50,11 @@ var errReaderClosed = errors.New("cbrotli: Reader is closed")
 // Reader implements io.ReadCloser by reading Brotli-encoded data from an
 // underlying Reader.
 type Reader struct {
-	src   io.Reader
-	state *C.BrotliDecoderState
-	buf   []byte // scratch space for reading from src
-	in    []byte // current chunk to decode; usually aliases buf
+	src    io.Reader
+	state  *C.BrotliDecoderState
+	buf    []byte          // scratch space for reading from src
+	in     []byte          // current chunk to decode; usually aliases buf
+	pinner *runtime.Pinner // raw dictionary pinner
 }
 
 // readBufSize is a "good" buffer size that avoids excessive round-trips
@@ -63,10 +65,26 @@ const readBufSize = 32 * 1024
 // NewReader initializes new Reader instance.
 // Close MUST be called to free resources.
 func NewReader(src io.Reader) *Reader {
+	return NewReaderWithRawDictionary(src, nil)
+}
+
+// NewReaderWithRawDictionary initializes new Reader instance with shared dictionary.
+// Close MUST be called to free resources.
+func NewReaderWithRawDictionary(src io.Reader, dictionary []byte) *Reader {
+	s := C.BrotliDecoderCreateInstance(nil, nil, nil)
+	var p *runtime.Pinner
+	if dictionary != nil {
+		p = new(runtime.Pinner)
+		p.Pin(&dictionary[0])
+		// TODO(eustas): use return value
+		C.BrotliDecoderAttachDictionary(s, C.BrotliSharedDictionaryType( /* RAW */ 0),
+			C.size_t(len(dictionary)), (*C.uint8_t)(&dictionary[0]))
+	}
 	return &Reader{
-		src:   src,
-		state: C.BrotliDecoderCreateInstance(nil, nil, nil),
-		buf:   make([]byte, readBufSize),
+		src:    src,
+		state:  s,
+		buf:    make([]byte, readBufSize),
+		pinner: p,
 	}
 }
 
@@ -78,6 +96,10 @@ func (r *Reader) Close() error {
 	// Close despite the state; i.e. there might be some unread decoded data.
 	C.BrotliDecoderDestroyInstance(r.state)
 	r.state = nil
+	if r.pinner != nil {
+		r.pinner.Unpin()
+		r.pinner = nil
+	}
 	return nil
 }
 
@@ -153,11 +175,26 @@ func (r *Reader) Read(p []byte) (n int, err error) {
 
 // Decode decodes Brotli encoded data.
 func Decode(encodedData []byte) ([]byte, error) {
+	return DecodeWithRawDictionary(encodedData, nil)
+}
+
+// DecodeWithRawDictionary decodes Brotli encoded data with shared dictionary.
+func DecodeWithRawDictionary(encodedData []byte, dictionary []byte) ([]byte, error) {
+	s := C.BrotliDecoderCreateInstance(nil, nil, nil)
+	var p *runtime.Pinner
+	if dictionary != nil {
+		p = new(runtime.Pinner)
+		p.Pin(&dictionary[0])
+		// TODO(eustas): use return value
+		C.BrotliDecoderAttachDictionary(s, C.BrotliSharedDictionaryType( /* RAW */ 0),
+			C.size_t(len(dictionary)), (*C.uint8_t)(&dictionary[0]))
+	}
 	r := &Reader{
-		src:   bytes.NewReader(nil),
-		state: C.BrotliDecoderCreateInstance(nil, nil, nil),
-		buf:   make([]byte, 4), // arbitrarily small but nonzero so that r.src.Read returns io.EOF
-		in:    encodedData,
+		src:    bytes.NewReader(nil),
+		state:  s,
+		buf:    make([]byte, 4), // arbitrarily small but nonzero so that r.src.Read returns io.EOF
+		in:     encodedData,
+		pinner: p,
 	}
 	defer r.Close()
 	return ioutil.ReadAll(r)
