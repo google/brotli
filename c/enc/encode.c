@@ -437,9 +437,10 @@ static BROTLI_BOOL ShouldCompress(
     if ((double)num_literals > 0.99 * (double)bytes) {
       uint32_t literal_histo[256] = { 0 };
       static const uint32_t kSampleRate = 13;
+      static const double kInvSampleRate = 1.0 / 13.0;
       static const double kMinEntropy = 7.92;
       const double bit_cost_threshold =
-          (double)bytes * kMinEntropy / kSampleRate;
+          (double)bytes * kMinEntropy * kInvSampleRate;
       size_t t = (bytes + kSampleRate - 1) / kSampleRate;
       uint32_t pos = (uint32_t)last_flush_pos;
       size_t i;
@@ -1856,7 +1857,7 @@ size_t BrotliEncoderEstimatePeakMemoryUsage(int quality, int lgwin,
   if (params.quality == FAST_ONE_PASS_COMPRESSION_QUALITY ||
       params.quality == FAST_TWO_PASS_COMPRESSION_QUALITY) {
     size_t state_size = sizeof(BrotliEncoderState);
-    size_t block_size = BROTLI_MIN(size_t, input_size, (1ul << params.lgwin));
+    size_t block_size = BROTLI_MIN(size_t, input_size, ((size_t)1ul << params.lgwin));
     size_t hash_table_size =
         HashTableSize(MaxHashTableSize(params.quality), block_size);
     size_t hash_size =
@@ -1873,7 +1874,7 @@ size_t BrotliEncoderEstimatePeakMemoryUsage(int quality, int lgwin,
     size_t short_ringbuffer_size = (size_t)1 << params.lgblock;
     int ringbuffer_bits = ComputeRbBits(&params);
     size_t ringbuffer_size = input_size < short_ringbuffer_size ?
-        input_size : (1u << ringbuffer_bits) + short_ringbuffer_size;
+        input_size : ((size_t)1u << ringbuffer_bits) + short_ringbuffer_size;
     size_t hash_size[4] = {0};
     size_t metablock_size =
         BROTLI_MIN(size_t, input_size, MaxMetablockSize(&params));

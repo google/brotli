@@ -53,7 +53,7 @@ jobs:
         submodules: false
         fetch-depth: 1
 
-    - uses: actions/cache@704facf57e6136b1bc63b828d79edcd491f0ee84 # v3.3.2
+    - uses: actions/cache@6849a6489940f00c2f30c0fb92c6274307ccb58a # v4.1.2
       id: cache-vcpkg
       with:
         path: vcpkg
@@ -102,7 +102,7 @@ jobs:
         cmake --build out --config Release --target install
         cp LICENSE prefix/bin/LICENSE.brotli
     - name: Upload artifacts
-      uses: actions/upload-artifact@c7d193f32edcb7bfad88892161225aeda64e9392 # v4.0.0
+      uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
       with:
         name: brotli-${{matrix.triplet}}
         path: |

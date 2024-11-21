@@ -118,6 +118,8 @@ static size_t FN(FindBlocks)(const DataType* data, const size_t length,
     size_t insert_cost_ix = symbol * num_histograms;
     double min_cost = 1e99;
     double block_switch_cost = block_switch_bitcost;
+    static const size_t prologue_length = 2000;
+    static const double multiplier = 0.07 / 2000;
     size_t k;
     for (k = 0; k < num_histograms; ++k) {
       /* We are coding the symbol with entropy code k. */
@@ -128,8 +130,8 @@ static size_t FN(FindBlocks)(const DataType* data, const size_t length,
       }
     }
     /* More blocks for the beginning. */
-    if (byte_ix < 2000) {
-      block_switch_cost *= 0.77 + 0.07 * (double)byte_ix / 2000;
+    if (byte_ix < prologue_length) {
+      block_switch_cost *= 0.77 + multiplier * (double)byte_ix;
     }
     for (k = 0; k < num_histograms; ++k) {
       cost[k] -= min_cost;
