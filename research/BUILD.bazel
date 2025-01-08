@@ -15,7 +15,7 @@ cc_library(
     name = "durchschlag",
     srcs = ["durchschlag.cc"],
     hdrs = ["durchschlag.h"],
-    deps = ["@divsufsort//:libdivsufsort"],
+    deps = ["@divsufsort//:divsufsort"],
 )
 
 cc_library(

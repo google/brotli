@@ -47,24 +47,25 @@ jobs:
             build_system: cmake
             c_compiler: clang-15
             cxx_compiler: clang++15
+            os: ubuntu-22.04
 
-          - name: cmake:clang15:asan
+          - name: cmake:clang:asan
             build_system: cmake
             sanitizer: address
-            c_compiler: clang-15
-            cxx_compiler: clang++15
+            c_compiler: clang
+            cxx_compiler: clang++
 
-          - name: cmake:clang15:tsan
+          - name: cmake:clang:tsan
             build_system: cmake
             sanitizer: thread
-            c_compiler: clang-15
-            cxx_compiler: clang++15
+            c_compiler: clang
+            cxx_compiler: clang++
 
-          - name: cmake:clang15:ubsan
+          - name: cmake:clang:ubsan
             build_system: cmake
             sanitizer: undefined
-            c_compiler: clang-15
-            cxx_compiler: clang++-15
+            c_compiler: clang
+            cxx_compiler: clang++
             c_flags: -fno-sanitize-recover=undefined,integer
 
           - name: cmake:qemu-arm-neon-gcc
@@ -98,10 +99,10 @@ jobs:
             cmake_config: Debug
             os: windows-latest
 
-          - name: fuzz:clang15
+          - name: fuzz:clang
             build_system: fuzz
-            c_compiler: clang-15
-            cxx_compiler: clang++15
+            c_compiler: clang
+            cxx_compiler: clang++
 
           # TODO: consider running this combination in docker
           #- name: python2.7:gcc5
@@ -131,11 +132,11 @@ jobs:
           # TODO: consider running this combination in docker
           #- name: python3.8:gcc5
 
-          - name: python3.10:clang15
+          - name: python3.10:clang
             build_system: python
             python_version: "3.10"
-            c_compiler: clang-15
-            cxx_compiler: clang++-15
+            c_compiler: clang
+            cxx_compiler: clang++
 
           - name: python3.10-win
             build_system: python
