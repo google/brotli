@@ -21,14 +21,3 @@ local_path_override(
     module_name = "brotli",
     path = "..",
 )
-
-maven = use_extension("@rules_jvm_external//:extensions.bzl", "maven")
-maven.install(
-    name = "brotli_maven",
-    artifacts = ["junit:junit:4.13.2"],
-    repositories = [
-        "https://maven.google.com",
-        "https://repo1.maven.org/maven2"
-    ],
-)
-use_repo(maven, "brotli_maven")
