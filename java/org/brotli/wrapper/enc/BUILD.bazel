@@ -37,7 +37,7 @@ java_library(
         "//org/brotli/integration:bundle_helper",
         "//org/brotli/wrapper/common",
         "//org/brotli/wrapper/dec",
-        "@maven//:junit_junit",
+        "@bazel_tools//tools/jdk:TestRunner",
     ],
 )
 
