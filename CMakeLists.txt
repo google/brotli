@@ -13,6 +13,10 @@ project(brotli C)
 option(BUILD_SHARED_LIBS "Build shared libraries" ON)
 set(BROTLI_BUILD_TOOLS ON CACHE BOOL "Build/install CLI tools")
 
+if(APPLE)
+  option(BUILD_FRAMEWORK "Build as Apple Frameworks" OFF)
+endif()
+
 if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
   message(STATUS "Setting build type to Release as none was specified.")
   set(CMAKE_BUILD_TYPE "Release" CACHE STRING "Choose the type of build" FORCE)
@@ -92,6 +96,12 @@ set(BROTLI_LIBRARIES_CORE brotlienc brotlidec brotlicommon)
 set(BROTLI_LIBRARIES ${BROTLI_LIBRARIES_CORE} ${LIBM_LIBRARY})
 mark_as_advanced(BROTLI_LIBRARIES)
 
+set(BROTLI_PUBLIC_HDRS
+  docs/constants.h.3
+  docs/decode.h.3
+  docs/encode.h.3 
+  docs/types.h.3)
+
 if(${CMAKE_SYSTEM_NAME} MATCHES "Linux")
   add_definitions(-DOS_LINUX)
 elseif(${CMAKE_SYSTEM_NAME} MATCHES "FreeBSD")
@@ -107,16 +117,18 @@ if(BROTLI_EMSCRIPTEN)
 endif()
 
 file(GLOB_RECURSE BROTLI_COMMON_SOURCES RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} c/common/*.c)
-add_library(brotlicommon ${BROTLI_COMMON_SOURCES})
+add_library(brotlicommon ${BROTLI_COMMON_SOURCES} ${BROTLI_PUBLIC_HDRS}) 
 
 file(GLOB_RECURSE BROTLI_DEC_SOURCES RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} c/dec/*.c)
-add_library(brotlidec ${BROTLI_DEC_SOURCES})
+add_library(brotlidec ${BROTLI_DEC_SOURCES} ${BROTLI_PUBLIC_HDRS})
 
 file(GLOB_RECURSE BROTLI_ENC_SOURCES RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} c/enc/*.c)
-add_library(brotlienc ${BROTLI_ENC_SOURCES})
+add_library(brotlienc ${BROTLI_ENC_SOURCES} ${BROTLI_PUBLIC_HDRS})
 
 # Older CMake versions does not understand INCLUDE_DIRECTORIES property.
 include_directories(${BROTLI_INCLUDE_DIRS})
+
+set(BROTLI_FULL_VERSION "${BROTLI_ABI_COMPATIBILITY}.${BROTLI_ABI_AGE}.${BROTLI_ABI_REVISION}")
 
 if(BUILD_SHARED_LIBS)
   foreach(lib ${BROTLI_LIBRARIES_CORE})
@@ -126,11 +138,30 @@ if(BUILD_SHARED_LIBS)
   endforeach()
 endif()
 
+if(BUILD_FRAMEWORK)
+  foreach(lib ${BROTLI_LIBRARIES_CORE})
+    set_target_properties(${lib} PROPERTIES
+      FRAMEWORK TRUE
+      FRAMEWORK_VERSION "${BROTLI_FULL_VERSION}"
+      PRODUCT_BUNDLE_IDENTIFIER "github.com/google/brotli.${lib}"
+      XCODE_ATTRIBUTE_INSTALL_PATH "@rpath"
+      OUTPUT_NAME "${lib}"
+      XCODE_ATTRIBUTE_CODE_SIGN_IDENTITY ""
+      XCODE_ATTRIBUTE_CODE_SIGNING_ALLOWED "NO"
+      XCODE_ATTRIBUTE_CODE_SIGNING_REQUIRED "NO"
+      PUBLIC_HEADER "${BROTLI_PUBLIC_HDRS}"
+      MACOSX_FRAMEWORK_IDENTIFIER "github.com/google/brotli.${lib}"
+      MACOSX_FRAMEWORK_BUNDLE_VERSION "${BROTLI_FULL_VERSION}"
+      MACOSX_FRAMEWORK_SHORT_VERSION_STRING "${BROTLI_ABI_COMPATIBILITY}"
+      MACOSX_RPATH TRUE)
+  endforeach()
+endif()
+
 foreach(lib ${BROTLI_LIBRARIES_CORE})
   target_link_libraries(${lib} ${LIBM_LIBRARY})
   set_property(TARGET ${lib} APPEND PROPERTY INCLUDE_DIRECTORIES ${BROTLI_INCLUDE_DIRS})
   set_target_properties(${lib} PROPERTIES
-    VERSION "${BROTLI_ABI_COMPATIBILITY}.${BROTLI_ABI_AGE}.${BROTLI_ABI_REVISION}"
+    VERSION "${BROTLI_FULL_VERSION}"
     SOVERSION "${BROTLI_ABI_COMPATIBILITY}")
   if(NOT BROTLI_EMSCRIPTEN)
     set_target_properties(${lib} PROPERTIES POSITION_INDEPENDENT_CODE TRUE)
@@ -174,6 +205,9 @@ if(NOT BROTLI_BUNDLED_MODE)
     ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}"
     LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}"
     RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}"
+    FRAMEWORK DESTINATION "${CMAKE_INSTALL_BINDIR}" COMPONENT runtime OPTIONAL
+    # INCLUDES DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
+    # PUBLIC_HEADER DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
   )
 
   install(
@@ -350,7 +384,7 @@ if (BROTLI_BUILD_TOOLS)
     DESTINATION "${CMAKE_INSTALL_FULL_MANDIR}/man1")
 endif()
 
-install(FILES docs/constants.h.3 docs/decode.h.3 docs/encode.h.3 docs/types.h.3
+install(FILES ${BROTLI_PUBLIC_HDRS}
   DESTINATION "${CMAKE_INSTALL_FULL_MANDIR}/man3")
 
 if (ENABLE_COVERAGE STREQUAL "yes")
