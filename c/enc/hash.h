@@ -39,7 +39,7 @@ typedef struct {
   void* extra[4];
 
   /**
-   * False before the fisrt invocation of HasherSetup (where "extra" memory)
+   * False before the first invocation of HasherSetup (where "extra" memory)
    * is allocated.
    */
   BROTLI_BOOL is_setup_;
