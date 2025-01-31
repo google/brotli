@@ -5,21 +5,26 @@
 
 """Functions to compress and decompress data using the Brotli library."""
 
-import _brotli
+from ._brotli import (
+    # The library version.
+    __version__,
+    # The compression mode.
+    MODE_GENERIC,
+    MODE_TEXT,
+    MODE_FONT,
+    # The Compressor object.
+    Compressor,
+    # The Decompressor object.
+    Decompressor,
+    # Decompress a compressed byte string.
+    decompress,
+    # Raised if compression or decompression fails.
+    error,
+)
 
-# The library version.
-version = __version__ = _brotli.__version__
 
-# The compression mode.
-MODE_GENERIC = _brotli.MODE_GENERIC
-MODE_TEXT = _brotli.MODE_TEXT
-MODE_FONT = _brotli.MODE_FONT
+version = __version__
 
-# The Compressor object.
-Compressor = _brotli.Compressor
-
-# The Decompressor object.
-Decompressor = _brotli.Decompressor
 
 # Compress a byte string.
 def compress(string, mode=MODE_GENERIC, quality=11, lgwin=22, lgblock=0):
@@ -46,12 +51,5 @@ def compress(string, mode=MODE_GENERIC, quality=11, lgwin=22, lgblock=0):
     Raises:
       brotli.error: If arguments are invalid, or compressor fails.
     """
-    compressor = Compressor(mode=mode, quality=quality, lgwin=lgwin,
-                            lgblock=lgblock)
+    compressor = Compressor(mode=mode, quality=quality, lgwin=lgwin, lgblock=lgblock)
     return compressor.process(string) + compressor.finish()
-
-# Decompress a compressed byte string.
-decompress = _brotli.decompress
-
-# Raised if compression or decompression fails.
-error = _brotli.error
