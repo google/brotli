@@ -375,3 +375,44 @@ func TestEncodeDecode(t *testing.T) {
 		}
 	}
 }
+
+func TestEncodeDecodeWithDictionary(t *testing.T) {
+	q := 5
+	l := 4096
+
+	input := make([]byte, l)
+	for i := 0; i < l; i++ {
+		input[i] = byte(i*7 + i*i*5)
+	}
+	// use dictionary same as input
+	pd := NewPreparedDictionary(input, DtRaw, q)
+	defer pd.Close()
+
+	encoded, err := Encode(input, WriterOptions{Quality: q, Dictionary: pd})
+	if err != nil {
+		t.Errorf("Encode: %v", err)
+	}
+	limit := 20
+	if len(encoded) > limit {
+		t.Errorf("Output length exceeds expectations: %d > %d", len(encoded), limit)
+	}
+
+	decoded, err := DecodeWithRawDictionary(encoded, input)
+	if err != nil {
+		t.Errorf("Decode: %v", err)
+	}
+	if !bytes.Equal(decoded, input) {
+		var want string
+		if len(input) > 320 {
+			want = fmt.Sprintf("<%d bytes>", len(input))
+		} else {
+			want = fmt.Sprintf("%q", input)
+		}
+		t.Errorf(""+
+			"Decode content:\n"+
+			"%q\n"+
+			"want:\n"+
+			"%s",
+			decoded, want)
+	}
+}

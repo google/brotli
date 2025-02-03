@@ -20,7 +20,7 @@
 using gflags::ParseCommandLineFlags;
 
 #include "third_party/absl/flags/flag.h"
-#include "third_party/esaxx/sais.hxx"
+#include <sais.hxx>
 
 DEFINE_bool(advanced, false, "Advanced searching mode: finds all longest "
     "matches at positions that are not covered by matches of length at least "

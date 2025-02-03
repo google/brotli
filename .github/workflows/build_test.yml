@@ -47,24 +47,25 @@ jobs:
             build_system: cmake
             c_compiler: clang-15
             cxx_compiler: clang++15
+            os: ubuntu-22.04
 
-          - name: cmake:clang15:asan
+          - name: cmake:clang:asan
             build_system: cmake
             sanitizer: address
-            c_compiler: clang-15
-            cxx_compiler: clang++15
+            c_compiler: clang
+            cxx_compiler: clang++
 
-          - name: cmake:clang15:tsan
+          - name: cmake:clang:tsan
             build_system: cmake
             sanitizer: thread
-            c_compiler: clang-15
-            cxx_compiler: clang++15
+            c_compiler: clang
+            cxx_compiler: clang++
 
-          - name: cmake:clang15:ubsan
+          - name: cmake:clang:ubsan
             build_system: cmake
             sanitizer: undefined
-            c_compiler: clang-15
-            cxx_compiler: clang++-15
+            c_compiler: clang
+            cxx_compiler: clang++
             c_flags: -fno-sanitize-recover=undefined,integer
 
           - name: cmake:qemu-arm-neon-gcc
@@ -98,10 +99,10 @@ jobs:
             cmake_config: Debug
             os: windows-latest
 
-          - name: fuzz:clang15
+          - name: fuzz:clang
             build_system: fuzz
-            c_compiler: clang-15
-            cxx_compiler: clang++15
+            c_compiler: clang
+            cxx_compiler: clang++
 
           # TODO: consider running this combination in docker
           #- name: python2.7:gcc5
@@ -131,11 +132,11 @@ jobs:
           # TODO: consider running this combination in docker
           #- name: python3.8:gcc5
 
-          - name: python3.10:clang15
+          - name: python3.10:clang
             build_system: python
             python_version: "3.10"
-            c_compiler: clang-15
-            cxx_compiler: clang++-15
+            c_compiler: clang
+            cxx_compiler: clang++
 
           - name: python3.10-win
             build_system: python
@@ -266,7 +267,7 @@ jobs:
       if: ${{ matrix.build_system == 'bazel' }}
       run: |
         cd ${GITHUB_WORKSPACE}/${{ matrix.bazel_project }}
-        bazelisk build -c opt ...:all
+        bazelisk build -c opt ...:all --java_runtime_version=remotejdk_21
 
     - name: Fix symlinks for Bazel (Windows)
       if: ${{ matrix.build_system == 'bazel' && runner.os == 'Windows' && matrix.bazel_project == 'java' }}
@@ -311,7 +312,7 @@ jobs:
       run: |
         cd ${GITHUB_WORKSPACE}/${{ matrix.bazel_project }}
         bazelisk query "tests(...)" --output=label > ${RUNNER_TEMP}/tests.lst
-        [ -s ${RUNNER_TEMP}/tests.lst ] && bazelisk test -c opt ...:all
+        [ -s ${RUNNER_TEMP}/tests.lst ] && bazelisk test -c opt ...:all --java_runtime_version=remotejdk_21
         bazelisk clean
 
     - name: Build / Test with Maven
@@ -324,7 +325,7 @@ jobs:
         # cd integration
         # mvn -B verify
 
-    - uses: actions/setup-python@0a5c61591373683505ea898e09a3ea4f39ef2b9c # v5.0.0
+    - uses: actions/setup-python@0b93645e9fea7318ecaed2b359559ac225c90a2b # v5.3.0
       if: ${{ matrix.build_system == 'python' }}
       with:
         python-version: ${{ matrix.python_version }}
