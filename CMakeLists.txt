@@ -8,7 +8,7 @@ cmake_minimum_required(VERSION 3.15)
 # This policy is set because we can't provide "VERSION" in "project" command.
 # Use `cmake --help-policy CMP0048` for more information.
 cmake_policy(SET CMP0048 NEW)
-project(brotli C)
+project(brotli LANGUAGES C VERSION 1.1.1)
 
 option(BUILD_SHARED_LIBS "Build shared libraries" ON)
 set(BROTLI_BUILD_TOOLS ON CACHE BOOL "Build/install CLI tools")
@@ -108,12 +108,15 @@ endif()
 
 file(GLOB_RECURSE BROTLI_COMMON_SOURCES RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} c/common/*.c)
 add_library(brotlicommon ${BROTLI_COMMON_SOURCES})
+target_include_directories(brotlicommon PUBLIC $<INSTALL_INTERFACE:./install>)
 
 file(GLOB_RECURSE BROTLI_DEC_SOURCES RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} c/dec/*.c)
 add_library(brotlidec ${BROTLI_DEC_SOURCES})
+target_include_directories(brotlidec PUBLIC $<INSTALL_INTERFACE:./install>)
 
 file(GLOB_RECURSE BROTLI_ENC_SOURCES RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} c/enc/*.c)
 add_library(brotlienc ${BROTLI_ENC_SOURCES})
+target_include_directories(brotlienc PUBLIC $<INSTALL_INTERFACE:./install>)
 
 # Older CMake versions does not understand INCLUDE_DIRECTORIES property.
 include_directories(${BROTLI_INCLUDE_DIRS})
@@ -162,6 +165,31 @@ endif()
 
 # Installation
 if(NOT BROTLI_BUNDLED_MODE)
+
+  set(BROTLI_GENERATED_DIR "${CMAKE_CURRENT_BINARY_DIR}/generated")
+  set(BROTLI_VERSION_CONFIG "${BROTLI_GENERATED_DIR}/${PROJECT_NAME}ConfigVersion.cmake")
+  set(BROTLI_PROJECT_CONFIG "${BROTLI_GENERATED_DIR}/${PROJECT_NAME}Config.cmake")
+  set(BROTLI_TARGETS_EXPORT_NAME "${PROJECT_NAME}Targets")
+  set(BROTLI_CONFIG_INSTALL_DIR "lib/cmake/${PROJECT_NAME}")
+  set(BROTLI_NAMESPACE "${PROJECT_NAME}::")
+  set(BROTLI_VERSION ${PROJECT_VERSION})
+
+  include(CMakePackageConfigHelpers)
+  write_basic_package_version_file(
+    "${BROTLI_VERSION_CONFIG}" VERSION ${BROTLI_VERSION} COMPATIBILITY SameMajorVersion
+  )
+  configure_file("${CMAKE_CURRENT_SOURCE_DIR}/cmake/config.cmake.in" "${BROTLI_PROJECT_CONFIG}" @ONLY)
+
+# Install cmake config files
+  install(
+    FILES "${BROTLI_PROJECT_CONFIG}" "${BROTLI_VERSION_CONFIG}"
+    DESTINATION "${BROTLI_CONFIG_INSTALL_DIR}")
+
+  install(
+    EXPORT "${BROTLI_TARGETS_EXPORT_NAME}"
+    NAMESPACE "${BROTLI_NAMESPACE}"
+    DESTINATION "${BROTLI_CONFIG_INSTALL_DIR}")
+
   if (BROTLI_BUILD_TOOLS)
     install(
       TARGETS brotli
@@ -171,6 +199,7 @@ if(NOT BROTLI_BUNDLED_MODE)
 
   install(
     TARGETS ${BROTLI_LIBRARIES_CORE}
+    EXPORT ${BROTLI_TARGETS_EXPORT_NAME}
     ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}"
     LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}"
     RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}"
