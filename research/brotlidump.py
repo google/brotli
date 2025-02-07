@@ -519,7 +519,7 @@ class Enumerator(WithExtra):
     extraTable is a class variable that contains
     the extraBits of the symbols from 0
     value0 contains the value of symbol 0
-    encodings is not neccessary, but allowed.
+    encodings is not necessary, but allowed.
     Note: place for FixedCode to make sure extraBits works
     """
     def __init__(self, name=None, **args):
@@ -592,7 +592,7 @@ class PrefixCodeHeader(WithExtra):
                 map(str, lengths[index:index+5]))
             )
 
-class TreeShapeAlhabet(BoolCode):
+class TreeShapeAlphabet(BoolCode):
     """The bit used to indicate if four word code is "deep" or "wide"
     """
     name = 'SHAPE'
@@ -1452,7 +1452,7 @@ class Layout:
             del alphabet.mnemonic
             if numberOfSymbols==4:
                 #read tree shape to redefine lengths
-                lengths = self.verboseRead(TreeShapeAlhabet())
+                lengths = self.verboseRead(TreeShapeAlphabet())
             #construct the alphabet prefix code
             alphabet.setLength(dict(zip(table, lengths)))
         return alphabet
@@ -1722,7 +1722,7 @@ class Layout:
 
     def contextMap(self, kind):
         """Read context maps
-        Returns the number of differnt values on the context map
+        Returns the number of different values on the context map
         (In other words, the number of prefix trees)
         """
         NTREES = self.verboseRead(TypeCountAlphabet(

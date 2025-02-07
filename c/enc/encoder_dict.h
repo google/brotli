@@ -30,7 +30,7 @@ Dictionary hierarchy for Encoder:
 ---BrotliEncoderDictionary [up to 64x]
    = for each context, precomputed static dictionary with words + transforms
 
-Dictionary hiearchy from common: similar, but without precomputed hashes
+Dictionary hierarchy from common: similar, but without precomputed hashes
 -BrotliSharedDictionary
 --BrotliDictionary [up to 64x]
 --BrotliTransforms [up to 64x]

@@ -140,7 +140,7 @@ void BrotliSplitBlock(MemoryManager* m,
     CopyLiteralsToByteArray(cmds, num_commands, data, pos, mask, literals);
     /* Create the block split on the array of literals.
      * Literal histograms can have alphabet size up to 256.
-     * Though, to accomodate context modeling, less than half of maximum size
+     * Though, to accommodate context modeling, less than half of maximum size
      * is allowed. */
     SplitByteVectorLiteral(
         m, literals, literals_count,
@@ -150,7 +150,7 @@ void BrotliSplitBlock(MemoryManager* m,
     if (BROTLI_IS_OOM(m)) return;
     BROTLI_FREE(m, literals);
     /* NB: this might be a good place for injecting extra splitting without
-     *     increasing encoder complexity; however, output parition would be less
+     *     increasing encoder complexity; however, output partition would be less
      *     optimal than one produced with forced splitting inside
      *     SplitByteVector (FindBlocks / ClusterBlocks). */
   }

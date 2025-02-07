@@ -21,8 +21,8 @@ using gflags::ParseCommandLineFlags;
 #include "third_party/absl/flags/flag.h"
 #include "read_dist.h"
 
-DEFINE_int32(height, 1000, "Height of the resulting histogam.");
-DEFINE_int32(width, 8000, "Width of the resulting histogam.");
+DEFINE_int32(height, 1000, "Height of the resulting histogram.");
+DEFINE_int32(width, 8000, "Width of the resulting histogram.");
 DEFINE_int32(size, 1e8, "Size of the compressed file.");
 DEFINE_int32(brotli_window, -1, "Size of brotli window in bits.");
 DEFINE_uint64(min_distance, 0, "Minimum distance.");
