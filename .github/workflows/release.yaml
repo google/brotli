@@ -53,7 +53,7 @@ jobs:
         submodules: false
         fetch-depth: 1
 
-    - uses: actions/cache@6849a6489940f00c2f30c0fb92c6274307ccb58a # v4.1.2
+    - uses: actions/cache@0c907a75c2c80ebcb7f088228285e798b750cf8f # v4.2.1
       id: cache-vcpkg
       with:
         path: vcpkg
