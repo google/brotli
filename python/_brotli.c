@@ -19,12 +19,14 @@ void set_brotli_exception(const char *message) {
       PyErr_Print();
       return;
   }
+  Py_DECREF(module);
   PyObject *obj = PyObject_GetAttrString(module, "error");
   if (!obj) {
       PyErr_Print();
       return;
   }
   PyErr_SetString(obj, message);
+  Py_DECREF(obj);
   return;
 }
 
