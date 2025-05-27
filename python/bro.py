@@ -165,7 +165,7 @@ def main(args=None):
         # redirect the write according to symlink.
         if os.path.exists(options.outfile) and not options.force:
             parser.error(('Target --outfile=%s already exists, '
-                          'but --force was not requested.') % (outfile,))
+                          'but --force was not requested.') % (options.outfile,))
         outfile = open(options.outfile, 'wb')
         did_open_outfile = True
     else:
