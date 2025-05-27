@@ -19,7 +19,6 @@ from distutils import errors
 from distutils import dep_util
 from distutils import log
 
-import pkgconfig
 
 
 CURR_DIR = os.path.abspath(os.path.dirname(os.path.realpath(__file__)))
@@ -189,6 +188,8 @@ PY_MODULES = ['brotli']
 USE_SYSTEM_BROTLI = bool_from_environ('USE_SYSTEM_BROTLI')
 
 if USE_SYSTEM_BROTLI:
+    import pkgconfig
+    
     REQUIRED_BROTLI_SYSTEM_LIBRARIES = ["libbrotlicommon", "libbrotlienc", "libbrotlidec"]
 
     define_macros = []
