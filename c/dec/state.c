@@ -180,7 +180,7 @@ BROTLI_BOOL BrotliDecoderHuffmanTreeGroupInit(BrotliDecoderState* s,
   group->alphabet_size_limit = (uint16_t)alphabet_size_limit;
   group->num_htrees = (uint16_t)ntrees;
   group->htrees = p;
-  group->codes = (HuffmanCode*)(&p[ntrees]);
+  group->codes = p ? (HuffmanCode*)(&p[ntrees]) : NULL;
   return !!p;
 }
 
