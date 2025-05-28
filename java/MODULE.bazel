@@ -11,10 +11,10 @@ module(
     repo_name = "org_brotli_java",
 )
 
-bazel_dep(name = "rules_java", version = "8.6.3")
-bazel_dep(name = "rules_jvm_external", version = "6.6")
-bazel_dep(name = "rules_kotlin", version = "2.1.0")
-bazel_dep(name = "platforms", version = "0.0.10")
+bazel_dep(name = "rules_java", version = "8.12.0")
+bazel_dep(name = "rules_jvm_external", version = "6.7")
+bazel_dep(name = "rules_kotlin", version = "2.1.4")
+bazel_dep(name = "platforms", version = "0.0.11")
 
 bazel_dep(name = "brotli", version = "1.1.0", repo_name = "org_brotli")
 local_path_override(
