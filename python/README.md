@@ -24,7 +24,7 @@ should set the `USE_SYSTEM_BROTLI=1` environment variable when building the whee
 
 Brotli is found via the `pkg-config` utility. Moreover, you must build all 3 `brotlicommon`, `brotlienc`, and `brotlidec`
 components. If you're installing brotli from the package manager, you need the development package, like this on Fedora:
-    
+
     $ dnf install brotli brotli-devel
 
 ### Development
