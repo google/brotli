@@ -28,25 +28,16 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # TODO: consider running this combination in docker
-          #- name: cmake:gcc4.4
-
-          # TODO: consider running this combination in docker
-          #- name: cmake:gcc7
-
-          - name: cmake:gcc9
+          - name: cmake:gcc-old
             build_system: cmake
-            c_compiler: gcc-9
-            cxx_compiler: g++-9
-            os: ubuntu-20.04
+            c_compiler: gcc
+            cxx_compiler: g++
+            os: ubuntu-22.04
 
-          # TODO: consider running this combination in docker
-          #- name: cmake:clang3.5
-
-          - name: cmake:clang15
+          - name: cmake:clang-old
             build_system: cmake
-            c_compiler: clang-15
-            cxx_compiler: clang++15
+            c_compiler: clang
+            cxx_compiler: clang
             os: ubuntu-22.04
 
           - name: cmake:clang:asan
@@ -103,34 +94,6 @@ jobs:
             build_system: fuzz
             c_compiler: clang
             cxx_compiler: clang++
-
-          # TODO: consider running this combination in docker
-          #- name: python2.7:gcc5
-
-          # TODO: consider running this combination in docker
-          #- name: python27:clang9
-          #  build_system: python
-          #  c_compiler: clang-9
-          #  python_version: 2.7
-          #  cxx_compiler: clang++-9
-          #  os: ubuntu-20.04
-
-          # TODO: consider running this combination in docker
-          #- name: python27-win
-          #  build_system: python
-          #  python_version: 2.7
-          #  # TODO: investigate why win-builds can't run tests
-          #  py_setuptools_cmd: build_ext
-          #  os: windows-2016
-
-          # TODO: consider running this combination in docker
-          #- name: python3.6:gcc5
-
-          # TODO: consider running this combination in docker
-          #- name: python3.7:gcc5
-
-          # TODO: consider running this combination in docker
-          #- name: python3.8:gcc5
 
           - name: python3.10:clang
             build_system: python
@@ -195,10 +158,11 @@ jobs:
           #  bazel_project: go
           #  os: windows-latest
 
-          - name: bazel-win:java
-            build_system: bazel
-            bazel_project: java
-            os: windows-latest
+          # TODO(eustas): restore when kotlin is fixed
+          #- name: bazel-win:java
+          #  build_system: bazel
+          #  bazel_project: java
+          #  os: windows-latest
 
           - name: bazel-win:research
             build_system: bazel
@@ -325,7 +289,7 @@ jobs:
         # cd integration
         # mvn -B verify
 
-    - uses: actions/setup-python@0b93645e9fea7318ecaed2b359559ac225c90a2b # v5.3.0
+    - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
       if: ${{ matrix.build_system == 'python' }}
       with:
         python-version: ${{ matrix.python_version }}

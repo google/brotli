@@ -207,7 +207,7 @@ final class Decode {
     /* Change the meaning of flag. Before that step it means "decoder must be capable of reading
      * "large-window" brotli stream. After this step it means that "large-window" feature
      * is actually detected. Despite the window size could be same as before (lgwin = 10..24),
-     * encoded distances are allowed to be much greater, thus bigger dictinary could be used. */
+     * encoded distances are allowed to be much greater, thus bigger dictionary could be used. */
     final int largeWindowEnabled = s.isLargeWindow;
     s.isLargeWindow = 0;
 
