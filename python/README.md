@@ -17,6 +17,16 @@ following command from this directory:
 
     $ make install
 
+If you already have native Brotli installed on your system and want to use this one instead of the vendored sources, you
+should set the `USE_SYSTEM_BROTLI=1` environment variable when building the wheel, like this:
+
+    $ USE_SYSTEM_BROTLI=1 pip install brotli --no-binary brotli
+
+Brotli is found via the `pkg-config` utility. Moreover, you must build all 3 `brotlicommon`, `brotlienc`, and `brotlidec`
+components. If you're installing brotli from the package manager, you need the development package, like this on Fedora:
+
+    $ dnf install brotli brotli-devel
+
 ### Development
 
 You may run the following commands from this directory:
