@@ -1,4 +1,4 @@
-# Copyright 2016 The Brotli Authors. All rights reserved.
+# Copyright 2025 The Brotli Authors. All rights reserved.
 #
 # Distributed under MIT license.
 # See file LICENSE for detail or copy at https://opensource.org/licenses/MIT
