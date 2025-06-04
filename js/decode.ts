@@ -27,7 +27,7 @@ function log2floor(i: number): number {
   let step = 16;
   let v: number = i;
   while (step > 0) {
-    let next: number = v >>> step;
+    let next: number = v >> step;
     if (next !== 0) {
       result += step;
       v = next;
@@ -57,16 +57,16 @@ function unpackCommandLookupTable(cmdLookup: Int16Array): void {
     copyLengthOffsets[i + 1] = copyLengthOffsets[i] + (1 << COPY_LENGTH_N_BITS[i]);
   }
   for (let cmdCode = 0; cmdCode < 704; ++cmdCode) {
-    let rangeIdx: number = cmdCode >>> 6;
+    let rangeIdx: number = cmdCode >> 6;
     let distanceContextOffset: number = -4;
     if (rangeIdx >= 2) {
       rangeIdx -= 2;
       distanceContextOffset = 0;
     }
-    const insertCode: number = (((0x29850 >>> (rangeIdx * 2)) & 0x3) << 3) | ((cmdCode >>> 3) & 7);
-    const copyCode: number = (((0x26244 >>> (rangeIdx * 2)) & 0x3) << 3) | (cmdCode & 7);
+    const insertCode: number = (((0x29850 >> (rangeIdx * 2)) & 0x3) << 3) | ((cmdCode >> 3) & 7);
+    const copyCode: number = (((0x26244 >> (rangeIdx * 2)) & 0x3) << 3) | (cmdCode & 7);
     const copyLengthOffset: number = copyLengthOffsets[copyCode];
-    const distanceContext: number = distanceContextOffset + (copyLengthOffset > 4 ? 3 : (copyLengthOffset - 2));
+    const distanceContext: number = distanceContextOffset + Math.min(copyLengthOffset, 5) - 2;
     const index: number = cmdCode * 4;
     cmdLookup[index] = INSERT_LENGTH_N_BITS[insertCode] | (COPY_LENGTH_N_BITS[copyCode] << 8);
     cmdLookup[index + 1] = insertLengthOffsets[insertCode];
@@ -590,7 +590,11 @@ function readNextMetablockHeader(s: State): void {
   }
   if ((s.isUncompressed !== 0) || (s.isMetadata !== 0)) {
     jumpToByteBoundary(s);
-    s.runningState = (s.isMetadata !== 0) ? 5 : 6;
+    if (s.isMetadata === 0) {
+      s.runningState = 6;
+    } else {
+      s.runningState = 5;
+    }
   } else {
     s.runningState = 3;
   }
@@ -782,7 +786,7 @@ function doUseDictionary(s: State, fence: number): void {
     let offset: number = offsets[wordLength];
     const mask: number = (1 << shift) - 1;
     const wordIdx: number = address & mask;
-    const transformIdx: number = address >>> shift;
+    const transformIdx: number = address >> shift;
     offset += wordIdx * wordLength;
     const transforms: Transforms = RFC_TRANSFORMS;
     if (transformIdx >= transforms.numTransforms) {
@@ -802,7 +806,7 @@ function doUseDictionary(s: State, fence: number): void {
 function initializeCompoundDictionary(s: State): void {
   s.cdBlockMap = new Int8Array(256);
   let blockBits = 8;
-  while (((s.cdTotalSize - 1) >>> blockBits) !== 0) {
+  while (((s.cdTotalSize - 1) >> blockBits) !== 0) {
     blockBits++;
   }
   blockBits -= 8;
@@ -813,7 +817,7 @@ function initializeCompoundDictionary(s: State): void {
     while (s.cdChunkOffsets[index + 1] < cursor) {
       index++;
     }
-    s.cdBlockMap[cursor >>> blockBits] = index;
+    s.cdBlockMap[cursor >> blockBits] = index;
     cursor += 1 << blockBits;
   }
 }
@@ -821,7 +825,7 @@ function initializeCompoundDictionaryCopy(s: State, address: number, length: num
   if (s.cdBlockBits === -1) {
     initializeCompoundDictionary(s);
   }
-  let index: number = s.cdBlockMap[address >>> s.cdBlockBits];
+  let index: number = s.cdBlockMap[address >> s.cdBlockBits];
   while (address >= s.cdChunkOffsets[index + 1]) {
     index++;
   }
@@ -850,7 +854,7 @@ function copyFromCompoundDictionary(s: State, fence: number): number {
     if (length > space) {
       length = space;
     }
-    s.ringBuffer.set(s.cdChunks[s.cdBrIndex].slice(s.cdBrOffset, s.cdBrOffset + length), pos);
+    s.ringBuffer.set(s.cdChunks[s.cdBrIndex].subarray(s.cdBrOffset, s.cdBrOffset + length), pos);
     pos += length;
     s.cdBrOffset += length;
     s.cdBrCopied += length;
@@ -894,15 +898,10 @@ function decompress(s: State): void {
         ringBufferMask = s.ringBufferSize - 1;
         ringBuffer = s.ringBuffer;
         continue;
-      // Fallthrough case in switch is intentional.
-      // tslint:disable-next-line:ban-ts-suppressions
-      // @ts-ignore error TS7029: Fallthrough case in switch.
       case 3:
         readMetablockHuffmanCodesAndContextMaps(s);
         s.runningState = 4;
-      // Fallthrough case in switch is intentional.
-      // tslint:disable-next-line:ban-ts-suppressions
-      // @ts-ignore error TS7029: Fallthrough case in switch.
+        continue;
       case 4:
         if (s.metaBlockLength <= 0) {
           s.runningState = 2;
@@ -938,9 +937,7 @@ function decompress(s: State): void {
         s.copyLength = copyLengthOffset + ((copyLengthExtraBits <= 16) ? readFewBits(s, copyLengthExtraBits) : readManyBits(s, copyLengthExtraBits));
         s.j = 0;
         s.runningState = 7;
-      // Fallthrough case in switch is intentional.
-      // tslint:disable-next-line:ban-ts-suppressions
-      // @ts-ignore error TS7029: Fallthrough case in switch.
+        continue;
       case 7:
         if (s.trivialLiteralContext !== 0) {
           while (s.j < s.insertLength) {
@@ -1057,6 +1054,7 @@ function decompress(s: State): void {
         }
         s.j = 0;
         s.runningState = 8;
+        continue;
       case 8:
         let src: number = (s.pos - s.distance) & ringBufferMask;
         let dst: number = s.pos;
@@ -1124,12 +1122,10 @@ function decompress(s: State): void {
       case 6:
         copyUncompressedData(s);
         continue;
-      // Fallthrough case in switch is intentional.
-      // tslint:disable-next-line:ban-ts-suppressions
-      // @ts-ignore error TS7029: Fallthrough case in switch.
       case 12:
         s.ringBufferBytesReady = Math.min(s.pos, s.ringBufferSize);
         s.runningState = 13;
+        continue;
       case 13:
         if (writeRingBuffer(s) === 0) {
           return;
@@ -1323,10 +1319,10 @@ function getNextKey(key: number, len: number): number {
 }
 function replicateValue(table: Int32Array, offset: number, step: number, end: number, item: number): void {
   let pos: number = end;
-  do {
+  while (pos > 0) {
     pos -= step;
     table[offset + pos] = item;
-  } while (pos > 0);
+  }
 }
 function nextTableBitSize(count: Int32Array, len: number, rootBits: number): number {
   let bits: number = len;
@@ -1546,14 +1542,14 @@ function bytesToNibbles(s: State, byteLen: number): void {
 }
 
 const LOOKUP = new Int32Array(2048);
-function unpackLookupTable(lookup: Int32Array, map: string, rle: string): void {
+function unpackLookupTable(lookup: Int32Array, utfMap: string, utfRle: string): void {
   for (let i = 0; i < 256; ++i) {
     lookup[i] = i & 0x3F;
     lookup[512 + i] = i >> 2;
     lookup[1792 + i] = 2 + (i >> 6);
   }
   for (let i = 0; i < 128; ++i) {
-    lookup[1024 + i] = 4 * (map.charCodeAt(i) - 32);
+    lookup[1024 + i] = 4 * (utfMap.charCodeAt(i) - 32);
   }
   for (let i = 0; i < 64; ++i) {
     lookup[1152 + i] = i & 1;
@@ -1562,7 +1558,7 @@ function unpackLookupTable(lookup: Int32Array, map: string, rle: string): void {
   let offset = 1280;
   for (let k = 0; k < 19; ++k) {
     const value: number = k & 3;
-    const rep: number = rle.charCodeAt(k) - 32;
+    const rep: number = utfRle.charCodeAt(k) - 32;
     for (let i = 0; i < rep; ++i) {
       lookup[offset++] = value;
     }
@@ -1678,7 +1674,9 @@ function setData(newData: ByteBuffer, newSizeBits: Int32Array): void {
   }
   const dictionaryOffsets: Int32Array = offsets;
   const dictionarySizeBits: Int32Array = sizeBits;
-  dictionarySizeBits.set(newSizeBits.subarray(0, newSizeBits.length), 0);
+  for (let i = 0; i < newSizeBits.length; ++i) {
+    dictionarySizeBits[i] = newSizeBits[i];
+  }
   let pos = 0;
   const limit: number = newData.length;
   for (let i = 0; i < newSizeBits.length; ++i) {
