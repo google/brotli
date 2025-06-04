@@ -98,8 +98,6 @@ elseif(${CMAKE_SYSTEM_NAME} MATCHES "FreeBSD")
   add_definitions(-DOS_FREEBSD)
 elseif(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
   add_definitions(-DOS_MACOSX)
-  set(CMAKE_MACOS_RPATH TRUE)
-  set(CMAKE_INSTALL_NAME_DIR "${CMAKE_INSTALL_FULL_LIBDIR}")
 endif()
 
 if(BROTLI_EMSCRIPTEN)
