@@ -135,11 +135,12 @@ final class Decode {
   }
 
   private static int log2floor(int i) {
+    // REQUIRED: i > 0
     int result = -1;
     int step = 16;
     int v = i;
     while (step > 0) {
-      int next = v >>> step;
+      int next = v >> step;
       if (next != 0) {
         result += step;
         v = next;
@@ -175,18 +176,17 @@ final class Decode {
     }
 
     for (int cmdCode = 0; cmdCode < NUM_COMMAND_CODES; ++cmdCode) {
-      int rangeIdx = cmdCode >>> 6;
+      int rangeIdx = cmdCode >> 6;
       /* -4 turns any regular distance code to negative. */
       int distanceContextOffset = -4;
       if (rangeIdx >= 2) {
         rangeIdx -= 2;
         distanceContextOffset = 0;
       }
-      final int insertCode = (((0x29850 >>> (rangeIdx * 2)) & 0x3) << 3) | ((cmdCode >>> 3) & 7);
-      final int copyCode = (((0x26244 >>> (rangeIdx * 2)) & 0x3) << 3) | (cmdCode & 7);
+      final int insertCode = (((0x29850 >> (rangeIdx * 2)) & 0x3) << 3) | ((cmdCode >> 3) & 7);
+      final int copyCode = (((0x26244 >> (rangeIdx * 2)) & 0x3) << 3) | (cmdCode & 7);
       final int copyLengthOffset = copyLengthOffsets[copyCode];
-      final int distanceContext =
-          distanceContextOffset + (copyLengthOffset > 4 ? 3 : (copyLengthOffset - 2));
+      final int distanceContext = distanceContextOffset + Utils.min(copyLengthOffset, 5) - 2;
       final int index = cmdCode * 4;
       cmdLookup[index + 0] =
           (short)
@@ -391,7 +391,7 @@ final class Decode {
     }
     offset += sym;
     final int mask = (1 << bits) - 1;
-    offset += (v & mask) >>> HUFFMAN_TABLE_BITS;
+    offset += Utils.shr32(v & mask, HUFFMAN_TABLE_BITS);
     s.bitOffset += ((tableGroup[offset] >> 16) + HUFFMAN_TABLE_BITS);
     return tableGroup[offset] & 0xFFFF;
   }
@@ -726,7 +726,7 @@ final class Decode {
     final byte[] newBuffer = new byte[ringBufferSizeWithSlack];
     final byte[] oldBuffer = s.ringBuffer;
     if (oldBuffer.length != 0) {
-      System.arraycopy(oldBuffer, 0, newBuffer, 0, s.ringBufferSize);
+      Utils.copyBytes(newBuffer, 0, oldBuffer, 0, s.ringBufferSize);
     }
     s.ringBuffer = newBuffer;
     s.ringBufferSize = newSize;
@@ -750,7 +750,11 @@ final class Decode {
     }
     if ((s.isUncompressed != 0) || (s.isMetadata != 0)) {
       BitReader.jumpToByteBoundary(s);
-      s.runningState = (s.isMetadata != 0) ? READ_METADATA : COPY_UNCOMPRESSED;
+      if (s.isMetadata == 0) {
+        s.runningState = COPY_UNCOMPRESSED;
+      } else {
+        s.runningState = READ_METADATA;
+      }
     } else {
       s.runningState = COMPRESSED_BLOCK_START;
     }
@@ -838,7 +842,7 @@ final class Decode {
     int i = 0;
     while (i < s.numLiteralBlockTypes) {
       /* Ensure that less than 256 bits read between readMoreInput. */
-      final int limit = Math.min(i + 96, s.numLiteralBlockTypes);
+      final int limit = Utils.min(i + 96, s.numLiteralBlockTypes);
       while (i < limit) {
         BitReader.fillBitWindow(s);
         s.contextModes[i] = (byte) BitReader.readFewBits(s, 2);
@@ -883,7 +887,7 @@ final class Decode {
 
     s.contextMapSlice = 0;
     s.distContextMapSlice = 0;
-    s.contextLookupOffset1 = s.contextModes[0] * 512;
+    s.contextLookupOffset1 = (int) s.contextModes[0] * 512;
     s.contextLookupOffset2 = s.contextLookupOffset1 + 256;
     s.literalTreeIdx = 0;
     s.commandTreeIdx = 0;
@@ -906,7 +910,7 @@ final class Decode {
       return;
     }
 
-    final int chunkLength = Math.min(s.ringBufferSize - s.pos, s.metaBlockLength);
+    final int chunkLength = Utils.min(s.ringBufferSize - s.pos, s.metaBlockLength);
     BitReader.copyRawBytes(s, ringBuffer, s.pos, chunkLength);
     s.metaBlockLength -= chunkLength;
     s.pos += chunkLength;
@@ -921,12 +925,12 @@ final class Decode {
   }
 
   private static int writeRingBuffer(State s) {
-    final int toWrite = Math.min(s.outputLength - s.outputUsed,
+    final int toWrite = Utils.min(s.outputLength - s.outputUsed,
         s.ringBufferBytesReady - s.ringBufferBytesWritten);
     // TODO(eustas): DCHECK(toWrite >= 0)
     if (toWrite != 0) {
-      System.arraycopy(s.ringBuffer, s.ringBufferBytesWritten, s.output,
-          s.outputOffset + s.outputUsed, toWrite);
+      Utils.copyBytes(s.output, s.outputOffset + s.outputUsed, s.ringBuffer,
+          s.ringBufferBytesWritten, s.ringBufferBytesWritten + toWrite);
       s.outputUsed += toWrite;
       s.ringBufferBytesWritten += toWrite;
     }
@@ -954,7 +958,7 @@ final class Decode {
   private static int calculateFence(State s) {
     int result = s.ringBufferSize;
     if (s.isEager != 0) {
-      result = Math.min(result, s.ringBufferBytesWritten + s.outputLength - s.outputUsed);
+      result = Utils.min(result, s.ringBufferBytesWritten + s.outputLength - s.outputUsed);
     }
     return result;
   }
@@ -981,7 +985,7 @@ final class Decode {
       int offset = Dictionary.offsets[wordLength];
       final int mask = (1 << shift) - 1;
       final int wordIdx = address & mask;
-      final int transformIdx = address >>> shift;
+      final int transformIdx = address >> shift;
       offset += wordIdx * wordLength;
       final Transform.Transforms transforms = Transform.RFC_TRANSFORMS;
       if (transformIdx >= transforms.numTransforms) {
@@ -1004,7 +1008,7 @@ final class Decode {
     s.cdBlockMap = new byte[1 << CD_BLOCK_MAP_BITS];
     int blockBits = CD_BLOCK_MAP_BITS;
     // If this function is executed, then s.cdTotalSize > 0.
-    while (((s.cdTotalSize - 1) >>> blockBits) != 0) {
+    while (((s.cdTotalSize - 1) >> blockBits) != 0) {
       blockBits++;
     }
     blockBits -= CD_BLOCK_MAP_BITS;
@@ -1015,7 +1019,7 @@ final class Decode {
       while (s.cdChunkOffsets[index + 1] < cursor) {
         index++;
       }
-      s.cdBlockMap[cursor >>> blockBits] = (byte) index;
+      s.cdBlockMap[cursor >> blockBits] = (byte) index;
       cursor += 1 << blockBits;
     }
   }
@@ -1024,7 +1028,7 @@ final class Decode {
     if (s.cdBlockBits == -1) {
       initializeCompoundDictionary(s);
     }
-    int index = (int) s.cdBlockMap[address >>> s.cdBlockBits];
+    int index = (int) s.cdBlockMap[address >> s.cdBlockBits];
     while (address >= s.cdChunkOffsets[index + 1]) {
       index++;
     }
@@ -1112,8 +1116,8 @@ final class Decode {
         case COMPRESSED_BLOCK_START:
           readMetablockHuffmanCodesAndContextMaps(s);
           s.runningState = MAIN_LOOP;
+          continue;
 
-        // fall through
         case MAIN_LOOP:
           if (s.metaBlockLength <= 0) {
             s.runningState = BLOCK_START;
@@ -1143,8 +1147,8 @@ final class Decode {
 
           s.j = 0;
           s.runningState = INSERT_LOOP;
+          continue;
 
-        // fall through
         case INSERT_LOOP:
           if (s.trivialLiteralContext != 0) {
             while (s.j < s.insertLength) {
@@ -1253,8 +1257,8 @@ final class Decode {
           }
           s.j = 0;
           s.runningState = COPY_LOOP;
+          continue;
 
-        // fall through
         case COPY_LOOP:
           int src = (s.pos - s.distance) & ringBufferMask;
           int dst = s.pos;
@@ -1325,10 +1329,10 @@ final class Decode {
           continue;
 
         case INIT_WRITE:
-          s.ringBufferBytesReady = Math.min(s.pos, s.ringBufferSize);
+          s.ringBufferBytesReady = Utils.min(s.pos, s.ringBufferSize);
           s.runningState = WRITE;
+          continue;
 
-        // fall through
         case WRITE:
           if (writeRingBuffer(s) == 0) {
             // Output buffer is full.

@@ -152,11 +152,10 @@ jobs:
             bazel_project: .
             os: windows-latest
 
-          # TODO: use single dll on windows, otherwise it fails to link
-          #- name: bazel-win:go
-          #  build_system: bazel
-          #  bazel_project: go
-          #  os: windows-latest
+          - name: bazel-win:go
+            build_system: bazel
+            bazel_project: go
+            os: windows-latest
 
           # TODO(eustas): restore when kotlin is fixed
           #- name: bazel-win:java

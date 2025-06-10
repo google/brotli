@@ -108,10 +108,10 @@ final class BitReader {
       // Same as doFillBitWindow. JVM fails to inline it.
       if (BITNESS == 64) {
         s.accumulator64 = ((long) s.intBuffer[s.halfOffset++] << HALF_BITNESS)
-            | (s.accumulator64 >>> HALF_BITNESS);
+            | Utils.shr64(s.accumulator64, HALF_BITNESS);
       } else {
         s.accumulator32 = ((int) s.shortBuffer[s.halfOffset++] << HALF_BITNESS)
-            | (s.accumulator32 >>> HALF_BITNESS);
+            | Utils.shr32(s.accumulator32, HALF_BITNESS);
       }
       s.bitOffset -= HALF_BITNESS;
     }
@@ -123,19 +123,19 @@ final class BitReader {
     }
     if (BITNESS == 64) {
       s.accumulator64 = ((long) s.intBuffer[s.halfOffset++] << HALF_BITNESS)
-          | (s.accumulator64 >>> HALF_BITNESS);
+          | Utils.shr64(s.accumulator64, HALF_BITNESS);
     } else {
       s.accumulator32 = ((int) s.shortBuffer[s.halfOffset++] << HALF_BITNESS)
-          | (s.accumulator32 >>> HALF_BITNESS);
+          | Utils.shr32(s.accumulator32, HALF_BITNESS);
     }
     s.bitOffset -= HALF_BITNESS;
   }
 
   static int peekBits(State s) {
     if (BITNESS == 64) {
-      return (int) (s.accumulator64 >>> s.bitOffset);
+      return (int) Utils.shr64(s.accumulator64, s.bitOffset);
     } else {
-      return s.accumulator32 >>> s.bitOffset;
+      return Utils.shr32(s.accumulator32, s.bitOffset);
     }
   }
 
@@ -229,11 +229,11 @@ final class BitReader {
     }
 
     // Get data from shadow buffer with "sizeof(int)" granularity.
-    final int copyNibbles = Math.min(halfAvailable(s), len >> LOG_HALF_SIZE);
+    final int copyNibbles = Utils.min(halfAvailable(s), len >> LOG_HALF_SIZE);
     if (copyNibbles > 0) {
       final int readOffset = s.halfOffset << LOG_HALF_SIZE;
       final int delta = copyNibbles << LOG_HALF_SIZE;
-      System.arraycopy(s.byteBuffer, readOffset, data, pos, delta);
+      Utils.copyBytes(data, pos, s.byteBuffer, readOffset, readOffset + delta);
       pos += delta;
       len -= delta;
       s.halfOffset += copyNibbles;

@@ -122,4 +122,16 @@ final class Utils {
     boolean isLongExpensive = Boolean.parseBoolean(System.getProperty("BROTLI_32_BIT_CPU"));
     return isLongExpensive ? 5 : 6;
   }
+
+  static int shr32(int x, int y) {
+    return x >>> y;
+  }
+
+  static long shr64(long x, int y) {
+    return x >>> y;
+  }
+
+  static int min(int a, int b) {
+    return Math.min(a, b);
+  }
 }

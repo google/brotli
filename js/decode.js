@@ -49,7 +49,7 @@ let makeBrotliDecode = () => {
     let /** @type {number} */ step = 16;
     let /** @type {number} */ v = i;
     while (step > 0) {
-      let /** @type {number} */ next = v >>> step;
+      let /** @type {number} */ next = v >> step;
       if (next !== 0) {
         result += step;
         v = next;
@@ -95,16 +95,16 @@ let makeBrotliDecode = () => {
       copyLengthOffsets[i + 1] = copyLengthOffsets[i] + (1 << COPY_LENGTH_N_BITS[i]);
     }
     for (let /** @type {number} */ cmdCode = 0; cmdCode < 704; ++cmdCode) {
-      let /** @type {number} */ rangeIdx = cmdCode >>> 6;
+      let /** @type {number} */ rangeIdx = cmdCode >> 6;
       let /** @type {number} */ distanceContextOffset = -4;
       if (rangeIdx >= 2) {
         rangeIdx -= 2;
         distanceContextOffset = 0;
       }
-      const /** @type {number} */ insertCode = (((0x29850 >>> (rangeIdx * 2)) & 0x3) << 3) | ((cmdCode >>> 3) & 7);
-      const /** @type {number} */ copyCode = (((0x26244 >>> (rangeIdx * 2)) & 0x3) << 3) | (cmdCode & 7);
+      const /** @type {number} */ insertCode = (((0x29850 >> (rangeIdx * 2)) & 0x3) << 3) | ((cmdCode >> 3) & 7);
+      const /** @type {number} */ copyCode = (((0x26244 >> (rangeIdx * 2)) & 0x3) << 3) | (cmdCode & 7);
       const /** @type {number} */ copyLengthOffset = copyLengthOffsets[copyCode];
-      const /** @type {number} */ distanceContext = distanceContextOffset + (copyLengthOffset > 4 ? 3 : (copyLengthOffset - 2));
+      const /** @type {number} */ distanceContext = distanceContextOffset + Math.min(copyLengthOffset, 5) - 2;
       const /** @type {number} */ index = cmdCode * 4;
       cmdLookup[index] = INSERT_LENGTH_N_BITS[insertCode] | (COPY_LENGTH_N_BITS[copyCode] << 8);
       cmdLookup[index + 1] = insertLengthOffsets[insertCode];
@@ -751,7 +751,11 @@ let makeBrotliDecode = () => {
     }
     if ((s.isUncompressed !== 0) || (s.isMetadata !== 0)) {
       jumpToByteBoundary(s);
-      s.runningState = (s.isMetadata !== 0) ? 5 : 6;
+      if (s.isMetadata === 0) {
+        s.runningState = 6;
+      } else {
+        s.runningState = 5;
+      }
     } else {
       s.runningState = 3;
     }
@@ -982,7 +986,7 @@ let makeBrotliDecode = () => {
       let /** @type {number} */ offset = offsets[wordLength];
       const /** @type {number} */ mask = (1 << shift) - 1;
       const /** @type {number} */ wordIdx = address & mask;
-      const /** @type {number} */ transformIdx = address >>> shift;
+      const /** @type {number} */ transformIdx = address >> shift;
       offset += wordIdx * wordLength;
       const /** @type {!Transforms} */ transforms = RFC_TRANSFORMS;
       if (transformIdx >= transforms.numTransforms) {
@@ -1006,7 +1010,7 @@ let makeBrotliDecode = () => {
   function initializeCompoundDictionary(s) {
     s.cdBlockMap = new Int8Array(256);
     let /** @type {number} */ blockBits = 8;
-    while (((s.cdTotalSize - 1) >>> blockBits) !== 0) {
+    while (((s.cdTotalSize - 1) >> blockBits) !== 0) {
       blockBits++;
     }
     blockBits -= 8;
@@ -1017,7 +1021,7 @@ let makeBrotliDecode = () => {
       while (s.cdChunkOffsets[index + 1] < cursor) {
         index++;
       }
-      s.cdBlockMap[cursor >>> blockBits] = index;
+      s.cdBlockMap[cursor >> blockBits] = index;
       cursor += 1 << blockBits;
     }
   }
@@ -1031,7 +1035,7 @@ let makeBrotliDecode = () => {
     if (s.cdBlockBits === -1) {
       initializeCompoundDictionary(s);
     }
-    let /** @type {number} */ index = s.cdBlockMap[address >>> s.cdBlockBits];
+    let /** @type {number} */ index = s.cdBlockMap[address >> s.cdBlockBits];
     while (address >= s.cdChunkOffsets[index + 1]) {
       index++;
     }
@@ -1065,7 +1069,7 @@ let makeBrotliDecode = () => {
       if (length > space) {
         length = space;
       }
-      s.ringBuffer.set(s.cdChunks[s.cdBrIndex].slice(s.cdBrOffset, s.cdBrOffset + length), pos);
+      s.ringBuffer.set(s.cdChunks[s.cdBrIndex].subarray(s.cdBrOffset, s.cdBrOffset + length), pos);
       pos += length;
       s.cdBrOffset += length;
       s.cdBrCopied += length;
@@ -1116,6 +1120,7 @@ let makeBrotliDecode = () => {
         case 3:
           readMetablockHuffmanCodesAndContextMaps(s);
           s.runningState = 4;
+          continue;
         case 4:
           if (s.metaBlockLength <= 0) {
             s.runningState = 2;
@@ -1151,6 +1156,7 @@ let makeBrotliDecode = () => {
           s.copyLength = copyLengthOffset + ((copyLengthExtraBits <= 16) ? readFewBits(s, copyLengthExtraBits) : readManyBits(s, copyLengthExtraBits));
           s.j = 0;
           s.runningState = 7;
+          continue;
         case 7:
           if (s.trivialLiteralContext !== 0) {
             while (s.j < s.insertLength) {
@@ -1267,6 +1273,7 @@ let makeBrotliDecode = () => {
           }
           s.j = 0;
           s.runningState = 8;
+          continue;
         case 8:
           let /** @type {number} */ src = (s.pos - s.distance) & ringBufferMask;
           let /** @type {number} */ dst = s.pos;
@@ -1337,6 +1344,7 @@ let makeBrotliDecode = () => {
         case 12:
           s.ringBufferBytesReady = Math.min(s.pos, s.ringBufferSize);
           s.runningState = 13;
+          continue;
         case 13:
           if (writeRingBuffer(s) === 0) {
             return;
@@ -1572,10 +1580,10 @@ let makeBrotliDecode = () => {
    */
   function replicateValue(table, offset, step, end, item) {
     let /** @type {number} */ pos = end;
-    do {
+    while (pos > 0) {
       pos -= step;
       table[offset + pos] = item;
-    } while (pos > 0);
+    }
   }
   /**
    * @param {!Int32Array} count
@@ -1863,18 +1871,18 @@ let makeBrotliDecode = () => {
   const LOOKUP = new Int32Array(2048);
   /**
    * @param {!Int32Array} lookup
-   * @param {string} map
-   * @param {string} rle
+   * @param {string} utfMap
+   * @param {string} utfRle
    * @return {void}
    */
-  function unpackLookupTable(lookup, map, rle) {
+  function unpackLookupTable(lookup, utfMap, utfRle) {
     for (let /** @type {number} */ i = 0; i < 256; ++i) {
       lookup[i] = i & 0x3F;
       lookup[512 + i] = i >> 2;
       lookup[1792 + i] = 2 + (i >> 6);
     }
     for (let /** @type {number} */ i = 0; i < 128; ++i) {
-      lookup[1024 + i] = 4 * (map.charCodeAt(i) - 32);
+      lookup[1024 + i] = 4 * (utfMap.charCodeAt(i) - 32);
     }
     for (let /** @type {number} */ i = 0; i < 64; ++i) {
       lookup[1152 + i] = i & 1;
@@ -1883,7 +1891,7 @@ let makeBrotliDecode = () => {
     let /** @type {number} */ offset = 1280;
     for (let /** @type {number} */ k = 0; k < 19; ++k) {
       const /** @type {number} */ value = k & 3;
-      const /** @type {number} */ rep = rle.charCodeAt(k) - 32;
+      const /** @type {number} */ rep = utfRle.charCodeAt(k) - 32;
       for (let /** @type {number} */ i = 0; i < rep; ++i) {
         lookup[offset++] = value;
       }
@@ -2081,7 +2089,9 @@ let makeBrotliDecode = () => {
     }
     const /** @type {!Int32Array} */ dictionaryOffsets = offsets;
     const /** @type {!Int32Array} */ dictionarySizeBits = sizeBits;
-    dictionarySizeBits.set(newSizeBits.subarray(0, newSizeBits.length), 0);
+    for (let /** @type {number} */ i = 0; i < newSizeBits.length; ++i) {
+      dictionarySizeBits[i] = newSizeBits[i];
+    }
     let /** @type {number} */ pos = 0;
     const /** @type {number} */ limit = newData.length;
     for (let /** @type {number} */ i = 0; i < newSizeBits.length; ++i) {

@@ -56,7 +56,9 @@ public final class Dictionary {
     }
     final int[] dictionaryOffsets = Dictionary.offsets;
     final int[] dictionarySizeBits = Dictionary.sizeBits;
-    System.arraycopy(newSizeBits, 0, dictionarySizeBits, 0, newSizeBits.length);
+    for (int i = 0; i < newSizeBits.length; ++i) {
+      dictionarySizeBits[i] = newSizeBits[i];
+    }
     int pos = 0;
     final int limit = newData.capacity();
     for (int i = 0; i < newSizeBits.length; ++i) {
