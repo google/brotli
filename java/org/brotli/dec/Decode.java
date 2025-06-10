@@ -342,10 +342,9 @@ final class Decode {
     if (s.runningState == UNINITIALIZED) {
       return Utils.makeError(s, BROTLI_PANIC_STATE_NOT_INITIALIZED);
     }
-    if (s.runningState == CLOSED) {
-      return Utils.makeError(s, BROTLI_PANIC_ALREADY_CLOSED);
+    if (s.runningState > 0) {
+      s.runningState = CLOSED;
     }
-    s.runningState = CLOSED;
     return BROTLI_OK;
   }
 
@@ -473,7 +472,7 @@ final class Decode {
 
     while (symbol < numSymbols && space > 0) {
       if (s.halfOffset > BitReader.HALF_WATERLINE) {
-        int result = BitReader.readMoreInput(s);
+        final int result = BitReader.readMoreInput(s);
         if (result < BROTLI_OK) {
           return result;
         }
@@ -557,7 +556,7 @@ final class Decode {
       }
       symbols[i] = symbol;
     }
-    int result = checkDupes(s, symbols, numSymbols);
+    final int result = checkDupes(s, symbols, numSymbols);
     if (result < BROTLI_OK) {
       return result;
     }
@@ -634,7 +633,7 @@ final class Decode {
       return Utils.makeError(s, BROTLI_ERROR_CORRUPTED_HUFFMAN_CODE_HISTOGRAM);
     }
 
-    int result = readHuffmanCodeLengths(codeLengthCodeLengths, alphabetSizeLimit, codeLengths, s);
+    final int result = readHuffmanCodeLengths(codeLengthCodeLengths, alphabetSizeLimit, codeLengths, s);
     if (result < BROTLI_OK) {
       return result;
     }
@@ -651,7 +650,7 @@ final class Decode {
   private static int readHuffmanCode(int alphabetSizeMax, int alphabetSizeLimit,
       int[] tableGroup, int tableIdx, State s) {
     if (s.halfOffset > BitReader.HALF_WATERLINE) {
-      int result = BitReader.readMoreInput(s);
+      final int result = BitReader.readMoreInput(s);
       if (result < BROTLI_OK) {
         return result;
       }
@@ -1097,7 +1096,7 @@ final class Decode {
     int next = n;
     for (int i = 0; i < n; ++i) {
       group[i] = next;
-      int result = readHuffmanCode(alphabetSizeMax, alphabetSizeLimit, group, i, s);
+      final int result = readHuffmanCode(alphabetSizeMax, alphabetSizeLimit, group, i, s);
       if (result < BROTLI_OK) {
         return result;
       }
@@ -1121,7 +1120,7 @@ final class Decode {
     }
     final int address = s.distance - s.maxDistance - 1 - s.cdTotalSize;
     if (address < 0) {
-      int result = initializeCompoundDictionaryCopy(s, -address - 1, s.copyLength);
+      final int result = initializeCompoundDictionaryCopy(s, -address - 1, s.copyLength);
       if (result < BROTLI_OK) {
         return result;
       }

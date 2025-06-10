@@ -7,9 +7,8 @@
 package org.brotli.dec.kt;
 
 import java.io.ByteArrayInputStream;
-import java.io.IOException;
 import java.io.InputStream;
-import java.io.UnsupportedEncodingException;
+import java.io.IOException;
 import java.nio.Buffer;
 import java.nio.ByteBuffer;
 
@@ -35,7 +34,7 @@ private fun log2floor(i: Int): Int {
   var step: Int = 16;
   var v: Int = i;
   while (step > 0) {
-    var next: Int = v ushr step;
+    var next: Int = v shr step;
     if (next != 0) {
       result += step;
       v = next;
@@ -49,9 +48,9 @@ private fun calculateDistanceAlphabetSize(npostfix: Int, ndirect: Int, maxndistb
   return 16 + ndirect + 2 * (maxndistbits shl npostfix);
 }
 
-private fun calculateDistanceAlphabetLimit(maxDistance: Int, npostfix: Int, ndirect: Int): Int {
+private fun calculateDistanceAlphabetLimit(s: State, maxDistance: Int, npostfix: Int, ndirect: Int): Int {
   if (maxDistance < ndirect + (2 shl npostfix)) {
-    throw IllegalArgumentException("maxDistance is too small");
+    return makeError(s, -23);
   }
   val offset: Int = ((maxDistance - ndirect) shr npostfix) + 4;
   val ndistbits: Int = log2floor(offset) - 1;
@@ -68,16 +67,16 @@ private fun unpackCommandLookupTable(cmdLookup: ShortArray): Unit {
     copyLengthOffsets[i + 1] = copyLengthOffsets[i] + (1 shl COPY_LENGTH_N_BITS[i].toInt());
   }
   for (cmdCode: Int in 0 until 704) {
-    var rangeIdx: Int = cmdCode ushr 6;
+    var rangeIdx: Int = cmdCode shr 6;
     var distanceContextOffset: Int = -4;
     if (rangeIdx >= 2) {
       rangeIdx -= 2;
       distanceContextOffset = 0;
     }
-    val insertCode: Int = (((0x29850 ushr (rangeIdx * 2)) and 0x3) shl 3) or ((cmdCode ushr 3) and 7);
-    val copyCode: Int = (((0x26244 ushr (rangeIdx * 2)) and 0x3) shl 3) or (cmdCode and 7);
+    val insertCode: Int = (((0x29850 shr (rangeIdx * 2)) and 0x3) shl 3) or ((cmdCode shr 3) and 7);
+    val copyCode: Int = (((0x26244 shr (rangeIdx * 2)) and 0x3) shl 3) or (cmdCode and 7);
     val copyLengthOffset: Int = copyLengthOffsets[copyCode];
-    val distanceContext: Int = distanceContextOffset + (if (copyLengthOffset > 4) 3 else (copyLengthOffset - 2));
+    val distanceContext: Int = distanceContextOffset + Math.min(copyLengthOffset, 5) - 2;
     val index: Int = cmdCode * 4;
     cmdLookup[index] = (INSERT_LENGTH_N_BITS[insertCode].toInt() or (COPY_LENGTH_N_BITS[copyCode].toInt() shl 8)).toShort();
     cmdLookup[index + 1] = insertLengthOffsets[insertCode].toShort();
@@ -112,30 +111,31 @@ private fun decodeWindowBits(s: State): Int {
         return -1;
       }
       return n;
-    } else {
-      return 8 + n;
     }
+    return 8 + n;
   }
   return 17;
 }
 
-internal fun enableEagerOutput(s: State): Unit {
+internal fun enableEagerOutput(s: State): Int {
   if (s.runningState != 1) {
-    throw IllegalStateException("State MUST be freshly initialized");
+    return makeError(s, -24);
   }
   s.isEager = 1;
+  return 0;
 }
 
-internal fun enableLargeWindow(s: State): Unit {
+internal fun enableLargeWindow(s: State): Int {
   if (s.runningState != 1) {
-    throw IllegalStateException("State MUST be freshly initialized");
+    return makeError(s, -24);
   }
   s.isLargeWindow = 1;
+  return 0;
 }
 
-internal fun attachDictionaryChunk(s: State, data: ByteArray): Unit {
+internal fun attachDictionaryChunk(s: State, data: ByteArray): Int {
   if (s.runningState != 1) {
-    throw IllegalStateException("State MUST be freshly initialized");
+    return makeError(s, -24);
   }
   if (s.cdNumChunks == 0) {
     s.cdChunks = arrayOfNulls(16);
@@ -143,38 +143,45 @@ internal fun attachDictionaryChunk(s: State, data: ByteArray): Unit {
     s.cdBlockBits = -1;
   }
   if (s.cdNumChunks == 15) {
-    throw IllegalStateException("Too many dictionary chunks");
+    return makeError(s, -27);
   }
   s.cdChunks[s.cdNumChunks] = data;
   s.cdNumChunks++;
   s.cdTotalSize += data.size;
   s.cdChunkOffsets[s.cdNumChunks] = s.cdTotalSize;
+  return 0;
 }
 
-internal fun initState(s: State): Unit {
+internal fun initState(s: State): Int {
   if (s.runningState != 0) {
-    throw IllegalStateException("State MUST be uninitialized");
+    return makeError(s, -26);
   }
   s.blockTrees = IntArray(size = 3091);
   s.blockTrees[0] = 7;
   s.distRbIdx = 3;
-  val maxDistanceAlphabetLimit: Int = calculateDistanceAlphabetLimit(0x7FFFFFFC, 3, 120);
+  var result: Int = calculateDistanceAlphabetLimit(s, 0x7FFFFFFC, 3, 120);
+  if (result < 0) {
+    return result;
+  }
+  val maxDistanceAlphabetLimit: Int = result;
   s.distExtraBits = ByteArray(size = maxDistanceAlphabetLimit);
   s.distOffset = IntArray(size = maxDistanceAlphabetLimit);
-  initBitReader(s);
+  result = initBitReader(s);
+  if (result < 0) {
+    return result;
+  }
   s.runningState = 1;
+  return 0;
 }
 
-internal fun close(s: State): Unit {
+internal fun close(s: State): Int {
   if (s.runningState == 0) {
-    throw IllegalStateException("State MUST be initialized");
+    return makeError(s, -25);
   }
-  if (s.runningState == 11) {
-    return;
+  if (s.runningState > 0) {
+    s.runningState = 11;
   }
-  s.runningState = 11;
-  s.input.close();
-  s.input = ByteArrayInputStream(ByteArray(size = 0));
+  return 0;
 }
 
 private fun decodeVarLenUnsignedByte(s: State): Int {
@@ -183,37 +190,36 @@ private fun decodeVarLenUnsignedByte(s: State): Int {
     val n: Int = readFewBits(s, 3);
     if (n == 0) {
       return 1;
-    } else {
-      return readFewBits(s, n) + (1 shl n);
     }
+    return readFewBits(s, n) + (1 shl n);
   }
   return 0;
 }
 
-private fun decodeMetaBlockLength(s: State): Unit {
+private fun decodeMetaBlockLength(s: State): Int {
   fillBitWindow(s);
   s.inputEnd = readFewBits(s, 1);
   s.metaBlockLength = 0;
   s.isUncompressed = 0;
   s.isMetadata = 0;
   if ((s.inputEnd != 0) && readFewBits(s, 1) != 0) {
-    return;
+    return 0;
   }
   val sizeNibbles: Int = readFewBits(s, 2) + 4;
   if (sizeNibbles == 7) {
     s.isMetadata = 1;
     if (readFewBits(s, 1) != 0) {
-      throw BrotliRuntimeException("Corrupted reserved bit");
+      return makeError(s, -6);
     }
     val sizeBytes: Int = readFewBits(s, 2);
     if (sizeBytes == 0) {
-      return;
+      return 0;
     }
     for (i: Int in 0 until sizeBytes) {
       fillBitWindow(s);
       val bits: Int = readFewBits(s, 8);
       if (bits == 0 && i + 1 == sizeBytes && sizeBytes > 1) {
-        throw BrotliRuntimeException("Exuberant nibble");
+        return makeError(s, -8);
       }
       s.metaBlockLength += bits shl (i * 8);
     }
@@ -222,7 +228,7 @@ private fun decodeMetaBlockLength(s: State): Unit {
       fillBitWindow(s);
       val bits: Int = readFewBits(s, 4);
       if (bits == 0 && i + 1 == sizeNibbles && sizeNibbles > 4) {
-        throw BrotliRuntimeException("Exuberant nibble");
+        return makeError(s, -8);
       }
       s.metaBlockLength += bits shl (i * 4);
     }
@@ -231,6 +237,7 @@ private fun decodeMetaBlockLength(s: State): Unit {
   if (s.inputEnd == 0) {
     s.isUncompressed = readFewBits(s, 1);
   }
+  return 0;
 }
 
 private fun readSymbol(tableGroup: IntArray, tableIdx: Int, s: State): Int {
@@ -245,7 +252,7 @@ private fun readSymbol(tableGroup: IntArray, tableIdx: Int, s: State): Int {
   }
   offset += sym;
   val mask: Int = (1 shl bits) - 1;
-  offset += (v and mask) ushr 8;
+  offset += ((v and mask) ushr 8);
   s.bitOffset += ((tableGroup[offset] shr 16) + 8);
   return tableGroup[offset] and 0xFFFF;
 }
@@ -282,7 +289,7 @@ private fun inverseMoveToFrontTransform(v: ByteArray, vLen: Int): Unit {
   }
 }
 
-private fun readHuffmanCodeLengths(codeLengthCodeLengths: IntArray, numSymbols: Int, codeLengths: IntArray, s: State): Unit {
+private fun readHuffmanCodeLengths(codeLengthCodeLengths: IntArray, numSymbols: Int, codeLengths: IntArray, s: State): Int {
   var symbol: Int = 0;
   var prevCodeLen: Int = 8;
   var repeat: Int = 0;
@@ -292,7 +299,12 @@ private fun readHuffmanCodeLengths(codeLengthCodeLengths: IntArray, numSymbols: 
   val tableIdx: Int = table.size - 1;
   buildHuffmanTable(table, tableIdx, 5, codeLengthCodeLengths, 18);
   while (symbol < numSymbols && space > 0) {
-    readMoreInput(s);
+    if (s.halfOffset > 1015) {
+      val result: Int = readMoreInput(s);
+      if (result < 0) {
+        return result;
+      }
+    }
     fillBitWindow(s);
     val p: Int = peekBits(s) and 31;
     s.bitOffset += table[p] shr 16;
@@ -323,7 +335,7 @@ private fun readHuffmanCodeLengths(codeLengthCodeLengths: IntArray, numSymbols: 
       repeat += readFewBits(s, extraBits) + 3;
       val repeatDelta: Int = repeat - oldRepeat;
       if (symbol + repeatDelta > numSymbols) {
-        throw BrotliRuntimeException("symbol + repeatDelta > numSymbols");
+        return makeError(s, -2);
       }
       for (i: Int in 0 until repeatDelta) {
         codeLengths[symbol++] = repeatCodeLen;
@@ -334,19 +346,21 @@ private fun readHuffmanCodeLengths(codeLengthCodeLengths: IntArray, numSymbols: 
     }
   }
   if (space != 0) {
-    throw BrotliRuntimeException("Unused space");
+    return makeError(s, -18);
   }
   fillIntsWithZeroes(codeLengths, symbol, numSymbols);
+  return 0;
 }
 
-private fun checkDupes(symbols: IntArray, length: Int): Unit {
+private fun checkDupes(s: State, symbols: IntArray, length: Int): Int {
   for (i: Int in 0 until length - 1) {
     for (j: Int in i + 1 until length) {
       if (symbols[i] == symbols[j]) {
-        throw BrotliRuntimeException("Duplicate simple Huffman code symbol");
+        return makeError(s, -7);
       }
     }
   }
+  return 0;
 }
 
 private fun readSimpleHuffmanCode(alphabetSizeMax: Int, alphabetSizeLimit: Int, tableGroup: IntArray, tableIdx: Int, s: State): Int {
@@ -358,11 +372,14 @@ private fun readSimpleHuffmanCode(alphabetSizeMax: Int, alphabetSizeLimit: Int, 
     fillBitWindow(s);
     val symbol: Int = readFewBits(s, maxBits);
     if (symbol >= alphabetSizeLimit) {
-      throw BrotliRuntimeException("Can't readHuffmanCode");
+      return makeError(s, -15);
     }
     symbols[i] = symbol;
   }
-  checkDupes(symbols, numSymbols);
+  val result: Int = checkDupes(s, symbols, numSymbols);
+  if (result < 0) {
+    return result;
+  }
   var histogramId: Int = numSymbols;
   if (numSymbols == 4) {
     histogramId += readFewBits(s, 1);
@@ -410,30 +427,44 @@ private fun readComplexHuffmanCode(alphabetSizeLimit: Int, skip: Int, tableGroup
     if (v != 0) {
       space -= (32 shr v);
       numCodes++;
-      if (space <= 0)
+      if (space <= 0) {
         break;
+      }
     }
   }
   if (space != 0 && numCodes != 1) {
-    throw BrotliRuntimeException("Corrupted Huffman code histogram");
+    return makeError(s, -4);
   }
-  readHuffmanCodeLengths(codeLengthCodeLengths, alphabetSizeLimit, codeLengths, s);
+  val result: Int = readHuffmanCodeLengths(codeLengthCodeLengths, alphabetSizeLimit, codeLengths, s);
+  if (result < 0) {
+    return result;
+  }
   return buildHuffmanTable(tableGroup, tableIdx, 8, codeLengths, alphabetSizeLimit);
 }
 
 private fun readHuffmanCode(alphabetSizeMax: Int, alphabetSizeLimit: Int, tableGroup: IntArray, tableIdx: Int, s: State): Int {
-  readMoreInput(s);
+  if (s.halfOffset > 1015) {
+    val result: Int = readMoreInput(s);
+    if (result < 0) {
+      return result;
+    }
+  }
   fillBitWindow(s);
   val simpleCodeOrSkip: Int = readFewBits(s, 2);
   if (simpleCodeOrSkip == 1) {
     return readSimpleHuffmanCode(alphabetSizeMax, alphabetSizeLimit, tableGroup, tableIdx, s);
-  } else {
-    return readComplexHuffmanCode(alphabetSizeLimit, simpleCodeOrSkip, tableGroup, tableIdx, s);
   }
+  return readComplexHuffmanCode(alphabetSizeLimit, simpleCodeOrSkip, tableGroup, tableIdx, s);
 }
 
 private fun decodeContextMap(contextMapSize: Int, contextMap: ByteArray, s: State): Int {
-  readMoreInput(s);
+  var result: Int;
+  if (s.halfOffset > 1015) {
+    result = readMoreInput(s);
+    if (result < 0) {
+      return result;
+    }
+  }
   val numTrees: Int = decodeVarLenUnsignedByte(s) + 1;
   if (numTrees == 1) {
     fillBytesWithZeroes(contextMap, 0, contextMapSize);
@@ -449,10 +480,18 @@ private fun decodeContextMap(contextMapSize: Int, contextMap: ByteArray, s: Stat
   val tableSize: Int = MAX_HUFFMAN_TABLE_SIZE[(alphabetSize + 31) shr 5];
   val table: IntArray = IntArray(size = tableSize + 1);
   val tableIdx: Int = table.size - 1;
-  readHuffmanCode(alphabetSize, alphabetSize, table, tableIdx, s);
+  result = readHuffmanCode(alphabetSize, alphabetSize, table, tableIdx, s);
+  if (result < 0) {
+    return result;
+  }
   var i: Int = 0;
   while (i < contextMapSize) {
-    readMoreInput(s);
+    if (s.halfOffset > 1015) {
+      result = readMoreInput(s);
+      if (result < 0) {
+        return result;
+      }
+    }
     fillBitWindow(s);
     val code: Int = readSymbol(table, tableIdx, s);
     if (code == 0) {
@@ -463,7 +502,7 @@ private fun decodeContextMap(contextMapSize: Int, contextMap: ByteArray, s: Stat
       var reps: Int = (1 shl code) + readFewBits(s, code);
       while (reps != 0) {
         if (i >= contextMapSize) {
-          throw BrotliRuntimeException("Corrupted context map");
+          return makeError(s, -3);
         }
         contextMap[i] = 0;
         i++;
@@ -546,28 +585,44 @@ private fun maybeReallocateRingBuffer(s: State): Unit {
   s.ringBufferSize = newSize;
 }
 
-private fun readNextMetablockHeader(s: State): Unit {
+private fun readNextMetablockHeader(s: State): Int {
   if (s.inputEnd != 0) {
     s.nextRunningState = 10;
     s.runningState = 12;
-    return;
+    return 0;
   }
   s.literalTreeGroup = IntArray(size = 0);
   s.commandTreeGroup = IntArray(size = 0);
   s.distanceTreeGroup = IntArray(size = 0);
-  readMoreInput(s);
-  decodeMetaBlockLength(s);
+  var result: Int;
+  if (s.halfOffset > 1015) {
+    result = readMoreInput(s);
+    if (result < 0) {
+      return result;
+    }
+  }
+  result = decodeMetaBlockLength(s);
+  if (result < 0) {
+    return result;
+  }
   if ((s.metaBlockLength == 0) && (s.isMetadata == 0)) {
-    return;
+    return 0;
   }
   if ((s.isUncompressed != 0) || (s.isMetadata != 0)) {
-    jumpToByteBoundary(s);
-    s.runningState = if (s.isMetadata != 0) 5 else 6;
+    result = jumpToByteBoundary(s);
+    if (result < 0) {
+      return result;
+    }
+    if (s.isMetadata == 0) {
+      s.runningState = 6;
+    } else {
+      s.runningState = 5;
+    }
   } else {
     s.runningState = 3;
   }
   if (s.isMetadata != 0) {
-    return;
+    return 0;
   }
   s.expectedTotalSize += s.metaBlockLength;
   if (s.expectedTotalSize > 1 shl 30) {
@@ -576,6 +631,7 @@ private fun readNextMetablockHeader(s: State): Unit {
   if (s.ringBufferSize < s.maxRingBufferSize) {
     maybeReallocateRingBuffer(s);
   }
+  return 0;
 }
 
 private fun readMetablockPartition(s: State, treeType: Int, numBlockTypes: Int): Int {
@@ -586,10 +642,18 @@ private fun readMetablockPartition(s: State, treeType: Int, numBlockTypes: Int):
     return 1 shl 28;
   }
   val blockTypeAlphabetSize: Int = numBlockTypes + 2;
-  offset += readHuffmanCode(blockTypeAlphabetSize, blockTypeAlphabetSize, s.blockTrees, 2 * treeType, s);
+  var result: Int = readHuffmanCode(blockTypeAlphabetSize, blockTypeAlphabetSize, s.blockTrees, 2 * treeType, s);
+  if (result < 0) {
+    return result;
+  }
+  offset += result;
   s.blockTrees[2 * treeType + 1] = offset;
   val blockLengthAlphabetSize: Int = 26;
-  offset += readHuffmanCode(blockLengthAlphabetSize, blockLengthAlphabetSize, s.blockTrees, 2 * treeType + 1, s);
+  result = readHuffmanCode(blockLengthAlphabetSize, blockLengthAlphabetSize, s.blockTrees, 2 * treeType + 1, s);
+  if (result < 0) {
+    return result;
+  }
+  offset += result;
   s.blockTrees[2 * treeType + 2] = offset;
   return readBlockLength(s.blockTrees, 2 * treeType + 1, s);
 }
@@ -620,14 +684,31 @@ private fun calculateDistanceLut(s: State, alphabetSizeLimit: Int): Unit {
   }
 }
 
-private fun readMetablockHuffmanCodesAndContextMaps(s: State): Unit {
+private fun readMetablockHuffmanCodesAndContextMaps(s: State): Int {
   s.numLiteralBlockTypes = decodeVarLenUnsignedByte(s) + 1;
-  s.literalBlockLength = readMetablockPartition(s, 0, s.numLiteralBlockTypes);
+  var result: Int = readMetablockPartition(s, 0, s.numLiteralBlockTypes);
+  if (result < 0) {
+    return result;
+  }
+  s.literalBlockLength = result;
   s.numCommandBlockTypes = decodeVarLenUnsignedByte(s) + 1;
-  s.commandBlockLength = readMetablockPartition(s, 1, s.numCommandBlockTypes);
+  result = readMetablockPartition(s, 1, s.numCommandBlockTypes);
+  if (result < 0) {
+    return result;
+  }
+  s.commandBlockLength = result;
   s.numDistanceBlockTypes = decodeVarLenUnsignedByte(s) + 1;
-  s.distanceBlockLength = readMetablockPartition(s, 2, s.numDistanceBlockTypes);
-  readMoreInput(s);
+  result = readMetablockPartition(s, 2, s.numDistanceBlockTypes);
+  if (result < 0) {
+    return result;
+  }
+  s.distanceBlockLength = result;
+  if (s.halfOffset > 1015) {
+    result = readMoreInput(s);
+    if (result < 0) {
+      return result;
+    }
+  }
   fillBitWindow(s);
   s.distancePostfixBits = readFewBits(s, 2);
   s.numDirectDistanceCodes = readFewBits(s, 4) shl s.distancePostfixBits;
@@ -640,11 +721,20 @@ private fun readMetablockHuffmanCodesAndContextMaps(s: State): Unit {
       s.contextModes[i] = readFewBits(s, 2).toByte();
       i++;
     }
-    readMoreInput(s);
+    if (s.halfOffset > 1015) {
+      result = readMoreInput(s);
+      if (result < 0) {
+        return result;
+      }
+    }
   }
   val contextMapLength: Int = s.numLiteralBlockTypes shl 6;
   s.contextMap = ByteArray(size = contextMapLength);
-  val numLiteralTrees: Int = decodeContextMap(contextMapLength, s.contextMap, s);
+  result = decodeContextMap(contextMapLength, s.contextMap, s);
+  if (result < 0) {
+    return result;
+  }
+  val numLiteralTrees: Int = result;
   s.trivialLiteralContext = 1;
   for (j: Int in 0 until contextMapLength) {
     if (s.contextMap[j].toInt() != j shr 6) {
@@ -653,20 +743,40 @@ private fun readMetablockHuffmanCodesAndContextMaps(s: State): Unit {
     }
   }
   s.distContextMap = ByteArray(size = s.numDistanceBlockTypes shl 2);
-  val numDistTrees: Int = decodeContextMap(s.numDistanceBlockTypes shl 2, s.distContextMap, s);
-  s.literalTreeGroup = decodeHuffmanTreeGroup(256, 256, numLiteralTrees, s);
-  s.commandTreeGroup = decodeHuffmanTreeGroup(704, 704, s.numCommandBlockTypes, s);
+  result = decodeContextMap(s.numDistanceBlockTypes shl 2, s.distContextMap, s);
+  if (result < 0) {
+    return result;
+  }
+  val numDistTrees: Int = result;
+  s.literalTreeGroup = IntArray(size = huffmanTreeGroupAllocSize(256, numLiteralTrees));
+  result = decodeHuffmanTreeGroup(256, 256, numLiteralTrees, s, s.literalTreeGroup);
+  if (result < 0) {
+    return result;
+  }
+  s.commandTreeGroup = IntArray(size = huffmanTreeGroupAllocSize(704, s.numCommandBlockTypes));
+  result = decodeHuffmanTreeGroup(704, 704, s.numCommandBlockTypes, s, s.commandTreeGroup);
+  if (result < 0) {
+    return result;
+  }
   var distanceAlphabetSizeMax: Int = calculateDistanceAlphabetSize(s.distancePostfixBits, s.numDirectDistanceCodes, 24);
   var distanceAlphabetSizeLimit: Int = distanceAlphabetSizeMax;
   if (s.isLargeWindow == 1) {
     distanceAlphabetSizeMax = calculateDistanceAlphabetSize(s.distancePostfixBits, s.numDirectDistanceCodes, 62);
-    distanceAlphabetSizeLimit = calculateDistanceAlphabetLimit(0x7FFFFFFC, s.distancePostfixBits, s.numDirectDistanceCodes);
+    result = calculateDistanceAlphabetLimit(s, 0x7FFFFFFC, s.distancePostfixBits, s.numDirectDistanceCodes);
+    if (result < 0) {
+      return result;
+    }
+    distanceAlphabetSizeLimit = result;
   }
-  s.distanceTreeGroup = decodeHuffmanTreeGroup(distanceAlphabetSizeMax, distanceAlphabetSizeLimit, numDistTrees, s);
+  s.distanceTreeGroup = IntArray(size = huffmanTreeGroupAllocSize(distanceAlphabetSizeLimit, numDistTrees));
+  result = decodeHuffmanTreeGroup(distanceAlphabetSizeMax, distanceAlphabetSizeLimit, numDistTrees, s, s.distanceTreeGroup);
+  if (result < 0) {
+    return result;
+  }
   calculateDistanceLut(s, distanceAlphabetSizeLimit);
   s.contextMapSlice = 0;
   s.distContextMapSlice = 0;
-  s.contextLookupOffset1 = s.contextModes[0] * 512;
+  s.contextLookupOffset1 = s.contextModes[0].toInt() * 512;
   s.contextLookupOffset2 = s.contextLookupOffset1 + 256;
   s.literalTreeIdx = 0;
   s.commandTreeIdx = 0;
@@ -676,51 +786,69 @@ private fun readMetablockHuffmanCodesAndContextMaps(s: State): Unit {
   s.rings[7] = 0;
   s.rings[8] = 1;
   s.rings[9] = 0;
+  return 0;
 }
 
-private fun copyUncompressedData(s: State): Unit {
+private fun copyUncompressedData(s: State): Int {
   val ringBuffer: ByteArray = s.ringBuffer;
+  var result: Int;
   if (s.metaBlockLength <= 0) {
-    reload(s);
+    result = reload(s);
+    if (result < 0) {
+      return result;
+    }
     s.runningState = 2;
-    return;
+    return 0;
   }
   val chunkLength: Int = Math.min(s.ringBufferSize - s.pos, s.metaBlockLength);
-  copyRawBytes(s, ringBuffer, s.pos, chunkLength);
+  result = copyRawBytes(s, ringBuffer, s.pos, chunkLength);
+  if (result < 0) {
+    return result;
+  }
   s.metaBlockLength -= chunkLength;
   s.pos += chunkLength;
   if (s.pos == s.ringBufferSize) {
     s.nextRunningState = 6;
     s.runningState = 12;
-    return;
+    return 0;
   }
-  reload(s);
+  result = reload(s);
+  if (result < 0) {
+    return result;
+  }
   s.runningState = 2;
+  return 0;
 }
 
 private fun writeRingBuffer(s: State): Int {
   val toWrite: Int = Math.min(s.outputLength - s.outputUsed, s.ringBufferBytesReady - s.ringBufferBytesWritten);
   if (toWrite != 0) {
-    System.arraycopy(s.ringBuffer, s.ringBufferBytesWritten, s.output, s.outputOffset + s.outputUsed, toWrite);
+    System.arraycopy(s.ringBuffer, s.ringBufferBytesWritten, s.output, s.outputOffset + s.outputUsed, (s.ringBufferBytesWritten + toWrite) - s.ringBufferBytesWritten);
     s.outputUsed += toWrite;
     s.ringBufferBytesWritten += toWrite;
   }
   if (s.outputUsed < s.outputLength) {
-    return 1;
-  } else {
     return 0;
   }
+  return 2;
 }
 
-private fun decodeHuffmanTreeGroup(alphabetSizeMax: Int, alphabetSizeLimit: Int, n: Int, s: State): IntArray {
+private fun huffmanTreeGroupAllocSize(alphabetSizeLimit: Int, n: Int): Int {
   val maxTableSize: Int = MAX_HUFFMAN_TABLE_SIZE[(alphabetSizeLimit + 31) shr 5];
-  val group: IntArray = IntArray(size = n + n * maxTableSize);
+  return n + n * maxTableSize;
+}
+
+private fun decodeHuffmanTreeGroup(alphabetSizeMax: Int, alphabetSizeLimit: Int, n: Int, s: State, group: IntArray): Int {
   var next: Int = n;
   for (i: Int in 0 until n) {
     group[i] = next;
-    next += readHuffmanCode(alphabetSizeMax, alphabetSizeLimit, group, i, s);
+    val result: Int = readHuffmanCode(alphabetSizeMax, alphabetSizeLimit, group, i, s);
+    if (result < 0) {
+      return result;
+    }
+    next += result;
   }
-  return group;
+  return 0;
 }
 
 private fun calculateFence(s: State): Int {
@@ -731,32 +859,35 @@ private fun calculateFence(s: State): Int {
   return result;
 }
 
-private fun doUseDictionary(s: State, fence: Int): Unit {
+private fun doUseDictionary(s: State, fence: Int): Int {
   if (s.distance > 0x7FFFFFFC) {
-    throw BrotliRuntimeException("Invalid backward reference");
+    return makeError(s, -9);
   }
   val address: Int = s.distance - s.maxDistance - 1 - s.cdTotalSize;
   if (address < 0) {
-    initializeCompoundDictionaryCopy(s, -address - 1, s.copyLength);
+    val result: Int = initializeCompoundDictionaryCopy(s, -address - 1, s.copyLength);
+    if (result < 0) {
+      return result;
+    }
     s.runningState = 14;
   } else {
     val dictionaryData: ByteBuffer = data;
     val wordLength: Int = s.copyLength;
     if (wordLength > 31) {
-      throw BrotliRuntimeException("Invalid backward reference");
+      return makeError(s, -9);
     }
     val shift: Int = sizeBits[wordLength];
     if (shift == 0) {
-      throw BrotliRuntimeException("Invalid backward reference");
+      return makeError(s, -9);
     }
     var offset: Int = offsets[wordLength];
     val mask: Int = (1 shl shift) - 1;
     val wordIdx: Int = address and mask;
-    val transformIdx: Int = address ushr shift;
+    val transformIdx: Int = address shr shift;
     offset += wordIdx * wordLength;
     val transforms: Transforms = RFC_TRANSFORMS;
     if (transformIdx >= transforms.numTransforms) {
-      throw BrotliRuntimeException("Invalid backward reference");
+      return makeError(s, -9);
     }
     val len: Int = transformDictionaryWord(s.ringBuffer, s.pos, dictionaryData, offset, wordLength, transforms, transformIdx);
     s.pos += len;
@@ -764,16 +895,17 @@ private fun doUseDictionary(s: State, fence: Int): Unit {
     if (s.pos >= fence) {
       s.nextRunningState = 4;
       s.runningState = 12;
-      return;
+      return 0;
     }
     s.runningState = 4;
   }
+  return 0;
 }
 
 private fun initializeCompoundDictionary(s: State): Unit {
   s.cdBlockMap = ByteArray(size = 256);
   var blockBits: Int = 8;
-  while (((s.cdTotalSize - 1) ushr blockBits) != 0) {
+  while (((s.cdTotalSize - 1) shr blockBits) != 0) {
     blockBits++;
   }
   blockBits -= 8;
@@ -784,21 +916,21 @@ private fun initializeCompoundDictionary(s: State): Unit {
     while (s.cdChunkOffsets[index + 1] < cursor) {
       index++;
     }
-    s.cdBlockMap[cursor ushr blockBits] = index.toByte();
+    s.cdBlockMap[cursor shr blockBits] = index.toByte();
     cursor += 1 shl blockBits;
   }
 }
 
-private fun initializeCompoundDictionaryCopy(s: State, address: Int, length: Int): Unit {
+private fun initializeCompoundDictionaryCopy(s: State, address: Int, length: Int): Int {
   if (s.cdBlockBits == -1) {
     initializeCompoundDictionary(s);
   }
-  var index: Int = s.cdBlockMap[address ushr s.cdBlockBits].toInt();
+  var index: Int = s.cdBlockMap[address shr s.cdBlockBits].toInt();
   while (address >= s.cdChunkOffsets[index + 1]) {
     index++;
   }
   if (s.cdTotalSize > address + length) {
-    throw BrotliRuntimeException("Invalid backward reference");
+    return makeError(s, -9);
   }
   s.distRbIdx = (s.distRbIdx + 1) and 0x3;
   s.rings[s.distRbIdx] = s.distance;
@@ -807,6 +939,7 @@ private fun initializeCompoundDictionaryCopy(s: State, address: Int, length: Int
   s.cdBrOffset = address - s.cdChunkOffsets[index];
   s.cdBrLength = length;
   s.cdBrCopied = 0;
+  return 0;
 }
 
 private fun copyFromCompoundDictionary(s: State, fence: Int): Int {
@@ -838,17 +971,21 @@ private fun copyFromCompoundDictionary(s: State, fence: Int): Int {
   return pos - origPos;
 }
 
-internal fun decompress(s: State): Unit {
+internal fun decompress(s: State): Int {
+  var result: Int;
   if (s.runningState == 0) {
-    throw IllegalStateException("Can't decompress until initialized");
+    return makeError(s, -25);
+  }
+  if (s.runningState < 0) {
+    return makeError(s, -28);
   }
   if (s.runningState == 11) {
-    throw IllegalStateException("Can't decompress after close");
+    return makeError(s, -22);
   }
   if (s.runningState == 1) {
     val windowBits: Int = decodeWindowBits(s);
     if (windowBits == -1) {
-      throw BrotliRuntimeException("Invalid 'windowBits' code");
+      return makeError(s, -11);
     }
     s.maxRingBufferSize = 1 shl windowBits;
     s.maxBackwardDistance = s.maxRingBufferSize - 16;
@@ -861,24 +998,36 @@ internal fun decompress(s: State): Unit {
     when (s.runningState) {
       2 -> {
         if (s.metaBlockLength < 0) {
-          throw BrotliRuntimeException("Invalid metablock length");
+          return makeError(s, -10);
         }
-        readNextMetablockHeader(s);
+        result = readNextMetablockHeader(s);
+        if (result < 0) {
+          return result;
+        }
         fence = calculateFence(s);
         ringBufferMask = s.ringBufferSize - 1;
         ringBuffer = s.ringBuffer;
         continue;
       }
       3 -> {
-        readMetablockHuffmanCodesAndContextMaps(s);
+        result = readMetablockHuffmanCodesAndContextMaps(s);
+        if (result < 0) {
+          return result;
+        }
         s.runningState = 4;
+        continue;
       }
       4 -> {
         if (s.metaBlockLength <= 0) {
           s.runningState = 2;
           continue;
         }
-        readMoreInput(s);
+        if (s.halfOffset > 1015) {
+          result = readMoreInput(s);
+          if (result < 0) {
+            return result;
+          }
+        }
         if (s.commandBlockLength == 0) {
           decodeCommandBlockSwitch(s);
         }
@@ -897,11 +1046,17 @@ internal fun decompress(s: State): Unit {
         s.copyLength = copyLengthOffset + readBits(s, copyLengthExtraBits);
         s.j = 0;
         s.runningState = 7;
+        continue;
       }
       7 -> {
         if (s.trivialLiteralContext != 0) {
           while (s.j < s.insertLength) {
-            readMoreInput(s);
+            if (s.halfOffset > 1015) {
+              result = readMoreInput(s);
+              if (result < 0) {
+                return result;
+              }
+            }
             if (s.literalBlockLength == 0) {
               decodeLiteralBlockSwitch(s);
             }
@@ -920,7 +1075,12 @@ internal fun decompress(s: State): Unit {
           var prevByte1: Int = ringBuffer[(s.pos - 1) and ringBufferMask].toInt() and 0xFF;
           var prevByte2: Int = ringBuffer[(s.pos - 2) and ringBufferMask].toInt() and 0xFF;
           while (s.j < s.insertLength) {
-            readMoreInput(s);
+            if (s.halfOffset > 1015) {
+              result = readMoreInput(s);
+              if (result < 0) {
+                return result;
+              }
+            }
             if (s.literalBlockLength == 0) {
               decodeLiteralBlockSwitch(s);
             }
@@ -952,7 +1112,12 @@ internal fun decompress(s: State): Unit {
         if (distanceCode < 0) {
           s.distance = s.rings[s.distRbIdx];
         } else {
-          readMoreInput(s);
+          if (s.halfOffset > 1015) {
+            result = readMoreInput(s);
+            if (result < 0) {
+              return result;
+            }
+          }
           if (s.distanceBlockLength == 0) {
             decodeDistanceBlockSwitch(s);
           }
@@ -964,7 +1129,7 @@ internal fun decompress(s: State): Unit {
             val index: Int = (s.distRbIdx + DISTANCE_SHORT_CODE_INDEX_OFFSET[distanceCode]) and 0x3;
             s.distance = s.rings[index] + DISTANCE_SHORT_CODE_VALUE_OFFSET[distanceCode];
             if (s.distance < 0) {
-              throw BrotliRuntimeException("Negative distance");
+              return makeError(s, -12);
             }
           } else {
             val extraBits: Int = s.distExtraBits[distanceCode].toInt();
@@ -992,10 +1157,11 @@ internal fun decompress(s: State): Unit {
           s.rings[s.distRbIdx] = s.distance;
         }
         if (s.copyLength > s.metaBlockLength) {
-          throw BrotliRuntimeException("Invalid backward reference");
+          return makeError(s, -9);
         }
         s.j = 0;
         s.runningState = 8;
+        continue;
       }
       8 -> {
         var src: Int = (s.pos - s.distance) and ringBufferMask;
@@ -1037,7 +1203,10 @@ internal fun decompress(s: State): Unit {
         continue;
       }
       9 -> {
-        doUseDictionary(s, fence);
+        result = doUseDictionary(s, fence);
+        if (result < 0) {
+          return result;
+        }
         continue;
       }
       14 -> {
@@ -1045,14 +1214,19 @@ internal fun decompress(s: State): Unit {
         if (s.pos >= fence) {
           s.nextRunningState = 14;
           s.runningState = 12;
-          return;
+          return 2;
         }
         s.runningState = 4;
         continue;
       }
       5 -> {
         while (s.metaBlockLength > 0) {
-          readMoreInput(s);
+          if (s.halfOffset > 1015) {
+            result = readMoreInput(s);
+            if (result < 0) {
+              return result;
+            }
+          }
           fillBitWindow(s);
           readFewBits(s, 8);
           s.metaBlockLength--;
@@ -1061,16 +1235,21 @@ internal fun decompress(s: State): Unit {
         continue;
       }
       6 -> {
-        copyUncompressedData(s);
+        result = copyUncompressedData(s);
+        if (result < 0) {
+          return result;
+        }
         continue;
       }
       12 -> {
         s.ringBufferBytesReady = Math.min(s.pos, s.ringBufferSize);
         s.runningState = 13;
+        continue;
       }
       13 -> {
-        if (writeRingBuffer(s) == 0) {
-          return;
+        result = writeRingBuffer(s);
+        if (result != 0) {
+          return result;
         }
         if (s.pos >= s.maxBackwardDistance) {
           s.maxDistance = s.maxBackwardDistance;
@@ -1086,16 +1265,24 @@ internal fun decompress(s: State): Unit {
         continue;
       }
       else ->
-        throw BrotliRuntimeException("Unexpected state " + s.runningState.toString());
+        return makeError(s, -28);
     }
   }
-  if (s.runningState == 10) {
-    if (s.metaBlockLength < 0) {
-      throw BrotliRuntimeException("Invalid metablock length");
-    }
-    jumpToByteBoundary(s);
-    checkHealth(s, 1);
+  if (s.runningState != 10) {
+    return makeError(s, -29);
   }
+  if (s.metaBlockLength < 0) {
+    return makeError(s, -10);
+  }
+  result = jumpToByteBoundary(s);
+  if (result != 0) {
+    return result;
+  }
+  result = checkHealth(s, 1);
+  if (result != 0) {
+    return result;
+  }
+  return 1;
 }
 
 private fun decodeStaticInit(): Unit {
@@ -1274,10 +1461,10 @@ private fun getNextKey(key: Int, len: Int): Int {
 
 private fun replicateValue(table: IntArray, offset: Int, step: Int, end: Int, item: Int): Unit {
   var pos: Int = end;
-  do {
+  while (pos > 0) {
     pos -= step;
     table[offset + pos] = item;
-  } while (pos > 0);
+  }
 }
 
 private fun nextTableBitSize(count: IntArray, len: Int, rootBits: Int): Int {
@@ -1354,18 +1541,12 @@ internal fun buildHuffmanTable(tableGroup: IntArray, tableIdx: Int, rootBits: In
   return totalSize;
 }
 
-internal fun readMoreInput(s: State): Unit {
-  if (s.halfOffset > 1015) {
-    doReadMoreInput(s);
-  }
-}
-
-internal fun doReadMoreInput(s: State): Unit {
+internal fun readMoreInput(s: State): Int {
   if (s.endOfStreamReached != 0) {
     if (halfAvailable(s) >= -2) {
-      return;
+      return 0;
     }
-    throw BrotliRuntimeException("No more input");
+    return makeError(s, -16);
   }
   val readOffset: Int = s.halfOffset shl 2;
   var bytesInBuffer: Int = 4096 - readOffset;
@@ -1374,6 +1555,9 @@ internal fun doReadMoreInput(s: State): Unit {
   while (bytesInBuffer < 4096) {
     val spaceLeft: Int = 4096 - bytesInBuffer;
     val len: Int = readInput(s, s.byteBuffer, bytesInBuffer, spaceLeft);
+    if (len < -1) {
+      return len;
+    }
     if (len <= 0) {
       s.endOfStreamReached = 1;
       s.tailBytes = bytesInBuffer;
@@ -1383,19 +1567,21 @@ internal fun doReadMoreInput(s: State): Unit {
     bytesInBuffer += len;
   }
   bytesToNibbles(s, bytesInBuffer);
+  return 0;
 }
 
-internal fun checkHealth(s: State, endOfStream: Int): Unit {
+internal fun checkHealth(s: State, endOfStream: Int): Int {
   if (s.endOfStreamReached == 0) {
-    return;
+    return 0;
   }
   val byteOffset: Int = (s.halfOffset shl 2) + ((s.bitOffset + 7) shr 3) - 8;
   if (byteOffset > s.tailBytes) {
-    throw BrotliRuntimeException("Read after end");
+    return makeError(s, -13);
   }
   if ((endOfStream != 0) && (byteOffset != s.tailBytes)) {
-    throw BrotliRuntimeException("Unused bytes after end");
+    return makeError(s, -17);
   }
+  return 0;
 }
 
 internal fun fillBitWindow(s: State): Unit {
@@ -1430,37 +1616,48 @@ private fun readManyBits(s: State, n: Int): Int {
   return low or (readFewBits(s, n - 16) shl 16);
 }
 
-internal fun initBitReader(s: State): Unit {
+internal fun initBitReader(s: State): Int {
   s.byteBuffer = ByteArray(size = 4160);
   s.accumulator64 = 0;
   s.intBuffer = IntArray(size = 1040);
   s.bitOffset = 64;
   s.halfOffset = 1024;
   s.endOfStreamReached = 0;
-  prepare(s);
+  return prepare(s);
 }
 
-private fun prepare(s: State): Unit {
-  readMoreInput(s);
-  checkHealth(s, 0);
-  doFillBitWindow(s);
-  doFillBitWindow(s);
-}
-
-internal fun reload(s: State): Unit {
-  if (s.bitOffset == 64) {
-    prepare(s);
+private fun prepare(s: State): Int {
+  if (s.halfOffset > 1015) {
+    val result: Int = readMoreInput(s);
+    if (result != 0) {
+      return result;
+    }
   }
+  var health: Int = checkHealth(s, 0);
+  if (health != 0) {
+    return health;
+  }
+  doFillBitWindow(s);
+  doFillBitWindow(s);
+  return 0;
 }
 
-internal fun jumpToByteBoundary(s: State): Unit {
+internal fun reload(s: State): Int {
+  if (s.bitOffset == 64) {
+    return prepare(s);
+  }
+  return 0;
+}
+
+internal fun jumpToByteBoundary(s: State): Int {
   val padding: Int = (64 - s.bitOffset) and 7;
   if (padding != 0) {
     val paddingBits: Int = readFewBits(s, padding);
     if (paddingBits != 0) {
-      throw BrotliRuntimeException("Corrupted padding bits");
+      return makeError(s, -5);
     }
   }
+  return 0;
 }
 
 internal fun halfAvailable(s: State): Int {
@@ -1471,11 +1668,11 @@ internal fun halfAvailable(s: State): Int {
   return limit - s.halfOffset;
 }
 
-internal fun copyRawBytes(s: State, data: ByteArray, offset: Int, length: Int): Unit {
+internal fun copyRawBytes(s: State, data: ByteArray, offset: Int, length: Int): Int {
   var pos: Int = offset;
   var len: Int = length;
   if ((s.bitOffset and 7) != 0) {
-    throw BrotliRuntimeException("Unaligned copyBytes");
+    return makeError(s, -30);
   }
   while ((s.bitOffset != 64) && (len != 0)) {
     data[pos++] = peekBits(s).toByte();
@@ -1483,19 +1680,19 @@ internal fun copyRawBytes(s: State, data: ByteArray, offset: Int, length: Int): 
     len--;
   }
   if (len == 0) {
-    return;
+    return 0;
   }
   val copyNibbles: Int = Math.min(halfAvailable(s), len shr 2);
   if (copyNibbles > 0) {
     val readOffset: Int = s.halfOffset shl 2;
     val delta: Int = copyNibbles shl 2;
-    System.arraycopy(s.byteBuffer, readOffset, data, pos, delta);
+    System.arraycopy(s.byteBuffer, readOffset, data, pos, (readOffset + delta) - readOffset);
     pos += delta;
     len -= delta;
     s.halfOffset += copyNibbles;
   }
   if (len == 0) {
-    return;
+    return 0;
   }
   if (halfAvailable(s) > 0) {
     fillBitWindow(s);
@@ -1504,17 +1701,20 @@ internal fun copyRawBytes(s: State, data: ByteArray, offset: Int, length: Int): 
       s.bitOffset += 8;
       len--;
     }
-    checkHealth(s, 0);
-    return;
+    return checkHealth(s, 0);
   }
   while (len > 0) {
     val chunkLen: Int = readInput(s, data, pos, len);
-    if (chunkLen == -1) {
-      throw BrotliRuntimeException("Unexpected end of input");
+    if (len < -1) {
+      return len;
+    }
+    if (chunkLen <= 0) {
+      return makeError(s, -16);
     }
     pos += chunkLen;
     len -= chunkLen;
   }
+  return 0;
 }
 
 internal fun bytesToNibbles(s: State, byteLen: Int): Unit {
@@ -1528,14 +1728,14 @@ internal fun bytesToNibbles(s: State, byteLen: Int): Unit {
 
 internal val LOOKUP: IntArray = IntArray(size = 2048);
 
-private fun unpackLookupTable(lookup: IntArray, map: String, rle: String): Unit {
+private fun unpackLookupTable(lookup: IntArray, utfMap: String, utfRle: String): Unit {
   for (i: Int in 0 until 256) {
     lookup[i] = i and 0x3F;
     lookup[512 + i] = i shr 2;
     lookup[1792 + i] = 2 + (i shr 6);
   }
   for (i: Int in 0 until 128) {
-    lookup[1024 + i] = 4 * (map[i].code.toInt() - 32);
+    lookup[1024 + i] = 4 * (utfMap[i].code.toInt() - 32);
   }
   for (i: Int in 0 until 64) {
     lookup[1152 + i] = i and 1;
@@ -1544,7 +1744,7 @@ private fun unpackLookupTable(lookup: IntArray, map: String, rle: String): Unit 
   var offset: Int = 1280;
   for (k: Int in 0 until 19) {
     val value: Int = k and 3;
-    val rep: Int = rle[k].code.toInt() - 32;
+    val rep: Int = utfRle[k].code.toInt() - 32;
     for (i: Int in 0 until rep) {
       lookup[offset++] = value;
     }
@@ -1724,49 +1924,27 @@ internal val offsets: IntArray = IntArray(size = 32);
 internal val sizeBits: IntArray = IntArray(size = 32);
 
 fun setData(newData: ByteBuffer, newSizeBits: IntArray): Unit {
-  if (((if (newData.isDirect()) 1 else 0) == 0) || ((if (newData.isReadOnly()) 1 else 0) == 0)) {
-    throw BrotliRuntimeException("newData must be a direct read-only byte buffer");
-  }
-  if (newSizeBits.size > 31) {
-    throw BrotliRuntimeException("sizeBits length must be at most " + 31.toString());
-  }
-  for (i: Int in 0 until 4) {
-    if (newSizeBits[i] != 0) {
-      throw BrotliRuntimeException("first " + 4.toString() + " must be 0");
-    }
-  }
   val dictionaryOffsets: IntArray = offsets;
   val dictionarySizeBits: IntArray = sizeBits;
-  System.arraycopy(newSizeBits, 0, dictionarySizeBits, 0, newSizeBits.size);
+  for (i: Int in 0 until newSizeBits.size) {
+    dictionarySizeBits[i] = newSizeBits[i];
+  }
   var pos: Int = 0;
-  val limit: Int = newData.capacity();
   for (i: Int in 0 until newSizeBits.size) {
     dictionaryOffsets[i] = pos;
     val bits: Int = dictionarySizeBits[i];
     if (bits != 0) {
-      if (bits >= 31) {
-        throw BrotliRuntimeException("newSizeBits values must be less than 31");
-      }
-      pos += i shl bits;
-      if (pos <= 0 || pos > limit) {
-        throw BrotliRuntimeException("newSizeBits is inconsistent: overflow");
-      }
+      pos += i shl (bits and 31);
     }
   }
   for (i: Int in newSizeBits.size until 32) {
     dictionaryOffsets[i] = pos;
-  }
-  if (pos != limit) {
-    throw BrotliRuntimeException("newSizeBits is inconsistent: underflow");
   }
   data = newData;
 }
 
 private fun unpackDictionaryData(dictionary: ByteBuffer, data0: String, data1: String, skipFlip: String, sizeBits: IntArray, sizeBitsData: String): Unit {
   val dict: ByteArray = toUsAsciiBytes(data0 + data1);
-  if (dict.size != dictionary.capacity()) {
-    throw RuntimeException("Corrupted brotli dictionary");
-  }
   var offset: Int = 0;
   val n: Int = skipFlip.length shr 1;
   for (i: Int in 0 until n) {
@@ -1828,12 +2006,30 @@ internal fun readInput(s: State, dst: ByteArray, offset: Int, length: Int): Int 
   }
 }
 
+internal fun closeInput(s: State): Unit {
+  s.input.close();
+  s.input = ByteArrayInputStream(ByteArray(size = 0));
+}
+
 internal fun toUsAsciiBytes(src: String): ByteArray {
   return src.toByteArray(Charsets.US_ASCII);
 }
 
 internal fun flipBuffer(buffer: Buffer): Unit {
   buffer.flip();
+}
+
+internal fun makeError(s: State, code: Int): Int {
+  if (code >= 0) {
+    return code;
+  }
+  if (s.runningState >= 0) {
+    s.runningState = code;
+  }
+  if (code <= -21) {
+    throw IllegalStateException("Brotli error code: " + code);
+  }
+  throw BrotliRuntimeException("Error code: " + code);
 }
 
 private val nothing = run {

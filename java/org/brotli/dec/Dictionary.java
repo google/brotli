@@ -64,7 +64,6 @@ public final class Dictionary {
       dictionarySizeBits[i] = newSizeBits[i];
     }
     int pos = 0;
-    final int limit = newData.capacity();
     for (int i = 0; i < newSizeBits.length; ++i) {
       dictionaryOffsets[i] = pos;
       final int bits = dictionarySizeBits[i];
@@ -74,7 +73,7 @@ public final class Dictionary {
           if (bits >= 31) {
             throw new BrotliRuntimeException("newSizeBits values must be less than 31");
           }
-          if (pos <= 0 || pos > limit) {
+          if (pos <= 0 || pos > newData.capacity()) {
             throw new BrotliRuntimeException("newSizeBits is inconsistent: overflow");
           }
         }
@@ -84,7 +83,7 @@ public final class Dictionary {
       dictionaryOffsets[i] = pos;
     }
     if (DICTIONARY_DEBUG != 0) {
-      if (pos != limit) {
+      if (pos != newData.capacity()) {
         throw new BrotliRuntimeException("newSizeBits is inconsistent: underflow");
       }
     }

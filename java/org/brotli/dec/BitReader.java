@@ -190,7 +190,7 @@ final class BitReader {
 
   private static int prepare(State s) {
     if (s.halfOffset > BitReader.HALF_WATERLINE) {
-      int result = readMoreInput(s);
+      final int result = readMoreInput(s);
       if (result != BROTLI_OK) {
         return result;
       }
