@@ -50,7 +50,7 @@ public class SynthTest {
       assertArrayEquals(expected, actual);
     } catch (IOException ex) {
       if (expectSuccess) {
-        fail("expected to succeed decoding, but failed");
+        throw new AssertionError("expected to succeed decoding, but failed", ex);
       }
     }
   }
