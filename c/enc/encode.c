@@ -12,6 +12,7 @@
 
 #include <stdlib.h>  /* free, malloc */
 #include <string.h>  /* memcpy, memset */
+#include <malloc.h>  /* M_MMAP_THRESHOLD */
 
 #include "../common/constants.h"
 #include "../common/context.h"
@@ -754,6 +755,12 @@ BrotliEncoderState* BrotliEncoderCreateInstance(
     /* BROTLI_DUMP(); */
     return 0;
   }
+
+  /* Overrides default dynamic mmap threshold set by glibc. */
+  if (mallopt(M_MMAP_THRESHOLD, 34603008) == 0) {
+    BROTLI_LOG("Ignoring MMAP_THRESHOLD setting\n");
+  }
+
   BrotliInitMemoryManager(
       &state->memory_manager_, alloc_func, free_func, opaque);
   BrotliEncoderInitState(state);
