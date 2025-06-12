@@ -1312,11 +1312,12 @@ internal class Transforms {
 }
 
 private fun unpackTransforms(prefixSuffix: ByteArray, prefixSuffixHeads: IntArray, transforms: IntArray, prefixSuffixSrc: String, transformsSrc: String): Unit {
-  val n: Int = prefixSuffixSrc.length;
+  val prefixSuffixBytes: IntArray = toUtf8Runes(prefixSuffixSrc);
+  val n: Int = prefixSuffixBytes.size;
   var index: Int = 1;
   var j: Int = 0;
   for (i: Int in 0 until n) {
-    val c: Int = prefixSuffixSrc[i].code.toInt();
+    val c: Int = prefixSuffixBytes[i];
     if (c == 35) {
       prefixSuffixHeads[index++] = j;
     } else {
@@ -1945,11 +1946,12 @@ fun setData(newData: ByteBuffer, newSizeBits: IntArray): Unit {
 
 private fun unpackDictionaryData(dictionary: ByteBuffer, data0: String, data1: String, skipFlip: String, sizeBits: IntArray, sizeBitsData: String): Unit {
   val dict: ByteArray = toUsAsciiBytes(data0 + data1);
+  val skipFlipRunes: IntArray = toUtf8Runes(skipFlip);
   var offset: Int = 0;
-  val n: Int = skipFlip.length shr 1;
+  val n: Int = skipFlipRunes.size shr 1;
   for (i: Int in 0 until n) {
-    val skip: Int = skipFlip[2 * i].code.toInt() - 36;
-    val flip: Int = skipFlip[2 * i + 1].code.toInt() - 36;
+    val skip: Int = skipFlipRunes[2 * i] - 36;
+    val flip: Int = skipFlipRunes[2 * i + 1] - 36;
     for (j: Int in 0 until skip) {
       dict[offset] = (dict[offset].toInt() xor 3).toByte();
       offset++;
@@ -2013,6 +2015,15 @@ internal fun closeInput(s: State): Unit {
 
 internal fun toUsAsciiBytes(src: String): ByteArray {
   return src.toByteArray(Charsets.US_ASCII);
+}
+
+internal fun toUtf8Runes(src: String): IntArray {
+  var len: Int = src.length;
+  var result: IntArray = IntArray(size = len);
+  for (i: Int in 0 until len) {
+    result[i] = src[i].code.toInt();
+  }
+  return result;
 }
 
 internal fun flipBuffer(buffer: Buffer): Unit {

@@ -99,6 +99,14 @@ final class Utils {
     }
   }
 
+  static int[] toUtf8Runes(String src) {
+    int[] result = new int[src.length()];
+    for (int i = 0; i < src.length(); i++) {
+      result[i] = (int) src.charAt(i);
+    }
+    return result;
+  }
+
   static ByteBuffer asReadOnlyBuffer(ByteBuffer src) {
     return src.asReadOnlyBuffer();
   }
