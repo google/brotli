@@ -22,6 +22,5 @@ go_test(
     name = "cbrotli_test",
     size = "small",
     srcs = ["cbrotli_test.go"],
-    embed = [":cbrotli"],
-    importpath = "github.com/google/brotli/go/cbrotli",
+    deps = [":cbrotli"],
 )
