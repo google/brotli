@@ -76,7 +76,7 @@ final class Transform {
 
   private static void unpackTransforms(byte[] prefixSuffix,
       int[] prefixSuffixHeads, int[] transforms, String prefixSuffixSrc, String transformsSrc) {
-    final int[] prefixSuffixBytes = Utils.toUtf8Runes(prefixSuffixSrc); 
+    final int[] prefixSuffixBytes = Utils.toUtf8Runes(prefixSuffixSrc);
     final int n = prefixSuffixBytes.length;
     int index = 1;
     int j = 0;
