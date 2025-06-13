@@ -35,7 +35,7 @@ get_brotli_state(PyObject *module)
 
 static void set_brotli_exception(const char *message) {
 #if PY_MAJOR_VERSION >= 3
-  PyObject *module = PyState_FindModule(&brotli_module);
+  PyObject *module = PyImport_ImportModule("_brotli");
   if (module == NULL) {
       PyErr_SetString(PyExc_RuntimeError, "Module not found");
       return;
