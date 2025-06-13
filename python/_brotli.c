@@ -13,21 +13,51 @@
 #define Py_ARRAY_LENGTH(array)  (sizeof(array) / sizeof((array)[0]))
 #endif
 
+/* Forward declaration for module definition */
+#if PY_MAJOR_VERSION >= 3
+static struct PyModuleDef brotli_module;
+#endif
+
+/* Module state for multi-phase initialization */
+typedef struct {
+    PyObject *BrotliError;
+} brotli_module_state;
+
+#if PY_MAJOR_VERSION >= 3
+static brotli_module_state *
+get_brotli_state(PyObject *module)
+{
+    void *state = PyModule_GetState(module);
+    assert(state != NULL);
+    return (brotli_module_state *)state;
+}
+#endif
+
 void set_brotli_exception(const char *message) {
-  PyObject *module = PyImport_ImportModule("brotli");
-  if (!module) {
-      PyErr_Print();
+#if PY_MAJOR_VERSION >= 3
+  PyObject *module = PyState_FindModule(&brotli_module);
+  if (module == NULL) {
+      PyErr_SetString(PyExc_RuntimeError, "Module not found");
       return;
   }
-  Py_DECREF(module);
-  PyObject *obj = PyObject_GetAttrString(module, "error");
-  if (!obj) {
-      PyErr_Print();
-      return;
+  brotli_module_state *state = get_brotli_state(module);
+  PyErr_SetString(state->BrotliError, message);
+#else
+  /* For Python 2, use static global */
+  static PyObject *brotli_error = NULL;
+  if (brotli_error == NULL) {
+      PyObject *module_dict = PyImport_GetModuleDict();
+      PyObject *module = PyDict_GetItemString(module_dict, "_brotli");
+      if (module != NULL) {
+          brotli_error = PyObject_GetAttrString(module, "error");
+      }
   }
-  PyErr_SetString(obj, message);
-  Py_DECREF(obj);
-  return;
+  if (brotli_error != NULL) {
+      PyErr_SetString(brotli_error, message);
+  } else {
+      PyErr_SetString(PyExc_RuntimeError, message);
+  }
+#endif
 }
 
 
@@ -1027,11 +1057,24 @@ static PyMethodDef brotli_methods[] = {
 PyDoc_STRVAR(brotli_doc, "Implementation module for the Brotli library.");
 
 static int init_brotli_mod(PyObject *m) {
+#if PY_MAJOR_VERSION >= 3
+  brotli_module_state *state = get_brotli_state(m);
+  state->BrotliError = PyErr_NewException("brotli.error", NULL, NULL);
+  if (state->BrotliError == NULL) {
+    return -1;
+  }
+  Py_INCREF(state->BrotliError);
+  if (PyModule_AddObject(m, "error", state->BrotliError) < 0) {
+    Py_DECREF(state->BrotliError);
+    return -1;
+  }
+#else
   PyObject* err = PyErr_NewException("brotli.error", NULL, NULL);
   if (err != NULL) {
     Py_INCREF(err);
     PyModule_AddObject(m, "error", err);
   }
+#endif
 
   if (PyType_Ready(&brotli_CompressorType) < 0) {
     return -1;
@@ -1068,15 +1111,31 @@ static PyModuleDef_Slot brotli_mod_slots[] = {
   {0, NULL}
 };
 
+static int
+brotli_traverse(PyObject *m, visitproc visit, void *arg)
+{
+    brotli_module_state *state = get_brotli_state(m);
+    Py_VISIT(state->BrotliError);
+    return 0;
+}
+
+static int
+brotli_clear(PyObject *m)
+{
+    brotli_module_state *state = get_brotli_state(m);
+    Py_CLEAR(state->BrotliError);
+    return 0;
+}
+
 static struct PyModuleDef brotli_module = {
   PyModuleDef_HEAD_INIT,
   "_brotli",          /* m_name */
   brotli_doc,         /* m_doc */
-  0,                  /* m_size */
+  sizeof(brotli_module_state),  /* m_size */
   brotli_methods,     /* m_methods */
   brotli_mod_slots,   /* m_slots */
-  NULL,               /* m_traverse */
-  NULL,               /* m_clear */
+  brotli_traverse,    /* m_traverse */
+  brotli_clear,       /* m_clear */
   NULL                /* m_free */
 };
 
