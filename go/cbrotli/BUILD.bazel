@@ -24,3 +24,10 @@ go_test(
     srcs = ["cbrotli_test.go"],
     deps = [":cbrotli"],
 )
+
+go_test(
+    name = "synth_test",
+    size = "small",
+    srcs = ["synth_test.go"],
+    deps = [":cbrotli"],
+)
