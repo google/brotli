@@ -8,7 +8,7 @@ package brotli_test
 import (
 	"testing"
 
-	"google3/third_party/brotli/go/brotli/brotli"
+	"github.com/google/brotli/go/brotli"
 )
 
 func verify(t *testing.T, compressed []uint8, expectSuccess bool, expectedOutput string) {
