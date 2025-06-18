@@ -1,4 +1,9 @@
-package synth_test
+// Copyright 2025 Google Inc. All Rights Reserved.
+//
+// Distributed under MIT license.
+// See file LICENSE for detail or copy at https://opensource.org/licenses/MIT
+
+package cbrotli_test
 
 import (
 	"testing"
