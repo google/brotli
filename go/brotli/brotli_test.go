@@ -12,7 +12,7 @@ import (
 	"math/rand"
 	"testing"
 
-	"google3/third_party/brotli/go/brotli/brotli"
+	"github.com/google/brotli/go/brotli"
 	"github.com/google/brotli/go/cbrotli"
 )
 
