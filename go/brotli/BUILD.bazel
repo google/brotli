@@ -5,29 +5,27 @@ package(default_visibility = ["//visibility:public"])
 licenses(["notice"])  # MIT
 
 go_library(
-    name = "cbrotli",
+    name = "brotli",
     srcs = [
+        "decode.go",
         "reader.go",
-        "writer.go",
     ],
-    cdeps = [
-        "@org_brotli//:brotlidec",
-        "@org_brotli//:brotlienc",
-    ],
-    cgo = True,
-    importpath = "github.com/google/brotli/go/cbrotli",
+    importpath = "github.com/google/brotli/go/brotli",
 )
 
 go_test(
-    name = "cbrotli_test",
+    name = "brotli_test",
     size = "small",
-    srcs = ["cbrotli_test.go"],
-    deps = [":cbrotli"],
+    srcs = ["brotli_test.go"],
+    deps = [
+        ":brotli",
+        "//cbrotli",
+    ],
 )
 
 go_test(
     name = "synth_test",
     size = "small",
     srcs = ["synth_test.go"],
-    deps = [":cbrotli"],
+    deps = [":brotli"],
 )

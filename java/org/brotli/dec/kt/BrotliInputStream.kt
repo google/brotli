@@ -71,6 +71,7 @@ constructor(source: InputStream, byteReadBufferSize: Int = DEFAULT_INTERNAL_BUFF
   @Throws(IOException::class)
   override fun close() {
     close(state)
+    closeInput(state)
   }
 
   /** {@inheritDoc} */

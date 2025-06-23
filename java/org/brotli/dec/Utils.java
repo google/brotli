@@ -6,6 +6,10 @@
 
 package org.brotli.dec;
 
+import static org.brotli.dec.BrotliError.BROTLI_ERROR_READ_FAILED;
+import static org.brotli.dec.BrotliError.BROTLI_OK;
+import static org.brotli.dec.BrotliError.BROTLI_PANIC;
+
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -29,8 +33,8 @@ final class Utils {
    * less than 16.
    *
    * @param dest array to fill with zeroes
-   * @param offset the first byte to fill
-   * @param length number of bytes to change
+   * @param start the first item to fill
+   * @param end the last item to fill (exclusive)
    */
   static void fillBytesWithZeroes(byte[] dest, int start, int end) {
     int cursor = start;
@@ -48,8 +52,8 @@ final class Utils {
    * less than 16.
    *
    * @param dest array to fill with zeroes
-   * @param offset the first item to fill
-   * @param length number of item to change
+   * @param start the first item to fill
+   * @param end the last item to fill (exclusive)
    */
   static void fillIntsWithZeroes(int[] dest, int start, int end) {
     int cursor = start;
@@ -72,7 +76,7 @@ final class Utils {
     try {
       return s.input.read(dst, offset, length);
     } catch (IOException e) {
-      throw new BrotliRuntimeException("Failed to read input", e);
+      return makeError(s, BROTLI_ERROR_READ_FAILED);
     }
   }
 
@@ -93,6 +97,14 @@ final class Utils {
     } catch (UnsupportedEncodingException e) {
       throw new RuntimeException(e); // cannot happen
     }
+  }
+
+  static int[] toUtf8Runes(String src) {
+    int[] result = new int[src.length()];
+    for (int i = 0; i < src.length(); i++) {
+      result[i] = (int) src.charAt(i);
+    }
+    return result;
   }
 
   static ByteBuffer asReadOnlyBuffer(ByteBuffer src) {
@@ -121,5 +133,31 @@ final class Utils {
   static int getLogBintness() {
     boolean isLongExpensive = Boolean.parseBoolean(System.getProperty("BROTLI_32_BIT_CPU"));
     return isLongExpensive ? 5 : 6;
+  }
+
+  static int shr32(int x, int y) {
+    return x >>> y;
+  }
+
+  static long shr64(long x, int y) {
+    return x >>> y;
+  }
+
+  static int min(int a, int b) {
+    return Math.min(a, b);
+  }
+
+  static int makeError(State s, int code) {
+    if (code >= BROTLI_OK) {
+      return code;
+    }
+    if (s.runningState >= 0) {
+      s.runningState = code;  // Only the first error is remembered.
+    }
+    // TODO(eustas): expand codes to messages, if ever necessary.
+    if (code <= BROTLI_PANIC) {
+      throw new IllegalStateException("Brotli error code: " + code);
+    }
+    throw new BrotliRuntimeException("Error code: " + code);
   }
 }

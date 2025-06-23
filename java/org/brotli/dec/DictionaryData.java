@@ -33,20 +33,25 @@ final class DictionaryData {
    */
   private static final String SIZE_BITS_DATA = "AAAAKKLLKKKKKJJIHHIHHGGFF";
 
+  private static final int DICTIONARY_DATA_DEBUG = Utils.isDebugMode();
+
   private static void unpackDictionaryData(ByteBuffer dictionary, String data0, String data1,
       String skipFlip, int[] sizeBits, String sizeBitsData) {
     // Initialize lower 7 bits of every byte in the dictionary.
     final byte[] dict = Utils.toUsAsciiBytes(data0 + data1);
-    if (dict.length != dictionary.capacity()) {
-      throw new RuntimeException("Corrupted brotli dictionary");
+    final int[] skipFlipRunes = Utils.toUtf8Runes(skipFlip);
+    if (DICTIONARY_DATA_DEBUG != 0) {
+      if (dict.length != dictionary.capacity()) {
+        throw new RuntimeException("Corrupted brotli dictionary");
+      }
     }
 
     // Toggle high bit using run-length delta encoded "skipFlip".
     int offset = 0;
-    final int n = skipFlip.length() >> 1;
+    final int n = skipFlipRunes.length >> 1;
     for (int i = 0; i < n; ++i) {
-      final int skip = (int) skipFlip.charAt(2 * i) - 36;
-      final int flip = (int) skipFlip.charAt(2 * i + 1) - 36;
+      final int skip = skipFlipRunes[2 * i] - 36;
+      final int flip = skipFlipRunes[2 * i + 1] - 36;
       for (int j = 0; j < skip; ++j) {
         dict[offset] = (byte) ((int) dict[offset] ^ 3);
         offset++;
