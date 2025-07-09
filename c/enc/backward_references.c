@@ -133,6 +133,14 @@ static BROTLI_INLINE size_t ComputeDistanceCode(size_t distance,
 #define PREFIX() D
 #define ENABLE_COMPOUND_DICTIONARY 1
 
+#define HASHER() H3
+/* NOLINTNEXTLINE(build/include) */
+#include "backward_references_inc.h"
+#undef HASHER
+#define HASHER() H4
+/* NOLINTNEXTLINE(build/include) */
+#include "backward_references_inc.h"
+#undef HASHER
 #define HASHER() H5
 /* NOLINTNEXTLINE(build/include) */
 #include "backward_references_inc.h"
@@ -194,6 +202,8 @@ void BrotliCreateBackwardReferences(size_t num_bytes,
             literal_context_lut, params, hasher, dist_cache,        \
             last_insert_len, commands, num_commands, num_literals); \
         return;
+      CASE_(3)
+      CASE_(4)
       CASE_(5)
       CASE_(6)
 #if defined(BROTLI_MAX_SIMD_QUALITY)
