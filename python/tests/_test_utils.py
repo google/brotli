@@ -18,7 +18,7 @@ if test_dir is None:
   test_dir = os.path.join(project_dir, 'tests')
 if BRO_ARGS[0] is None:
   python_exe = sys.executable or 'python'
-  bro_path = os.path.join(project_dir, 'python', 'bro.py')
+  bro_path = os.path.join(project_dir, 'python', 'brotli', '__main__.py')
   BRO_ARGS = [python_exe, bro_path]
 
 # Get the platform/version-specific build folder.
