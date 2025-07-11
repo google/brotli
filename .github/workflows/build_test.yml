@@ -152,10 +152,11 @@ jobs:
             bazel_project: .
             os: windows-latest
 
-          - name: bazel-win:go
-            build_system: bazel
-            bazel_project: go
-            os: windows-latest
+          # TODO(eustas): restore when go is fixed
+          #- name: bazel-win:go
+          #  build_system: bazel
+          #  bazel_project: go
+          #  os: windows-latest
 
           # TODO(eustas): restore when kotlin is fixed
           #- name: bazel-win:java

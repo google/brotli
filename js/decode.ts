@@ -1328,11 +1328,12 @@ class Transforms {
 
 const RFC_TRANSFORMS = new Transforms(121, 167, 50);
 function unpackTransforms(prefixSuffix: Int8Array, prefixSuffixHeads: Int32Array, transforms: Int32Array, prefixSuffixSrc: string, transformsSrc: string): void {
-  const n: number = prefixSuffixSrc.length;
+  const prefixSuffixBytes: Int32Array = toUtf8Runes(prefixSuffixSrc);
+  const n: number = prefixSuffixBytes.length;
   let index = 1;
   let j = 0;
   for (let i = 0; i < n; ++i) {
-    const c: number = prefixSuffixSrc.charCodeAt(i);
+    const c: number = prefixSuffixBytes[i];
     if (c === 35) {
       prefixSuffixHeads[index++] = j;
     } else {
@@ -1858,11 +1859,12 @@ function setData(newData: ByteBuffer, newSizeBits: Int32Array): void {
 
 function unpackDictionaryData(dictionary: ByteBuffer, data0: string, data1: string, skipFlip: string, sizeBits: Int32Array, sizeBitsData: string): void {
   const dict: Int8Array = toUsAsciiBytes(data0 + data1);
+  const skipFlipRunes: Int32Array = toUtf8Runes(skipFlip);
   let offset = 0;
-  const n: number = skipFlip.length >> 1;
+  const n: number = skipFlipRunes.length >> 1;
   for (let i = 0; i < n; ++i) {
-    const skip: number = skipFlip.charCodeAt(2 * i) - 36;
-    const flip: number = skipFlip.charCodeAt(2 * i + 1) - 36;
+    const skip: number = skipFlipRunes[2 * i] - 36;
+    const flip: number = skipFlipRunes[2 * i + 1] - 36;
     for (let j = 0; j < skip; ++j) {
       dict[offset] = dict[offset] ^ 3;
       offset++;
@@ -1913,6 +1915,14 @@ function closeInput(s: State): void {
 function toUsAsciiBytes(src: string): Int8Array {
   const n: number = src.length;
   const result = new Int8Array(n);
+  for (let i = 0; i < n; ++i) {
+    result[i] = src.charCodeAt(i);
+  }
+  return result;
+}
+function toUtf8Runes(src: string): Int32Array {
+  const n: number = src.length;
+  const result = new Int32Array(n);
   for (let i = 0; i < n; ++i) {
     result[i] = src.charCodeAt(i);
   }

@@ -1574,11 +1574,12 @@ let makeBrotliDecode = () => {
    * @return {void}
    */
   function unpackTransforms(prefixSuffix, prefixSuffixHeads, transforms, prefixSuffixSrc, transformsSrc) {
-    const /** @type {number} */ n = prefixSuffixSrc.length;
+    const /** @type {!Int32Array} */ prefixSuffixBytes = toUtf8Runes(prefixSuffixSrc);
+    const /** @type {number} */ n = prefixSuffixBytes.length;
     let /** @type {number} */ index = 1;
     let /** @type {number} */ j = 0;
     for (let /** @type {number} */ i = 0; i < n; ++i) {
-      const /** @type {number} */ c = prefixSuffixSrc.charCodeAt(i);
+      const /** @type {number} */ c = prefixSuffixBytes[i];
       if (c === 35) {
         prefixSuffixHeads[index++] = j;
       } else {
@@ -2290,11 +2291,12 @@ let makeBrotliDecode = () => {
    */
   function unpackDictionaryData(dictionary, data0, data1, skipFlip, sizeBits, sizeBitsData) {
     const /** @type {!Int8Array} */ dict = toUsAsciiBytes(data0 + data1);
+    const /** @type {!Int32Array} */ skipFlipRunes = toUtf8Runes(skipFlip);
     let /** @type {number} */ offset = 0;
-    const /** @type {number} */ n = skipFlip.length >> 1;
+    const /** @type {number} */ n = skipFlipRunes.length >> 1;
     for (let /** @type {number} */ i = 0; i < n; ++i) {
-      const /** @type {number} */ skip = skipFlip.charCodeAt(2 * i) - 36;
-      const /** @type {number} */ flip = skipFlip.charCodeAt(2 * i + 1) - 36;
+      const /** @type {number} */ skip = skipFlipRunes[2 * i] - 36;
+      const /** @type {number} */ flip = skipFlipRunes[2 * i + 1] - 36;
       for (let /** @type {number} */ j = 0; j < skip; ++j) {
         dict[offset] = dict[offset] ^ 3;
         offset++;
@@ -2369,6 +2371,18 @@ let makeBrotliDecode = () => {
   function toUsAsciiBytes(src) {
     const /** @type {number} */ n = src.length;
     const /** @type {!Int8Array} */ result = new Int8Array(n);
+    for (let /** @type {number} */ i = 0; i < n; ++i) {
+      result[i] = src.charCodeAt(i);
+    }
+    return result;
+  }
+  /**
+   * @param {string} src
+   * @return {!Int32Array}
+   */
+  function toUtf8Runes(src) {
+    const /** @type {number} */ n = src.length;
+    const /** @type {!Int32Array} */ result = new Int32Array(n);
     for (let /** @type {number} */ i = 0; i < n; ++i) {
       result[i] = src.charCodeAt(i);
     }
