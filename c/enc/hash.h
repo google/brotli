@@ -12,6 +12,9 @@
 
 #include <stdlib.h>  /* exit */
 #include <string.h>  /* memcmp, memset */
+#include <stdio.h>  /* printf */
+
+#include <immintrin.h>
 
 #include <brotli/types.h>
 
@@ -567,17 +570,67 @@ static BROTLI_INLINE void FindCompoundDictionaryMatch(
 
   BROTLI_DCHECK(cur_ix_masked + max_length <= ring_buffer_mask);
 
-  for (i = 0; i < 4; ++i) {
+  // load the boundary, distance_offset, and last distances into sse registers
+  const __m128i boundary_mask = _mm_set1_epi32((int)boundary);
+  const __m128i distance_offset_mask = _mm_set1_epi32((int)distance_offset);
+  const __m128i last_distances =
+    _mm_loadu_si128((const __m128i*)(const void*)(distance_cache));
+  // the existing logic is:
+  // if (distance <= boundary || distance > distance_offset) continue
+  // we want to invert that to find the last distances that are in the
+  // range.
+  // to complicate matters, SSE only has a greater than comparison
+  // these instructions compute the equivalent of:
+  // if (!(distance > distance_offset) && distance > boundary)
+  const __m128i greater_than_distance_offset = _mm_cmpgt_epi32(last_distances, distance_offset_mask);
+  const __m128i greater_than_boundary = _mm_cmpgt_epi32(last_distances, boundary_mask);
+  const __m128i not_greater_than_distance_offset_and_greater_than_boundary = _mm_andnot_si128(greater_than_distance_offset, greater_than_boundary);
+  // having found the last distances that are in the range, we need to convert
+  // them into a bitmask.
+  // first, sizzle the bytes so that the bottom 4 bytes correspond to the 4 lanes.
+  // note that we reverse the order so that the bottom byte corresponds to the first lane (first last distance).
+  // second, create a 16 bit bitmask from the 16 bytes (the top 12 bits/bytes are always 0, since there are only 4 last distances to consider)
+  // we can use the bit mask to quickly skip past the out of range distances.
+  const __m128i swizzle_mask = _mm_set_epi8(
+    // top 12 bytes set to 0
+    0x80,
+    0x80,
+    0x80,
+    0x80,
+    0x80,
+    0x80,
+    0x80,
+    0x80,
+    0x80,
+    0x80,
+    0x80,
+    0x80,
+    // 12th byte
+    0x0C,
+    // 8th byte
+    0x08,
+    // 4th byte
+    0x04,
+    // 0th byte
+    0x00);
+  const __m128i swizzled = _mm_shuffle_epi8(not_greater_than_distance_offset_and_greater_than_boundary, swizzle_mask);
+  uint64_t acceptable_distances = (uint64_t)_mm_movemask_epi8(swizzled);
+
+  // printf("acceptable_distances: %lx\n", acceptable_distances);
+
+  for (; acceptable_distances != 0; acceptable_distances &= (acceptable_distances - 1)) {
+    i = (size_t)BROTLI_TZCNT64(acceptable_distances);
     const size_t distance = (size_t)distance_cache[i];
     size_t offset;
     size_t limit;
     size_t len;
-    if (distance <= boundary || distance > distance_offset) continue;
+    // if (distance <= boundary || distance > distance_offset) continue;
+    // if (!(distance > distance_offset) && distance > boundary) {
     offset = distance_offset - distance;
     limit = source_size - offset;
     limit = limit > max_length ? max_length : limit;
     len = FindMatchLengthWithLimit(&source[offset], &data[cur_ix_masked],
-                                   limit);
+                                  limit);
     if (len >= 2) {
       score_t score = BackwardReferenceScoreUsingLastDistance(len);
       if (best_score < score) {
