@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.1.0] - 2023-08-28
 
 ### SECURITY
- - python: added `Decompressor::can_accept_more_data` method ang optional
+ - python: added `Decompressor::can_accept_more_data` method and optional
            `max_output_length` argument `Decompressor::process`;
            that allows mitigation of unexpextedely large output;
            reported by Charles Chan (https://github.com/charleswhchan)
