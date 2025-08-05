@@ -6,9 +6,6 @@
 
 #include <brotli/decode.h>
 
-#include <stdlib.h>  /* free, malloc */
-#include <string.h>  /* memcpy, memset */
-
 #include "../common/constants.h"
 #include "../common/context.h"
 #include "../common/dictionary.h"

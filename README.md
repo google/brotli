@@ -17,7 +17,7 @@ The specification of the Brotli Compressed Data Format is defined in [RFC 7932](
 Brotli is open-sourced under the MIT License, see the LICENSE file.
 
 > **Please note:** brotli is a "stream" format; it does not contain
-> meta-information, like checksums or uncompresssed data length. It is possible
+> meta-information, like checksums or uncompressed data length. It is possible
 > to modify "raw" ranges of the compressed stream and the decoder will not
 > notice that.
 

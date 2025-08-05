@@ -1,2 +1,3 @@
 # Description:
+#   brotli is a pure Go implementation of Brotli decoder.
 #   cbrotli is a CGo wrapper for Brotli, a generic-purpose lossless compression algorithm.

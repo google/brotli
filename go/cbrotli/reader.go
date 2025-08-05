@@ -110,8 +110,13 @@ func (r *Reader) Read(p []byte) (n int, err error) {
 	if int(C.BrotliDecoderHasMoreOutput(r.state)) == 0 && len(r.in) == 0 {
 		m, readErr := r.src.Read(r.buf)
 		if m == 0 {
-			// If readErr is `nil`, we just proxy underlying stream behavior.
-			return 0, readErr
+			if readErr != io.EOF {
+				return 0, readErr
+			}
+			if int(C.BrotliDecoderIsFinished(r.state)) == 0 {
+				return 0, io.ErrUnexpectedEOF
+			}
+			return 0, io.EOF
 		}
 		r.in = r.buf[:m]
 	}
@@ -197,5 +202,9 @@ func DecodeWithRawDictionary(encodedData []byte, dictionary []byte) ([]byte, err
 		pinner: p,
 	}
 	defer r.Close()
-	return ioutil.ReadAll(r)
+	out, err := ioutil.ReadAll(r)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
 }

@@ -76,11 +76,12 @@ final class Transform {
 
   private static void unpackTransforms(byte[] prefixSuffix,
       int[] prefixSuffixHeads, int[] transforms, String prefixSuffixSrc, String transformsSrc) {
-    final int n = prefixSuffixSrc.length();
+    final int[] prefixSuffixBytes = Utils.toUtf8Runes(prefixSuffixSrc); 
+    final int n = prefixSuffixBytes.length;
     int index = 1;
     int j = 0;
     for (int i = 0; i < n; ++i) {
-      final int c = (int) prefixSuffixSrc.charAt(i);
+      final int c = prefixSuffixBytes[i];
       if (c == 35) { // == #
         prefixSuffixHeads[index++] = j;
       } else {

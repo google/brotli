@@ -8,10 +8,6 @@
 
 #include "huffman.h"
 
-#include <string.h>  /* memcpy, memset */
-
-#include <brotli/types.h>
-
 #include "../common/constants.h"
 #include "../common/platform.h"
 

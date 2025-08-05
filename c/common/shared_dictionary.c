@@ -8,10 +8,6 @@
 
 #include <brotli/shared_dictionary.h>
 
-#include <memory.h>
-#include <stdlib.h>  /* malloc, free */
-#include <stdio.h>
-
 #include "dictionary.h"
 #include "platform.h"
 #include "shared_dictionary_internal.h"

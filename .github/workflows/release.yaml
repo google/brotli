@@ -23,7 +23,7 @@ concurrency:
 jobs:
   windows_build:
     name: Windows Build (vcpkg / ${{ matrix.triplet }})
-    runs-on: [windows-latest]
+    runs-on: ${{ matrix.runs_on }}
     strategy:
       fail-fast: false
       matrix:
@@ -31,15 +31,27 @@ jobs:
           - triplet: x86-windows-dynamic
             arch: '-A Win32'
             build_shared_libs: 'ON'
+            runs_on: windows-latest
           - triplet: x64-windows-dynamic
             arch: '-A x64'
             build_shared_libs: 'ON'
+            runs_on: windows-latest
+          - triplet: arm64-windows-dynamic
+            arch: '-A ARM64'
+            build_shared_libs: 'ON'
+            runs_on: windows-11-arm
           - triplet: x86-windows-static
             arch: '-A Win32'
             build_shared_libs: 'OFF'
+            runs_on: windows-latest
           - triplet: x64-windows-static
             arch: '-A x64'
             build_shared_libs: 'OFF'
+            runs_on: windows-latest
+          - triplet: arm64-windows-static
+            arch: '-A ARM64'
+            build_shared_libs: 'OFF'
+            runs_on: windows-11-arm
 
     env:
       VCPKG_VERSION: '2022.11.14'
@@ -61,12 +73,10 @@ jobs:
 
     - name: Download vcpkg
       if: steps.cache-vcpkg.outputs.cache-hit != 'true'
-      # wget doesn't seem to work under bash.
       shell: 'powershell'
       run: |
-        C:\msys64\usr\bin\wget.exe -nv `
-           https://github.com/microsoft/vcpkg/archive/refs/tags/${{ env.VCPKG_VERSION }}.zip `
-          -O vcpkg.zip
+        Invoke-WebRequest -Uri "https://github.com/microsoft/vcpkg/archive/refs/tags/${{ env.VCPKG_VERSION }}.zip" -OutFile "vcpkg.zip"
+        
     - name: Bootstrap vcpkg
       if: steps.cache-vcpkg.outputs.cache-hit != 'true'
       shell: 'bash'
@@ -116,7 +126,7 @@ jobs:
 
     - name: Upload binaries to release
       if: github.event_name == 'release'
-      uses: softprops/action-gh-release@da05d552573ad5aba039eaac05058a918a7bf631 # v0.1.15
+      uses: softprops/action-gh-release@72f2c25fcb47643c292f7107632f7a47c1df5cd8 # v0.1.15
       with:
         files: brotli-${{matrix.triplet}}.zip
 
@@ -140,7 +150,7 @@ jobs:
 
     - name: Upload archive to release
       if: github.event_name == 'release'
-      uses: softprops/action-gh-release@da05d552573ad5aba039eaac05058a918a7bf631 # v0.1.15
+      uses: softprops/action-gh-release@72f2c25fcb47643c292f7107632f7a47c1df5cd8 # v0.1.15
       with:
         files: testdata.txz
 

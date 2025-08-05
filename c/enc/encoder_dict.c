@@ -6,7 +6,8 @@
 
 #include "encoder_dict.h"
 
-#include <stdlib.h>  /* malloc, free */
+#include <brotli/encode.h>
+#include <brotli/shared_dictionary.h>
 
 #include "../common/dictionary.h"
 #include "../common/platform.h"
@@ -14,9 +15,11 @@
 #include "../common/transform.h"
 #include "compound_dictionary.h"
 #include "dictionary_hash.h"
+#include "hash_base.h"
+#include "hash.h"
 #include "memory.h"
 #include "quality.h"
-#include "hash.h"
+#include "static_dict_lut.h"
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {

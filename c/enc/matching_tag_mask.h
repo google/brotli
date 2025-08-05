@@ -3,7 +3,8 @@
 
 #include "../common/platform.h"
 
-#if defined(__SSE2__) || defined(_M_AMD64) || (defined (_M_IX86) && defined(_M_IX86_FP) && (_M_IX86_FP >= 2))
+#if defined(__SSE2__) || defined(_M_AMD64) || \
+    (defined(_M_IX86) && defined(_M_IX86_FP) && (_M_IX86_FP >= 2))
 #define SUPPORTS_SSE_2
 #endif
 

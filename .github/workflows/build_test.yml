@@ -106,7 +106,7 @@ jobs:
             python_version: "3.10"
             # TODO: investigate why win-builds can't run tests
             py_setuptools_cmd: build_ext
-            os: windows-2019
+            os: windows-2022
 
           - name: maven
             build_system: maven
@@ -152,7 +152,7 @@ jobs:
             bazel_project: .
             os: windows-latest
 
-          # TODO: use single dll on windows, otherwise it fails to link
+          # TODO(eustas): restore when go is fixed
           #- name: bazel-win:go
           #  build_system: bazel
           #  bazel_project: go

@@ -9,8 +9,6 @@
 #ifndef BROTLI_ENC_COMMAND_H_
 #define BROTLI_ENC_COMMAND_H_
 
-#include <brotli/types.h>
-
 #include "../common/constants.h"
 #include "../common/platform.h"
 #include "fast_log.h"
