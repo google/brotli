@@ -23,6 +23,7 @@
 #include "entropy_encode.h"
 #include "fast_log.h"
 #include "find_match_length.h"
+#include "hash_base.h"
 #include "write_bits.h"
 
 #if defined(__cplusplus) || defined(c_plusplus)
@@ -30,14 +31,6 @@ extern "C" {
 #endif
 
 #define MAX_DISTANCE (long)BROTLI_MAX_BACKWARD_LIMIT(18)
-
-/* kHashMul32 multiplier has these properties:
-   * The multiplier must be odd. Otherwise we may lose the highest bit.
-   * No long streaks of ones or zeros.
-   * There is no effort to ensure that it is a prime, the oddity is enough
-     for this use.
-   * The number has been tuned heuristically against compression benchmarks. */
-static const uint32_t kHashMul32 = 0x1E35A7BD;
 
 static BROTLI_INLINE uint32_t Hash(const uint8_t* p,
     size_t shift, size_t length) {

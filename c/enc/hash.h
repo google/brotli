@@ -22,6 +22,7 @@
 #include "encoder_dict.h"
 #include "fast_log.h"
 #include "find_match_length.h"
+#include "hash_base.h"
 #include "matching_tag_mask.h"
 #include "memory.h"
 #include "quality.h"
@@ -71,23 +72,6 @@ typedef struct HasherSearchResult {
   score_t score;
   int len_code_delta; /* == len_code - len */
 } HasherSearchResult;
-
-/* kHashMul32 multiplier has these properties:
-   * The multiplier must be odd. Otherwise we may lose the highest bit.
-   * No long streaks of ones or zeros.
-   * There is no effort to ensure that it is a prime, the oddity is enough
-     for this use.
-   * The number has been tuned heuristically against compression benchmarks. */
-static const uint32_t kHashMul32 = 0x1E35A7BD;
-static const uint64_t kHashMul64 =
-    BROTLI_MAKE_UINT64_T(0x1FE35A7Bu, 0xD3579BD3u);
-
-static BROTLI_INLINE uint32_t Hash14(const uint8_t* data) {
-  uint32_t h = BROTLI_UNALIGNED_LOAD32LE(data) * kHashMul32;
-  /* The higher bits contain more mixture from the multiplication,
-     so we take our results from there. */
-  return h >> (32 - 14);
-}
 
 static BROTLI_INLINE void PrepareDistanceCache(
     int* BROTLI_RESTRICT distance_cache, const int num_distances) {
