@@ -8,8 +8,6 @@
 
 #include "block_splitter.h"
 
-#include <string.h>  /* memcpy, memset */
-
 #include "../common/platform.h"
 #include "bit_cost.h"
 #include "cluster.h"

@@ -11,8 +11,6 @@
 
 #include <math.h>
 
-#include <brotli/types.h>
-
 #include "../common/platform.h"
 
 #if defined(__cplusplus) || defined(c_plusplus)

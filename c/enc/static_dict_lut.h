@@ -9,7 +9,7 @@
 #ifndef BROTLI_ENC_STATIC_DICT_LUT_H_
 #define BROTLI_ENC_STATIC_DICT_LUT_H_
 
-#include <brotli/types.h>
+#include "../common/platform.h"
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
@@ -23,9 +23,6 @@ typedef struct DictWord {
 } DictWord;
 
 /* GENERATED CODE START */
-static const int kDictNumBits = 15;
-static const uint32_t kDictHashMul32 = 0x1E35A7BD;
-
 static const uint16_t kStaticDictionaryBuckets[32768] = {
 1,0,0,0,0,0,0,0,0,3,6,0,0,0,0,0,20,0,0,0,21,0,22,0,0,0,0,0,0,0,0,23,0,0,25,0,29,
 0,53,0,0,0,0,0,0,55,0,0,0,0,0,0,61,76,0,0,0,94,0,0,0,0,0,0,96,0,97,0,98,0,0,0,0,
