@@ -12,10 +12,6 @@
 
 #include "compress_fragment_two_pass.h"
 
-#include <string.h>  /* memcmp, memcpy, memset */
-
-#include <brotli/types.h>
-
 #include "../common/constants.h"
 #include "../common/platform.h"
 #include "bit_cost.h"

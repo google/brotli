@@ -6,8 +6,6 @@
 
 #include "static_dict.h"
 
-#include <brotli/types.h>
-
 #include "../common/dictionary.h"
 #include "../common/platform.h"
 #include "../common/transform.h"

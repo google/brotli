@@ -11,7 +11,6 @@
 
 #include <brotli/decode.h>
 #include <brotli/shared_dictionary.h>
-#include <brotli/types.h>
 
 #include "../common/constants.h"
 #include "../common/dictionary.h"

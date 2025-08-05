@@ -8,17 +8,15 @@
 
 #include "backward_references.h"
 
-#include <brotli/types.h>
-
 #include "../common/constants.h"
-#include "../common/dictionary.h"
+#include "../common/context.h"
 #include "../common/platform.h"
 #include "command.h"
 #include "compound_dictionary.h"
-#include "dictionary_hash.h"
 #include "encoder_dict.h"
-#include "memory.h"
-#include "quality.h"
+#include "hash.h"
+#include "params.h"
+#include "quality.h"  /* IWYU pragma: keep for inc */
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {

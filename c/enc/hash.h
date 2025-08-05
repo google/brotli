@@ -10,11 +10,6 @@
 #ifndef BROTLI_ENC_HASH_H_
 #define BROTLI_ENC_HASH_H_
 
-#include <stdlib.h>  /* exit */
-#include <string.h>  /* memcmp, memset */
-
-#include <brotli/types.h>
-
 #include "../common/constants.h"
 #include "../common/dictionary.h"
 #include "../common/platform.h"
@@ -25,6 +20,7 @@
 #include "hash_base.h"
 #include "matching_tag_mask.h"
 #include "memory.h"
+#include "params.h"
 #include "quality.h"
 #include "static_dict.h"
 

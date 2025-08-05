@@ -8,17 +8,15 @@
 
 #include "backward_references_hq.h"
 
-#include <string.h>  /* memcpy, memset */
-
-#include <brotli/types.h>
-
 #include "../common/constants.h"
+#include "../common/context.h"
 #include "../common/platform.h"
 #include "command.h"
 #include "compound_dictionary.h"
 #include "encoder_dict.h"
 #include "fast_log.h"
 #include "find_match_length.h"
+#include "hash.h"
 #include "literal_cost.h"
 #include "memory.h"
 #include "params.h"

@@ -14,10 +14,7 @@
 
 #include "compress_fragment.h"
 
-#include <string.h>  /* memcmp, memcpy, memset */
-
-#include <brotli/types.h>
-
+#include "../common/constants.h"
 #include "../common/platform.h"
 #include "brotli_bit_stream.h"
 #include "entropy_encode.h"
