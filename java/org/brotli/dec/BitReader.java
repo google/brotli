@@ -6,6 +6,14 @@
 
 package org.brotli.dec;
 
+import static org.brotli.dec.BrotliError.BROTLI_ERROR;
+import static org.brotli.dec.BrotliError.BROTLI_ERROR_CORRUPTED_PADDING_BITS;
+import static org.brotli.dec.BrotliError.BROTLI_ERROR_READ_AFTER_END;
+import static org.brotli.dec.BrotliError.BROTLI_ERROR_TRUNCATED_INPUT;
+import static org.brotli.dec.BrotliError.BROTLI_ERROR_UNUSED_BYTES_AFTER_END;
+import static org.brotli.dec.BrotliError.BROTLI_OK;
+import static org.brotli.dec.BrotliError.BROTLI_PANIC_UNALIGNED_COPY_BYTES;
+
 /**
  * Bit reading helpers.
  */
@@ -16,8 +24,8 @@ final class BitReader {
   private static final int LOG_BITNESS = Utils.getLogBintness();
 
   // Not only Java compiler prunes "if (const false)" code, but JVM as well.
-  // Code under "if (DEBUG != 0)" have zero performance impact (outside unit tests).
-  private static final int DEBUG = Utils.isDebugMode();
+  // Code under "if (BIT_READER_DEBUG != 0)" have zero performance impact (outside unit tests).
+  private static final int BIT_READER_DEBUG = Utils.isDebugMode();
 
   static final int BITNESS = 1 << LOG_BITNESS;
 
@@ -36,30 +44,25 @@ final class BitReader {
   private static final int HALF_SIZE = BYTENESS / 2;
   private static final int HALVES_CAPACITY = CAPACITY / HALF_SIZE;
   private static final int HALF_BUFFER_SIZE = BUFFER_SIZE / HALF_SIZE;
-  private static final int HALF_WATERLINE = WATERLINE / HALF_SIZE;
 
   private static final int LOG_HALF_SIZE = LOG_BITNESS - 4;
+
+  static final int HALF_WATERLINE = WATERLINE / HALF_SIZE;
 
   /**
    * Fills up the input buffer.
    *
-   * <p> No-op if there are at least 36 bytes present after current position.
+   * <p> Should not be called if there are at least 36 bytes present after current position.
    *
    * <p> After encountering the end of the input stream, 64 additional zero bytes are copied to the
    * buffer.
    */
-  static void readMoreInput(State s) {
-    if (s.halfOffset > HALF_WATERLINE) {
-      doReadMoreInput(s);
-    }
-  }
-
-  static void doReadMoreInput(State s) {
+  static int readMoreInput(State s) {
     if (s.endOfStreamReached != 0) {
       if (halfAvailable(s) >= -2) {
-        return;
+        return BROTLI_OK;
       }
-      throw new BrotliRuntimeException("No more input");
+      return Utils.makeError(s, BROTLI_ERROR_TRUNCATED_INPUT);
     }
     final int readOffset = s.halfOffset << LOG_HALF_SIZE;
     int bytesInBuffer = CAPACITY - readOffset;
@@ -70,6 +73,9 @@ final class BitReader {
       final int spaceLeft = CAPACITY - bytesInBuffer;
       final int len = Utils.readInput(s, s.byteBuffer, bytesInBuffer, spaceLeft);
       // EOF is -1 in Java, but 0 in C#.
+      if (len < BROTLI_ERROR) {
+        return len;
+      }
       if (len <= 0) {
         s.endOfStreamReached = 1;
         s.tailBytes = bytesInBuffer;
@@ -79,19 +85,21 @@ final class BitReader {
       bytesInBuffer += len;
     }
     bytesToNibbles(s, bytesInBuffer);
+    return BROTLI_OK;
   }
 
-  static void checkHealth(State s, int endOfStream) {
+  static int checkHealth(State s, int endOfStream) {
     if (s.endOfStreamReached == 0) {
-      return;
+      return BROTLI_OK;
     }
     final int byteOffset = (s.halfOffset << LOG_HALF_SIZE) + ((s.bitOffset + 7) >> 3) - BYTENESS;
     if (byteOffset > s.tailBytes) {
-      throw new BrotliRuntimeException("Read after end");
+      return Utils.makeError(s, BROTLI_ERROR_READ_AFTER_END);
     }
     if ((endOfStream != 0) && (byteOffset != s.tailBytes)) {
-      throw new BrotliRuntimeException("Unused bytes after end");
+      return Utils.makeError(s, BROTLI_ERROR_UNUSED_BYTES_AFTER_END);
     }
+    return BROTLI_OK;
   }
 
   static void assertAccumulatorHealthy(State s) {
@@ -101,41 +109,41 @@ final class BitReader {
   }
 
   static void fillBitWindow(State s) {
-    if (DEBUG != 0) {
+    if (BIT_READER_DEBUG != 0) {
       assertAccumulatorHealthy(s);
     }
     if (s.bitOffset >= HALF_BITNESS) {
       // Same as doFillBitWindow. JVM fails to inline it.
       if (BITNESS == 64) {
         s.accumulator64 = ((long) s.intBuffer[s.halfOffset++] << HALF_BITNESS)
-            | (s.accumulator64 >>> HALF_BITNESS);
+            | Utils.shr64(s.accumulator64, HALF_BITNESS);
       } else {
         s.accumulator32 = ((int) s.shortBuffer[s.halfOffset++] << HALF_BITNESS)
-            | (s.accumulator32 >>> HALF_BITNESS);
+            | Utils.shr32(s.accumulator32, HALF_BITNESS);
       }
       s.bitOffset -= HALF_BITNESS;
     }
   }
 
   static void doFillBitWindow(State s) {
-    if (DEBUG != 0) {
+    if (BIT_READER_DEBUG != 0) {
       assertAccumulatorHealthy(s);
     }
     if (BITNESS == 64) {
       s.accumulator64 = ((long) s.intBuffer[s.halfOffset++] << HALF_BITNESS)
-          | (s.accumulator64 >>> HALF_BITNESS);
+          | Utils.shr64(s.accumulator64, HALF_BITNESS);
     } else {
       s.accumulator32 = ((int) s.shortBuffer[s.halfOffset++] << HALF_BITNESS)
-          | (s.accumulator32 >>> HALF_BITNESS);
+          | Utils.shr32(s.accumulator32, HALF_BITNESS);
     }
     s.bitOffset -= HALF_BITNESS;
   }
 
   static int peekBits(State s) {
     if (BITNESS == 64) {
-      return (int) (s.accumulator64 >>> s.bitOffset);
+      return (int) Utils.shr64(s.accumulator64, s.bitOffset);
     } else {
-      return s.accumulator32 >>> s.bitOffset;
+      return Utils.shr32(s.accumulator32, s.bitOffset);
     }
   }
 
@@ -165,7 +173,7 @@ final class BitReader {
     return low | (readFewBits(s, n - 16) << 16);
   }
 
-  static void initBitReader(State s) {
+  static int initBitReader(State s) {
     s.byteBuffer = new byte[BUFFER_SIZE];
     if (BITNESS == 64) {
       s.accumulator64 = 0;
@@ -177,30 +185,41 @@ final class BitReader {
     s.bitOffset = BITNESS;
     s.halfOffset = HALVES_CAPACITY;
     s.endOfStreamReached = 0;
-    prepare(s);
+    return prepare(s);
   }
 
-  private static void prepare(State s) {
-    readMoreInput(s);
-    checkHealth(s, 0);
-    doFillBitWindow(s);
-    doFillBitWindow(s);
-  }
-
-  static void reload(State s) {
-    if (s.bitOffset == BITNESS) {
-      prepare(s);
+  private static int prepare(State s) {
+    if (s.halfOffset > BitReader.HALF_WATERLINE) {
+      final int result = readMoreInput(s);
+      if (result != BROTLI_OK) {
+        return result;
+      }
     }
+    int health = checkHealth(s, 0);
+    if (health != BROTLI_OK) {
+      return health;
+    }
+    doFillBitWindow(s);
+    doFillBitWindow(s);
+    return BROTLI_OK;
   }
 
-  static void jumpToByteBoundary(State s) {
+  static int reload(State s) {
+    if (s.bitOffset == BITNESS) {
+      return prepare(s);
+    }
+    return BROTLI_OK;
+  }
+
+  static int jumpToByteBoundary(State s) {
     final int padding = (BITNESS - s.bitOffset) & 7;
     if (padding != 0) {
       final int paddingBits = readFewBits(s, padding);
       if (paddingBits != 0) {
-        throw new BrotliRuntimeException("Corrupted padding bits");
+        return Utils.makeError(s, BROTLI_ERROR_CORRUPTED_PADDING_BITS);
       }
     }
+    return BROTLI_OK;
   }
 
   static int halfAvailable(State s) {
@@ -211,11 +230,11 @@ final class BitReader {
     return limit - s.halfOffset;
   }
 
-  static void copyRawBytes(State s, byte[] data, int offset, int length) {
+  static int copyRawBytes(State s, byte[] data, int offset, int length) {
     int pos = offset;
     int len = length;
     if ((s.bitOffset & 7) != 0) {
-      throw new BrotliRuntimeException("Unaligned copyBytes");
+      return Utils.makeError(s, BROTLI_PANIC_UNALIGNED_COPY_BYTES);
     }
 
     // Drain accumulator.
@@ -225,21 +244,21 @@ final class BitReader {
       len--;
     }
     if (len == 0) {
-      return;
+      return BROTLI_OK;
     }
 
     // Get data from shadow buffer with "sizeof(int)" granularity.
-    final int copyNibbles = Math.min(halfAvailable(s), len >> LOG_HALF_SIZE);
+    final int copyNibbles = Utils.min(halfAvailable(s), len >> LOG_HALF_SIZE);
     if (copyNibbles > 0) {
       final int readOffset = s.halfOffset << LOG_HALF_SIZE;
       final int delta = copyNibbles << LOG_HALF_SIZE;
-      System.arraycopy(s.byteBuffer, readOffset, data, pos, delta);
+      Utils.copyBytes(data, pos, s.byteBuffer, readOffset, readOffset + delta);
       pos += delta;
       len -= delta;
       s.halfOffset += copyNibbles;
     }
     if (len == 0) {
-      return;
+      return BROTLI_OK;
     }
 
     // Read tail bytes.
@@ -251,19 +270,23 @@ final class BitReader {
         s.bitOffset += 8;
         len--;
       }
-      checkHealth(s, 0);
-      return;
+      return checkHealth(s, 0);
     }
 
     // Now it is possible to copy bytes directly.
     while (len > 0) {
       final int chunkLen = Utils.readInput(s, data, pos, len);
-      if (chunkLen == -1) {
-        throw new BrotliRuntimeException("Unexpected end of input");
+      // EOF is -1 in Java, but 0 in C#.
+      if (len < BROTLI_ERROR) {
+        return len;
+      }
+      if (chunkLen <= 0) {
+        return Utils.makeError(s, BROTLI_ERROR_TRUNCATED_INPUT);
       }
       pos += chunkLen;
       len -= chunkLen;
     }
+    return BROTLI_OK;
   }
 
   /**

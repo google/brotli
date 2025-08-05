@@ -8,7 +8,6 @@
 #define BROTLI_ENC_ENCODER_DICT_H_
 
 #include <brotli/shared_dictionary.h>
-#include <brotli/types.h>
 
 #include "../common/dictionary.h"
 #include "../common/platform.h"

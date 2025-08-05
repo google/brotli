@@ -3,7 +3,7 @@
 // Distributed under MIT license.
 // See file LICENSE for detail or copy at https://opensource.org/licenses/MIT
 
-package cbrotli
+package cbrotli_test
 
 import (
 	"bytes"
@@ -14,10 +14,12 @@ import (
 	"math/rand"
 	"testing"
 	"time"
+
+	"github.com/google/brotli/go/cbrotli"
 )
 
 func checkCompressedData(compressedData, wantOriginalData []byte) error {
-	uncompressed, err := Decode(compressedData)
+	uncompressed, err := cbrotli.Decode(compressedData)
 	if err != nil {
 		return fmt.Errorf("brotli decompress failed: %v", err)
 	}
@@ -44,7 +46,7 @@ func checkCompressedData(compressedData, wantOriginalData []byte) error {
 
 func TestEncoderNoWrite(t *testing.T) {
 	out := bytes.Buffer{}
-	e := NewWriter(&out, WriterOptions{Quality: 5})
+	e := cbrotli.NewWriter(&out, cbrotli.WriterOptions{Quality: 5})
 	if err := e.Close(); err != nil {
 		t.Errorf("Close()=%v, want nil", err)
 	}
@@ -56,7 +58,7 @@ func TestEncoderNoWrite(t *testing.T) {
 
 func TestEncoderEmptyWrite(t *testing.T) {
 	out := bytes.Buffer{}
-	e := NewWriter(&out, WriterOptions{Quality: 5})
+	e := cbrotli.NewWriter(&out, cbrotli.WriterOptions{Quality: 5})
 	n, err := e.Write([]byte(""))
 	if n != 0 || err != nil {
 		t.Errorf("Write()=%v,%v, want 0, nil", n, err)
@@ -70,7 +72,7 @@ func TestWriter(t *testing.T) {
 	// Test basic encoder usage.
 	input := []byte("<html><body><H1>Hello world</H1></body></html>")
 	out := bytes.Buffer{}
-	e := NewWriter(&out, WriterOptions{Quality: 1})
+	e := cbrotli.NewWriter(&out, cbrotli.WriterOptions{Quality: 1})
 	in := bytes.NewReader([]byte(input))
 	n, err := io.Copy(e, in)
 	if err != nil {
@@ -96,7 +98,7 @@ func TestEncoderStreams(t *testing.T) {
 	input := make([]byte, 8*windowSize)
 	rand.Read(input)
 	out := bytes.Buffer{}
-	e := NewWriter(&out, WriterOptions{Quality: 11, LGWin: lgWin})
+	e := cbrotli.NewWriter(&out, cbrotli.WriterOptions{Quality: 11, LGWin: lgWin})
 	halfInput := input[:len(input)/2]
 	in := bytes.NewReader(halfInput)
 
@@ -122,7 +124,7 @@ func TestEncoderLargeInput(t *testing.T) {
 	input := make([]byte, 1000000)
 	rand.Read(input)
 	out := bytes.Buffer{}
-	e := NewWriter(&out, WriterOptions{Quality: 5})
+	e := cbrotli.NewWriter(&out, cbrotli.WriterOptions{Quality: 5})
 	in := bytes.NewReader(input)
 
 	n, err := io.Copy(e, in)
@@ -145,7 +147,7 @@ func TestEncoderFlush(t *testing.T) {
 	input := make([]byte, payload)
 	rand.Read(input)
 	out := bytes.Buffer{}
-	e := NewWriter(&out, WriterOptions{Quality: 5})
+	e := cbrotli.NewWriter(&out, cbrotli.WriterOptions{Quality: 5})
 	in := bytes.NewReader(input)
 	_, err := io.Copy(e, in)
 	if err != nil {
@@ -158,7 +160,7 @@ func TestEncoderFlush(t *testing.T) {
 		t.Fatalf("0 bytes written after Flush()")
 	}
 	decompressed := make([]byte, payload)
-	reader := NewReader(bytes.NewReader(out.Bytes()))
+	reader := cbrotli.NewReader(bytes.NewReader(out.Bytes()))
 	n, err := reader.Read(decompressed)
 	if n >= len(decompressed) || err != nil {
 		t.Errorf("Expected {<%v, nil}, but got {%v, %v}", len(decompressed), n, err)
@@ -205,8 +207,8 @@ func (r readerWithTimeout) Read(p []byte) (int, error) {
 
 func TestDecoderStreaming(t *testing.T) {
 	pr, pw := io.Pipe()
-	writer := NewWriter(pw, WriterOptions{Quality: 5, LGWin: 20})
-	reader := readerWithTimeout{NewReader(pr)}
+	writer := cbrotli.NewWriter(pw, cbrotli.WriterOptions{Quality: 5, LGWin: 20})
+	reader := readerWithTimeout{cbrotli.NewReader(pr)}
 	defer func() {
 		if err := reader.Close(); err != nil {
 			t.Errorf("reader.Close: %v", err)
@@ -262,8 +264,8 @@ func TestDecoderStreaming(t *testing.T) {
 
 func TestReader(t *testing.T) {
 	content := bytes.Repeat([]byte("hello world!"), 10000)
-	encoded, _ := Encode(content, WriterOptions{Quality: 5})
-	r := NewReader(bytes.NewReader(encoded))
+	encoded, _ := cbrotli.Encode(content, cbrotli.WriterOptions{Quality: 5})
+	r := cbrotli.NewReader(bytes.NewReader(encoded))
 	var decodedOutput bytes.Buffer
 	n, err := io.Copy(&decodedOutput, r)
 	if err != nil {
@@ -281,15 +283,15 @@ func TestReader(t *testing.T) {
 			got, len(content))
 	}
 	buf := make([]byte, 4)
-	if _, err := r.Read(buf); err != errReaderClosed {
-		t.Errorf("Read-after-Close returned %v, expected %v", err, errReaderClosed)
+	if _, err := r.Read(buf); err == nil {
+		t.Errorf("Read-after-Close shoule have returned error")
 	}
 }
 
 func TestDecode(t *testing.T) {
 	content := bytes.Repeat([]byte("hello world!"), 10000)
-	encoded, _ := Encode(content, WriterOptions{Quality: 5})
-	decoded, err := Decode(encoded)
+	encoded, _ := cbrotli.Encode(content, cbrotli.WriterOptions{Quality: 5})
+	decoded, err := cbrotli.Decode(encoded)
 	if err != nil {
 		t.Errorf("Decode: %v", err)
 	}
@@ -307,7 +309,7 @@ func TestDecodeFuzz(t *testing.T) {
 	// Test that the decoder terminates with corrupted input.
 	content := bytes.Repeat([]byte("hello world!"), 100)
 	src := rand.NewSource(0)
-	encoded, err := Encode(content, WriterOptions{Quality: 5})
+	encoded, err := cbrotli.Encode(content, cbrotli.WriterOptions{Quality: 5})
 	if err != nil {
 		t.Fatalf("Encode(<%d bytes>, _) = _, %s", len(content), err)
 	}
@@ -319,14 +321,14 @@ func TestDecodeFuzz(t *testing.T) {
 		for j := 0; j < 5; j++ {
 			enc[int(src.Int63())%len(enc)] = byte(src.Int63() % 256)
 		}
-		Decode(enc)
+		cbrotli.Decode(enc)
 	}
 }
 
 func TestDecodeTrailingData(t *testing.T) {
 	content := bytes.Repeat([]byte("hello world!"), 100)
-	encoded, _ := Encode(content, WriterOptions{Quality: 5})
-	_, err := Decode(append(encoded, 0))
+	encoded, _ := cbrotli.Encode(content, cbrotli.WriterOptions{Quality: 5})
+	_, err := cbrotli.Decode(append(encoded, 0))
 	if err == nil {
 		t.Errorf("Expected 'excessive input' error")
 	}
@@ -344,7 +346,7 @@ func TestEncodeDecode(t *testing.T) {
 	} {
 		t.Logf("case %q x %d", test.data, test.repeats)
 		input := bytes.Repeat(test.data, test.repeats)
-		encoded, err := Encode(input, WriterOptions{Quality: 5})
+		encoded, err := cbrotli.Encode(input, cbrotli.WriterOptions{Quality: 5})
 		if err != nil {
 			t.Errorf("Encode: %v", err)
 		}
@@ -355,7 +357,7 @@ func TestEncodeDecode(t *testing.T) {
 				"Encoded=%q",
 				len(encoded), maxSize, encoded)
 		}
-		decoded, err := Decode(encoded)
+		decoded, err := cbrotli.Decode(encoded)
 		if err != nil {
 			t.Errorf("Decode: %v", err)
 		}
@@ -385,10 +387,10 @@ func TestEncodeDecodeWithDictionary(t *testing.T) {
 		input[i] = byte(i*7 + i*i*5)
 	}
 	// use dictionary same as input
-	pd := NewPreparedDictionary(input, DtRaw, q)
+	pd := cbrotli.NewPreparedDictionary(input, cbrotli.DtRaw, q)
 	defer pd.Close()
 
-	encoded, err := Encode(input, WriterOptions{Quality: q, Dictionary: pd})
+	encoded, err := cbrotli.Encode(input, cbrotli.WriterOptions{Quality: q, Dictionary: pd})
 	if err != nil {
 		t.Errorf("Encode: %v", err)
 	}
@@ -397,7 +399,7 @@ func TestEncodeDecodeWithDictionary(t *testing.T) {
 		t.Errorf("Output length exceeds expectations: %d > %d", len(encoded), limit)
 	}
 
-	decoded, err := DecodeWithRawDictionary(encoded, input)
+	decoded, err := cbrotli.DecodeWithRawDictionary(encoded, input)
 	if err != nil {
 		t.Errorf("Decode: %v", err)
 	}

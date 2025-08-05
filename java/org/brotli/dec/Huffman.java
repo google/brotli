@@ -33,10 +33,10 @@ final class Huffman {
    */
   private static void replicateValue(int[] table, int offset, int step, int end, int item) {
     int pos = end;
-    do {
+    while (pos > 0) {
       pos -= step;
       table[offset + pos] = item;
-    } while (pos > 0);
+    }
   }
 
   /**

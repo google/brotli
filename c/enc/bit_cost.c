@@ -8,12 +8,7 @@
 
 #include "bit_cost.h"
 
-#include <brotli/types.h>
-
-#include "../common/constants.h"
-#include "../common/platform.h"
-#include "fast_log.h"
-#include "histogram.h"
+// #include "../common/platform.h"
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {

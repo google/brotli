@@ -9,18 +9,18 @@
 
 #include "metablock.h"
 
-#include <brotli/types.h>
-
 #include "../common/constants.h"
 #include "../common/context.h"
 #include "../common/platform.h"
 #include "bit_cost.h"
 #include "block_splitter.h"
 #include "cluster.h"
+#include "command.h"
 #include "entropy_encode.h"
 #include "histogram.h"
 #include "memory.h"
-#include "quality.h"
+#include "params.h"
+#include "prefix.h"
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
