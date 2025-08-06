@@ -8,7 +8,10 @@
 
 #include "static_init.h"
 
+#include "../common/dictionary.h"
 #include "../common/platform.h"
+#include "dictionary_hash.h"
+#include "static_dict_lut.h"
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
@@ -16,6 +19,13 @@ extern "C" {
 
 #if (BROTLI_STATIC_INIT != BROTLI_STATIC_INIT_NONE)
 static BROTLI_BOOL DoBrotliEncoderStaticInit(void) {
+  const BrotliDictionary* dict = BrotliGetDictionary();
+  BROTLI_BOOL ok = BrotliEncoderInitStaticDictionaryLut(
+      dict, kStaticDictionaryBuckets, kStaticDictionaryWords);
+  if (!ok) return BROTLI_FALSE;
+  ok = BrotliEncoderInitDictionaryHash(dict, kStaticDictionaryHashWords,
+                                       kStaticDictionaryHashLengths);
+  if (!ok) return BROTLI_FALSE;
   return BROTLI_TRUE;
 }
 #endif

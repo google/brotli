@@ -254,6 +254,8 @@ else:
                 'c/enc/memory.c',
                 'c/enc/metablock.c',
                 'c/enc/static_dict.c',
+                'c/enc/static_dict_lut.c',
+                'c/enc/static_init.c',
                 'c/enc/utf8_util.c',
             ],
             depends=[
@@ -309,6 +311,7 @@ else:
                 'c/enc/ringbuffer.h',
                 'c/enc/static_dict.h',
                 'c/enc/static_dict_lut.h',
+                'c/enc/static_init.h',
                 'c/enc/utf8_util.h',
                 'c/enc/write_bits.h',
             ],

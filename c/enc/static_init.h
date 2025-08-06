@@ -22,12 +22,7 @@ extern "C" {
 /* Static data is initialized when first encoder is created. */
 #define BROTLI_STATIC_INIT_LAZY 2
 
-#if BROTLI_GNUC_HAS_ATTRIBUTE(constructor, 2, 7, 0) && \
-    !defined(BROTLI_EXTERNAL_DICTIONARY_DATA)
-#define BROTLI_STATIC_INIT_DEFAULT BROTLI_STATIC_INIT_EARLY
-#else
 #define BROTLI_STATIC_INIT_DEFAULT BROTLI_STATIC_INIT_NONE
-#endif
 
 #if !defined(BROTLI_STATIC_INIT)
 #define BROTLI_STATIC_INIT BROTLI_STATIC_INIT_DEFAULT

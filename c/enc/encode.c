@@ -32,6 +32,7 @@
 #include "quality.h"
 #include "ringbuffer.h"
 #include "state.h"
+#include "static_init.h"
 #include "utf8_util.h"
 #include "write_bits.h"
 
@@ -745,6 +746,10 @@ static void BrotliEncoderInitState(BrotliEncoderState* s) {
 
 BrotliEncoderState* BrotliEncoderCreateInstance(
     brotli_alloc_func alloc_func, brotli_free_func free_func, void* opaque) {
+  BROTLI_BOOL healthy = BrotliEncoderEnsureStaticInit();
+  if (!healthy) {
+    return 0;
+  }
   BrotliEncoderState* state = (BrotliEncoderState*)BrotliBootstrapAlloc(
       sizeof(BrotliEncoderState), alloc_func, free_func, opaque);
   if (state == NULL) {
