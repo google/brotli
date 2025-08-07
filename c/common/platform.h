@@ -586,4 +586,12 @@ BROTLI_UNUSED_FUNCTION void BrotliSuppressUnusedFunctions(void) {
 #endif
 }
 
+#if defined(_MSC_VER)
+#define BROTLI_CRASH() __debugbreak(), (void)abort()
+#elif BROTLI_GNUC_HAS_BUILTIN(__builtin_trap, 3, 0, 0)
+#define BROTLI_CRASH() (void)__builtin_trap()
+#else
+#define BROTLI_CRASH() (void)abort()
+#endif
+
 #endif  /* BROTLI_COMMON_PLATFORM_H_ */

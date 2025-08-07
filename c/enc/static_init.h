@@ -45,8 +45,8 @@ BROTLI_INTERNAL void BrotliEncoderLazyStaticInitInner(void);
    the first invocation. This function should not return until execution of
    `BrotliEncoderLazyStaticInitInner` is finished. In C or before C++11 it is
    possible to call `BrotliEncoderLazyStaticInitInner` on start-up path and then
-   `BrotliEncoderLazyStaticInit` is no-op; another option is to use available
-   thread execution controls to meet the requirements.
+   `BrotliEncoderLazyStaticInit` is could be no-op; another option is to use
+   available thread execution controls to meet the requirements.
    For possible C++11 implementation see static_init_lazy.cc.
  */
 BROTLI_INTERNAL void BrotliEncoderLazyStaticInit(void);
