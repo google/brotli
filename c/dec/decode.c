@@ -2937,16 +2937,15 @@ void BrotliDecoderSetMetadataCallbacks(
 
 /* Escalate internal functions visibility; for testing purposes only. */
 #if defined(BROTLI_TEST)
-BROTLI_BOOL SafeReadSymbolForTest(
+BROTLI_BOOL BrotliSafeReadSymbolForTest(
     const HuffmanCode*, BrotliBitReader*, brotli_reg_t*);
-BROTLI_BOOL SafeReadSymbolForTest(
+BROTLI_BOOL BrotliSafeReadSymbolForTest(
     const HuffmanCode* table, BrotliBitReader* br, brotli_reg_t* result) {
   return SafeReadSymbol(table, br, result);
 }
-
-void InverseMoveToFrontTransformForTest(
+void BrotliInverseMoveToFrontTransformForTest(
     uint8_t*, brotli_reg_t, BrotliDecoderState*);
-void InverseMoveToFrontTransformForTest(
+void BrotliInverseMoveToFrontTransformForTest(
     uint8_t* v, brotli_reg_t l, BrotliDecoderState* s) {
   InverseMoveToFrontTransform(v, l, s);
 }
