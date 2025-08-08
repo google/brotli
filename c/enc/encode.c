@@ -1994,8 +1994,8 @@ size_t BrotliEncoderGetPreparedDictionarySize(
 }
 
 #if defined(BROTLI_TEST)
-size_t MakeUncompressedStreamForTest(const uint8_t*, size_t, uint8_t*);
-size_t MakeUncompressedStreamForTest(
+size_t BrotliMakeUncompressedStreamForTest(const uint8_t*, size_t, uint8_t*);
+size_t BrotliMakeUncompressedStreamForTest(
     const uint8_t* input, size_t input_size, uint8_t* output) {
   return MakeUncompressedStream(input, input_size, output);
 }

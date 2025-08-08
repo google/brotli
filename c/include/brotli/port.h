@@ -239,8 +239,6 @@
 #define BROTLI_PUBLIC
 #endif
 
-/* BROTLI_INTERNAL could be defined to override visibility, e.g. for tests. */
-#if !defined(BROTLI_INTERNAL)
 #if defined(_WIN32) || defined(__CYGWIN__)
 #define BROTLI_INTERNAL
 #elif BROTLI_GNUC_VERSION_CHECK(3, 3, 0) ||                         \
@@ -254,7 +252,6 @@
 #define BROTLI_INTERNAL __attribute__ ((visibility ("hidden")))
 #else
 #define BROTLI_INTERNAL
-#endif
 #endif
 
 #if defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L) &&   \

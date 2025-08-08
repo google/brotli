@@ -632,8 +632,8 @@ void BrotliDestroyManagedDictionary(ManagedDictionary* dictionary) {
 
 /* Escalate internal functions visibility; for testing purposes only. */
 #if defined(BROTLI_TEST)
-void InitEncoderDictionaryForTest(BrotliEncoderDictionary*);
-void InitEncoderDictionaryForTest(BrotliEncoderDictionary* d) {
+void BrotliInitEncoderDictionaryForTest(BrotliEncoderDictionary*);
+void BrotliInitEncoderDictionaryForTest(BrotliEncoderDictionary* d) {
   InitEncoderDictionary(d);
 }
 #endif
