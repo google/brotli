@@ -1321,8 +1321,10 @@ void BrotliStoreUncompressedMetaBlock(BROTLI_BOOL is_final_block,
 }
 
 #if defined(BROTLI_TEST)
-void GetBlockLengthPrefixCodeForTest(uint32_t len, size_t* code,
-                                     uint32_t* n_extra, uint32_t* extra) {
+void BrotliGetBlockLengthPrefixCodeForTest(uint32_t len, size_t* code,
+                                           uint32_t* n_extra, uint32_t* extra);
+void BrotliGetBlockLengthPrefixCodeForTest(uint32_t len, size_t* code,
+                                           uint32_t* n_extra, uint32_t* extra) {
   GetBlockLengthPrefixCode(len, code, n_extra, extra);
 }
 #endif

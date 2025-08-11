@@ -196,16 +196,15 @@ void BrotliSplitBlock(MemoryManager* m,
 }
 
 #if defined(BROTLI_TEST)
-size_t CountLiteralsForTest(const Command*, const size_t);
-size_t CountLiteralsForTest(const Command* cmds, const size_t num_commands) {
+size_t BrotliCountLiteralsForTest(const Command*, size_t);
+size_t BrotliCountLiteralsForTest(const Command* cmds, size_t num_commands) {
   return CountLiterals(cmds, num_commands);
 }
-
-void CopyLiteralsToByteArrayForTest(const Command*,
-    const size_t, const uint8_t*, const size_t, const size_t, uint8_t*);
-void CopyLiteralsToByteArrayForTest(const Command* cmds,
-    const size_t num_commands, const uint8_t* data, const size_t offset,
-    const size_t mask, uint8_t* literals) {
+void BrotliCopyLiteralsToByteArrayForTest(
+    const Command*, size_t, const uint8_t*, size_t, size_t, uint8_t*);
+void BrotliCopyLiteralsToByteArrayForTest(const Command* cmds,
+    size_t num_commands, const uint8_t* data, size_t offset, size_t mask,
+    uint8_t* literals) {
   CopyLiteralsToByteArray(cmds, num_commands, data, offset, mask, literals);
 }
 #endif
