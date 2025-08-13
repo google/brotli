@@ -75,7 +75,7 @@ BROTLI_INTERNAL void BrotliConvertBitDepthsToSymbols(const uint8_t* depth,
                                                      size_t len,
                                                      uint16_t* bits);
 
-BROTLI_INTERNAL extern const size_t kBrotliShellGaps[6];
+BROTLI_INTERNAL extern BROTLI_MODEL("small") const size_t kBrotliShellGaps[6];
 /* Input size optimized Shell sort. */
 typedef BROTLI_BOOL (*HuffmanTreeComparator)(
     const HuffmanTree*, const HuffmanTree*);

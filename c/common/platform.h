@@ -599,4 +599,10 @@ BROTLI_UNUSED_FUNCTION void BrotliSuppressUnusedFunctions(void) {
 #undef BROTLI_TEST
 #endif
 
+#if BROTLI_GNUC_HAS_ATTRIBUTE(model, 3, 0, 3)
+#define BROTLI_MODEL(M) __attribute__((model(M)))
+#else
+#define BROTLI_MODEL(M) /* M */
+#endif
+
 #endif  /* BROTLI_COMMON_PLATFORM_H_ */

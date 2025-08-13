@@ -204,12 +204,15 @@ BROTLI_BOOL BrotliEncoderInitStaticDictionaryLut(
   return ok;
 }
 
+BROTLI_MODEL("small")
 uint16_t kStaticDictionaryBuckets[BROTLI_ENC_STATIC_DICT_LUT_NUM_BUCKETS];
+BROTLI_MODEL("small")
 DictWord kStaticDictionaryWords[BROTLI_ENC_STATIC_DICT_LUT_NUM_ITEMS];
 
 #else  /* BROTLI_STATIC_INIT */
 
 /* GENERATED CODE START */
+const BROTLI_MODEL("small")
 uint16_t kStaticDictionaryBuckets[BROTLI_ENC_STATIC_DICT_LUT_NUM_BUCKETS] = {
 1,0,0,0,0,0,0,0,0,3,6,0,0,0,0,0,20,0,0,0,21,0,22,0,0,0,0,0,0,0,0,23,0,0,25,0,29,
 0,53,0,0,0,0,0,0,55,0,0,0,0,0,0,61,76,0,0,0,94,0,0,0,0,0,0,96,0,97,0,98,0,0,0,0,
@@ -1485,6 +1488,7 @@ uint16_t kStaticDictionaryBuckets[BROTLI_ENC_STATIC_DICT_LUT_NUM_BUCKETS] = {
 0,31644,0,31646,0,0,0,0,31648,0,0,0,31652,0,0,0,31657,0,0,31676,0,0,0,0,0,0,0,
 31689,31691,31692,0,31694,0,0,0,31696,0,31702,0,31703,0};
 
+const BROTLI_MODEL("small")
 DictWord kStaticDictionaryWords[BROTLI_ENC_STATIC_DICT_LUT_NUM_ITEMS] = {
 {0,0,0},{8,0,1002},{136,0,1015},{4,0,683},{4,10,325},{138,10,125},{7,11,572},{9,
 11,592},{11,11,680},{11,11,842},{11,11,924},{12,11,356},{12,11,550},{13,11,317},

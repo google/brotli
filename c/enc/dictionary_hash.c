@@ -85,12 +85,15 @@ BROTLI_BOOL BrotliEncoderInitDictionaryHash(
   return BROTLI_TRUE;
 }
 
+BROTLI_MODEL("small")
 uint16_t kStaticDictionaryHashWords[BROTLI_ENC_NUM_HASH_BUCKETS];
+BROTLI_MODEL("small")
 uint8_t kStaticDictionaryHashLengths[BROTLI_ENC_NUM_HASH_BUCKETS];
 
 #else  /* BROTLI_STATIC_INIT */
 
 /* GENERATED CODE START */
+const BROTLI_MODEL("small")
 uint16_t kStaticDictionaryHashWords[BROTLI_ENC_NUM_HASH_BUCKETS] = {
 1002,0,0,0,0,0,0,0,0,683,0,0,0,0,0,0,0,1265,0,0,0,0,0,1431,0,0,0,0,0,0,40,0,0,0,
 0,155,8,741,0,624,0,0,0,0,0,0,0,0,0,0,0,0,66,503,0,0,0,451,0,0,0,0,0,0,0,835,70,
@@ -1075,6 +1078,7 @@ uint16_t kStaticDictionaryHashWords[BROTLI_ENC_NUM_HASH_BUCKETS] = {
 0,0,0,515,1709,0,0,0,0,0,0,0,0,404,0,0,0,0,500,0,0,0,0,0,0,0,0,0,68,216,0,0,0,0,
 0,0,0,488,353,0,0,177,236,0,0,458,490,0,0,0,0,0,0,756,1504,0,757,0,1735,0,0,108,
 598,0,0,0,0};
+const BROTLI_MODEL("small")
 uint8_t kStaticDictionaryHashLengths[BROTLI_ENC_NUM_HASH_BUCKETS] = {
 8,0,0,0,0,0,0,0,0,4,0,0,0,0,0,0,0,6,0,0,0,0,0,6,0,0,0,0,0,0,12,0,0,0,0,4,22,5,0,
 4,0,0,0,0,0,0,0,0,0,0,0,0,14,6,0,0,0,5,0,0,0,0,0,0,0,7,13,0,0,4,0,0,0,0,0,0,0,0,

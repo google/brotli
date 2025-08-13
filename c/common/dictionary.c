@@ -12,7 +12,7 @@ extern "C" {
 #endif
 
 #if !defined(BROTLI_EXTERNAL_DICTIONARY_DATA)
-static const uint8_t kBrotliDictionaryData[] =
+static const BROTLI_MODEL("small") uint8_t kBrotliDictionaryData[] =
 /* GENERATED CODE START */
 {
 116,105,109,101,100,111,119,110,108,105,102,101,108,101,102,116,98,97,99,107,99,
@@ -5866,9 +5866,9 @@ static const uint8_t kBrotliDictionaryData[] =
 #endif  /* !BROTLI_EXTERNAL_DICTIONARY_DATA */
 
 #if !defined(BROTLI_EXTERNAL_DICTIONARY_DATA)
-static const BrotliDictionary kBrotliDictionary = {
+static const BROTLI_MODEL("small") BrotliDictionary kBrotliDictionary = {
 #else
-static BrotliDictionary kBrotliDictionary = {
+static BROTLI_MODEL("small") BrotliDictionary kBrotliDictionary = {
 #endif
   /* size_bits_by_length */
   {

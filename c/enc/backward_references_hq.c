@@ -32,10 +32,10 @@ extern "C" {
 
 static const float kInfinity = 1.7e38f;  /* ~= 2 ^ 127 */
 
-static const uint32_t kDistanceCacheIndex[] = {
+static const BROTLI_MODEL("small") uint32_t kDistanceCacheIndex[] = {
   0, 1, 2, 3, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1,
 };
-static const int kDistanceCacheOffset[] = {
+static const BROTLI_MODEL("small") int kDistanceCacheOffset[] = {
   0, 0, 0, 0, -1, 1, -2, 2, -3, 3, -1, 1, -2, 2, -3, 3
 };
 

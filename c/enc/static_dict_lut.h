@@ -31,12 +31,16 @@ typedef struct DictWord {
 #if (BROTLI_STATIC_INIT != BROTLI_STATIC_INIT_NONE)
 BROTLI_INTERNAL BROTLI_BOOL BrotliEncoderInitStaticDictionaryLut(
     const BrotliDictionary* dictionary, uint16_t* buckets, DictWord* words);
-#endif
-
-BROTLI_INTERNAL extern uint16_t
+BROTLI_INTERNAL extern BROTLI_MODEL("small") uint16_t
     kStaticDictionaryBuckets[BROTLI_ENC_STATIC_DICT_LUT_NUM_BUCKETS];
-BROTLI_INTERNAL extern DictWord
+BROTLI_INTERNAL extern BROTLI_MODEL("small") DictWord
     kStaticDictionaryWords[BROTLI_ENC_STATIC_DICT_LUT_NUM_ITEMS];
+#else
+BROTLI_INTERNAL extern const BROTLI_MODEL("small") uint16_t
+    kStaticDictionaryBuckets[BROTLI_ENC_STATIC_DICT_LUT_NUM_BUCKETS];
+BROTLI_INTERNAL extern const BROTLI_MODEL("small") DictWord
+    kStaticDictionaryWords[BROTLI_ENC_STATIC_DICT_LUT_NUM_ITEMS];
+#endif
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }  /* extern "C" */
