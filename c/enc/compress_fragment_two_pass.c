@@ -535,7 +535,8 @@ static BROTLI_BOOL ShouldCompress(BrotliTwoPassArena* s,
     for (i = 0; i < input_size; i += SAMPLE_RATE) {
       ++s->lit_histo[input[i]];
     }
-    return TO_BROTLI_BOOL(BitsEntropy(s->lit_histo, 256) < max_total_bit_cost);
+    return TO_BROTLI_BOOL(
+        BrotliBitsEntropy(s->lit_histo, 256) < max_total_bit_cost);
   }
 }
 

@@ -241,12 +241,25 @@ static void InitCommandPrefixCodes(BrotliOnePassArena* s) {
   s->cmd_code_numbits = kDefaultCommandCodeNumBits;
 }
 
+/* TODO(eustas): avoid FP calculations. */
+static double EstimateEntropy(const uint32_t* population, size_t size) {
+  size_t total = 0;
+  double result = 0;
+  for (size_t i = 0; i < size; ++i) {
+    uint32_t p = population[i];
+    total += p;
+    result += (double)p * FastLog2(p);
+  }
+  result = (double)total * FastLog2(total) - result;
+  return result;
+}
+
 /* Decide about the context map based on the ability of the prediction
    ability of the previous byte UTF8-prefix on the next byte. The
    prediction ability is calculated as Shannon entropy. Here we need
-   Shannon entropy instead of 'BitsEntropy' since the prefix will be
+   Shannon entropy instead of 'BrotliBitsEntropy' since the prefix will be
    encoded with the remaining 6 bits of the following byte, and
-   BitsEntropy will assume that symbol to be stored alone using Huffman
+   BrotliBitsEntropy will assume that symbol to be stored alone using Huffman
    coding. */
 static void ChooseContextMap(int quality,
                              uint32_t* bigram_histo,
@@ -271,18 +284,17 @@ static void ChooseContextMap(int quality,
   uint32_t two_prefix_histo[6] = { 0 };
   size_t total;
   size_t i;
-  size_t sink;
   double entropy[4];
   for (i = 0; i < 9; ++i) {
     monogram_histo[i % 3] += bigram_histo[i];
     two_prefix_histo[i % 6] += bigram_histo[i];
   }
-  entropy[1] = ShannonEntropy(monogram_histo, 3, &sink);
-  entropy[2] = (ShannonEntropy(two_prefix_histo, 3, &sink) +
-                ShannonEntropy(two_prefix_histo + 3, 3, &sink));
+  entropy[1] = EstimateEntropy(monogram_histo, 3);
+  entropy[2] = (EstimateEntropy(two_prefix_histo, 3) +
+                EstimateEntropy(two_prefix_histo + 3, 3));
   entropy[3] = 0;
   for (i = 0; i < 3; ++i) {
-    entropy[3] += ShannonEntropy(bigram_histo + 3 * i, 3, &sink);
+    entropy[3] += EstimateEntropy(bigram_histo + 3 * i, 3);
   }
 
   total = monogram_histo[0] + monogram_histo[1] + monogram_histo[2];
@@ -349,7 +361,6 @@ static BROTLI_BOOL ShouldUseComplexStaticContextMap(const uint8_t* input,
     uint32_t* BROTLI_RESTRICT const context_histo = arena + 32;
     uint32_t total = 0;
     double entropy[3];
-    size_t sink;
     size_t i;
     ContextLut utf8_lut = BROTLI_CONTEXT_LUT(CONTEXT_UTF8);
     memset(arena, 0, sizeof(arena[0]) * 32 * (BROTLI_MAX_STATIC_CONTEXTS + 1));
@@ -371,10 +382,10 @@ static BROTLI_BOOL ShouldUseComplexStaticContextMap(const uint8_t* input,
         prev1 = literal;
       }
     }
-    entropy[1] = ShannonEntropy(combined_histo, 32, &sink);
+    entropy[1] = EstimateEntropy(combined_histo, 32);
     entropy[2] = 0;
     for (i = 0; i < BROTLI_MAX_STATIC_CONTEXTS; ++i) {
-      entropy[2] += ShannonEntropy(context_histo + (i << 5), 32, &sink);
+      entropy[2] += EstimateEntropy(context_histo + (i << 5), 32);
     }
     entropy[0] = 1.0 / (double)total;
     entropy[1] *= entropy[0];
@@ -449,7 +460,7 @@ static BROTLI_BOOL ShouldCompress(
         ++literal_histo[data[pos & mask]];
         pos += kSampleRate;
       }
-      if (BitsEntropy(literal_histo, 256) > bit_cost_threshold) {
+      if (BrotliBitsEntropy(literal_histo, 256) > bit_cost_threshold) {
         return BROTLI_FALSE;
       }
     }
