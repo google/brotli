@@ -7,11 +7,11 @@
 /* Implementation of Brotli compressor. */
 
 #include <brotli/encode.h>
-#include <brotli/shared_dictionary.h>
 
 #include "../common/constants.h"
 #include "../common/context.h"
 #include "../common/platform.h"
+#include <brotli/shared_dictionary.h>
 #include "../common/version.h"
 #include "backward_references_hq.h"
 #include "backward_references.h"
