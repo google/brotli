@@ -605,4 +605,10 @@ BROTLI_UNUSED_FUNCTION void BrotliSuppressUnusedFunctions(void) {
 #define BROTLI_MODEL(M) /* M */
 #endif
 
+#if BROTLI_GNUC_HAS_ATTRIBUTE(cold, 4, 3, 0)
+#define BROTLI_COLD __attribute__((cold))
+#else
+#define BROTLI_COLD /* cold */
+#endif
+
 #endif  /* BROTLI_COMMON_PLATFORM_H_ */
