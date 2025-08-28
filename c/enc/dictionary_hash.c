@@ -21,7 +21,7 @@ extern "C" {
 #endif
 
 #if (BROTLI_STATIC_INIT != BROTLI_STATIC_INIT_NONE)
-BROTLI_BOOL BrotliEncoderInitDictionaryHash(
+BROTLI_BOOL BROTLI_COLD BrotliEncoderInitDictionaryHash(
     const BrotliDictionary* dict, uint16_t* words, uint8_t* lengths) {
   size_t global_idx = 0;
   size_t len;

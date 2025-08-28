@@ -1774,7 +1774,7 @@ BrotliEncoderPreparedDictionary* BrotliEncoderPrepareDictionary(
   return (BrotliEncoderPreparedDictionary*)managed_dictionary;
 }
 
-void BrotliEncoderDestroyPreparedDictionary(
+void BROTLI_COLD BrotliEncoderDestroyPreparedDictionary(
     BrotliEncoderPreparedDictionary* dictionary) {
   ManagedDictionary* dict = (ManagedDictionary*)dictionary;
   if (!dictionary) return;
@@ -1800,7 +1800,8 @@ void BrotliEncoderDestroyPreparedDictionary(
   BrotliDestroyManagedDictionary(dict);
 }
 
-BROTLI_BOOL BrotliEncoderAttachPreparedDictionary(BrotliEncoderState* state,
+BROTLI_BOOL BROTLI_COLD BrotliEncoderAttachPreparedDictionary(
+    BrotliEncoderState* state,
     const BrotliEncoderPreparedDictionary* dictionary) {
   /* First field of dictionary structs */
   const BrotliEncoderPreparedDictionary* dict = dictionary;
@@ -1857,8 +1858,8 @@ BROTLI_BOOL BrotliEncoderAttachPreparedDictionary(BrotliEncoderState* state,
   return BROTLI_TRUE;
 }
 
-size_t BrotliEncoderEstimatePeakMemoryUsage(int quality, int lgwin,
-                                            size_t input_size) {
+size_t BROTLI_COLD BrotliEncoderEstimatePeakMemoryUsage(int quality, int lgwin,
+                                                        size_t input_size) {
   BrotliEncoderParams params;
   size_t memory_manager_slots = BROTLI_ENCODER_MEMORY_MANAGER_SLOTS;
   size_t memory_manager_size = memory_manager_slots * sizeof(void*);
@@ -1925,7 +1926,7 @@ size_t BrotliEncoderEstimatePeakMemoryUsage(int quality, int lgwin,
             histogram_size);
   }
 }
-size_t BrotliEncoderGetPreparedDictionarySize(
+size_t BROTLI_COLD BrotliEncoderGetPreparedDictionarySize(
     const BrotliEncoderPreparedDictionary* prepared_dictionary) {
   /* First field of dictionary structs */
   const BrotliEncoderPreparedDictionary* prepared = prepared_dictionary;

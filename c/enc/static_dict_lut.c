@@ -24,7 +24,7 @@ extern "C" {
 #if (BROTLI_STATIC_INIT != BROTLI_STATIC_INIT_NONE)
 
 /* TODO(eustas): deal with largest bucket(s). Not it contains 163 items. */
-static BROTLI_BOOL DoBrotliEncoderInitStaticDictionaryLut(
+static BROTLI_BOOL BROTLI_COLD DoBrotliEncoderInitStaticDictionaryLut(
     const BrotliDictionary* dict, uint16_t* buckets, DictWord* words,
     void* arena) {
   DictWord* slots = (DictWord*)arena;
