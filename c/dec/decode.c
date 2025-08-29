@@ -43,16 +43,19 @@ extern "C" {
         255 prefix + 32 base + 255 suffix */
 static const brotli_reg_t kRingBufferWriteAheadSlack = 542;
 
-static const uint8_t kCodeLengthCodeOrder[BROTLI_CODE_LENGTH_CODES] = {
+static const BROTLI_MODEL("small")
+uint8_t kCodeLengthCodeOrder[BROTLI_CODE_LENGTH_CODES] = {
   1, 2, 3, 4, 0, 5, 17, 6, 16, 7, 8, 9, 10, 11, 12, 13, 14, 15,
 };
 
 /* Static prefix code for the complex code length code lengths. */
-static const uint8_t kCodeLengthPrefixLength[16] = {
+static const BROTLI_MODEL("small")
+uint8_t kCodeLengthPrefixLength[16] = {
   2, 2, 2, 3, 2, 2, 2, 4, 2, 2, 2, 3, 2, 2, 2, 4,
 };
 
-static const uint8_t kCodeLengthPrefixValue[16] = {
+static const BROTLI_MODEL("small")
+uint8_t kCodeLengthPrefixValue[16] = {
   0, 4, 3, 2, 0, 4, 3, 1, 0, 4, 3, 2, 0, 4, 3, 5,
 };
 
@@ -2937,16 +2940,15 @@ void BrotliDecoderSetMetadataCallbacks(
 
 /* Escalate internal functions visibility; for testing purposes only. */
 #if defined(BROTLI_TEST)
-BROTLI_BOOL SafeReadSymbolForTest(
+BROTLI_BOOL BrotliSafeReadSymbolForTest(
     const HuffmanCode*, BrotliBitReader*, brotli_reg_t*);
-BROTLI_BOOL SafeReadSymbolForTest(
+BROTLI_BOOL BrotliSafeReadSymbolForTest(
     const HuffmanCode* table, BrotliBitReader* br, brotli_reg_t* result) {
   return SafeReadSymbol(table, br, result);
 }
-
-void InverseMoveToFrontTransformForTest(
+void BrotliInverseMoveToFrontTransformForTest(
     uint8_t*, brotli_reg_t, BrotliDecoderState*);
-void InverseMoveToFrontTransformForTest(
+void BrotliInverseMoveToFrontTransformForTest(
     uint8_t* v, brotli_reg_t l, BrotliDecoderState* s) {
   InverseMoveToFrontTransform(v, l, s);
 }

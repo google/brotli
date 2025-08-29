@@ -6,9 +6,8 @@
 
 #include "compound_dictionary.h"
 
-#include <brotli/shared_dictionary.h>
-
 #include "../common/platform.h"
+#include <brotli/shared_dictionary.h>
 #include "memory.h"
 
 static PreparedDictionary* CreatePreparedDictionaryWithParams(MemoryManager* m,

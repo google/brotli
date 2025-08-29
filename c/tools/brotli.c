@@ -7,6 +7,7 @@
 /* Command line interface for Brotli library. */
 
 /* Mute strerror/strcpy warnings. */
+#include <brotli/shared_dictionary.h>
 #if !defined(_CRT_SECURE_NO_WARNINGS)
 #define _CRT_SECURE_NO_WARNINGS
 #endif
@@ -20,12 +21,11 @@
 #include <sys/types.h>
 #include <time.h>
 
-#include <brotli/decode.h>
-#include <brotli/encode.h>
 #include <brotli/types.h>
-
 #include "../common/constants.h"
 #include "../common/version.h"
+#include <brotli/decode.h>
+#include <brotli/encode.h>
 
 #if defined(_WIN32)
 #include <io.h>

@@ -586,4 +586,29 @@ BROTLI_UNUSED_FUNCTION void BrotliSuppressUnusedFunctions(void) {
 #endif
 }
 
+#if defined(_MSC_VER)
+#define BROTLI_CRASH() __debugbreak(), (void)abort()
+#elif BROTLI_GNUC_HAS_BUILTIN(__builtin_trap, 3, 0, 0)
+#define BROTLI_CRASH() (void)__builtin_trap()
+#else
+#define BROTLI_CRASH() (void)abort()
+#endif
+
+/* Make BROTLI_TEST=0 act same as undefined. */
+#if defined(BROTLI_TEST) && ((1-BROTLI_TEST-1) == 0)
+#undef BROTLI_TEST
+#endif
+
+#if BROTLI_GNUC_HAS_ATTRIBUTE(model, 3, 0, 3)
+#define BROTLI_MODEL(M) __attribute__((model(M)))
+#else
+#define BROTLI_MODEL(M) /* M */
+#endif
+
+#if BROTLI_GNUC_HAS_ATTRIBUTE(cold, 4, 3, 0)
+#define BROTLI_COLD __attribute__((cold))
+#else
+#define BROTLI_COLD /* cold */
+#endif
+
 #endif  /* BROTLI_COMMON_PLATFORM_H_ */

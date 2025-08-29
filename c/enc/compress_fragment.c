@@ -407,7 +407,7 @@ static void EmitUncompressedMetaBlock(const uint8_t* begin, const uint8_t* end,
   storage[*storage_ix >> 3] = 0;
 }
 
-static uint32_t kCmdHistoSeed[128] = {
+static BROTLI_MODEL("small") uint32_t kCmdHistoSeed[128] = {
   0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 1, 1, 1, 1, 1,
   1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1,
   1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0,

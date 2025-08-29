@@ -6,9 +6,14 @@
 
 #include "decoder_jni.h"  // NOLINT: build/include
 
-#include <brotli/decode.h>
+#include <jni.h>
 
+#include <cstddef>
+#include <cstdint>
 #include <new>
+
+#include <brotli/shared_dictionary.h>
+#include <brotli/decode.h>
 
 namespace {
 /* A structure used to persist the decoder's state in between calls. */
