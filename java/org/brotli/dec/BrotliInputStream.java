@@ -111,6 +111,7 @@ public class BrotliInputStream extends InputStream {
   @Override
   public void close() throws IOException {
     Decode.close(state);
+    Utils.closeInput(state);
   }
 
   /**

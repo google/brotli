@@ -10,9 +10,8 @@
 #ifndef BROTLI_DEC_PREFIX_H_
 #define BROTLI_DEC_PREFIX_H_
 
-#include <brotli/types.h>
-
 #include "../common/constants.h"
+#include "../common/platform.h"
 
 typedef struct CmdLutElement {
   uint8_t insert_len_extra_bits;
@@ -23,7 +22,8 @@ typedef struct CmdLutElement {
   uint16_t copy_len_offset;
 } CmdLutElement;
 
-static const CmdLutElement kCmdLut[BROTLI_NUM_COMMAND_SYMBOLS] = {
+static const BROTLI_MODEL("small")
+CmdLutElement kCmdLut[BROTLI_NUM_COMMAND_SYMBOLS] = {
   { 0x00, 0x00, 0, 0x00, 0x0000, 0x0002 },
   { 0x00, 0x00, 0, 0x01, 0x0000, 0x0003 },
   { 0x00, 0x00, 0, 0x02, 0x0000, 0x0004 },

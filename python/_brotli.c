@@ -1,8 +1,13 @@
+#include <assert.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #define PY_SSIZE_T_CLEAN 1
 #include <Python.h>
 #include <bytesobject.h>
 #include <structmember.h>
 
+#include <brotli/types.h>
 #include <brotli/decode.h>
 #include <brotli/encode.h>
 

@@ -6,7 +6,30 @@
 
 package org.brotli.dec;
 
-import java.io.IOException;
+import static org.brotli.dec.BrotliError.BROTLI_ERROR_CORRUPTED_CODE_LENGTH_TABLE;
+import static org.brotli.dec.BrotliError.BROTLI_ERROR_CORRUPTED_CONTEXT_MAP;
+import static org.brotli.dec.BrotliError.BROTLI_ERROR_CORRUPTED_HUFFMAN_CODE_HISTOGRAM;
+import static org.brotli.dec.BrotliError.BROTLI_ERROR_CORRUPTED_RESERVED_BIT;
+import static org.brotli.dec.BrotliError.BROTLI_ERROR_DUPLICATE_SIMPLE_HUFFMAN_SYMBOL;
+import static org.brotli.dec.BrotliError.BROTLI_ERROR_EXUBERANT_NIBBLE;
+import static org.brotli.dec.BrotliError.BROTLI_ERROR_INVALID_BACKWARD_REFERENCE;
+import static org.brotli.dec.BrotliError.BROTLI_ERROR_INVALID_METABLOCK_LENGTH;
+import static org.brotli.dec.BrotliError.BROTLI_ERROR_INVALID_WINDOW_BITS;
+import static org.brotli.dec.BrotliError.BROTLI_ERROR_NEGATIVE_DISTANCE;
+import static org.brotli.dec.BrotliError.BROTLI_ERROR_SYMBOL_OUT_OF_RANGE;
+import static org.brotli.dec.BrotliError.BROTLI_ERROR_UNUSED_HUFFMAN_SPACE;
+import static org.brotli.dec.BrotliError.BROTLI_OK;
+import static org.brotli.dec.BrotliError.BROTLI_OK_DONE;
+import static org.brotli.dec.BrotliError.BROTLI_OK_NEED_MORE_OUTPUT;
+import static org.brotli.dec.BrotliError.BROTLI_PANIC_ALREADY_CLOSED;
+import static org.brotli.dec.BrotliError.BROTLI_PANIC_MAX_DISTANCE_TOO_SMALL;
+import static org.brotli.dec.BrotliError.BROTLI_PANIC_STATE_NOT_FRESH;
+import static org.brotli.dec.BrotliError.BROTLI_PANIC_STATE_NOT_INITIALIZED;
+import static org.brotli.dec.BrotliError.BROTLI_PANIC_STATE_NOT_UNINITIALIZED;
+import static org.brotli.dec.BrotliError.BROTLI_PANIC_TOO_MANY_DICTIONARY_CHUNKS;
+import static org.brotli.dec.BrotliError.BROTLI_PANIC_UNEXPECTED_STATE;
+import static org.brotli.dec.BrotliError.BROTLI_PANIC_UNREACHABLE;
+
 import java.nio.ByteBuffer;
 
 /**
@@ -22,6 +45,7 @@ final class Decode {
   //----------------------------------------------------------------------------
   // RunningState
   //----------------------------------------------------------------------------
+  // NB: negative values are used for errors.
   private static final int UNINITIALIZED = 0;
   private static final int INITIALIZED = 1;
   private static final int BLOCK_START = 2;
@@ -135,11 +159,12 @@ final class Decode {
   }
 
   private static int log2floor(int i) {
+    // REQUIRED: i > 0
     int result = -1;
     int step = 16;
     int v = i;
     while (step > 0) {
-      int next = v >>> step;
+      int next = v >> step;
       if (next != 0) {
         result += step;
         v = next;
@@ -155,9 +180,9 @@ final class Decode {
 
   // TODO(eustas): add a correctness test for this function when
   //               large-window and dictionary are implemented.
-  private static int calculateDistanceAlphabetLimit(int maxDistance, int npostfix, int ndirect) {
+  private static int calculateDistanceAlphabetLimit(State s, int maxDistance, int npostfix, int ndirect) {
     if (maxDistance < ndirect + (2 << npostfix)) {
-      throw new IllegalArgumentException("maxDistance is too small");
+      return Utils.makeError(s, BROTLI_PANIC_MAX_DISTANCE_TOO_SMALL);
     }
     final int offset = ((maxDistance - ndirect) >> npostfix) + 4;
     final int ndistbits = log2floor(offset) - 1;
@@ -175,18 +200,17 @@ final class Decode {
     }
 
     for (int cmdCode = 0; cmdCode < NUM_COMMAND_CODES; ++cmdCode) {
-      int rangeIdx = cmdCode >>> 6;
+      int rangeIdx = cmdCode >> 6;
       /* -4 turns any regular distance code to negative. */
       int distanceContextOffset = -4;
       if (rangeIdx >= 2) {
         rangeIdx -= 2;
         distanceContextOffset = 0;
       }
-      final int insertCode = (((0x29850 >>> (rangeIdx * 2)) & 0x3) << 3) | ((cmdCode >>> 3) & 7);
-      final int copyCode = (((0x26244 >>> (rangeIdx * 2)) & 0x3) << 3) | (cmdCode & 7);
+      final int insertCode = (((0x29850 >> (rangeIdx * 2)) & 0x3) << 3) | ((cmdCode >> 3) & 7);
+      final int copyCode = (((0x26244 >> (rangeIdx * 2)) & 0x3) << 3) | (cmdCode & 7);
       final int copyLengthOffset = copyLengthOffsets[copyCode];
-      final int distanceContext =
-          distanceContextOffset + (copyLengthOffset > 4 ? 3 : (copyLengthOffset - 2));
+      final int distanceContext = distanceContextOffset + Utils.min(copyLengthOffset, 5) - 2;
       final int index = cmdCode * 4;
       cmdLookup[index + 0] =
           (short)
@@ -207,7 +231,7 @@ final class Decode {
     /* Change the meaning of flag. Before that step it means "decoder must be capable of reading
      * "large-window" brotli stream. After this step it means that "large-window" feature
      * is actually detected. Despite the window size could be same as before (lgwin = 10..24),
-     * encoded distances are allowed to be much greater, thus bigger dictinary could be used. */
+     * encoded distances are allowed to be much greater, thus bigger dictionary could be used. */
     final int largeWindowEnabled = s.isLargeWindow;
     s.isLargeWindow = 0;
 
@@ -237,9 +261,8 @@ final class Decode {
           return -1;
         }
         return n;
-      } else {
-        return 8 + n;
       }
+      return 8 + n;
     }
     return 17;
   }
@@ -251,24 +274,26 @@ final class Decode {
    *
    * @param s initialized state, before any read is performed.
    */
-  static void enableEagerOutput(State s) {
+  static int enableEagerOutput(State s) {
     if (s.runningState != INITIALIZED) {
-      throw new IllegalStateException("State MUST be freshly initialized");
+      return Utils.makeError(s, BROTLI_PANIC_STATE_NOT_FRESH);
     }
     s.isEager = 1;
+    return BROTLI_OK;
   }
 
-  static void enableLargeWindow(State s) {
+  static int enableLargeWindow(State s) {
     if (s.runningState != INITIALIZED) {
-      throw new IllegalStateException("State MUST be freshly initialized");
+      return Utils.makeError(s, BROTLI_PANIC_STATE_NOT_FRESH);
     }
     s.isLargeWindow = 1;
+    return BROTLI_OK;
   }
 
   // TODO(eustas): do we need byte views?
-  static void attachDictionaryChunk(State s, byte[] data) {
+  static int attachDictionaryChunk(State s, byte[] data) {
     if (s.runningState != INITIALIZED) {
-      throw new IllegalStateException("State MUST be freshly initialized");
+      return Utils.makeError(s, BROTLI_PANIC_STATE_NOT_FRESH);
     }
     if (s.cdNumChunks == 0) {
       s.cdChunks = new byte[16][];
@@ -276,45 +301,51 @@ final class Decode {
       s.cdBlockBits = -1;
     }
     if (s.cdNumChunks == 15) {
-      throw new IllegalStateException("Too many dictionary chunks");
+      return Utils.makeError(s, BROTLI_PANIC_TOO_MANY_DICTIONARY_CHUNKS);
     }
     s.cdChunks[s.cdNumChunks] = data;
     s.cdNumChunks++;
     s.cdTotalSize += data.length;
     s.cdChunkOffsets[s.cdNumChunks] = s.cdTotalSize;
+    return BROTLI_OK;
   }
 
   /**
    * Associate input with decoder state.
    *
    * @param s uninitialized state without associated input
-   * @param input compressed data source
    */
-  static void initState(State s) {
+  static int initState(State s) {
     if (s.runningState != UNINITIALIZED) {
-      throw new IllegalStateException("State MUST be uninitialized");
+      return Utils.makeError(s, BROTLI_PANIC_STATE_NOT_UNINITIALIZED);
     }
     /* 6 trees + 1 extra "offset" slot to simplify table decoding logic. */
     s.blockTrees = new int[7 + 3 * (HUFFMAN_TABLE_SIZE_258 + HUFFMAN_TABLE_SIZE_26)];
     s.blockTrees[0] = 7;
     s.distRbIdx = 3;
-    final int maxDistanceAlphabetLimit =
-        calculateDistanceAlphabetLimit(MAX_ALLOWED_DISTANCE, 3, 15 << 3);
+    int result = calculateDistanceAlphabetLimit(s, MAX_ALLOWED_DISTANCE, 3, 15 << 3);
+    if (result < BROTLI_OK) {
+      return result;
+    }
+    final int maxDistanceAlphabetLimit = result;
     s.distExtraBits = new byte[maxDistanceAlphabetLimit];
     s.distOffset = new int[maxDistanceAlphabetLimit];
-    BitReader.initBitReader(s);
+    result = BitReader.initBitReader(s);
+    if (result < BROTLI_OK) {
+      return result;
+    }
     s.runningState = INITIALIZED;
+    return BROTLI_OK;
   }
 
-  static void close(State s) throws IOException {
+  static int close(State s) {
     if (s.runningState == UNINITIALIZED) {
-      throw new IllegalStateException("State MUST be initialized");
+      return Utils.makeError(s, BROTLI_PANIC_STATE_NOT_INITIALIZED);
     }
-    if (s.runningState == CLOSED) {
-      return;
+    if (s.runningState > 0) {
+      s.runningState = CLOSED;
     }
-    s.runningState = CLOSED;
-    Utils.closeInput(s);
+    return BROTLI_OK;
   }
 
   /**
@@ -326,37 +357,36 @@ final class Decode {
       final int n = BitReader.readFewBits(s, 3);
       if (n == 0) {
         return 1;
-      } else {
-        return BitReader.readFewBits(s, n) + (1 << n);
       }
+      return BitReader.readFewBits(s, n) + (1 << n);
     }
     return 0;
   }
 
-  private static void decodeMetaBlockLength(State s) {
+  private static int decodeMetaBlockLength(State s) {
     BitReader.fillBitWindow(s);
     s.inputEnd = BitReader.readFewBits(s, 1);
     s.metaBlockLength = 0;
     s.isUncompressed = 0;
     s.isMetadata = 0;
     if ((s.inputEnd != 0) && BitReader.readFewBits(s, 1) != 0) {
-      return;
+      return BROTLI_OK;
     }
     final int sizeNibbles = BitReader.readFewBits(s, 2) + 4;
     if (sizeNibbles == 7) {
       s.isMetadata = 1;
       if (BitReader.readFewBits(s, 1) != 0) {
-        throw new BrotliRuntimeException("Corrupted reserved bit");
+        return Utils.makeError(s, BROTLI_ERROR_CORRUPTED_RESERVED_BIT);
       }
       final int sizeBytes = BitReader.readFewBits(s, 2);
       if (sizeBytes == 0) {
-        return;
+        return BROTLI_OK;
       }
       for (int i = 0; i < sizeBytes; ++i) {
         BitReader.fillBitWindow(s);
         final int bits = BitReader.readFewBits(s, 8);
         if (bits == 0 && i + 1 == sizeBytes && sizeBytes > 1) {
-          throw new BrotliRuntimeException("Exuberant nibble");
+          return Utils.makeError(s, BROTLI_ERROR_EXUBERANT_NIBBLE);
         }
         s.metaBlockLength += bits << (i * 8);
       }
@@ -365,7 +395,7 @@ final class Decode {
         BitReader.fillBitWindow(s);
         final int bits = BitReader.readFewBits(s, 4);
         if (bits == 0 && i + 1 == sizeNibbles && sizeNibbles > 4) {
-          throw new BrotliRuntimeException("Exuberant nibble");
+          return Utils.makeError(s, BROTLI_ERROR_EXUBERANT_NIBBLE);
         }
         s.metaBlockLength += bits << (i * 4);
       }
@@ -374,6 +404,7 @@ final class Decode {
     if (s.inputEnd == 0) {
       s.isUncompressed = BitReader.readFewBits(s, 1);
     }
+    return BROTLI_OK;
   }
 
   /**
@@ -391,7 +422,7 @@ final class Decode {
     }
     offset += sym;
     final int mask = (1 << bits) - 1;
-    offset += (v & mask) >>> HUFFMAN_TABLE_BITS;
+    offset += Utils.shr32(v & mask, HUFFMAN_TABLE_BITS);
     s.bitOffset += ((tableGroup[offset] >> 16) + HUFFMAN_TABLE_BITS);
     return tableGroup[offset] & 0xFFFF;
   }
@@ -428,7 +459,7 @@ final class Decode {
     }
   }
 
-  private static void readHuffmanCodeLengths(
+  private static int readHuffmanCodeLengths(
       int[] codeLengthCodeLengths, int numSymbols, int[] codeLengths, State s) {
     int symbol = 0;
     int prevCodeLen = DEFAULT_CODE_LENGTH;
@@ -440,7 +471,12 @@ final class Decode {
     Huffman.buildHuffmanTable(table, tableIdx, 5, codeLengthCodeLengths, CODE_LENGTH_CODES);
 
     while (symbol < numSymbols && space > 0) {
-      BitReader.readMoreInput(s);
+      if (s.halfOffset > BitReader.HALF_WATERLINE) {
+        final int result = BitReader.readMoreInput(s);
+        if (result < BROTLI_OK) {
+          return result;
+        }
+      }
       BitReader.fillBitWindow(s);
       final int p = BitReader.peekBits(s) & 31;
       s.bitOffset += table[p] >> 16;
@@ -471,7 +507,7 @@ final class Decode {
         repeat += BitReader.readFewBits(s, extraBits) + 3;
         final int repeatDelta = repeat - oldRepeat;
         if (symbol + repeatDelta > numSymbols) {
-          throw new BrotliRuntimeException("symbol + repeatDelta > numSymbols"); // COV_NF_LINE
+          return Utils.makeError(s, BROTLI_ERROR_CORRUPTED_CODE_LENGTH_TABLE);
         }
         for (int i = 0; i < repeatDelta; ++i) {
           codeLengths[symbol++] = repeatCodeLen;
@@ -482,20 +518,22 @@ final class Decode {
       }
     }
     if (space != 0) {
-      throw new BrotliRuntimeException("Unused space"); // COV_NF_LINE
+      return Utils.makeError(s, BROTLI_ERROR_UNUSED_HUFFMAN_SPACE);
     }
     // TODO(eustas): Pass max_symbol to Huffman table builder instead?
     Utils.fillIntsWithZeroes(codeLengths, symbol, numSymbols);
+    return BROTLI_OK;
   }
 
-  private static void checkDupes(int[] symbols, int length) {
+  private static int checkDupes(State s, int[] symbols, int length) {
     for (int i = 0; i < length - 1; ++i) {
       for (int j = i + 1; j < length; ++j) {
         if (symbols[i] == symbols[j]) {
-          throw new BrotliRuntimeException("Duplicate simple Huffman code symbol"); // COV_NF_LINE
+          return Utils.makeError(s, BROTLI_ERROR_DUPLICATE_SIMPLE_HUFFMAN_SYMBOL);
         }
       }
     }
+    return BROTLI_OK;
   }
 
   /**
@@ -514,11 +552,14 @@ final class Decode {
       BitReader.fillBitWindow(s);
       final int symbol = BitReader.readFewBits(s, maxBits);
       if (symbol >= alphabetSizeLimit) {
-        throw new BrotliRuntimeException("Can't readHuffmanCode"); // COV_NF_LINE
+        return Utils.makeError(s, BROTLI_ERROR_SYMBOL_OUT_OF_RANGE);
       }
       symbols[i] = symbol;
     }
-    checkDupes(symbols, numSymbols);
+    final int result = checkDupes(s, symbols, numSymbols);
+    if (result < BROTLI_OK) {
+      return result;
+    }
 
     int histogramId = numSymbols;
     if (numSymbols == 4) {
@@ -583,14 +624,19 @@ final class Decode {
       if (v != 0) {
         space -= (32 >> v);
         numCodes++;
-        if (space <= 0) break;
+        if (space <= 0) {
+          break;
+        }
       }
     }
     if (space != 0 && numCodes != 1) {
-      throw new BrotliRuntimeException("Corrupted Huffman code histogram"); // COV_NF_LINE
+      return Utils.makeError(s, BROTLI_ERROR_CORRUPTED_HUFFMAN_CODE_HISTOGRAM);
     }
 
-    readHuffmanCodeLengths(codeLengthCodeLengths, alphabetSizeLimit, codeLengths, s);
+    final int result = readHuffmanCodeLengths(codeLengthCodeLengths, alphabetSizeLimit, codeLengths, s);
+    if (result < BROTLI_OK) {
+      return result;
+    }
 
     return Huffman.buildHuffmanTable(
         tableGroup, tableIdx, HUFFMAN_TABLE_BITS, codeLengths, alphabetSizeLimit);
@@ -603,18 +649,28 @@ final class Decode {
    */
   private static int readHuffmanCode(int alphabetSizeMax, int alphabetSizeLimit,
       int[] tableGroup, int tableIdx, State s) {
-    BitReader.readMoreInput(s);
+    if (s.halfOffset > BitReader.HALF_WATERLINE) {
+      final int result = BitReader.readMoreInput(s);
+      if (result < BROTLI_OK) {
+        return result;
+      }
+    }
     BitReader.fillBitWindow(s);
     final int simpleCodeOrSkip = BitReader.readFewBits(s, 2);
     if (simpleCodeOrSkip == 1) {
       return readSimpleHuffmanCode(alphabetSizeMax, alphabetSizeLimit, tableGroup, tableIdx, s);
-    } else {
-      return readComplexHuffmanCode(alphabetSizeLimit, simpleCodeOrSkip, tableGroup, tableIdx, s);
     }
+    return readComplexHuffmanCode(alphabetSizeLimit, simpleCodeOrSkip, tableGroup, tableIdx, s);
   }
 
   private static int decodeContextMap(int contextMapSize, byte[] contextMap, State s) {
-    BitReader.readMoreInput(s);
+    int result;
+    if (s.halfOffset > BitReader.HALF_WATERLINE) {
+      result = BitReader.readMoreInput(s);
+      if (result < BROTLI_OK) {
+        return result;
+      }
+    }
     final int numTrees = decodeVarLenUnsignedByte(s) + 1;
 
     if (numTrees == 1) {
@@ -633,10 +689,18 @@ final class Decode {
     /* Speculative single entry table group. */
     final int[] table = new int[tableSize + 1];
     final int tableIdx = table.length - 1;
-    readHuffmanCode(alphabetSize, alphabetSize, table, tableIdx, s);
+    result = readHuffmanCode(alphabetSize, alphabetSize, table, tableIdx, s);
+    if (result < BROTLI_OK) {
+      return result;
+    }
     int i = 0;
     while (i < contextMapSize) {
-      BitReader.readMoreInput(s);
+      if (s.halfOffset > BitReader.HALF_WATERLINE) {
+        result = BitReader.readMoreInput(s);
+        if (result < BROTLI_OK) {
+          return result;
+        }
+      }
       BitReader.fillBitWindow(s);
       final int code = readSymbol(table, tableIdx, s);
       if (code == 0) {
@@ -647,7 +711,7 @@ final class Decode {
         int reps = (1 << code) + BitReader.readFewBits(s, code);
         while (reps != 0) {
           if (i >= contextMapSize) {
-            throw new BrotliRuntimeException("Corrupted context map"); // COV_NF_LINE
+            return Utils.makeError(s, BROTLI_ERROR_CORRUPTED_CONTEXT_MAP);
           }
           contextMap[i] = 0;
           i++;
@@ -726,37 +790,53 @@ final class Decode {
     final byte[] newBuffer = new byte[ringBufferSizeWithSlack];
     final byte[] oldBuffer = s.ringBuffer;
     if (oldBuffer.length != 0) {
-      System.arraycopy(oldBuffer, 0, newBuffer, 0, s.ringBufferSize);
+      Utils.copyBytes(newBuffer, 0, oldBuffer, 0, s.ringBufferSize);
     }
     s.ringBuffer = newBuffer;
     s.ringBufferSize = newSize;
   }
 
-  private static void readNextMetablockHeader(State s) {
+  private static int readNextMetablockHeader(State s) {
     if (s.inputEnd != 0) {
       s.nextRunningState = FINISHED;
       s.runningState = INIT_WRITE;
-      return;
+      return BROTLI_OK;
     }
     // TODO(eustas): Reset? Do we need this?
     s.literalTreeGroup = new int[0];
     s.commandTreeGroup = new int[0];
     s.distanceTreeGroup = new int[0];
 
-    BitReader.readMoreInput(s);
-    decodeMetaBlockLength(s);
+    int result;
+    if (s.halfOffset > BitReader.HALF_WATERLINE) {
+      result = BitReader.readMoreInput(s);
+      if (result < BROTLI_OK) {
+        return result;
+      }
+    }
+    result = decodeMetaBlockLength(s);
+    if (result < BROTLI_OK) {
+      return result;
+    }
     if ((s.metaBlockLength == 0) && (s.isMetadata == 0)) {
-      return;
+      return BROTLI_OK;
     }
     if ((s.isUncompressed != 0) || (s.isMetadata != 0)) {
-      BitReader.jumpToByteBoundary(s);
-      s.runningState = (s.isMetadata != 0) ? READ_METADATA : COPY_UNCOMPRESSED;
+      result = BitReader.jumpToByteBoundary(s);
+      if (result < BROTLI_OK) {
+        return result;
+      }
+      if (s.isMetadata == 0) {
+        s.runningState = COPY_UNCOMPRESSED;
+      } else {
+        s.runningState = READ_METADATA;
+      }
     } else {
       s.runningState = COMPRESSED_BLOCK_START;
     }
 
     if (s.isMetadata != 0) {
-      return;
+      return BROTLI_OK;
     }
     s.expectedTotalSize += s.metaBlockLength;
     if (s.expectedTotalSize > 1 << 30) {
@@ -765,6 +845,7 @@ final class Decode {
     if (s.ringBufferSize < s.maxRingBufferSize) {
       maybeReallocateRingBuffer(s);
     }
+    return BROTLI_OK;
   }
 
   private static int readMetablockPartition(State s, int treeType, int numBlockTypes) {
@@ -776,13 +857,21 @@ final class Decode {
     }
 
     final int blockTypeAlphabetSize = numBlockTypes + 2;
-    offset += readHuffmanCode(
+    int result = readHuffmanCode(
         blockTypeAlphabetSize, blockTypeAlphabetSize, s.blockTrees, 2 * treeType, s);
+    if (result < BROTLI_OK) {
+      return result;
+    }
+    offset += result;
     s.blockTrees[2 * treeType + 1] = offset;
 
     final int blockLengthAlphabetSize = NUM_BLOCK_LENGTH_CODES;
-    offset += readHuffmanCode(
+    result = readHuffmanCode(
         blockLengthAlphabetSize, blockLengthAlphabetSize, s.blockTrees, 2 * treeType + 1, s);
+    if (result < BROTLI_OK) {
+      return result;
+    }
+    offset += result;
     s.blockTrees[2 * treeType + 2] = offset;
 
     return readBlockLength(s.blockTrees, 2 * treeType + 1, s);
@@ -821,15 +910,32 @@ final class Decode {
     }
   }
 
-  private static void readMetablockHuffmanCodesAndContextMaps(State s) {
+  private static int readMetablockHuffmanCodesAndContextMaps(State s) {
     s.numLiteralBlockTypes = decodeVarLenUnsignedByte(s) + 1;
-    s.literalBlockLength = readMetablockPartition(s, 0, s.numLiteralBlockTypes);
+    int result = readMetablockPartition(s, 0, s.numLiteralBlockTypes);
+    if (result < BROTLI_OK) {
+      return result;
+    }
+    s.literalBlockLength = result;
     s.numCommandBlockTypes = decodeVarLenUnsignedByte(s) + 1;
-    s.commandBlockLength = readMetablockPartition(s, 1, s.numCommandBlockTypes);
+    result = readMetablockPartition(s, 1, s.numCommandBlockTypes);
+    if (result < BROTLI_OK) {
+      return result;
+    }
+    s.commandBlockLength = result;
     s.numDistanceBlockTypes = decodeVarLenUnsignedByte(s) + 1;
-    s.distanceBlockLength = readMetablockPartition(s, 2, s.numDistanceBlockTypes);
+    result = readMetablockPartition(s, 2, s.numDistanceBlockTypes);
+    if (result < BROTLI_OK) {
+      return result;
+    }
+    s.distanceBlockLength = result;
 
-    BitReader.readMoreInput(s);
+    if (s.halfOffset > BitReader.HALF_WATERLINE) {
+      result = BitReader.readMoreInput(s);
+      if (result < BROTLI_OK) {
+        return result;
+      }
+    }
     BitReader.fillBitWindow(s);
     s.distancePostfixBits = BitReader.readFewBits(s, 2);
     s.numDirectDistanceCodes = BitReader.readFewBits(s, 4) << s.distancePostfixBits;
@@ -838,19 +944,28 @@ final class Decode {
     int i = 0;
     while (i < s.numLiteralBlockTypes) {
       /* Ensure that less than 256 bits read between readMoreInput. */
-      final int limit = Math.min(i + 96, s.numLiteralBlockTypes);
+      final int limit = Utils.min(i + 96, s.numLiteralBlockTypes);
       while (i < limit) {
         BitReader.fillBitWindow(s);
         s.contextModes[i] = (byte) BitReader.readFewBits(s, 2);
         i++;
       }
-      BitReader.readMoreInput(s);
+      if (s.halfOffset > BitReader.HALF_WATERLINE) {
+        result = BitReader.readMoreInput(s);
+        if (result < BROTLI_OK) {
+          return result;
+        }
+      }
     }
 
     // TODO(eustas): Reuse?
     final int contextMapLength = s.numLiteralBlockTypes << LITERAL_CONTEXT_BITS;
     s.contextMap = new byte[contextMapLength];
-    final int numLiteralTrees = decodeContextMap(contextMapLength, s.contextMap, s);
+    result = decodeContextMap(contextMapLength, s.contextMap, s);
+    if (result < BROTLI_OK) {
+      return result;
+    }
+    final int numLiteralTrees = result;
     s.trivialLiteralContext = 1;
     for (int j = 0; j < contextMapLength; ++j) {
       if ((int) s.contextMap[j] != j >> LITERAL_CONTEXT_BITS) {
@@ -861,29 +976,51 @@ final class Decode {
 
     // TODO(eustas): Reuse?
     s.distContextMap = new byte[s.numDistanceBlockTypes << DISTANCE_CONTEXT_BITS];
-    final int numDistTrees = decodeContextMap(s.numDistanceBlockTypes << DISTANCE_CONTEXT_BITS,
+    result = decodeContextMap(s.numDistanceBlockTypes << DISTANCE_CONTEXT_BITS,
         s.distContextMap, s);
+    if (result < BROTLI_OK) {
+      return result;
+    }
+    final int numDistTrees = result;
 
-    s.literalTreeGroup = decodeHuffmanTreeGroup(NUM_LITERAL_CODES, NUM_LITERAL_CODES,
-        numLiteralTrees, s);
-    s.commandTreeGroup = decodeHuffmanTreeGroup(NUM_COMMAND_CODES, NUM_COMMAND_CODES,
-        s.numCommandBlockTypes, s);
+    s.literalTreeGroup = new int[huffmanTreeGroupAllocSize(NUM_LITERAL_CODES, numLiteralTrees)];
+    result = decodeHuffmanTreeGroup(
+        NUM_LITERAL_CODES, NUM_LITERAL_CODES, numLiteralTrees, s, s.literalTreeGroup);
+    if (result < BROTLI_OK) {
+      return result;
+    }
+    s.commandTreeGroup =
+        new int[huffmanTreeGroupAllocSize(NUM_COMMAND_CODES, s.numCommandBlockTypes)];
+    result = decodeHuffmanTreeGroup(
+        NUM_COMMAND_CODES, NUM_COMMAND_CODES, s.numCommandBlockTypes, s, s.commandTreeGroup);
+    if (result < BROTLI_OK) {
+      return result;
+    }
     int distanceAlphabetSizeMax = calculateDistanceAlphabetSize(
         s.distancePostfixBits, s.numDirectDistanceCodes, MAX_DISTANCE_BITS);
     int distanceAlphabetSizeLimit = distanceAlphabetSizeMax;
     if (s.isLargeWindow == 1) {
       distanceAlphabetSizeMax = calculateDistanceAlphabetSize(
           s.distancePostfixBits, s.numDirectDistanceCodes, MAX_LARGE_WINDOW_DISTANCE_BITS);
-      distanceAlphabetSizeLimit = calculateDistanceAlphabetLimit(
-          MAX_ALLOWED_DISTANCE, s.distancePostfixBits, s.numDirectDistanceCodes);
+      result = calculateDistanceAlphabetLimit(
+          s, MAX_ALLOWED_DISTANCE, s.distancePostfixBits, s.numDirectDistanceCodes);
+      if (result < BROTLI_OK) {
+        return result;
+      }
+      distanceAlphabetSizeLimit = result;
     }
-    s.distanceTreeGroup = decodeHuffmanTreeGroup(distanceAlphabetSizeMax, distanceAlphabetSizeLimit,
-        numDistTrees, s);
+    s.distanceTreeGroup =
+        new int[huffmanTreeGroupAllocSize(distanceAlphabetSizeLimit, numDistTrees)];
+    result = decodeHuffmanTreeGroup(
+        distanceAlphabetSizeMax, distanceAlphabetSizeLimit, numDistTrees, s, s.distanceTreeGroup);
+    if (result < BROTLI_OK) {
+      return result;
+    }
     calculateDistanceLut(s, distanceAlphabetSizeLimit);
 
     s.contextMapSlice = 0;
     s.distContextMapSlice = 0;
-    s.contextLookupOffset1 = s.contextModes[0] * 512;
+    s.contextLookupOffset1 = (int) s.contextModes[0] * 512;
     s.contextLookupOffset2 = s.contextLookupOffset1 + 256;
     s.literalTreeIdx = 0;
     s.commandTreeIdx = 0;
@@ -894,98 +1031,119 @@ final class Decode {
     s.rings[7] = 0;
     s.rings[8] = 1;
     s.rings[9] = 0;
+    return BROTLI_OK;
   }
 
-  private static void copyUncompressedData(State s) {
+  private static int copyUncompressedData(State s) {
     final byte[] ringBuffer = s.ringBuffer;
+    int result;
 
     // Could happen if block ends at ring buffer end.
     if (s.metaBlockLength <= 0) {
-      BitReader.reload(s);
+      result = BitReader.reload(s);
+      if (result < BROTLI_OK) {
+        return result;
+      }
       s.runningState = BLOCK_START;
-      return;
+      return BROTLI_OK;
     }
 
-    final int chunkLength = Math.min(s.ringBufferSize - s.pos, s.metaBlockLength);
-    BitReader.copyRawBytes(s, ringBuffer, s.pos, chunkLength);
+    final int chunkLength = Utils.min(s.ringBufferSize - s.pos, s.metaBlockLength);
+    result = BitReader.copyRawBytes(s, ringBuffer, s.pos, chunkLength);
+    if (result < BROTLI_OK) {
+      return result;
+    }
     s.metaBlockLength -= chunkLength;
     s.pos += chunkLength;
     if (s.pos == s.ringBufferSize) {
         s.nextRunningState = COPY_UNCOMPRESSED;
         s.runningState = INIT_WRITE;
-        return;
+        return BROTLI_OK;
       }
 
-    BitReader.reload(s);
+    result = BitReader.reload(s);
+    if (result < BROTLI_OK) {
+      return result;
+    }
     s.runningState = BLOCK_START;
+    return BROTLI_OK;
   }
 
   private static int writeRingBuffer(State s) {
-    final int toWrite = Math.min(s.outputLength - s.outputUsed,
+    final int toWrite = Utils.min(s.outputLength - s.outputUsed,
         s.ringBufferBytesReady - s.ringBufferBytesWritten);
     // TODO(eustas): DCHECK(toWrite >= 0)
     if (toWrite != 0) {
-      System.arraycopy(s.ringBuffer, s.ringBufferBytesWritten, s.output,
-          s.outputOffset + s.outputUsed, toWrite);
+      Utils.copyBytes(s.output, s.outputOffset + s.outputUsed, s.ringBuffer,
+          s.ringBufferBytesWritten, s.ringBufferBytesWritten + toWrite);
       s.outputUsed += toWrite;
       s.ringBufferBytesWritten += toWrite;
     }
 
     if (s.outputUsed < s.outputLength) {
-      return 1;
-    } else {
-      return 0;
+      return BROTLI_OK;
     }
+    return BROTLI_OK_NEED_MORE_OUTPUT;
   }
 
-  private static int[] decodeHuffmanTreeGroup(int alphabetSizeMax, int alphabetSizeLimit,
-      int n, State s) {
+  private static int huffmanTreeGroupAllocSize(int alphabetSizeLimit, int n) {
     final int maxTableSize = MAX_HUFFMAN_TABLE_SIZE[(alphabetSizeLimit + 31) >> 5];
-    final int[] group = new int[n + n * maxTableSize];
+    return n + n * maxTableSize;
+  }
+
+  private static int decodeHuffmanTreeGroup(int alphabetSizeMax, int alphabetSizeLimit,
+      int n, State s, int[] group) {
     int next = n;
     for (int i = 0; i < n; ++i) {
       group[i] = next;
-      next += readHuffmanCode(alphabetSizeMax, alphabetSizeLimit, group, i, s);
+      final int result = readHuffmanCode(alphabetSizeMax, alphabetSizeLimit, group, i, s);
+      if (result < BROTLI_OK) {
+        return result;
+      }
+      next += result;
     }
-    return group;
+    return BROTLI_OK;
   }
 
   // Returns offset in ringBuffer that should trigger WRITE when filled.
   private static int calculateFence(State s) {
     int result = s.ringBufferSize;
     if (s.isEager != 0) {
-      result = Math.min(result, s.ringBufferBytesWritten + s.outputLength - s.outputUsed);
+      result = Utils.min(result, s.ringBufferBytesWritten + s.outputLength - s.outputUsed);
     }
     return result;
   }
 
-  private static void doUseDictionary(State s, int fence) {
+  private static int doUseDictionary(State s, int fence) {
     if (s.distance > MAX_ALLOWED_DISTANCE) {
-      throw new BrotliRuntimeException("Invalid backward reference");
+      return Utils.makeError(s, BROTLI_ERROR_INVALID_BACKWARD_REFERENCE);
     }
     final int address = s.distance - s.maxDistance - 1 - s.cdTotalSize;
     if (address < 0) {
-      initializeCompoundDictionaryCopy(s, -address - 1, s.copyLength);
+      final int result = initializeCompoundDictionaryCopy(s, -address - 1, s.copyLength);
+      if (result < BROTLI_OK) {
+        return result;
+      }
       s.runningState = COPY_FROM_COMPOUND_DICTIONARY;
     } else {
       // Force lazy dictionary initialization.
       final ByteBuffer dictionaryData = Dictionary.getData();
       final int wordLength = s.copyLength;
       if (wordLength > Dictionary.MAX_DICTIONARY_WORD_LENGTH) {
-        throw new BrotliRuntimeException("Invalid backward reference"); // COV_NF_LINE
+        return Utils.makeError(s, BROTLI_ERROR_INVALID_BACKWARD_REFERENCE);
       }
       final int shift = Dictionary.sizeBits[wordLength];
       if (shift == 0) {
-        throw new BrotliRuntimeException("Invalid backward reference"); // COV_NF_LINE
+        return Utils.makeError(s, BROTLI_ERROR_INVALID_BACKWARD_REFERENCE);
       }
       int offset = Dictionary.offsets[wordLength];
       final int mask = (1 << shift) - 1;
       final int wordIdx = address & mask;
-      final int transformIdx = address >>> shift;
+      final int transformIdx = address >> shift;
       offset += wordIdx * wordLength;
       final Transform.Transforms transforms = Transform.RFC_TRANSFORMS;
       if (transformIdx >= transforms.numTransforms) {
-        throw new BrotliRuntimeException("Invalid backward reference"); // COV_NF_LINE
+        return Utils.makeError(s, BROTLI_ERROR_INVALID_BACKWARD_REFERENCE);
       }
       final int len = Transform.transformDictionaryWord(s.ringBuffer, s.pos, dictionaryData,
           offset, wordLength, transforms, transformIdx);
@@ -994,17 +1152,18 @@ final class Decode {
       if (s.pos >= fence) {
         s.nextRunningState = MAIN_LOOP;
         s.runningState = INIT_WRITE;
-        return;
+        return BROTLI_OK;
       }
       s.runningState = MAIN_LOOP;
     }
+    return BROTLI_OK;
   }
 
   private static void initializeCompoundDictionary(State s) {
     s.cdBlockMap = new byte[1 << CD_BLOCK_MAP_BITS];
     int blockBits = CD_BLOCK_MAP_BITS;
     // If this function is executed, then s.cdTotalSize > 0.
-    while (((s.cdTotalSize - 1) >>> blockBits) != 0) {
+    while (((s.cdTotalSize - 1) >> blockBits) != 0) {
       blockBits++;
     }
     blockBits -= CD_BLOCK_MAP_BITS;
@@ -1015,21 +1174,21 @@ final class Decode {
       while (s.cdChunkOffsets[index + 1] < cursor) {
         index++;
       }
-      s.cdBlockMap[cursor >>> blockBits] = (byte) index;
+      s.cdBlockMap[cursor >> blockBits] = (byte) index;
       cursor += 1 << blockBits;
     }
   }
 
-  private static void initializeCompoundDictionaryCopy(State s, int address, int length) {
+  private static int initializeCompoundDictionaryCopy(State s, int address, int length) {
     if (s.cdBlockBits == -1) {
       initializeCompoundDictionary(s);
     }
-    int index = (int) s.cdBlockMap[address >>> s.cdBlockBits];
+    int index = (int) s.cdBlockMap[address >> s.cdBlockBits];
     while (address >= s.cdChunkOffsets[index + 1]) {
       index++;
     }
     if (s.cdTotalSize > address + length) {
-      throw new BrotliRuntimeException("Invalid backward reference");
+      return Utils.makeError(s, BROTLI_ERROR_INVALID_BACKWARD_REFERENCE);
     }
     /* Update the recent distances cache */
     s.distRbIdx = (s.distRbIdx + 1) & 0x3;
@@ -1039,6 +1198,7 @@ final class Decode {
     s.cdBrOffset = address - s.cdChunkOffsets[index];
     s.cdBrLength = length;
     s.cdBrCopied = 0;
+    return BROTLI_OK;
   }
 
   private static int copyFromCompoundDictionary(State s, int fence) {
@@ -1074,17 +1234,21 @@ final class Decode {
   /**
    * Actual decompress implementation.
    */
-  static void decompress(State s) {
+  static int decompress(State s) {
+    int result;
     if (s.runningState == UNINITIALIZED) {
-      throw new IllegalStateException("Can't decompress until initialized");
+      return Utils.makeError(s, BROTLI_PANIC_STATE_NOT_INITIALIZED);
+    }
+    if (s.runningState < 0) {
+      return Utils.makeError(s, BROTLI_PANIC_UNEXPECTED_STATE);
     }
     if (s.runningState == CLOSED) {
-      throw new IllegalStateException("Can't decompress after close");
+      return Utils.makeError(s, BROTLI_PANIC_ALREADY_CLOSED);
     }
     if (s.runningState == INITIALIZED) {
       final int windowBits = decodeWindowBits(s);
       if (windowBits == -1) {  /* Reserved case for future expansion. */
-        throw new BrotliRuntimeException("Invalid 'windowBits' code");
+        return Utils.makeError(s, BROTLI_ERROR_INVALID_WINDOW_BITS);
       }
       s.maxRingBufferSize = 1 << windowBits;
       s.maxBackwardDistance = s.maxRingBufferSize - 16;
@@ -1100,26 +1264,38 @@ final class Decode {
       switch (s.runningState) {
         case BLOCK_START:
           if (s.metaBlockLength < 0) {
-            throw new BrotliRuntimeException("Invalid metablock length");
+            return Utils.makeError(s, BROTLI_ERROR_INVALID_METABLOCK_LENGTH);
           }
-          readNextMetablockHeader(s);
+          result = readNextMetablockHeader(s);
+          if (result < BROTLI_OK) {
+            return result;
+          }
           /* Ring-buffer would be reallocated here. */
           fence = calculateFence(s);
           ringBufferMask = s.ringBufferSize - 1;
           ringBuffer = s.ringBuffer;
           continue;
 
-        case COMPRESSED_BLOCK_START:
-          readMetablockHuffmanCodesAndContextMaps(s);
+        case COMPRESSED_BLOCK_START: {
+          result = readMetablockHuffmanCodesAndContextMaps(s);
+          if (result < BROTLI_OK) {
+            return result;
+          }
           s.runningState = MAIN_LOOP;
+          continue;
+        }
 
-        // fall through
         case MAIN_LOOP:
           if (s.metaBlockLength <= 0) {
             s.runningState = BLOCK_START;
             continue;
           }
-          BitReader.readMoreInput(s);
+          if (s.halfOffset > BitReader.HALF_WATERLINE) {
+            result = BitReader.readMoreInput(s);
+            if (result < BROTLI_OK) {
+              return result;
+            }
+          }
           if (s.commandBlockLength == 0) {
             decodeCommandBlockSwitch(s);
           }
@@ -1143,12 +1319,17 @@ final class Decode {
 
           s.j = 0;
           s.runningState = INSERT_LOOP;
+          continue;
 
-        // fall through
         case INSERT_LOOP:
           if (s.trivialLiteralContext != 0) {
             while (s.j < s.insertLength) {
-              BitReader.readMoreInput(s);
+              if (s.halfOffset > BitReader.HALF_WATERLINE) {
+                result = BitReader.readMoreInput(s);
+                if (result < BROTLI_OK) {
+                  return result;
+                }
+              }
               if (s.literalBlockLength == 0) {
                 decodeLiteralBlockSwitch(s);
               }
@@ -1167,7 +1348,12 @@ final class Decode {
             int prevByte1 = (int) ringBuffer[(s.pos - 1) & ringBufferMask] & 0xFF;
             int prevByte2 = (int) ringBuffer[(s.pos - 2) & ringBufferMask] & 0xFF;
             while (s.j < s.insertLength) {
-              BitReader.readMoreInput(s);
+              if (s.halfOffset > BitReader.HALF_WATERLINE) {
+                result = BitReader.readMoreInput(s);
+                if (result < BROTLI_OK) {
+                  return result;
+                }
+              }
               if (s.literalBlockLength == 0) {
                 decodeLiteralBlockSwitch(s);
               }
@@ -1202,7 +1388,12 @@ final class Decode {
             // distanceCode in untouched; assigning it 0 won't affect distance ring buffer rolling.
             s.distance = s.rings[s.distRbIdx];
           } else {
-            BitReader.readMoreInput(s);
+            if (s.halfOffset > BitReader.HALF_WATERLINE) {
+              result = BitReader.readMoreInput(s);
+              if (result < BROTLI_OK) {
+                return result;
+              }
+            }
             if (s.distanceBlockLength == 0) {
               decodeDistanceBlockSwitch(s);
             }
@@ -1216,7 +1407,7 @@ final class Decode {
                   (s.distRbIdx + DISTANCE_SHORT_CODE_INDEX_OFFSET[distanceCode]) & 0x3;
               s.distance = s.rings[index] + DISTANCE_SHORT_CODE_VALUE_OFFSET[distanceCode];
               if (s.distance < 0) {
-                throw new BrotliRuntimeException("Negative distance"); // COV_NF_LINE
+                return Utils.makeError(s, BROTLI_ERROR_NEGATIVE_DISTANCE);
               }
             } else {
               final int extraBits = (int) s.distExtraBits[distanceCode];
@@ -1249,12 +1440,12 @@ final class Decode {
           }
 
           if (s.copyLength > s.metaBlockLength) {
-            throw new BrotliRuntimeException("Invalid backward reference"); // COV_NF_LINE
+            return Utils.makeError(s, BROTLI_ERROR_INVALID_BACKWARD_REFERENCE);
           }
           s.j = 0;
           s.runningState = COPY_LOOP;
+          continue;
 
-        // fall through
         case COPY_LOOP:
           int src = (s.pos - s.distance) & ringBufferMask;
           int dst = s.pos;
@@ -1296,7 +1487,10 @@ final class Decode {
           continue;
 
         case USE_DICTIONARY:
-          doUseDictionary(s, fence);
+          result = doUseDictionary(s, fence);
+          if (result < BROTLI_OK) {
+            return result;
+          }
           continue;
 
         case COPY_FROM_COMPOUND_DICTIONARY:
@@ -1304,14 +1498,19 @@ final class Decode {
           if (s.pos >= fence) {
             s.nextRunningState = COPY_FROM_COMPOUND_DICTIONARY;
             s.runningState = INIT_WRITE;
-            return;
+            return BROTLI_OK_NEED_MORE_OUTPUT;
           }
           s.runningState = MAIN_LOOP;
           continue;
 
         case READ_METADATA:
           while (s.metaBlockLength > 0) {
-            BitReader.readMoreInput(s);
+            if (s.halfOffset > BitReader.HALF_WATERLINE) {
+              result = BitReader.readMoreInput(s);
+              if (result < BROTLI_OK) {
+                return result;
+              }
+            }
             // Optimize
             BitReader.fillBitWindow(s);
             BitReader.readFewBits(s, 8);
@@ -1321,18 +1520,22 @@ final class Decode {
           continue;
 
         case COPY_UNCOMPRESSED:
-          copyUncompressedData(s);
+          result = copyUncompressedData(s);
+          if (result < BROTLI_OK) {
+            return result;
+          }
           continue;
 
         case INIT_WRITE:
-          s.ringBufferBytesReady = Math.min(s.pos, s.ringBufferSize);
+          s.ringBufferBytesReady = Utils.min(s.pos, s.ringBufferSize);
           s.runningState = WRITE;
+          continue;
 
-        // fall through
         case WRITE:
-          if (writeRingBuffer(s) == 0) {
+          result = writeRingBuffer(s);
+          if (result != BROTLI_OK) {
             // Output buffer is full.
-            return;
+            return result;
           }
           if (s.pos >= s.maxBackwardDistance) {
             s.maxDistance = s.maxBackwardDistance;
@@ -1349,15 +1552,23 @@ final class Decode {
           continue;
 
         default:
-          throw new BrotliRuntimeException("Unexpected state " + String.valueOf(s.runningState));
+          return Utils.makeError(s, BROTLI_PANIC_UNEXPECTED_STATE);
       }
     }
-    if (s.runningState == FINISHED) {
-      if (s.metaBlockLength < 0) {
-        throw new BrotliRuntimeException("Invalid metablock length");
-      }
-      BitReader.jumpToByteBoundary(s);
-      BitReader.checkHealth(s, 1);
+    if (s.runningState != FINISHED) {
+      return Utils.makeError(s, BROTLI_PANIC_UNREACHABLE);
     }
+    if (s.metaBlockLength < 0) {
+      return Utils.makeError(s, BROTLI_ERROR_INVALID_METABLOCK_LENGTH);
+    }
+    result = BitReader.jumpToByteBoundary(s);
+    if (result != BROTLI_OK) {
+      return result;
+    }
+    result = BitReader.checkHealth(s, 1);
+    if (result != BROTLI_OK) {
+      return result;
+    }
+    return BROTLI_OK_DONE;
   }
 }

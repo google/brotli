@@ -49,7 +49,7 @@ let makeBrotliDecode = () => {
     let /** @type {number} */ step = 16;
     let /** @type {number} */ v = i;
     while (step > 0) {
-      let /** @type {number} */ next = v >>> step;
+      let /** @type {number} */ next = v >> step;
       if (next !== 0) {
         result += step;
         v = next;
@@ -68,14 +68,15 @@ let makeBrotliDecode = () => {
     return 16 + ndirect + 2 * (maxndistbits << npostfix);
   }
   /**
+   * @param {!State} s
    * @param {number} maxDistance
    * @param {number} npostfix
    * @param {number} ndirect
    * @return {number}
    */
-  function calculateDistanceAlphabetLimit(maxDistance, npostfix, ndirect) {
+  function calculateDistanceAlphabetLimit(s, maxDistance, npostfix, ndirect) {
     if (maxDistance < ndirect + (2 << npostfix)) {
-      throw new Error("maxDistance is too small");
+      return makeError(s, -23);
     }
     const /** @type {number} */ offset = ((maxDistance - ndirect) >> npostfix) + 4;
     const /** @type {number} */ ndistbits = log2floor(offset) - 1;
@@ -95,16 +96,16 @@ let makeBrotliDecode = () => {
       copyLengthOffsets[i + 1] = copyLengthOffsets[i] + (1 << COPY_LENGTH_N_BITS[i]);
     }
     for (let /** @type {number} */ cmdCode = 0; cmdCode < 704; ++cmdCode) {
-      let /** @type {number} */ rangeIdx = cmdCode >>> 6;
+      let /** @type {number} */ rangeIdx = cmdCode >> 6;
       let /** @type {number} */ distanceContextOffset = -4;
       if (rangeIdx >= 2) {
         rangeIdx -= 2;
         distanceContextOffset = 0;
       }
-      const /** @type {number} */ insertCode = (((0x29850 >>> (rangeIdx * 2)) & 0x3) << 3) | ((cmdCode >>> 3) & 7);
-      const /** @type {number} */ copyCode = (((0x26244 >>> (rangeIdx * 2)) & 0x3) << 3) | (cmdCode & 7);
+      const /** @type {number} */ insertCode = (((0x29850 >> (rangeIdx * 2)) & 0x3) << 3) | ((cmdCode >> 3) & 7);
+      const /** @type {number} */ copyCode = (((0x26244 >> (rangeIdx * 2)) & 0x3) << 3) | (cmdCode & 7);
       const /** @type {number} */ copyLengthOffset = copyLengthOffsets[copyCode];
-      const /** @type {number} */ distanceContext = distanceContextOffset + (copyLengthOffset > 4 ? 3 : (copyLengthOffset - 2));
+      const /** @type {number} */ distanceContext = distanceContextOffset + Math.min(copyLengthOffset, 5) - 2;
       const /** @type {number} */ index = cmdCode * 4;
       cmdLookup[index] = INSERT_LENGTH_N_BITS[insertCode] | (COPY_LENGTH_N_BITS[copyCode] << 8);
       cmdLookup[index + 1] = insertLengthOffsets[insertCode];
@@ -145,40 +146,41 @@ let makeBrotliDecode = () => {
           return -1;
         }
         return n;
-      } else {
-        return 8 + n;
       }
+      return 8 + n;
     }
     return 17;
   }
   /**
    * @param {!State} s
-   * @return {void}
+   * @return {number}
    */
   function enableEagerOutput(s) {
     if (s.runningState !== 1) {
-      throw new Error("State MUST be freshly initialized");
+      return makeError(s, -24);
     }
     s.isEager = 1;
+    return 0;
   }
   /**
    * @param {!State} s
-   * @return {void}
+   * @return {number}
    */
   function enableLargeWindow(s) {
     if (s.runningState !== 1) {
-      throw new Error("State MUST be freshly initialized");
+      return makeError(s, -24);
     }
     s.isLargeWindow = 1;
+    return 0;
   }
   /**
    * @param {!State} s
    * @param {!Int8Array} data
-   * @return {void}
+   * @return {number}
    */
   function attachDictionaryChunk(s, data) {
     if (s.runningState !== 1) {
-      throw new Error("State MUST be freshly initialized");
+      return makeError(s, -24);
     }
     if (s.cdNumChunks === 0) {
       s.cdChunks = new Array(16);
@@ -186,43 +188,51 @@ let makeBrotliDecode = () => {
       s.cdBlockBits = -1;
     }
     if (s.cdNumChunks === 15) {
-      throw new Error("Too many dictionary chunks");
+      return makeError(s, -27);
     }
     s.cdChunks[s.cdNumChunks] = data;
     s.cdNumChunks++;
     s.cdTotalSize += data.length;
     s.cdChunkOffsets[s.cdNumChunks] = s.cdTotalSize;
+    return 0;
   }
   /**
    * @param {!State} s
-   * @return {void}
+   * @return {number}
    */
   function initState(s) {
     if (s.runningState !== 0) {
-      throw new Error("State MUST be uninitialized");
+      return makeError(s, -26);
     }
     s.blockTrees = new Int32Array(3091);
     s.blockTrees[0] = 7;
     s.distRbIdx = 3;
-    const /** @type {number} */ maxDistanceAlphabetLimit = calculateDistanceAlphabetLimit(0x7FFFFFFC, 3, 120);
+    let /** @type {number} */ result = calculateDistanceAlphabetLimit(s, 0x7FFFFFFC, 3, 120);
+    if (result < 0) {
+      return result;
+    }
+    const /** @type {number} */ maxDistanceAlphabetLimit = result;
     s.distExtraBits = new Int8Array(maxDistanceAlphabetLimit);
     s.distOffset = new Int32Array(maxDistanceAlphabetLimit);
-    initBitReader(s);
+    result = initBitReader(s);
+    if (result < 0) {
+      return result;
+    }
     s.runningState = 1;
+    return 0;
   }
   /**
    * @param {!State} s
-   * @return {void}
+   * @return {number}
    */
   function close(s) {
     if (s.runningState === 0) {
-      throw new Error("State MUST be initialized");
+      return makeError(s, -25);
     }
-    if (s.runningState === 11) {
-      return;
+    if (s.runningState > 0) {
+      s.runningState = 11;
     }
-    s.runningState = 11;
-    s.input = new InputStream(new Int8Array(0));
+    return 0;
   }
   /**
    * @param {!State} s
@@ -237,15 +247,14 @@ let makeBrotliDecode = () => {
       const /** @type {number} */ n = readFewBits(s, 3);
       if (n === 0) {
         return 1;
-      } else {
-        return readFewBits(s, n) + (1 << n);
       }
+      return readFewBits(s, n) + (1 << n);
     }
     return 0;
   }
   /**
    * @param {!State} s
-   * @return {void}
+   * @return {number}
    */
   function decodeMetaBlockLength(s) {
     if (s.bitOffset >= 16) {
@@ -257,17 +266,17 @@ let makeBrotliDecode = () => {
     s.isUncompressed = 0;
     s.isMetadata = 0;
     if ((s.inputEnd !== 0) && readFewBits(s, 1) !== 0) {
-      return;
+      return 0;
     }
     const /** @type {number} */ sizeNibbles = readFewBits(s, 2) + 4;
     if (sizeNibbles === 7) {
       s.isMetadata = 1;
       if (readFewBits(s, 1) !== 0) {
-        throw new Error("Corrupted reserved bit");
+        return makeError(s, -6);
       }
       const /** @type {number} */ sizeBytes = readFewBits(s, 2);
       if (sizeBytes === 0) {
-        return;
+        return 0;
       }
       for (let /** @type {number} */ i = 0; i < sizeBytes; ++i) {
         if (s.bitOffset >= 16) {
@@ -276,7 +285,7 @@ let makeBrotliDecode = () => {
         }
         const /** @type {number} */ bits = readFewBits(s, 8);
         if (bits === 0 && i + 1 === sizeBytes && sizeBytes > 1) {
-          throw new Error("Exuberant nibble");
+          return makeError(s, -8);
         }
         s.metaBlockLength += bits << (i * 8);
       }
@@ -288,7 +297,7 @@ let makeBrotliDecode = () => {
         }
         const /** @type {number} */ bits = readFewBits(s, 4);
         if (bits === 0 && i + 1 === sizeNibbles && sizeNibbles > 4) {
-          throw new Error("Exuberant nibble");
+          return makeError(s, -8);
         }
         s.metaBlockLength += bits << (i * 4);
       }
@@ -297,6 +306,7 @@ let makeBrotliDecode = () => {
     if (s.inputEnd === 0) {
       s.isUncompressed = readFewBits(s, 1);
     }
+    return 0;
   }
   /**
    * @param {!Int32Array} tableGroup
@@ -376,7 +386,7 @@ let makeBrotliDecode = () => {
    * @param {number} numSymbols
    * @param {!Int32Array} codeLengths
    * @param {!State} s
-   * @return {void}
+   * @return {number}
    */
   function readHuffmanCodeLengths(codeLengthCodeLengths, numSymbols, codeLengths, s) {
     let /** @type {number} */ symbol = 0;
@@ -389,7 +399,10 @@ let makeBrotliDecode = () => {
     buildHuffmanTable(table, tableIdx, 5, codeLengthCodeLengths, 18);
     while (symbol < numSymbols && space > 0) {
       if (s.halfOffset > 2030) {
-        doReadMoreInput(s);
+        const /** @type {number} */ result = readMoreInput(s);
+        if (result < 0) {
+          return result;
+        }
       }
       if (s.bitOffset >= 16) {
         s.accumulator32 = (s.shortBuffer[s.halfOffset++] << 16) | (s.accumulator32 >>> 16);
@@ -427,7 +440,7 @@ let makeBrotliDecode = () => {
         repeat += readFewBits(s, extraBits) + 3;
         const /** @type {number} */ repeatDelta = repeat - oldRepeat;
         if (symbol + repeatDelta > numSymbols) {
-          throw new Error("symbol + repeatDelta > numSymbols");
+          return makeError(s, -2);
         }
         for (let /** @type {number} */ i = 0; i < repeatDelta; ++i) {
           codeLengths[symbol++] = repeatCodeLen;
@@ -438,23 +451,26 @@ let makeBrotliDecode = () => {
       }
     }
     if (space !== 0) {
-      throw new Error("Unused space");
+      return makeError(s, -18);
     }
     codeLengths.fill(0, symbol, numSymbols);
+    return 0;
   }
   /**
+   * @param {!State} s
    * @param {!Int32Array} symbols
    * @param {number} length
-   * @return {void}
+   * @return {number}
    */
-  function checkDupes(symbols, length) {
+  function checkDupes(s, symbols, length) {
     for (let /** @type {number} */ i = 0; i < length - 1; ++i) {
       for (let /** @type {number} */ j = i + 1; j < length; ++j) {
         if (symbols[i] === symbols[j]) {
-          throw new Error("Duplicate simple Huffman code symbol");
+          return makeError(s, -7);
         }
       }
     }
+    return 0;
   }
   /**
    * @param {number} alphabetSizeMax
@@ -476,11 +492,14 @@ let makeBrotliDecode = () => {
       }
       const /** @type {number} */ symbol = readFewBits(s, maxBits);
       if (symbol >= alphabetSizeLimit) {
-        throw new Error("Can't readHuffmanCode");
+        return makeError(s, -15);
       }
       symbols[i] = symbol;
     }
-    checkDupes(symbols, numSymbols);
+    const /** @type {number} */ result = checkDupes(s, symbols, numSymbols);
+    if (result < 0) {
+      return result;
+    }
     let /** @type {number} */ histogramId = numSymbols;
     if (numSymbols === 4) {
       histogramId += readFewBits(s, 1);
@@ -541,14 +560,18 @@ let makeBrotliDecode = () => {
       if (v !== 0) {
         space -= 32 >> v;
         numCodes++;
-        if (space <= 0)
+        if (space <= 0) {
           break;
+        }
       }
     }
     if (space !== 0 && numCodes !== 1) {
-      throw new Error("Corrupted Huffman code histogram");
+      return makeError(s, -4);
     }
-    readHuffmanCodeLengths(codeLengthCodeLengths, alphabetSizeLimit, codeLengths, s);
+    const /** @type {number} */ result = readHuffmanCodeLengths(codeLengthCodeLengths, alphabetSizeLimit, codeLengths, s);
+    if (result < 0) {
+      return result;
+    }
     return buildHuffmanTable(tableGroup, tableIdx, 8, codeLengths, alphabetSizeLimit);
   }
   /**
@@ -561,7 +584,10 @@ let makeBrotliDecode = () => {
    */
   function readHuffmanCode(alphabetSizeMax, alphabetSizeLimit, tableGroup, tableIdx, s) {
     if (s.halfOffset > 2030) {
-      doReadMoreInput(s);
+      const /** @type {number} */ result = readMoreInput(s);
+      if (result < 0) {
+        return result;
+      }
     }
     if (s.bitOffset >= 16) {
       s.accumulator32 = (s.shortBuffer[s.halfOffset++] << 16) | (s.accumulator32 >>> 16);
@@ -570,9 +596,8 @@ let makeBrotliDecode = () => {
     const /** @type {number} */ simpleCodeOrSkip = readFewBits(s, 2);
     if (simpleCodeOrSkip === 1) {
       return readSimpleHuffmanCode(alphabetSizeMax, alphabetSizeLimit, tableGroup, tableIdx, s);
-    } else {
-      return readComplexHuffmanCode(alphabetSizeLimit, simpleCodeOrSkip, tableGroup, tableIdx, s);
     }
+    return readComplexHuffmanCode(alphabetSizeLimit, simpleCodeOrSkip, tableGroup, tableIdx, s);
   }
   /**
    * @param {number} contextMapSize
@@ -581,8 +606,12 @@ let makeBrotliDecode = () => {
    * @return {number}
    */
   function decodeContextMap(contextMapSize, contextMap, s) {
+    let /** @type {number} */ result;
     if (s.halfOffset > 2030) {
-      doReadMoreInput(s);
+      result = readMoreInput(s);
+      if (result < 0) {
+        return result;
+      }
     }
     const /** @type {number} */ numTrees = decodeVarLenUnsignedByte(s) + 1;
     if (numTrees === 1) {
@@ -602,11 +631,17 @@ let makeBrotliDecode = () => {
     const /** @type {number} */ tableSize = MAX_HUFFMAN_TABLE_SIZE[(alphabetSize + 31) >> 5];
     const /** @type {!Int32Array} */ table = new Int32Array(tableSize + 1);
     const /** @type {number} */ tableIdx = table.length - 1;
-    readHuffmanCode(alphabetSize, alphabetSize, table, tableIdx, s);
+    result = readHuffmanCode(alphabetSize, alphabetSize, table, tableIdx, s);
+    if (result < 0) {
+      return result;
+    }
     let /** @type {number} */ i = 0;
     while (i < contextMapSize) {
       if (s.halfOffset > 2030) {
-        doReadMoreInput(s);
+        result = readMoreInput(s);
+        if (result < 0) {
+          return result;
+        }
       }
       if (s.bitOffset >= 16) {
         s.accumulator32 = (s.shortBuffer[s.halfOffset++] << 16) | (s.accumulator32 >>> 16);
@@ -624,7 +659,7 @@ let makeBrotliDecode = () => {
         let /** @type {number} */ reps = (1 << code) + readFewBits(s, code);
         while (reps !== 0) {
           if (i >= contextMapSize) {
-            throw new Error("Corrupted context map");
+            return makeError(s, -3);
           }
           contextMap[i] = 0;
           i++;
@@ -731,32 +766,46 @@ let makeBrotliDecode = () => {
   }
   /**
    * @param {!State} s
-   * @return {void}
+   * @return {number}
    */
   function readNextMetablockHeader(s) {
     if (s.inputEnd !== 0) {
       s.nextRunningState = 10;
       s.runningState = 12;
-      return;
+      return 0;
     }
     s.literalTreeGroup = new Int32Array(0);
     s.commandTreeGroup = new Int32Array(0);
     s.distanceTreeGroup = new Int32Array(0);
+    let /** @type {number} */ result;
     if (s.halfOffset > 2030) {
-      doReadMoreInput(s);
+      result = readMoreInput(s);
+      if (result < 0) {
+        return result;
+      }
     }
-    decodeMetaBlockLength(s);
+    result = decodeMetaBlockLength(s);
+    if (result < 0) {
+      return result;
+    }
     if ((s.metaBlockLength === 0) && (s.isMetadata === 0)) {
-      return;
+      return 0;
     }
     if ((s.isUncompressed !== 0) || (s.isMetadata !== 0)) {
-      jumpToByteBoundary(s);
-      s.runningState = (s.isMetadata !== 0) ? 5 : 6;
+      result = jumpToByteBoundary(s);
+      if (result < 0) {
+        return result;
+      }
+      if (s.isMetadata === 0) {
+        s.runningState = 6;
+      } else {
+        s.runningState = 5;
+      }
     } else {
       s.runningState = 3;
     }
     if (s.isMetadata !== 0) {
-      return;
+      return 0;
     }
     s.expectedTotalSize += s.metaBlockLength;
     if (s.expectedTotalSize > 1 << 30) {
@@ -765,6 +814,7 @@ let makeBrotliDecode = () => {
     if (s.ringBufferSize < s.maxRingBufferSize) {
       maybeReallocateRingBuffer(s);
     }
+    return 0;
   }
   /**
    * @param {!State} s
@@ -780,10 +830,18 @@ let makeBrotliDecode = () => {
       return 1 << 28;
     }
     const /** @type {number} */ blockTypeAlphabetSize = numBlockTypes + 2;
-    offset += readHuffmanCode(blockTypeAlphabetSize, blockTypeAlphabetSize, s.blockTrees, 2 * treeType, s);
+    let /** @type {number} */ result = readHuffmanCode(blockTypeAlphabetSize, blockTypeAlphabetSize, s.blockTrees, 2 * treeType, s);
+    if (result < 0) {
+      return result;
+    }
+    offset += result;
     s.blockTrees[2 * treeType + 1] = offset;
     const /** @type {number} */ blockLengthAlphabetSize = 26;
-    offset += readHuffmanCode(blockLengthAlphabetSize, blockLengthAlphabetSize, s.blockTrees, 2 * treeType + 1, s);
+    result = readHuffmanCode(blockLengthAlphabetSize, blockLengthAlphabetSize, s.blockTrees, 2 * treeType + 1, s);
+    if (result < 0) {
+      return result;
+    }
+    offset += result;
     s.blockTrees[2 * treeType + 2] = offset;
     return readBlockLength(s.blockTrees, 2 * treeType + 1, s);
   }
@@ -819,17 +877,32 @@ let makeBrotliDecode = () => {
   }
   /**
    * @param {!State} s
-   * @return {void}
+   * @return {number}
    */
   function readMetablockHuffmanCodesAndContextMaps(s) {
     s.numLiteralBlockTypes = decodeVarLenUnsignedByte(s) + 1;
-    s.literalBlockLength = readMetablockPartition(s, 0, s.numLiteralBlockTypes);
+    let /** @type {number} */ result = readMetablockPartition(s, 0, s.numLiteralBlockTypes);
+    if (result < 0) {
+      return result;
+    }
+    s.literalBlockLength = result;
     s.numCommandBlockTypes = decodeVarLenUnsignedByte(s) + 1;
-    s.commandBlockLength = readMetablockPartition(s, 1, s.numCommandBlockTypes);
+    result = readMetablockPartition(s, 1, s.numCommandBlockTypes);
+    if (result < 0) {
+      return result;
+    }
+    s.commandBlockLength = result;
     s.numDistanceBlockTypes = decodeVarLenUnsignedByte(s) + 1;
-    s.distanceBlockLength = readMetablockPartition(s, 2, s.numDistanceBlockTypes);
+    result = readMetablockPartition(s, 2, s.numDistanceBlockTypes);
+    if (result < 0) {
+      return result;
+    }
+    s.distanceBlockLength = result;
     if (s.halfOffset > 2030) {
-      doReadMoreInput(s);
+      result = readMoreInput(s);
+      if (result < 0) {
+        return result;
+      }
     }
     if (s.bitOffset >= 16) {
       s.accumulator32 = (s.shortBuffer[s.halfOffset++] << 16) | (s.accumulator32 >>> 16);
@@ -850,12 +923,19 @@ let makeBrotliDecode = () => {
         i++;
       }
       if (s.halfOffset > 2030) {
-        doReadMoreInput(s);
+        result = readMoreInput(s);
+        if (result < 0) {
+          return result;
+        }
       }
     }
     const /** @type {number} */ contextMapLength = s.numLiteralBlockTypes << 6;
     s.contextMap = new Int8Array(contextMapLength);
-    const /** @type {number} */ numLiteralTrees = decodeContextMap(contextMapLength, s.contextMap, s);
+    result = decodeContextMap(contextMapLength, s.contextMap, s);
+    if (result < 0) {
+      return result;
+    }
+    const /** @type {number} */ numLiteralTrees = result;
     s.trivialLiteralContext = 1;
     for (let /** @type {number} */ j = 0; j < contextMapLength; ++j) {
       if (s.contextMap[j] !== j >> 6) {
@@ -864,16 +944,36 @@ let makeBrotliDecode = () => {
       }
     }
     s.distContextMap = new Int8Array(s.numDistanceBlockTypes << 2);
-    const /** @type {number} */ numDistTrees = decodeContextMap(s.numDistanceBlockTypes << 2, s.distContextMap, s);
-    s.literalTreeGroup = decodeHuffmanTreeGroup(256, 256, numLiteralTrees, s);
-    s.commandTreeGroup = decodeHuffmanTreeGroup(704, 704, s.numCommandBlockTypes, s);
+    result = decodeContextMap(s.numDistanceBlockTypes << 2, s.distContextMap, s);
+    if (result < 0) {
+      return result;
+    }
+    const /** @type {number} */ numDistTrees = result;
+    s.literalTreeGroup = new Int32Array(huffmanTreeGroupAllocSize(256, numLiteralTrees));
+    result = decodeHuffmanTreeGroup(256, 256, numLiteralTrees, s, s.literalTreeGroup);
+    if (result < 0) {
+      return result;
+    }
+    s.commandTreeGroup = new Int32Array(huffmanTreeGroupAllocSize(704, s.numCommandBlockTypes));
+    result = decodeHuffmanTreeGroup(704, 704, s.numCommandBlockTypes, s, s.commandTreeGroup);
+    if (result < 0) {
+      return result;
+    }
     let /** @type {number} */ distanceAlphabetSizeMax = calculateDistanceAlphabetSize(s.distancePostfixBits, s.numDirectDistanceCodes, 24);
     let /** @type {number} */ distanceAlphabetSizeLimit = distanceAlphabetSizeMax;
     if (s.isLargeWindow === 1) {
       distanceAlphabetSizeMax = calculateDistanceAlphabetSize(s.distancePostfixBits, s.numDirectDistanceCodes, 62);
-      distanceAlphabetSizeLimit = calculateDistanceAlphabetLimit(0x7FFFFFFC, s.distancePostfixBits, s.numDirectDistanceCodes);
+      result = calculateDistanceAlphabetLimit(s, 0x7FFFFFFC, s.distancePostfixBits, s.numDirectDistanceCodes);
+      if (result < 0) {
+        return result;
+      }
+      distanceAlphabetSizeLimit = result;
     }
-    s.distanceTreeGroup = decodeHuffmanTreeGroup(distanceAlphabetSizeMax, distanceAlphabetSizeLimit, numDistTrees, s);
+    s.distanceTreeGroup = new Int32Array(huffmanTreeGroupAllocSize(distanceAlphabetSizeLimit, numDistTrees));
+    result = decodeHuffmanTreeGroup(distanceAlphabetSizeMax, distanceAlphabetSizeLimit, numDistTrees, s, s.distanceTreeGroup);
+    if (result < 0) {
+      return result;
+    }
     calculateDistanceLut(s, distanceAlphabetSizeLimit);
     s.contextMapSlice = 0;
     s.distContextMapSlice = 0;
@@ -887,29 +987,41 @@ let makeBrotliDecode = () => {
     s.rings[7] = 0;
     s.rings[8] = 1;
     s.rings[9] = 0;
+    return 0;
   }
   /**
    * @param {!State} s
-   * @return {void}
+   * @return {number}
    */
   function copyUncompressedData(s) {
     const /** @type {!Int8Array} */ ringBuffer = s.ringBuffer;
+    let /** @type {number} */ result;
     if (s.metaBlockLength <= 0) {
-      reload(s);
+      result = reload(s);
+      if (result < 0) {
+        return result;
+      }
       s.runningState = 2;
-      return;
+      return 0;
     }
     const /** @type {number} */ chunkLength = Math.min(s.ringBufferSize - s.pos, s.metaBlockLength);
-    copyRawBytes(s, ringBuffer, s.pos, chunkLength);
+    result = copyRawBytes(s, ringBuffer, s.pos, chunkLength);
+    if (result < 0) {
+      return result;
+    }
     s.metaBlockLength -= chunkLength;
     s.pos += chunkLength;
     if (s.pos === s.ringBufferSize) {
       s.nextRunningState = 6;
       s.runningState = 12;
-      return;
+      return 0;
     }
-    reload(s);
+    result = reload(s);
+    if (result < 0) {
+      return result;
+    }
     s.runningState = 2;
+    return 0;
   }
   /**
    * @param {!State} s
@@ -923,27 +1035,38 @@ let makeBrotliDecode = () => {
       s.ringBufferBytesWritten += toWrite;
     }
     if (s.outputUsed < s.outputLength) {
-      return 1;
-    } else {
       return 0;
     }
+    return 2;
+  }
+  /**
+   * @param {number} alphabetSizeLimit
+   * @param {number} n
+   * @return {number}
+   */
+  function huffmanTreeGroupAllocSize(alphabetSizeLimit, n) {
+    const /** @type {number} */ maxTableSize = MAX_HUFFMAN_TABLE_SIZE[(alphabetSizeLimit + 31) >> 5];
+    return n + n * maxTableSize;
   }
   /**
    * @param {number} alphabetSizeMax
    * @param {number} alphabetSizeLimit
    * @param {number} n
    * @param {!State} s
-   * @return {!Int32Array}
+   * @param {!Int32Array} group
+   * @return {number}
    */
-  function decodeHuffmanTreeGroup(alphabetSizeMax, alphabetSizeLimit, n, s) {
-    const /** @type {number} */ maxTableSize = MAX_HUFFMAN_TABLE_SIZE[(alphabetSizeLimit + 31) >> 5];
-    const /** @type {!Int32Array} */ group = new Int32Array(n + n * maxTableSize);
+  function decodeHuffmanTreeGroup(alphabetSizeMax, alphabetSizeLimit, n, s, group) {
     let /** @type {number} */ next = n;
     for (let /** @type {number} */ i = 0; i < n; ++i) {
       group[i] = next;
-      next += readHuffmanCode(alphabetSizeMax, alphabetSizeLimit, group, i, s);
+      const /** @type {number} */ result = readHuffmanCode(alphabetSizeMax, alphabetSizeLimit, group, i, s);
+      if (result < 0) {
+        return result;
+      }
+      next += result;
     }
-    return group;
+    return 0;
   }
   /**
    * @param {!State} s
@@ -959,34 +1082,37 @@ let makeBrotliDecode = () => {
   /**
    * @param {!State} s
    * @param {number} fence
-   * @return {void}
+   * @return {number}
    */
   function doUseDictionary(s, fence) {
     if (s.distance > 0x7FFFFFFC) {
-      throw new Error("Invalid backward reference");
+      return makeError(s, -9);
     }
     const /** @type {number} */ address = s.distance - s.maxDistance - 1 - s.cdTotalSize;
     if (address < 0) {
-      initializeCompoundDictionaryCopy(s, -address - 1, s.copyLength);
+      const /** @type {number} */ result = initializeCompoundDictionaryCopy(s, -address - 1, s.copyLength);
+      if (result < 0) {
+        return result;
+      }
       s.runningState = 14;
     } else {
       const /** @type {!ByteBuffer} */ dictionaryData = data;
       const /** @type {number} */ wordLength = s.copyLength;
       if (wordLength > 31) {
-        throw new Error("Invalid backward reference");
+        return makeError(s, -9);
       }
       const /** @type {number} */ shift = sizeBits[wordLength];
       if (shift === 0) {
-        throw new Error("Invalid backward reference");
+        return makeError(s, -9);
       }
       let /** @type {number} */ offset = offsets[wordLength];
       const /** @type {number} */ mask = (1 << shift) - 1;
       const /** @type {number} */ wordIdx = address & mask;
-      const /** @type {number} */ transformIdx = address >>> shift;
+      const /** @type {number} */ transformIdx = address >> shift;
       offset += wordIdx * wordLength;
       const /** @type {!Transforms} */ transforms = RFC_TRANSFORMS;
       if (transformIdx >= transforms.numTransforms) {
-        throw new Error("Invalid backward reference");
+        return makeError(s, -9);
       }
       const /** @type {number} */ len = transformDictionaryWord(s.ringBuffer, s.pos, dictionaryData, offset, wordLength, transforms, transformIdx);
       s.pos += len;
@@ -994,10 +1120,11 @@ let makeBrotliDecode = () => {
       if (s.pos >= fence) {
         s.nextRunningState = 4;
         s.runningState = 12;
-        return;
+        return 0;
       }
       s.runningState = 4;
     }
+    return 0;
   }
   /**
    * @param {!State} s
@@ -1006,7 +1133,7 @@ let makeBrotliDecode = () => {
   function initializeCompoundDictionary(s) {
     s.cdBlockMap = new Int8Array(256);
     let /** @type {number} */ blockBits = 8;
-    while (((s.cdTotalSize - 1) >>> blockBits) !== 0) {
+    while (((s.cdTotalSize - 1) >> blockBits) !== 0) {
       blockBits++;
     }
     blockBits -= 8;
@@ -1017,7 +1144,7 @@ let makeBrotliDecode = () => {
       while (s.cdChunkOffsets[index + 1] < cursor) {
         index++;
       }
-      s.cdBlockMap[cursor >>> blockBits] = index;
+      s.cdBlockMap[cursor >> blockBits] = index;
       cursor += 1 << blockBits;
     }
   }
@@ -1025,18 +1152,18 @@ let makeBrotliDecode = () => {
    * @param {!State} s
    * @param {number} address
    * @param {number} length
-   * @return {void}
+   * @return {number}
    */
   function initializeCompoundDictionaryCopy(s, address, length) {
     if (s.cdBlockBits === -1) {
       initializeCompoundDictionary(s);
     }
-    let /** @type {number} */ index = s.cdBlockMap[address >>> s.cdBlockBits];
+    let /** @type {number} */ index = s.cdBlockMap[address >> s.cdBlockBits];
     while (address >= s.cdChunkOffsets[index + 1]) {
       index++;
     }
     if (s.cdTotalSize > address + length) {
-      throw new Error("Invalid backward reference");
+      return makeError(s, -9);
     }
     s.distRbIdx = (s.distRbIdx + 1) & 0x3;
     s.rings[s.distRbIdx] = s.distance;
@@ -1045,6 +1172,7 @@ let makeBrotliDecode = () => {
     s.cdBrOffset = address - s.cdChunkOffsets[index];
     s.cdBrLength = length;
     s.cdBrCopied = 0;
+    return 0;
   }
   /**
    * @param {!State} s
@@ -1065,7 +1193,7 @@ let makeBrotliDecode = () => {
       if (length > space) {
         length = space;
       }
-      s.ringBuffer.set(s.cdChunks[s.cdBrIndex].slice(s.cdBrOffset, s.cdBrOffset + length), pos);
+      s.ringBuffer.set(s.cdChunks[s.cdBrIndex].subarray(s.cdBrOffset, s.cdBrOffset + length), pos);
       pos += length;
       s.cdBrOffset += length;
       s.cdBrCopied += length;
@@ -1081,19 +1209,23 @@ let makeBrotliDecode = () => {
   }
   /**
    * @param {!State} s
-   * @return {void}
+   * @return {number}
    */
   function decompress(s) {
+    let /** @type {number} */ result;
     if (s.runningState === 0) {
-      throw new Error("Can't decompress until initialized");
+      return makeError(s, -25);
+    }
+    if (s.runningState < 0) {
+      return makeError(s, -28);
     }
     if (s.runningState === 11) {
-      throw new Error("Can't decompress after close");
+      return makeError(s, -22);
     }
     if (s.runningState === 1) {
       const /** @type {number} */ windowBits = decodeWindowBits(s);
       if (windowBits === -1) {
-        throw new Error("Invalid 'windowBits' code");
+        return makeError(s, -11);
       }
       s.maxRingBufferSize = 1 << windowBits;
       s.maxBackwardDistance = s.maxRingBufferSize - 16;
@@ -1106,23 +1238,33 @@ let makeBrotliDecode = () => {
       switch(s.runningState) {
         case 2:
           if (s.metaBlockLength < 0) {
-            throw new Error("Invalid metablock length");
+            return makeError(s, -10);
           }
-          readNextMetablockHeader(s);
+          result = readNextMetablockHeader(s);
+          if (result < 0) {
+            return result;
+          }
           fence = calculateFence(s);
           ringBufferMask = s.ringBufferSize - 1;
           ringBuffer = s.ringBuffer;
           continue;
         case 3:
-          readMetablockHuffmanCodesAndContextMaps(s);
+          result = readMetablockHuffmanCodesAndContextMaps(s);
+          if (result < 0) {
+            return result;
+          }
           s.runningState = 4;
+          continue;
         case 4:
           if (s.metaBlockLength <= 0) {
             s.runningState = 2;
             continue;
           }
           if (s.halfOffset > 2030) {
-            doReadMoreInput(s);
+            result = readMoreInput(s);
+            if (result < 0) {
+              return result;
+            }
           }
           if (s.commandBlockLength === 0) {
             decodeCommandBlockSwitch(s);
@@ -1151,11 +1293,15 @@ let makeBrotliDecode = () => {
           s.copyLength = copyLengthOffset + ((copyLengthExtraBits <= 16) ? readFewBits(s, copyLengthExtraBits) : readManyBits(s, copyLengthExtraBits));
           s.j = 0;
           s.runningState = 7;
+          continue;
         case 7:
           if (s.trivialLiteralContext !== 0) {
             while (s.j < s.insertLength) {
               if (s.halfOffset > 2030) {
-                doReadMoreInput(s);
+                result = readMoreInput(s);
+                if (result < 0) {
+                  return result;
+                }
               }
               if (s.literalBlockLength === 0) {
                 decodeLiteralBlockSwitch(s);
@@ -1179,7 +1325,10 @@ let makeBrotliDecode = () => {
             let /** @type {number} */ prevByte2 = ringBuffer[(s.pos - 2) & ringBufferMask] & 0xFF;
             while (s.j < s.insertLength) {
               if (s.halfOffset > 2030) {
-                doReadMoreInput(s);
+                result = readMoreInput(s);
+                if (result < 0) {
+                  return result;
+                }
               }
               if (s.literalBlockLength === 0) {
                 decodeLiteralBlockSwitch(s);
@@ -1216,7 +1365,10 @@ let makeBrotliDecode = () => {
             s.distance = s.rings[s.distRbIdx];
           } else {
             if (s.halfOffset > 2030) {
-              doReadMoreInput(s);
+              result = readMoreInput(s);
+              if (result < 0) {
+                return result;
+              }
             }
             if (s.distanceBlockLength === 0) {
               decodeDistanceBlockSwitch(s);
@@ -1232,7 +1384,7 @@ let makeBrotliDecode = () => {
               const /** @type {number} */ index = (s.distRbIdx + DISTANCE_SHORT_CODE_INDEX_OFFSET[distanceCode]) & 0x3;
               s.distance = s.rings[index] + DISTANCE_SHORT_CODE_VALUE_OFFSET[distanceCode];
               if (s.distance < 0) {
-                throw new Error("Negative distance");
+                return makeError(s, -12);
               }
             } else {
               const /** @type {number} */ extraBits = s.distExtraBits[distanceCode];
@@ -1263,10 +1415,11 @@ let makeBrotliDecode = () => {
             s.rings[s.distRbIdx] = s.distance;
           }
           if (s.copyLength > s.metaBlockLength) {
-            throw new Error("Invalid backward reference");
+            return makeError(s, -9);
           }
           s.j = 0;
           s.runningState = 8;
+          continue;
         case 8:
           let /** @type {number} */ src = (s.pos - s.distance) & ringBufferMask;
           let /** @type {number} */ dst = s.pos;
@@ -1306,21 +1459,27 @@ let makeBrotliDecode = () => {
           }
           continue;
         case 9:
-          doUseDictionary(s, fence);
+          result = doUseDictionary(s, fence);
+          if (result < 0) {
+            return result;
+          }
           continue;
         case 14:
           s.pos += copyFromCompoundDictionary(s, fence);
           if (s.pos >= fence) {
             s.nextRunningState = 14;
             s.runningState = 12;
-            return;
+            return 2;
           }
           s.runningState = 4;
           continue;
         case 5:
           while (s.metaBlockLength > 0) {
             if (s.halfOffset > 2030) {
-              doReadMoreInput(s);
+              result = readMoreInput(s);
+              if (result < 0) {
+                return result;
+              }
             }
             if (s.bitOffset >= 16) {
               s.accumulator32 = (s.shortBuffer[s.halfOffset++] << 16) | (s.accumulator32 >>> 16);
@@ -1332,14 +1491,19 @@ let makeBrotliDecode = () => {
           s.runningState = 2;
           continue;
         case 6:
-          copyUncompressedData(s);
+          result = copyUncompressedData(s);
+          if (result < 0) {
+            return result;
+          }
           continue;
         case 12:
           s.ringBufferBytesReady = Math.min(s.pos, s.ringBufferSize);
           s.runningState = 13;
+          continue;
         case 13:
-          if (writeRingBuffer(s) === 0) {
-            return;
+          result = writeRingBuffer(s);
+          if (result !== 0) {
+            return result;
           }
           if (s.pos >= s.maxBackwardDistance) {
             s.maxDistance = s.maxBackwardDistance;
@@ -1354,16 +1518,24 @@ let makeBrotliDecode = () => {
           s.runningState = s.nextRunningState;
           continue;
         default:
-          throw new Error("Unexpected state " + valueOf(s.runningState));
+          return makeError(s, -28);
       }
     }
-    if (s.runningState === 10) {
-      if (s.metaBlockLength < 0) {
-        throw new Error("Invalid metablock length");
-      }
-      jumpToByteBoundary(s);
-      checkHealth(s, 1);
+    if (s.runningState !== 10) {
+      return makeError(s, -29);
     }
+    if (s.metaBlockLength < 0) {
+      return makeError(s, -10);
+    }
+    result = jumpToByteBoundary(s);
+    if (result !== 0) {
+      return result;
+    }
+    result = checkHealth(s, 1);
+    if (result !== 0) {
+      return result;
+    }
+    return 1;
   }
 
   /**
@@ -1402,11 +1574,12 @@ let makeBrotliDecode = () => {
    * @return {void}
    */
   function unpackTransforms(prefixSuffix, prefixSuffixHeads, transforms, prefixSuffixSrc, transformsSrc) {
-    const /** @type {number} */ n = prefixSuffixSrc.length;
+    const /** @type {!Int32Array} */ prefixSuffixBytes = toUtf8Runes(prefixSuffixSrc);
+    const /** @type {number} */ n = prefixSuffixBytes.length;
     let /** @type {number} */ index = 1;
     let /** @type {number} */ j = 0;
     for (let /** @type {number} */ i = 0; i < n; ++i) {
-      const /** @type {number} */ c = prefixSuffixSrc.charCodeAt(i);
+      const /** @type {number} */ c = prefixSuffixBytes[i];
       if (c === 35) {
         prefixSuffixHeads[index++] = j;
       } else {
@@ -1572,10 +1745,10 @@ let makeBrotliDecode = () => {
    */
   function replicateValue(table, offset, step, end, item) {
     let /** @type {number} */ pos = end;
-    do {
+    while (pos > 0) {
       pos -= step;
       table[offset + pos] = item;
-    } while (pos > 0);
+    }
   }
   /**
    * @param {!Int32Array} count
@@ -1666,14 +1839,14 @@ let makeBrotliDecode = () => {
 
   /**
    * @param {!State} s
-   * @return {void}
+   * @return {number}
    */
-  function doReadMoreInput(s) {
+  function readMoreInput(s) {
     if (s.endOfStreamReached !== 0) {
       if (halfAvailable(s) >= -2) {
-        return;
+        return 0;
       }
-      throw new Error("No more input");
+      return makeError(s, -16);
     }
     const /** @type {number} */ readOffset = s.halfOffset << 1;
     let /** @type {number} */ bytesInBuffer = 4096 - readOffset;
@@ -1682,6 +1855,9 @@ let makeBrotliDecode = () => {
     while (bytesInBuffer < 4096) {
       const /** @type {number} */ spaceLeft = 4096 - bytesInBuffer;
       const /** @type {number} */ len = readInput(s, s.byteBuffer, bytesInBuffer, spaceLeft);
+      if (len < -1) {
+        return len;
+      }
       if (len <= 0) {
         s.endOfStreamReached = 1;
         s.tailBytes = bytesInBuffer;
@@ -1691,23 +1867,25 @@ let makeBrotliDecode = () => {
       bytesInBuffer += len;
     }
     bytesToNibbles(s, bytesInBuffer);
+    return 0;
   }
   /**
    * @param {!State} s
    * @param {number} endOfStream
-   * @return {void}
+   * @return {number}
    */
   function checkHealth(s, endOfStream) {
     if (s.endOfStreamReached === 0) {
-      return;
+      return 0;
     }
     const /** @type {number} */ byteOffset = (s.halfOffset << 1) + ((s.bitOffset + 7) >> 3) - 4;
     if (byteOffset > s.tailBytes) {
-      throw new Error("Read after end");
+      return makeError(s, -13);
     }
     if ((endOfStream !== 0) && (byteOffset !== s.tailBytes)) {
-      throw new Error("Unused bytes after end");
+      return makeError(s, -17);
     }
+    return 0;
   }
   /**
    * @param {!State} s
@@ -1732,7 +1910,7 @@ let makeBrotliDecode = () => {
   }
   /**
    * @param {!State} s
-   * @return {void}
+   * @return {number}
    */
   function initBitReader(s) {
     s.byteBuffer = new Int8Array(4160);
@@ -1741,43 +1919,52 @@ let makeBrotliDecode = () => {
     s.bitOffset = 32;
     s.halfOffset = 2048;
     s.endOfStreamReached = 0;
-    prepare(s);
+    return prepare(s);
   }
   /**
    * @param {!State} s
-   * @return {void}
+   * @return {number}
    */
   function prepare(s) {
     if (s.halfOffset > 2030) {
-      doReadMoreInput(s);
+      const /** @type {number} */ result = readMoreInput(s);
+      if (result !== 0) {
+        return result;
+      }
     }
-    checkHealth(s, 0);
+    let /** @type {number} */ health = checkHealth(s, 0);
+    if (health !== 0) {
+      return health;
+    }
     s.accumulator32 = (s.shortBuffer[s.halfOffset++] << 16) | (s.accumulator32 >>> 16);
     s.bitOffset -= 16;
     s.accumulator32 = (s.shortBuffer[s.halfOffset++] << 16) | (s.accumulator32 >>> 16);
     s.bitOffset -= 16;
+    return 0;
   }
   /**
    * @param {!State} s
-   * @return {void}
+   * @return {number}
    */
   function reload(s) {
     if (s.bitOffset === 32) {
-      prepare(s);
+      return prepare(s);
     }
+    return 0;
   }
   /**
    * @param {!State} s
-   * @return {void}
+   * @return {number}
    */
   function jumpToByteBoundary(s) {
     const /** @type {number} */ padding = (32 - s.bitOffset) & 7;
     if (padding !== 0) {
       const /** @type {number} */ paddingBits = readFewBits(s, padding);
       if (paddingBits !== 0) {
-        throw new Error("Corrupted padding bits");
+        return makeError(s, -5);
       }
     }
+    return 0;
   }
   /**
    * @param {!State} s
@@ -1795,13 +1982,13 @@ let makeBrotliDecode = () => {
    * @param {!Int8Array} data
    * @param {number} offset
    * @param {number} length
-   * @return {void}
+   * @return {number}
    */
   function copyRawBytes(s, data, offset, length) {
     let /** @type {number} */ pos = offset;
     let /** @type {number} */ len = length;
     if ((s.bitOffset & 7) !== 0) {
-      throw new Error("Unaligned copyBytes");
+      return makeError(s, -30);
     }
     while ((s.bitOffset !== 32) && (len !== 0)) {
       data[pos++] = s.accumulator32 >>> s.bitOffset;
@@ -1809,7 +1996,7 @@ let makeBrotliDecode = () => {
       len--;
     }
     if (len === 0) {
-      return;
+      return 0;
     }
     const /** @type {number} */ copyNibbles = Math.min(halfAvailable(s), len >> 1);
     if (copyNibbles > 0) {
@@ -1821,7 +2008,7 @@ let makeBrotliDecode = () => {
       s.halfOffset += copyNibbles;
     }
     if (len === 0) {
-      return;
+      return 0;
     }
     if (halfAvailable(s) > 0) {
       if (s.bitOffset >= 16) {
@@ -1833,17 +2020,20 @@ let makeBrotliDecode = () => {
         s.bitOffset += 8;
         len--;
       }
-      checkHealth(s, 0);
-      return;
+      return checkHealth(s, 0);
     }
     while (len > 0) {
       const /** @type {number} */ chunkLen = readInput(s, data, pos, len);
-      if (chunkLen === -1) {
-        throw new Error("Unexpected end of input");
+      if (len < -1) {
+        return len;
+      }
+      if (chunkLen <= 0) {
+        return makeError(s, -16);
       }
       pos += chunkLen;
       len -= chunkLen;
     }
+    return 0;
   }
   /**
    * @param {!State} s
@@ -1863,18 +2053,18 @@ let makeBrotliDecode = () => {
   const LOOKUP = new Int32Array(2048);
   /**
    * @param {!Int32Array} lookup
-   * @param {string} map
-   * @param {string} rle
+   * @param {string} utfMap
+   * @param {string} utfRle
    * @return {void}
    */
-  function unpackLookupTable(lookup, map, rle) {
+  function unpackLookupTable(lookup, utfMap, utfRle) {
     for (let /** @type {number} */ i = 0; i < 256; ++i) {
       lookup[i] = i & 0x3F;
       lookup[512 + i] = i >> 2;
       lookup[1792 + i] = 2 + (i >> 6);
     }
     for (let /** @type {number} */ i = 0; i < 128; ++i) {
-      lookup[1024 + i] = 4 * (map.charCodeAt(i) - 32);
+      lookup[1024 + i] = 4 * (utfMap.charCodeAt(i) - 32);
     }
     for (let /** @type {number} */ i = 0; i < 64; ++i) {
       lookup[1152 + i] = i & 1;
@@ -1883,7 +2073,7 @@ let makeBrotliDecode = () => {
     let /** @type {number} */ offset = 1280;
     for (let /** @type {number} */ k = 0; k < 19; ++k) {
       const /** @type {number} */ value = k & 3;
-      const /** @type {number} */ rep = rle.charCodeAt(k) - 32;
+      const /** @type {number} */ rep = utfRle.charCodeAt(k) - 32;
       for (let /** @type {number} */ i = 0; i < rep; ++i) {
         lookup[offset++] = value;
       }
@@ -2071,37 +2261,21 @@ let makeBrotliDecode = () => {
    * @return {void}
    */
   function setData(newData, newSizeBits) {
-    if (newSizeBits.length > 31) {
-      throw new Error("sizeBits length must be at most " + valueOf(31));
-    }
-    for (let /** @type {number} */ i = 0; i < 4; ++i) {
-      if (newSizeBits[i] !== 0) {
-        throw new Error("first " + valueOf(4) + " must be 0");
-      }
-    }
     const /** @type {!Int32Array} */ dictionaryOffsets = offsets;
     const /** @type {!Int32Array} */ dictionarySizeBits = sizeBits;
-    dictionarySizeBits.set(newSizeBits.subarray(0, newSizeBits.length), 0);
+    for (let /** @type {number} */ i = 0; i < newSizeBits.length; ++i) {
+      dictionarySizeBits[i] = newSizeBits[i];
+    }
     let /** @type {number} */ pos = 0;
-    const /** @type {number} */ limit = newData.length;
     for (let /** @type {number} */ i = 0; i < newSizeBits.length; ++i) {
       dictionaryOffsets[i] = pos;
       const /** @type {number} */ bits = dictionarySizeBits[i];
       if (bits !== 0) {
-        if (bits >= 31) {
-          throw new Error("newSizeBits values must be less than 31");
-        }
-        pos += i << bits;
-        if (pos <= 0 || pos > limit) {
-          throw new Error("newSizeBits is inconsistent: overflow");
-        }
+        pos += i << (bits & 31);
       }
     }
     for (let /** @type {number} */ i = newSizeBits.length; i < 32; ++i) {
       dictionaryOffsets[i] = pos;
-    }
-    if (pos !== limit) {
-      throw new Error("newSizeBits is inconsistent: underflow");
     }
     data = newData;
   }
@@ -2117,14 +2291,12 @@ let makeBrotliDecode = () => {
    */
   function unpackDictionaryData(dictionary, data0, data1, skipFlip, sizeBits, sizeBitsData) {
     const /** @type {!Int8Array} */ dict = toUsAsciiBytes(data0 + data1);
-    if (dict.length !== dictionary.length) {
-      throw new Error("Corrupted brotli dictionary");
-    }
+    const /** @type {!Int32Array} */ skipFlipRunes = toUtf8Runes(skipFlip);
     let /** @type {number} */ offset = 0;
-    const /** @type {number} */ n = skipFlip.length >> 1;
+    const /** @type {number} */ n = skipFlipRunes.length >> 1;
     for (let /** @type {number} */ i = 0; i < n; ++i) {
-      const /** @type {number} */ skip = skipFlip.charCodeAt(2 * i) - 36;
-      const /** @type {number} */ flip = skipFlip.charCodeAt(2 * i + 1) - 36;
+      const /** @type {number} */ skip = skipFlipRunes[2 * i] - 36;
+      const /** @type {number} */ flip = skipFlipRunes[2 * i + 1] - 36;
       for (let /** @type {number} */ j = 0; j < skip; ++j) {
         dict[offset] = dict[offset] ^ 3;
         offset++;
@@ -2186,6 +2358,13 @@ let makeBrotliDecode = () => {
     return bytesRead;
   }
   /**
+   * @param {!State} s
+   * @return {void}
+   */
+  function closeInput(s) {
+    s.input = new InputStream(new Int8Array(0));
+  }
+  /**
    * @param {string} src
    * @return {!Int8Array}
    */
@@ -2196,6 +2375,32 @@ let makeBrotliDecode = () => {
       result[i] = src.charCodeAt(i);
     }
     return result;
+  }
+  /**
+   * @param {string} src
+   * @return {!Int32Array}
+   */
+  function toUtf8Runes(src) {
+    const /** @type {number} */ n = src.length;
+    const /** @type {!Int32Array} */ result = new Int32Array(n);
+    for (let /** @type {number} */ i = 0; i < n; ++i) {
+      result[i] = src.charCodeAt(i);
+    }
+    return result;
+  }
+  /**
+   * @param {!State} s
+   * @param {number} code
+   * @return {number}
+   */
+  function makeError(s, code) {
+    if (code >= 0) {
+      return code;
+    }
+    if (s.runningState >= 0) {
+      s.runningState = code;
+    }
+    throw new Error("Brotli error code: " + code);
   }
 
 /* GENERATED CODE END */
@@ -2231,6 +2436,7 @@ let makeBrotliDecode = () => {
       if (s.outputUsed < 16384) break;
     }
     close(s);
+    closeInput(s);
     let /** @type {!Int8Array} */ result = new Int8Array(totalOutput);
     let /** @type {number} */ offset = 0;
     for (let /** @type {number} */ i = 0; i < chunks.length; ++i) {

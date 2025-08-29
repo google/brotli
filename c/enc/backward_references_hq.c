@@ -8,17 +8,15 @@
 
 #include "backward_references_hq.h"
 
-#include <string.h>  /* memcpy, memset */
-
-#include <brotli/types.h>
-
 #include "../common/constants.h"
+#include "../common/context.h"
 #include "../common/platform.h"
 #include "command.h"
 #include "compound_dictionary.h"
 #include "encoder_dict.h"
 #include "fast_log.h"
 #include "find_match_length.h"
+#include "hash.h"
 #include "literal_cost.h"
 #include "memory.h"
 #include "params.h"
@@ -34,10 +32,10 @@ extern "C" {
 
 static const float kInfinity = 1.7e38f;  /* ~= 2 ^ 127 */
 
-static const uint32_t kDistanceCacheIndex[] = {
+static const BROTLI_MODEL("small") uint32_t kDistanceCacheIndex[] = {
   0, 1, 2, 3, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1,
 };
-static const int kDistanceCacheOffset[] = {
+static const BROTLI_MODEL("small") int kDistanceCacheOffset[] = {
   0, 0, 0, 0, -1, 1, -2, 2, -3, 3, -1, 1, -2, 2, -3, 3
 };
 
@@ -435,7 +433,7 @@ static size_t UpdateNodes(
   const CompoundDictionary* addon = &params->dictionary.compound;
   size_t gap = addon->total_size;
 
-  BROTLI_DCHECK(cur_ix_masked + max_length <= ringbuffer_mask);
+  BROTLI_DCHECK(cur_ix_masked + max_len <= ringbuffer_mask);
 
   EvaluateNode(block_start + stream_offset, pos, max_backward_limit, gap,
       starting_dist_cache, model, queue, nodes);

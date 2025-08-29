@@ -33,6 +33,10 @@ docs/brotli-comparison-study-2015-09-22.pdf export-ignore
 python !export-ignore
 python/** !export-ignore
 
+# Add go bindings + tests
+go !export-ignore
+go/** !export-ignore
+
 # Add more build files.
 scripts !export-ignore
 scripts/download_testdata.sh !export-ignore

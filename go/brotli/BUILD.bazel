@@ -1,0 +1,31 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+
+package(default_visibility = ["//visibility:public"])
+
+licenses(["notice"])  # MIT
+
+go_library(
+    name = "brotli",
+    srcs = [
+        "decode.go",
+        "reader.go",
+    ],
+    importpath = "github.com/google/brotli/go/brotli",
+)
+
+go_test(
+    name = "brotli_test",
+    size = "small",
+    srcs = ["brotli_test.go"],
+    deps = [
+        ":brotli",
+        "//cbrotli",
+    ],
+)
+
+go_test(
+    name = "synth_test",
+    size = "small",
+    srcs = ["synth_test.go"],
+    deps = [":brotli"],
+)

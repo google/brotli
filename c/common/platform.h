@@ -24,12 +24,12 @@
 #ifndef BROTLI_COMMON_PLATFORM_H_
 #define BROTLI_COMMON_PLATFORM_H_
 
-#include <string.h>  /* memcpy */
-
-#include <brotli/port.h>
-#include <brotli/types.h>
-
+#include <string.h>  /* IWYU pragma: export memcmp, memcpy, memset */
+#include <stdlib.h>  /* IWYU pragma: export exit, free, malloc */
 #include <sys/types.h>  /* should include endian.h for us */
+
+#include <brotli/port.h>  /* IWYU pragma: export */
+#include <brotli/types.h>  /* IWYU pragma: export */
 
 #if BROTLI_MSVC_VERSION_CHECK(18, 0, 0)
 #include <intrin.h>
@@ -546,19 +546,36 @@ BROTLI_UNUSED_FUNCTION void BrotliSuppressUnusedFunctions(void) {
   BROTLI_UNUSED(&BrotliDump);
 #endif
 
-#if defined(_MSC_VER) && (defined(_M_X64) || defined(_M_I86)) && !defined(_M_ARM64EC)  /* _mm_prefetch() is not defined outside of x86/x64 */
-#  include <mmintrin.h>   /* https://msdn.microsoft.com/fr-fr/library/84szxsww(v=vs.90).aspx */
-#  define PREFETCH_L1(ptr)  _mm_prefetch((const char*)(ptr), _MM_HINT_T0)
-#  define PREFETCH_L2(ptr)  _mm_prefetch((const char*)(ptr), _MM_HINT_T1)
+#if defined(_MSC_VER) && (defined(_M_X64) || defined(_M_I86)) && \
+    !defined(_M_ARM64EC)
+/* _mm_prefetch() is not defined outside of x86/x64 */
+/* https://msdn.microsoft.com/fr-fr/library/84szxsww(v=vs.90).aspx */
+#include <mmintrin.h>
+#define PREFETCH_L1(ptr) _mm_prefetch((const char*)(ptr), _MM_HINT_T0)
+#define PREFETCH_L2(ptr) _mm_prefetch((const char*)(ptr), _MM_HINT_T1)
 #elif BROTLI_GNUC_HAS_BUILTIN(__builtin_prefetch, 3, 1, 0)
-#  define PREFETCH_L1(ptr)  __builtin_prefetch((ptr), 0 /* rw==read */, 3 /* locality */)
-#  define PREFETCH_L2(ptr)  __builtin_prefetch((ptr), 0 /* rw==read */, 2 /* locality */)
+#define PREFETCH_L1(ptr) \
+  __builtin_prefetch((ptr), 0 /* rw==read */, 3 /* locality */)
+#define PREFETCH_L2(ptr) \
+  __builtin_prefetch((ptr), 0 /* rw==read */, 2 /* locality */)
 #elif defined(__aarch64__)
-#  define PREFETCH_L1(ptr)  do { __asm__ __volatile__("prfm pldl1keep, %0" ::"Q"(*(ptr))); } while (0)
-#  define PREFETCH_L2(ptr)  do { __asm__ __volatile__("prfm pldl2keep, %0" ::"Q"(*(ptr))); } while (0)
+#define PREFETCH_L1(ptr)                                      \
+  do {                                                        \
+    __asm__ __volatile__("prfm pldl1keep, %0" ::"Q"(*(ptr))); \
+  } while (0)
+#define PREFETCH_L2(ptr)                                      \
+  do {                                                        \
+    __asm__ __volatile__("prfm pldl2keep, %0" ::"Q"(*(ptr))); \
+  } while (0)
 #else
-#  define PREFETCH_L1(ptr) do { (void)(ptr); } while (0)  /* disabled */
-#  define PREFETCH_L2(ptr) do { (void)(ptr); } while (0)  /* disabled */
+#define PREFETCH_L1(ptr) \
+  do {                   \
+    (void)(ptr);         \
+  } while (0) /* disabled */
+#define PREFETCH_L2(ptr) \
+  do {                   \
+    (void)(ptr);         \
+  } while (0) /* disabled */
 #endif
 
 /* The SIMD matchers are only faster at certain quality levels. */
@@ -568,5 +585,30 @@ BROTLI_UNUSED_FUNCTION void BrotliSuppressUnusedFunctions(void) {
 #define BROTLI_MAX_SIMD_QUALITY 6
 #endif
 }
+
+#if defined(_MSC_VER)
+#define BROTLI_CRASH() __debugbreak(), (void)abort()
+#elif BROTLI_GNUC_HAS_BUILTIN(__builtin_trap, 3, 0, 0)
+#define BROTLI_CRASH() (void)__builtin_trap()
+#else
+#define BROTLI_CRASH() (void)abort()
+#endif
+
+/* Make BROTLI_TEST=0 act same as undefined. */
+#if defined(BROTLI_TEST) && ((1-BROTLI_TEST-1) == 0)
+#undef BROTLI_TEST
+#endif
+
+#if BROTLI_GNUC_HAS_ATTRIBUTE(model, 3, 0, 3)
+#define BROTLI_MODEL(M) __attribute__((model(M)))
+#else
+#define BROTLI_MODEL(M) /* M */
+#endif
+
+#if BROTLI_GNUC_HAS_ATTRIBUTE(cold, 4, 3, 0)
+#define BROTLI_COLD __attribute__((cold))
+#else
+#define BROTLI_COLD /* cold */
+#endif
 
 #endif  /* BROTLI_COMMON_PLATFORM_H_ */
