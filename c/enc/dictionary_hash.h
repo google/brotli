@@ -9,9 +9,12 @@
 #ifndef BROTLI_ENC_DICTIONARY_HASH_H_
 #define BROTLI_ENC_DICTIONARY_HASH_H_
 
-#include "../common/dictionary.h"
 #include "../common/platform.h"
 #include "static_init.h"
+
+#if (BROTLI_STATIC_INIT != BROTLI_STATIC_INIT_NONE)
+#include "../common/dictionary.h"
+#endif
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
@@ -24,12 +27,16 @@ extern "C" {
 #if (BROTLI_STATIC_INIT != BROTLI_STATIC_INIT_NONE)
 BROTLI_BOOL BROTLI_INTERNAL BrotliEncoderInitDictionaryHash(
     const BrotliDictionary* dictionary, uint16_t* words, uint8_t* lengths);
-#endif
-
-BROTLI_INTERNAL extern uint16_t
+BROTLI_INTERNAL extern BROTLI_MODEL("small") uint16_t
     kStaticDictionaryHashWords[BROTLI_ENC_NUM_HASH_BUCKETS];
-BROTLI_INTERNAL extern uint8_t
+BROTLI_INTERNAL extern BROTLI_MODEL("small") uint8_t
     kStaticDictionaryHashLengths[BROTLI_ENC_NUM_HASH_BUCKETS];
+#else
+BROTLI_INTERNAL extern const BROTLI_MODEL("small") uint16_t
+    kStaticDictionaryHashWords[BROTLI_ENC_NUM_HASH_BUCKETS];
+BROTLI_INTERNAL extern const BROTLI_MODEL("small") uint8_t
+    kStaticDictionaryHashLengths[BROTLI_ENC_NUM_HASH_BUCKETS];
+#endif
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }  /* extern "C" */

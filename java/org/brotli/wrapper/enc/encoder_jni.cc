@@ -4,10 +4,14 @@
    See file LICENSE for detail or copy at https://opensource.org/licenses/MIT
 */
 
-#include <brotli/encode.h>
 #include <jni.h>
 
+#include <cstddef>
+#include <cstdint>
 #include <new>
+
+#include <brotli/shared_dictionary.h>
+#include <brotli/encode.h>
 
 namespace {
 /* A structure used to persist the encoder's state in between calls. */

@@ -7,9 +7,8 @@
 #ifndef BROTLI_ENC_PREPARED_DICTIONARY_H_
 #define BROTLI_ENC_PREPARED_DICTIONARY_H_
 
-#include <brotli/shared_dictionary.h>
-
 #include "../common/platform.h"
+#include <brotli/shared_dictionary.h>
 #include "memory.h"
 
 /* "Fat" prepared dictionary, could be cooked outside of C implementation,
