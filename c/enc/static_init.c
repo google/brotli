@@ -4,14 +4,16 @@
    See file LICENSE for detail or copy at https://opensource.org/licenses/MIT
 */
 
-/* Central point for static initialization. */
-
 #include "static_init.h"
 
-#include "../common/dictionary.h"
 #include "../common/platform.h"
+#include "../common/static_init.h"
+
+#if (BROTLI_STATIC_INIT != BROTLI_STATIC_INIT_NONE)
+#include "../common/dictionary.h"
 #include "dictionary_hash.h"
 #include "static_dict_lut.h"
+#endif
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
@@ -28,7 +30,7 @@ static BROTLI_BOOL DoBrotliEncoderStaticInit(void) {
   if (!ok) return BROTLI_FALSE;
   return BROTLI_TRUE;
 }
-#endif
+#endif  /* BROTLI_STATIC_INIT_NONE */
 
 #if (BROTLI_STATIC_INIT == BROTLI_STATIC_INIT_EARLY)
 static BROTLI_BOOL kEarlyInitOk;
@@ -40,7 +42,7 @@ static BROTLI_BOOL kLazyInitOk;
 void BrotliEncoderLazyStaticInitInner(void) {
   kLazyInitOk = DoBrotliEncoderStaticInit();
 }
-#endif
+#endif  /* BROTLI_STATIC_INIT_EARLY */
 
 BROTLI_BOOL BrotliEncoderEnsureStaticInit(void) {
 #if (BROTLI_STATIC_INIT == BROTLI_STATIC_INIT_NONE)
