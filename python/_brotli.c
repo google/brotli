@@ -18,7 +18,53 @@
 #define Py_ARRAY_LENGTH(array)  (sizeof(array) / sizeof((array)[0]))
 #endif
 
-static PyObject *BrotliError;
+/* Forward declaration for module definition */
+#if PY_MAJOR_VERSION >= 3
+static struct PyModuleDef brotli_module;
+#endif
+
+/* Module state for multi-phase initialization */
+typedef struct {
+    PyObject *BrotliError;
+} brotli_module_state;
+
+#if PY_MAJOR_VERSION >= 3
+static brotli_module_state *
+get_brotli_state(PyObject *module)
+{
+    void *state = PyModule_GetState(module);
+    assert(state != NULL);
+    return (brotli_module_state *)state;
+}
+#endif
+
+static void set_brotli_exception(const char *message) {
+#if PY_MAJOR_VERSION >= 3
+  PyObject *module = PyImport_ImportModule("_brotli");
+  if (module == NULL) {
+      PyErr_SetString(PyExc_RuntimeError, "Module not found");
+      return;
+  }
+  brotli_module_state *state = get_brotli_state(module);
+  PyErr_SetString(state->BrotliError, message);
+#else
+  /* For Python 2, use static global */
+  static PyObject *brotli_error = NULL;
+  if (brotli_error == NULL) {
+      PyObject *module_dict = PyImport_GetModuleDict();
+      PyObject *module = PyDict_GetItemString(module_dict, "_brotli");
+      if (module != NULL) {
+          brotli_error = PyObject_GetAttrString(module, "error");
+      }
+  }
+  if (brotli_error != NULL) {
+      PyErr_SetString(brotli_error, message);
+  } else {
+      PyErr_SetString(PyExc_RuntimeError, message);
+  }
+#endif
+}
+
 
 /* -----------------------------------
      BlocksOutputBuffer code
@@ -236,20 +282,20 @@ static int as_bounded_int(PyObject *o, int* result, int lower_bound, int upper_b
 
 static int mode_convertor(PyObject *o, BrotliEncoderMode *mode) {
   if (!PyInt_Check(o)) {
-    PyErr_SetString(BrotliError, "Invalid mode");
+    set_brotli_exception("Invalid mode");
     return 0;
   }
 
   int mode_value = -1;
   if (!as_bounded_int(o, &mode_value, 0, 255)) {
-    PyErr_SetString(BrotliError, "Invalid mode");
+    set_brotli_exception("Invalid mode");
     return 0;
   }
   *mode = (BrotliEncoderMode) mode_value;
   if (*mode != BROTLI_MODE_GENERIC &&
       *mode != BROTLI_MODE_TEXT &&
       *mode != BROTLI_MODE_FONT) {
-    PyErr_SetString(BrotliError, "Invalid mode");
+    set_brotli_exception("Invalid mode");
     return 0;
   }
 
@@ -258,12 +304,12 @@ static int mode_convertor(PyObject *o, BrotliEncoderMode *mode) {
 
 static int quality_convertor(PyObject *o, int *quality) {
   if (!PyInt_Check(o)) {
-    PyErr_SetString(BrotliError, "Invalid quality");
+    set_brotli_exception("Invalid quality");
     return 0;
   }
 
   if (!as_bounded_int(o, quality, 0, 11)) {
-    PyErr_SetString(BrotliError, "Invalid quality. Range is 0 to 11.");
+    set_brotli_exception("Invalid quality. Range is 0 to 11.");
     return 0;
   }
 
@@ -272,12 +318,12 @@ static int quality_convertor(PyObject *o, int *quality) {
 
 static int lgwin_convertor(PyObject *o, int *lgwin) {
   if (!PyInt_Check(o)) {
-    PyErr_SetString(BrotliError, "Invalid lgwin");
+    set_brotli_exception("Invalid lgwin");
     return 0;
   }
 
   if (!as_bounded_int(o, lgwin, 10, 24)) {
-    PyErr_SetString(BrotliError, "Invalid lgwin. Range is 10 to 24.");
+    set_brotli_exception("Invalid lgwin. Range is 10 to 24.");
     return 0;
   }
 
@@ -286,12 +332,12 @@ static int lgwin_convertor(PyObject *o, int *lgwin) {
 
 static int lgblock_convertor(PyObject *o, int *lgblock) {
   if (!PyInt_Check(o)) {
-    PyErr_SetString(BrotliError, "Invalid lgblock");
+    set_brotli_exception("Invalid lgblock");
     return 0;
   }
 
   if (!as_bounded_int(o, lgblock, 0, 24) || (*lgblock != 0 && *lgblock < 16)) {
-    PyErr_SetString(BrotliError, "Invalid lgblock. Can be 0 or in range 16 to 24.");
+    set_brotli_exception("Invalid lgblock. Can be 0 or in range 16 to 24.");
     return 0;
   }
 
@@ -470,8 +516,7 @@ static PyObject* brotli_Compressor_process(brotli_Compressor *self, PyObject *ar
   }
 
 error:
-  PyErr_SetString(BrotliError,
-                  "BrotliEncoderCompressStream failed while processing the stream");
+  set_brotli_exception("BrotliEncoderCompressStream failed while processing the stream");
   ret = NULL;
 
 finally:
@@ -507,8 +552,7 @@ static PyObject* brotli_Compressor_flush(brotli_Compressor *self) {
   }
 
 error:
-  PyErr_SetString(BrotliError,
-                  "BrotliEncoderCompressStream failed while flushing the stream");
+  set_brotli_exception("BrotliEncoderCompressStream failed while flushing the stream");
   ret = NULL;
 finally:
   return ret;
@@ -547,8 +591,7 @@ static PyObject* brotli_Compressor_finish(brotli_Compressor *self) {
   goto finally;
 
 error:
-  PyErr_SetString(BrotliError,
-                  "BrotliEncoderCompressStream failed while finishing the stream");
+  set_brotli_exception("BrotliEncoderCompressStream failed while finishing the stream");
   ret = NULL;
 finally:
   return ret;
@@ -791,7 +834,7 @@ static PyObject* brotli_Decompressor_process(brotli_Decompressor *self, PyObject
 
   if (self->unconsumed_data_length > 0) {
     if (input.len > 0) {
-      PyErr_SetString(BrotliError, "process called with data when accept_more_data is False");
+      set_brotli_exception("process called with data when accept_more_data is False");
       ret = NULL;
       goto finally;
     }
@@ -808,8 +851,7 @@ static PyObject* brotli_Decompressor_process(brotli_Decompressor *self, PyObject
   }
 
 error:
-  PyErr_SetString(BrotliError,
-                  "BrotliDecoderDecompressStream failed while processing the stream");
+  set_brotli_exception("BrotliDecoderDecompressStream failed while processing the stream");
   ret = NULL;
 
 finally:
@@ -833,7 +875,7 @@ PyDoc_STRVAR(brotli_Decompressor_is_finished_doc,
 
 static PyObject* brotli_Decompressor_is_finished(brotli_Decompressor *self) {
   if (!self->dec) {
-    PyErr_SetString(BrotliError, "BrotliDecoderState is NULL while checking is_finished");
+    set_brotli_exception("BrotliDecoderState is NULL while checking is_finished");
     return NULL;
   }
 
@@ -1003,7 +1045,7 @@ static PyObject* brotli_decompress(PyObject *self, PyObject *args, PyObject *key
 
 error:
   BlocksOutputBuffer_OnError(&buffer);
-  PyErr_SetString(BrotliError, "BrotliDecompress failed");
+  set_brotli_exception("BrotliDecompress failed");
   ret = NULL;
 
 finally:
@@ -1019,47 +1061,34 @@ static PyMethodDef brotli_methods[] = {
 
 PyDoc_STRVAR(brotli_doc, "Implementation module for the Brotli library.");
 
+static int init_brotli_mod(PyObject *m) {
 #if PY_MAJOR_VERSION >= 3
-#define INIT_BROTLI   PyInit__brotli
-#define CREATE_BROTLI PyModule_Create(&brotli_module)
-#define RETURN_BROTLI return m
-#define RETURN_NULL return NULL
-
-static struct PyModuleDef brotli_module = {
-  PyModuleDef_HEAD_INIT,
-  "_brotli",      /* m_name */
-  brotli_doc,     /* m_doc */
-  0,              /* m_size */
-  brotli_methods, /* m_methods */
-  NULL,           /* m_reload */
-  NULL,           /* m_traverse */
-  NULL,           /* m_clear */
-  NULL            /* m_free */
-};
+  brotli_module_state *state = get_brotli_state(m);
+  state->BrotliError = PyErr_NewException("brotli.error", NULL, NULL);
+  if (state->BrotliError == NULL) {
+    return -1;
+  }
+  Py_INCREF(state->BrotliError);
+  if (PyModule_AddObject(m, "error", state->BrotliError) < 0) {
+    Py_DECREF(state->BrotliError);
+    return -1;
+  }
 #else
-#define INIT_BROTLI   init_brotli
-#define CREATE_BROTLI Py_InitModule3("_brotli", brotli_methods, brotli_doc)
-#define RETURN_BROTLI return
-#define RETURN_NULL return
+  PyObject* err = PyErr_NewException("brotli.error", NULL, NULL);
+  if (err != NULL) {
+    Py_INCREF(err);
+    PyModule_AddObject(m, "error", err);
+  }
 #endif
 
-PyMODINIT_FUNC INIT_BROTLI(void) {
-  PyObject *m = CREATE_BROTLI;
-
-  BrotliError = PyErr_NewException((char*) "brotli.error", NULL, NULL);
-  if (BrotliError != NULL) {
-    Py_INCREF(BrotliError);
-    PyModule_AddObject(m, "error", BrotliError);
-  }
-
   if (PyType_Ready(&brotli_CompressorType) < 0) {
-    RETURN_NULL;
+    return -1;
   }
   Py_INCREF(&brotli_CompressorType);
   PyModule_AddObject(m, "Compressor", (PyObject *)&brotli_CompressorType);
 
   if (PyType_Ready(&brotli_DecompressorType) < 0) {
-    RETURN_NULL;
+    return -1;
   }
   Py_INCREF(&brotli_DecompressorType);
   PyModule_AddObject(m, "Decompressor", (PyObject *)&brotli_DecompressorType);
@@ -1074,5 +1103,56 @@ PyMODINIT_FUNC INIT_BROTLI(void) {
       decoderVersion >> 24, (decoderVersion >> 12) & 0xFFF, decoderVersion & 0xFFF);
   PyModule_AddStringConstant(m, "__version__", version);
 
-  RETURN_BROTLI;
+  return 0;
 }
+
+#if PY_MAJOR_VERSION >= 3
+
+static PyModuleDef_Slot brotli_mod_slots[] = {
+  {Py_mod_exec, init_brotli_mod},
+  #if PY_MINOR_VERSION >= 12
+  {Py_mod_multiple_interpreters, Py_MOD_PER_INTERPRETER_GIL_SUPPORTED},
+  #endif
+  {0, NULL}
+};
+
+static int
+brotli_traverse(PyObject *m, visitproc visit, void *arg)
+{
+    brotli_module_state *state = get_brotli_state(m);
+    Py_VISIT(state->BrotliError);
+    return 0;
+}
+
+static int
+brotli_clear(PyObject *m)
+{
+    brotli_module_state *state = get_brotli_state(m);
+    Py_CLEAR(state->BrotliError);
+    return 0;
+}
+
+static struct PyModuleDef brotli_module = {
+  PyModuleDef_HEAD_INIT,
+  "_brotli",          /* m_name */
+  brotli_doc,         /* m_doc */
+  sizeof(brotli_module_state),  /* m_size */
+  brotli_methods,     /* m_methods */
+  brotli_mod_slots,   /* m_slots */
+  brotli_traverse,    /* m_traverse */
+  brotli_clear,       /* m_clear */
+  NULL                /* m_free */
+};
+
+PyMODINIT_FUNC PyInit__brotli(void){
+  return PyModuleDef_Init(&brotli_module);
+}
+
+#else
+
+PyMODINIT_FUNC init_brotli(void) {
+  PyObject *m = Py_InitModule3("_brotli", brotli_methods, brotli_doc);
+  init_brotli_mod(m);
+}
+
+#endif
