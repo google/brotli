@@ -1,10 +1,10 @@
-#include "third_party/brotli/common/platform.h"
+#include "../common/platform.h"
+#include "../common/static_init.h"
 #include "static_init.h"
 
 #if (BROTLI_STATIC_INIT != BROTLI_STATIC_INIT_LAZY)
 #error "BROTLI_STATIC_INIT should be BROTLI_STATIC_INIT_LAZY"
-#endif
-
+#else
 void BrotliEncoderLazyStaticInit(void) {
   /* From https://en.cppreference.com/w/cpp/language/storage_duration.html:
      ### Static block variables ###
@@ -23,3 +23,4 @@ void BrotliEncoderLazyStaticInit(void) {
   }();
   if (!ok) BROTLI_CRASH();
 }
+#endif  /* BROTLI_STATIC_INIT_LAZY */
