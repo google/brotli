@@ -36,33 +36,35 @@ def bool_from_environ(key: str):
 
 
 def read_define(path, macro):
-    """Return macro value from the given file."""
-    with open(path, "r") as f:
+    """ Return macro value from the given file. """
+    with open(path, 'r') as f:
         for line in f:
-            m = re.match(r"#define\s{}\s+(.+)".format(macro), line)
+            m = re.match(rf'#define\s{macro}\s+(.+)', line)
             if m:
                 return m.group(1)
-    return ""
+
+    return ''
 
 
 def get_version():
-    """Return library version string from 'common/version.h' file."""
-    version_file_path = os.path.join(CURR_DIR, "c", "common", "version.h")
-    major = read_define(version_file_path, "BROTLI_VERSION_MAJOR")
-    minor = read_define(version_file_path, "BROTLI_VERSION_MINOR")
-    patch = read_define(version_file_path, "BROTLI_VERSION_PATCH")
+    """ Return library version string from 'common/version.h' file. """
+    version_file_path = os.path.join(CURR_DIR, 'c', 'common', 'version.h')
+    major = read_define(version_file_path, 'BROTLI_VERSION_MAJOR')
+    minor = read_define(version_file_path, 'BROTLI_VERSION_MINOR')
+    patch = read_define(version_file_path, 'BROTLI_VERSION_PATCH')
     if not major or not minor or not patch:
-        return ""
-    return "{}.{}.{}".format(major, minor, patch)
+        return ''
+    return f'{major}.{minor}.{patch}'
 
 
 def get_test_suite():
     test_loader = unittest.TestLoader()
-    test_suite = test_loader.discover("python", pattern="*_test.py")
+    test_suite = test_loader.discover('python', pattern='*_test.py')
     return test_suite
 
 
 class BuildExt(build_ext):
+
     def get_source_files(self):
         filenames = build_ext.get_source_files(self)
         for ext in self.extensions:
@@ -72,14 +74,13 @@ class BuildExt(build_ext):
     def build_extension(self, ext):
         if ext.sources is None or not isinstance(ext.sources, (list, tuple)):
             raise errors.DistutilsSetupError(
-                "in 'ext_modules' option (extension '%s'), "
-                "'sources' must be present and must be "
-                "a list of source filenames" % ext.name
-            )
+            "in 'ext_modules' option (extension '%s'), "
+            "'sources' must be present and must be "
+            "a list of source filenames" % ext.name)
 
         ext_path = self.get_ext_fullpath(ext.name)
         depends = ext.sources + ext.depends
-        if not (self.force or dep_util.newer_group(depends, ext_path, "newer")):
+        if not (self.force or dep_util.newer_group(depends, ext_path, 'newer')):
             log.debug("skipping '%s' extension (up-to-date)", ext.name)
             return
         else:
@@ -87,20 +88,20 @@ class BuildExt(build_ext):
 
         c_sources = []
         for source in ext.sources:
-            if source.endswith(".c"):
-                c_sources.append(source)
+            if source.endswith('.c'):
+                 c_sources.append(source)
         extra_args = ext.extra_compile_args or []
 
         objects = []
 
         macros = ext.define_macros[:]
-        if platform.system() == "Darwin":
-            macros.append(("OS_MACOSX", "1"))
-        elif self.compiler.compiler_type == "mingw32":
+        if platform.system() == 'Darwin':
+            macros.append(('OS_MACOSX', '1'))
+        elif self.compiler.compiler_type == 'mingw32':
             # On Windows Python 2.7, pyconfig.h defines "hypot" as "_hypot",
             # This clashes with GCC's cmath, and causes compilation errors when
             # building under MinGW: http://bugs.python.org/issue11566
-            macros.append(("_hypot", "hypot"))
+            macros.append(('_hypot', 'hypot'))
         for undef in ext.undef_macros:
             macros.append((undef,))
 
@@ -111,8 +112,7 @@ class BuildExt(build_ext):
             include_dirs=ext.include_dirs,
             debug=self.debug,
             extra_postargs=extra_args,
-            depends=ext.depends,
-        )
+            depends=ext.depends)
         objects.extend(objs)
 
         self._built_objects = objects[:]
@@ -121,8 +121,8 @@ class BuildExt(build_ext):
         extra_args = ext.extra_link_args or []
         # when using GCC on Windows, we statically link libgcc and libstdc++,
         # so that we don't need to package extra DLLs
-        if self.compiler.compiler_type == "mingw32":
-            extra_args.extend(["-static-libgcc", "-static-libstdc++"])
+        if self.compiler.compiler_type == 'mingw32':
+            extra_args.extend(['-static-libgcc', '-static-libstdc++'])
 
         ext_path = self.get_ext_fullpath(ext.name)
         # Detect target language, if not provided
@@ -138,55 +138,54 @@ class BuildExt(build_ext):
             export_symbols=self.get_export_symbols(ext),
             debug=self.debug,
             build_temp=self.build_temp,
-            target_lang=language,
-        )
+            target_lang=language)
 
 
-NAME = "Brotli"
+NAME = 'Brotli'
 
 VERSION = get_version()
 
-URL = "https://github.com/google/brotli"
+URL = 'https://github.com/google/brotli'
 
-DESCRIPTION = "Python bindings for the Brotli compression library"
+DESCRIPTION = 'Python bindings for the Brotli compression library'
 
-AUTHOR = "The Brotli Authors"
+AUTHOR = 'The Brotli Authors'
 
-LICENSE = "MIT"
+LICENSE = 'MIT'
 
-PLATFORMS = ["Posix", "MacOS X", "Windows"]
+PLATFORMS = ['Posix', 'MacOS X', 'Windows']
 
 CLASSIFIERS = [
-    "Development Status :: 4 - Beta",
-    "Environment :: Console",
-    "Intended Audience :: Developers",
-    "License :: OSI Approved :: MIT License",
-    "Operating System :: MacOS :: MacOS X",
-    "Operating System :: Microsoft :: Windows",
-    "Operating System :: POSIX :: Linux",
-    "Programming Language :: C",
-    "Programming Language :: C++",
-    "Programming Language :: Python",
-    "Programming Language :: Python :: 2",
-    "Programming Language :: Python :: 2.7",
-    "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.3",
-    "Programming Language :: Python :: 3.4",
-    "Programming Language :: Python :: 3.5",
-    "Programming Language :: Unix Shell",
-    "Topic :: Software Development :: Libraries",
-    "Topic :: Software Development :: Libraries :: Python Modules",
-    "Topic :: System :: Archiving",
-    "Topic :: System :: Archiving :: Compression",
-    "Topic :: Text Processing :: Fonts",
-    "Topic :: Utilities",
+    'Development Status :: 4 - Beta',
+    'Environment :: Console',
+    'Intended Audience :: Developers',
+    'License :: OSI Approved :: MIT License',
+    'Operating System :: MacOS :: MacOS X',
+    'Operating System :: Microsoft :: Windows',
+    'Operating System :: POSIX :: Linux',
+    'Programming Language :: C',
+    'Programming Language :: C++',
+    'Programming Language :: Python',
+    'Programming Language :: Python :: 2',
+    'Programming Language :: Python :: 2.7',
+    'Programming Language :: Python :: 3',
+    'Programming Language :: Python :: 3.3',
+    'Programming Language :: Python :: 3.4',
+    'Programming Language :: Python :: 3.5',
+    'Programming Language :: Unix Shell',
+    'Topic :: Software Development :: Libraries',
+    'Topic :: Software Development :: Libraries :: Python Modules',
+    'Topic :: System :: Archiving',
+    'Topic :: System :: Archiving :: Compression',
+    'Topic :: Text Processing :: Fonts',
+    'Topic :: Utilities',
 ]
 
-PACKAGE_DIR = {"": "python"}
+PACKAGE_DIR = {'': 'python'}
 
-PY_MODULES = ["brotli"]
+PY_MODULES = ['brotli']
 
-USE_SYSTEM_BROTLI = bool_from_environ("USE_SYSTEM_BROTLI")
+USE_SYSTEM_BROTLI = bool_from_environ('USE_SYSTEM_BROTLI')
 
 if USE_SYSTEM_BROTLI:
     import pkgconfig
@@ -222,115 +221,115 @@ if USE_SYSTEM_BROTLI:
 else:
     EXT_MODULES = [
         Extension(
-            "_brotli",
+            '_brotli',
             sources=[
-                "python/_brotli.c",
-                "c/common/constants.c",
-                "c/common/context.c",
-                "c/common/dictionary.c",
-                "c/common/platform.c",
-                "c/common/shared_dictionary.c",
-                "c/common/transform.c",
-                "c/dec/bit_reader.c",
-                "c/dec/decode.c",
-                "c/dec/huffman.c",
-                "c/dec/prefix.c",
-                "c/dec/state.c",
-                "c/dec/static_init.c",
-                "c/enc/backward_references.c",
-                "c/enc/backward_references_hq.c",
-                "c/enc/bit_cost.c",
-                "c/enc/block_splitter.c",
-                "c/enc/brotli_bit_stream.c",
-                "c/enc/cluster.c",
-                "c/enc/command.c",
-                "c/enc/compound_dictionary.c",
-                "c/enc/compress_fragment.c",
-                "c/enc/compress_fragment_two_pass.c",
-                "c/enc/dictionary_hash.c",
-                "c/enc/encode.c",
-                "c/enc/encoder_dict.c",
-                "c/enc/entropy_encode.c",
-                "c/enc/fast_log.c",
-                "c/enc/histogram.c",
-                "c/enc/literal_cost.c",
-                "c/enc/memory.c",
-                "c/enc/metablock.c",
-                "c/enc/static_dict.c",
-                "c/enc/static_dict_lut.c",
-                "c/enc/static_init.c",
-                "c/enc/utf8_util.c",
+                'python/_brotli.c',
+                'c/common/constants.c',
+                'c/common/context.c',
+                'c/common/dictionary.c',
+                'c/common/platform.c',
+                'c/common/shared_dictionary.c',
+                'c/common/transform.c',
+                'c/dec/bit_reader.c',
+                'c/dec/decode.c',
+                'c/dec/huffman.c',
+                'c/dec/prefix.c',
+                'c/dec/state.c',
+                'c/dec/static_init.c',
+                'c/enc/backward_references.c',
+                'c/enc/backward_references_hq.c',
+                'c/enc/bit_cost.c',
+                'c/enc/block_splitter.c',
+                'c/enc/brotli_bit_stream.c',
+                'c/enc/cluster.c',
+                'c/enc/command.c',
+                'c/enc/compound_dictionary.c',
+                'c/enc/compress_fragment.c',
+                'c/enc/compress_fragment_two_pass.c',
+                'c/enc/dictionary_hash.c',
+                'c/enc/encode.c',
+                'c/enc/encoder_dict.c',
+                'c/enc/entropy_encode.c',
+                'c/enc/fast_log.c',
+                'c/enc/histogram.c',
+                'c/enc/literal_cost.c',
+                'c/enc/memory.c',
+                'c/enc/metablock.c',
+                'c/enc/static_dict.c',
+                'c/enc/static_dict_lut.c',
+                'c/enc/static_init.c',
+                'c/enc/utf8_util.c',
             ],
             depends=[
-                "c/common/constants.h",
-                "c/common/context.h",
-                "c/common/dictionary.h",
-                "c/common/platform.h",
-                "c/common/shared_dictionary_internal.h",
-                "c/common/static_init.h",
-                "c/common/transform.h",
-                "c/common/version.h",
-                "c/dec/bit_reader.h",
-                "c/dec/huffman.h",
-                "c/dec/prefix.h",
-                "c/dec/prefix_inc.h",
-                "c/dec/state.h",
-                "c/dec/static_init.h",
-                "c/enc/backward_references.h",
-                "c/enc/backward_references_hq.h",
-                "c/enc/backward_references_inc.h",
-                "c/enc/bit_cost.h",
-                "c/enc/bit_cost_inc.h",
-                "c/enc/block_encoder_inc.h",
-                "c/enc/block_splitter.h",
-                "c/enc/block_splitter_inc.h",
-                "c/enc/brotli_bit_stream.h",
-                "c/enc/cluster.h",
-                "c/enc/cluster_inc.h",
-                "c/enc/command.h",
-                "c/enc/compound_dictionary.h",
-                "c/enc/compress_fragment.h",
-                "c/enc/compress_fragment_two_pass.h",
-                "c/enc/dictionary_hash.h",
-                "c/enc/dictionary_hash_inc.h",
-                "c/enc/encoder_dict.h",
-                "c/enc/entropy_encode.h",
-                "c/enc/entropy_encode_static.h",
-                "c/enc/fast_log.h",
-                "c/enc/find_match_length.h",
-                "c/enc/hash.h",
-                "c/enc/hash_composite_inc.h",
-                "c/enc/hash_forgetful_chain_inc.h",
-                "c/enc/hash_longest_match64_inc.h",
-                "c/enc/hash_longest_match_inc.h",
-                "c/enc/hash_longest_match_quickly_inc.h",
-                "c/enc/hash_rolling_inc.h",
-                "c/enc/hash_to_binary_tree_inc.h",
-                "c/enc/histogram.h",
-                "c/enc/histogram_inc.h",
-                "c/enc/literal_cost.h",
-                "c/enc/memory.h",
-                "c/enc/metablock.h",
-                "c/enc/metablock_inc.h",
-                "c/enc/params.h",
-                "c/enc/prefix.h",
-                "c/enc/quality.h",
-                "c/enc/ringbuffer.h",
-                "c/enc/static_dict.h",
-                "c/enc/static_dict_lut.h",
-                "c/enc/static_init.h",
-                "c/enc/utf8_util.h",
-                "c/enc/write_bits.h",
+                'c/common/constants.h',
+                'c/common/context.h',
+                'c/common/dictionary.h',
+                'c/common/platform.h',
+                'c/common/shared_dictionary_internal.h',
+                'c/common/static_init.h',
+                'c/common/transform.h',
+                'c/common/version.h',
+                'c/dec/bit_reader.h',
+                'c/dec/huffman.h',
+                'c/dec/prefix.h',
+                'c/dec/prefix_inc.h',
+                'c/dec/state.h',
+                'c/dec/static_init.h',
+                'c/enc/backward_references.h',
+                'c/enc/backward_references_hq.h',
+                'c/enc/backward_references_inc.h',
+                'c/enc/bit_cost.h',
+                'c/enc/bit_cost_inc.h',
+                'c/enc/block_encoder_inc.h',
+                'c/enc/block_splitter.h',
+                'c/enc/block_splitter_inc.h',
+                'c/enc/brotli_bit_stream.h',
+                'c/enc/cluster.h',
+                'c/enc/cluster_inc.h',
+                'c/enc/command.h',
+                'c/enc/compound_dictionary.h',
+                'c/enc/compress_fragment.h',
+                'c/enc/compress_fragment_two_pass.h',
+                'c/enc/dictionary_hash.h',
+                'c/enc/dictionary_hash_inc.h',
+                'c/enc/encoder_dict.h',
+                'c/enc/entropy_encode.h',
+                'c/enc/entropy_encode_static.h',
+                'c/enc/fast_log.h',
+                'c/enc/find_match_length.h',
+                'c/enc/hash.h',
+                'c/enc/hash_composite_inc.h',
+                'c/enc/hash_forgetful_chain_inc.h',
+                'c/enc/hash_longest_match64_inc.h',
+                'c/enc/hash_longest_match_inc.h',
+                'c/enc/hash_longest_match_quickly_inc.h',
+                'c/enc/hash_rolling_inc.h',
+                'c/enc/hash_to_binary_tree_inc.h',
+                'c/enc/histogram.h',
+                'c/enc/histogram_inc.h',
+                'c/enc/literal_cost.h',
+                'c/enc/memory.h',
+                'c/enc/metablock.h',
+                'c/enc/metablock_inc.h',
+                'c/enc/params.h',
+                'c/enc/prefix.h',
+                'c/enc/quality.h',
+                'c/enc/ringbuffer.h',
+                'c/enc/static_dict.h',
+                'c/enc/static_dict_lut.h',
+                'c/enc/static_init.h',
+                'c/enc/utf8_util.h',
+                'c/enc/write_bits.h',
             ],
             include_dirs=[
-                "c/include",
+                'c/include',
             ]),
     ]
 
-TEST_SUITE = "setup.get_test_suite"
+TEST_SUITE = 'setup.get_test_suite'
 
 CMD_CLASS = {
-    "build_ext": BuildExt,
+    'build_ext': BuildExt,
 }
 
 with open("README.md", "r") as f:
@@ -351,5 +350,4 @@ setup(
     py_modules=PY_MODULES,
     ext_modules=EXT_MODULES,
     test_suite=TEST_SUITE,
-    cmdclass=CMD_CLASS,
-)
+    cmdclass=CMD_CLASS)
