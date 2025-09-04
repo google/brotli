@@ -292,6 +292,7 @@ else:
                 "c/enc/compress_fragment.h",
                 "c/enc/compress_fragment_two_pass.h",
                 "c/enc/dictionary_hash.h",
+                "c/enc/dictionary_hash_inc.h",
                 "c/enc/encoder_dict.h",
                 "c/enc/entropy_encode.h",
                 "c/enc/entropy_encode_static.h",
