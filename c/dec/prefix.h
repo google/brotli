@@ -12,6 +12,11 @@
 
 #include "../common/constants.h"
 #include "../common/platform.h"  /* IWYU pragma: keep */
+#include "../common/static_init.h"
+
+#if defined(__cplusplus) || defined(c_plusplus)
+extern "C" {
+#endif
 
 typedef struct CmdLutElement {
   uint8_t insert_len_extra_bits;
@@ -22,7 +27,17 @@ typedef struct CmdLutElement {
   uint16_t copy_len_offset;
 } CmdLutElement;
 
+#if (BROTLI_STATIC_INIT == BROTLI_STATIC_INIT_NONE)
 BROTLI_INTERNAL extern const BROTLI_MODEL("small")
     CmdLutElement kCmdLut[BROTLI_NUM_COMMAND_SYMBOLS];
+#else
+BROTLI_INTERNAL BROTLI_BOOL BrotliDecoderInitCmdLut(CmdLutElement* items);
+BROTLI_INTERNAL extern BROTLI_MODEL("small")
+    CmdLutElement kCmdLut[BROTLI_NUM_COMMAND_SYMBOLS];
+#endif
+
+#if defined(__cplusplus) || defined(c_plusplus)
+}  /* extern "C" */
+#endif
 
 #endif  /* BROTLI_DEC_PREFIX_H_ */

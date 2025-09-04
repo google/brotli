@@ -10,7 +10,7 @@
 #define BROTLI_ENC_DICTIONARY_HASH_H_
 
 #include "../common/platform.h"
-#include "static_init.h"
+#include "../common/static_init.h"
 
 #if (BROTLI_STATIC_INIT != BROTLI_STATIC_INIT_NONE)
 #include "../common/dictionary.h"

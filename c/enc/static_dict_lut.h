@@ -11,7 +11,7 @@
 
 #include "../common/dictionary.h"
 #include "../common/platform.h"
-#include "static_init.h"
+#include "../common/static_init.h"
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
