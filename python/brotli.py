@@ -27,8 +27,10 @@ def compress(string, mode=MODE_GENERIC, quality=11, lgwin=22, lgblock=0):
 
     Args:
       string (bytes): The input data.
-      mode (int, optional): The compression mode can be MODE_GENERIC (default),
-        MODE_TEXT (for UTF-8 format text input) or MODE_FONT (for WOFF 2.0).
+      mode (int, optional): The compression mode; value 0 should be used for
+        generic input (MODE_GENERIC); value 1 might be beneficial for UTF-8 text
+        input (MODE_TEXT); value 2 tunes encoder for WOFF 2.0 data (MODE_FONT).
+        Defaults to 0.
       quality (int, optional): Controls the compression-speed vs compression-
         density tradeoff. The higher the quality, the slower the compression.
         Range is 0 to 11. Defaults to 11.

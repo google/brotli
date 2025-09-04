@@ -25,21 +25,23 @@ const CMD_LOOKUP = new Int16Array(2816);
 function log2floor(i: number): number {
   let result: number = -1;
   let step = 16;
+  let v: number = i;
   while (step > 0) {
-    if ((i >>> step) !== 0) {
+    let next: number = v >> step;
+    if (next !== 0) {
       result += step;
-      i = i >>> step;
+      v = next;
     }
     step = step >> 1;
   }
-  return result + i;
+  return result + v;
 }
 function calculateDistanceAlphabetSize(npostfix: number, ndirect: number, maxndistbits: number): number {
   return 16 + ndirect + 2 * (maxndistbits << npostfix);
 }
-function calculateDistanceAlphabetLimit(maxDistance: number, npostfix: number, ndirect: number): number {
+function calculateDistanceAlphabetLimit(s: State, maxDistance: number, npostfix: number, ndirect: number): number {
   if (maxDistance < ndirect + (2 << npostfix)) {
-    throw new Error("maxDistance is too small");
+    return makeError(s, -23);
   }
   const offset: number = ((maxDistance - ndirect) >> npostfix) + 4;
   const ndistbits: number = log2floor(offset) - 1;
@@ -47,26 +49,26 @@ function calculateDistanceAlphabetLimit(maxDistance: number, npostfix: number, n
   return ((group - 1) << npostfix) + (1 << npostfix) + ndirect + 16;
 }
 function unpackCommandLookupTable(cmdLookup: Int16Array): void {
-  const insertLengthOffsets = new Int16Array(24);
-  const copyLengthOffsets = new Int16Array(24);
+  const insertLengthOffsets = new Int32Array(24);
+  const copyLengthOffsets = new Int32Array(24);
   copyLengthOffsets[0] = 2;
   for (let i = 0; i < 23; ++i) {
-    insertLengthOffsets[i + 1] = (insertLengthOffsets[i] + (1 << INSERT_LENGTH_N_BITS[i]));
-    copyLengthOffsets[i + 1] = (copyLengthOffsets[i] + (1 << COPY_LENGTH_N_BITS[i]));
+    insertLengthOffsets[i + 1] = insertLengthOffsets[i] + (1 << INSERT_LENGTH_N_BITS[i]);
+    copyLengthOffsets[i + 1] = copyLengthOffsets[i] + (1 << COPY_LENGTH_N_BITS[i]);
   }
   for (let cmdCode = 0; cmdCode < 704; ++cmdCode) {
-    let rangeIdx: number = cmdCode >>> 6;
+    let rangeIdx: number = cmdCode >> 6;
     let distanceContextOffset: number = -4;
     if (rangeIdx >= 2) {
       rangeIdx -= 2;
       distanceContextOffset = 0;
     }
-    const insertCode: number = (((0x29850 >>> (rangeIdx * 2)) & 0x3) << 3) | ((cmdCode >>> 3) & 7);
-    const copyCode: number = (((0x26244 >>> (rangeIdx * 2)) & 0x3) << 3) | (cmdCode & 7);
+    const insertCode: number = (((0x29850 >> (rangeIdx * 2)) & 0x3) << 3) | ((cmdCode >> 3) & 7);
+    const copyCode: number = (((0x26244 >> (rangeIdx * 2)) & 0x3) << 3) | (cmdCode & 7);
     const copyLengthOffset: number = copyLengthOffsets[copyCode];
-    const distanceContext: number = distanceContextOffset + (copyLengthOffset > 4 ? 3 : copyLengthOffset - 2);
+    const distanceContext: number = distanceContextOffset + Math.min(copyLengthOffset, 5) - 2;
     const index: number = cmdCode * 4;
-    cmdLookup[index] = (INSERT_LENGTH_N_BITS[insertCode] | (COPY_LENGTH_N_BITS[copyCode] << 8));
+    cmdLookup[index] = INSERT_LENGTH_N_BITS[insertCode] | (COPY_LENGTH_N_BITS[copyCode] << 8);
     cmdLookup[index + 1] = insertLengthOffsets[insertCode];
     cmdLookup[index + 2] = copyLengthOffsets[copyCode];
     cmdLookup[index + 3] = distanceContext;
@@ -101,27 +103,28 @@ function decodeWindowBits(s: State): number {
         return -1;
       }
       return n;
-    } else {
-      return 8 + n;
     }
+    return 8 + n;
   }
   return 17;
 }
-function enableEagerOutput(s: State): void {
+function enableEagerOutput(s: State): number {
   if (s.runningState !== 1) {
-    throw new Error("State MUST be freshly initialized");
+    return makeError(s, -24);
   }
   s.isEager = 1;
+  return 0;
 }
-function enableLargeWindow(s: State): void {
+function enableLargeWindow(s: State): number {
   if (s.runningState !== 1) {
-    throw new Error("State MUST be freshly initialized");
+    return makeError(s, -24);
   }
   s.isLargeWindow = 1;
+  return 0;
 }
-function attachDictionaryChunk(s: State, data: Int8Array): void {
+function attachDictionaryChunk(s: State, data: Int8Array): number {
   if (s.runningState !== 1) {
-    throw new Error("State MUST be freshly initialized");
+    return makeError(s, -24);
   }
   if (s.cdNumChunks === 0) {
     s.cdChunks = new Array(16);
@@ -129,35 +132,43 @@ function attachDictionaryChunk(s: State, data: Int8Array): void {
     s.cdBlockBits = -1;
   }
   if (s.cdNumChunks === 15) {
-    throw new Error("Too many dictionary chunks");
+    return makeError(s, -27);
   }
   s.cdChunks[s.cdNumChunks] = data;
   s.cdNumChunks++;
   s.cdTotalSize += data.length;
   s.cdChunkOffsets[s.cdNumChunks] = s.cdTotalSize;
+  return 0;
 }
-function initState(s: State): void {
+function initState(s: State): number {
   if (s.runningState !== 0) {
-    throw new Error("State MUST be uninitialized");
+    return makeError(s, -26);
   }
   s.blockTrees = new Int32Array(3091);
   s.blockTrees[0] = 7;
   s.distRbIdx = 3;
-  const maxDistanceAlphabetLimit: number = calculateDistanceAlphabetLimit(0x7FFFFFFC, 3, 120);
+  let result: number = calculateDistanceAlphabetLimit(s, 0x7FFFFFFC, 3, 120);
+  if (result < 0) {
+    return result;
+  }
+  const maxDistanceAlphabetLimit: number = result;
   s.distExtraBits = new Int8Array(maxDistanceAlphabetLimit);
   s.distOffset = new Int32Array(maxDistanceAlphabetLimit);
-  initBitReader(s);
+  result = initBitReader(s);
+  if (result < 0) {
+    return result;
+  }
   s.runningState = 1;
+  return 0;
 }
-function close(s: State): void {
+function close(s: State): number {
   if (s.runningState === 0) {
-    throw new Error("State MUST be initialized");
+    return makeError(s, -25);
   }
-  if (s.runningState === 11) {
-    return;
+  if (s.runningState > 0) {
+    s.runningState = 11;
   }
-  s.runningState = 11;
-  s.input = null;
+  return 0;
 }
 function decodeVarLenUnsignedByte(s: State): number {
   if (s.bitOffset >= 16) {
@@ -168,13 +179,12 @@ function decodeVarLenUnsignedByte(s: State): number {
     const n: number = readFewBits(s, 3);
     if (n === 0) {
       return 1;
-    } else {
-      return readFewBits(s, n) + (1 << n);
     }
+    return readFewBits(s, n) + (1 << n);
   }
   return 0;
 }
-function decodeMetaBlockLength(s: State): void {
+function decodeMetaBlockLength(s: State): number {
   if (s.bitOffset >= 16) {
     s.accumulator32 = (s.shortBuffer[s.halfOffset++] << 16) | (s.accumulator32 >>> 16);
     s.bitOffset -= 16;
@@ -184,51 +194,52 @@ function decodeMetaBlockLength(s: State): void {
   s.isUncompressed = 0;
   s.isMetadata = 0;
   if ((s.inputEnd !== 0) && readFewBits(s, 1) !== 0) {
-    return;
+    return 0;
   }
   const sizeNibbles: number = readFewBits(s, 2) + 4;
   if (sizeNibbles === 7) {
     s.isMetadata = 1;
     if (readFewBits(s, 1) !== 0) {
-      throw new Error("Corrupted reserved bit");
+      return makeError(s, -6);
     }
     const sizeBytes: number = readFewBits(s, 2);
     if (sizeBytes === 0) {
-      return;
+      return 0;
     }
-    for (let i = 0; i < sizeBytes; i++) {
+    for (let i = 0; i < sizeBytes; ++i) {
       if (s.bitOffset >= 16) {
         s.accumulator32 = (s.shortBuffer[s.halfOffset++] << 16) | (s.accumulator32 >>> 16);
         s.bitOffset -= 16;
       }
       const bits: number = readFewBits(s, 8);
       if (bits === 0 && i + 1 === sizeBytes && sizeBytes > 1) {
-        throw new Error("Exuberant nibble");
+        return makeError(s, -8);
       }
-      s.metaBlockLength |= bits << (i * 8);
+      s.metaBlockLength += bits << (i * 8);
     }
   } else {
-    for (let i = 0; i < sizeNibbles; i++) {
+    for (let i = 0; i < sizeNibbles; ++i) {
       if (s.bitOffset >= 16) {
         s.accumulator32 = (s.shortBuffer[s.halfOffset++] << 16) | (s.accumulator32 >>> 16);
         s.bitOffset -= 16;
       }
       const bits: number = readFewBits(s, 4);
       if (bits === 0 && i + 1 === sizeNibbles && sizeNibbles > 4) {
-        throw new Error("Exuberant nibble");
+        return makeError(s, -8);
       }
-      s.metaBlockLength |= bits << (i * 4);
+      s.metaBlockLength += bits << (i * 4);
     }
   }
   s.metaBlockLength++;
   if (s.inputEnd === 0) {
     s.isUncompressed = readFewBits(s, 1);
   }
+  return 0;
 }
 function readSymbol(tableGroup: Int32Array, tableIdx: number, s: State): number {
   let offset: number = tableGroup[tableIdx];
-  const val: number = (s.accumulator32 >>> s.bitOffset);
-  offset += val & 0xFF;
+  const v: number = s.accumulator32 >>> s.bitOffset;
+  offset += v & 0xFF;
   const bits: number = tableGroup[offset] >> 16;
   const sym: number = tableGroup[offset] & 0xFFFF;
   if (bits <= 8) {
@@ -237,8 +248,8 @@ function readSymbol(tableGroup: Int32Array, tableIdx: number, s: State): number 
   }
   offset += sym;
   const mask: number = (1 << bits) - 1;
-  offset += (val & mask) >>> 8;
-  s.bitOffset += ((tableGroup[offset] >> 16) + 8);
+  offset += (v & mask) >>> 8;
+  s.bitOffset += (tableGroup[offset] >> 16) + 8;
   return tableGroup[offset] & 0xFFFF;
 }
 function readBlockLength(tableGroup: Int32Array, tableIdx: number, s: State): number {
@@ -255,18 +266,20 @@ function readBlockLength(tableGroup: Int32Array, tableIdx: number, s: State): nu
   return BLOCK_LENGTH_OFFSET[code] + ((n <= 16) ? readFewBits(s, n) : readManyBits(s, n));
 }
 function moveToFront(v: Int32Array, index: number): void {
-  const value: number = v[index];
-  for (; index > 0; index--) {
-    v[index] = v[index - 1];
+  let i: number = index;
+  const value: number = v[i];
+  while (i > 0) {
+    v[i] = v[i - 1];
+    i--;
   }
   v[0] = value;
 }
 function inverseMoveToFrontTransform(v: Int8Array, vLen: number): void {
   const mtf = new Int32Array(256);
-  for (let i = 0; i < 256; i++) {
+  for (let i = 0; i < 256; ++i) {
     mtf[i] = i;
   }
-  for (let i = 0; i < vLen; i++) {
+  for (let i = 0; i < vLen; ++i) {
     const index: number = v[i] & 0xFF;
     v[i] = mtf[index];
     if (index !== 0) {
@@ -274,7 +287,7 @@ function inverseMoveToFrontTransform(v: Int8Array, vLen: number): void {
     }
   }
 }
-function readHuffmanCodeLengths(codeLengthCodeLengths: Int32Array, numSymbols: number, codeLengths: Int32Array, s: State): void {
+function readHuffmanCodeLengths(codeLengthCodeLengths: Int32Array, numSymbols: number, codeLengths: Int32Array, s: State): number {
   let symbol = 0;
   let prevCodeLen = 8;
   let repeat = 0;
@@ -285,7 +298,10 @@ function readHuffmanCodeLengths(codeLengthCodeLengths: Int32Array, numSymbols: n
   buildHuffmanTable(table, tableIdx, 5, codeLengthCodeLengths, 18);
   while (symbol < numSymbols && space > 0) {
     if (s.halfOffset > 2030) {
-      doReadMoreInput(s);
+      const result: number = readMoreInput(s);
+      if (result < 0) {
+        return result;
+      }
     }
     if (s.bitOffset >= 16) {
       s.accumulator32 = (s.shortBuffer[s.halfOffset++] << 16) | (s.accumulator32 >>> 16);
@@ -314,7 +330,7 @@ function readHuffmanCodeLengths(codeLengthCodeLengths: Int32Array, numSymbols: n
       const oldRepeat: number = repeat;
       if (repeat > 0) {
         repeat -= 2;
-        repeat <<= extraBits;
+        repeat = repeat << extraBits;
       }
       if (s.bitOffset >= 16) {
         s.accumulator32 = (s.shortBuffer[s.halfOffset++] << 16) | (s.accumulator32 >>> 16);
@@ -323,9 +339,9 @@ function readHuffmanCodeLengths(codeLengthCodeLengths: Int32Array, numSymbols: n
       repeat += readFewBits(s, extraBits) + 3;
       const repeatDelta: number = repeat - oldRepeat;
       if (symbol + repeatDelta > numSymbols) {
-        throw new Error("symbol + repeatDelta > numSymbols");
+        return makeError(s, -2);
       }
-      for (let i = 0; i < repeatDelta; i++) {
+      for (let i = 0; i < repeatDelta; ++i) {
         codeLengths[symbol++] = repeatCodeLen;
       }
       if (repeatCodeLen !== 0) {
@@ -334,36 +350,41 @@ function readHuffmanCodeLengths(codeLengthCodeLengths: Int32Array, numSymbols: n
     }
   }
   if (space !== 0) {
-    throw new Error("Unused space");
+    return makeError(s, -18);
   }
   codeLengths.fill(0, symbol, numSymbols);
+  return 0;
 }
-function checkDupes(symbols: Int32Array, length: number): void {
+function checkDupes(s: State, symbols: Int32Array, length: number): number {
   for (let i = 0; i < length - 1; ++i) {
     for (let j: number = i + 1; j < length; ++j) {
       if (symbols[i] === symbols[j]) {
-        throw new Error("Duplicate simple Huffman code symbol");
+        return makeError(s, -7);
       }
     }
   }
+  return 0;
 }
 function readSimpleHuffmanCode(alphabetSizeMax: number, alphabetSizeLimit: number, tableGroup: Int32Array, tableIdx: number, s: State): number {
   const codeLengths = new Int32Array(alphabetSizeLimit);
   const symbols = new Int32Array(4);
   const maxBits: number = 1 + log2floor(alphabetSizeMax - 1);
   const numSymbols: number = readFewBits(s, 2) + 1;
-  for (let i = 0; i < numSymbols; i++) {
+  for (let i = 0; i < numSymbols; ++i) {
     if (s.bitOffset >= 16) {
       s.accumulator32 = (s.shortBuffer[s.halfOffset++] << 16) | (s.accumulator32 >>> 16);
       s.bitOffset -= 16;
     }
     const symbol: number = readFewBits(s, maxBits);
     if (symbol >= alphabetSizeLimit) {
-      throw new Error("Can't readHuffmanCode");
+      return makeError(s, -15);
     }
     symbols[i] = symbol;
   }
-  checkDupes(symbols, numSymbols);
+  const result: number = checkDupes(s, symbols, numSymbols);
+  if (result < 0) {
+    return result;
+  }
   let histogramId: number = numSymbols;
   if (numSymbols === 4) {
     histogramId += readFewBits(s, 1);
@@ -403,7 +424,7 @@ function readComplexHuffmanCode(alphabetSizeLimit: number, skip: number, tableGr
   const codeLengthCodeLengths = new Int32Array(18);
   let space = 32;
   let numCodes = 0;
-  for (let i: number = skip; i < 18 && space > 0; i++) {
+  for (let i: number = skip; i < 18; ++i) {
     const codeLenIdx: number = CODE_LENGTH_CODE_ORDER[i];
     if (s.bitOffset >= 16) {
       s.accumulator32 = (s.shortBuffer[s.halfOffset++] << 16) | (s.accumulator32 >>> 16);
@@ -414,19 +435,28 @@ function readComplexHuffmanCode(alphabetSizeLimit: number, skip: number, tableGr
     const v: number = FIXED_TABLE[p] & 0xFFFF;
     codeLengthCodeLengths[codeLenIdx] = v;
     if (v !== 0) {
-      space -= (32 >> v);
+      space -= 32 >> v;
       numCodes++;
+      if (space <= 0) {
+        break;
+      }
     }
   }
   if (space !== 0 && numCodes !== 1) {
-    throw new Error("Corrupted Huffman code histogram");
+    return makeError(s, -4);
   }
-  readHuffmanCodeLengths(codeLengthCodeLengths, alphabetSizeLimit, codeLengths, s);
+  const result: number = readHuffmanCodeLengths(codeLengthCodeLengths, alphabetSizeLimit, codeLengths, s);
+  if (result < 0) {
+    return result;
+  }
   return buildHuffmanTable(tableGroup, tableIdx, 8, codeLengths, alphabetSizeLimit);
 }
 function readHuffmanCode(alphabetSizeMax: number, alphabetSizeLimit: number, tableGroup: Int32Array, tableIdx: number, s: State): number {
   if (s.halfOffset > 2030) {
-    doReadMoreInput(s);
+    const result: number = readMoreInput(s);
+    if (result < 0) {
+      return result;
+    }
   }
   if (s.bitOffset >= 16) {
     s.accumulator32 = (s.shortBuffer[s.halfOffset++] << 16) | (s.accumulator32 >>> 16);
@@ -435,13 +465,16 @@ function readHuffmanCode(alphabetSizeMax: number, alphabetSizeLimit: number, tab
   const simpleCodeOrSkip: number = readFewBits(s, 2);
   if (simpleCodeOrSkip === 1) {
     return readSimpleHuffmanCode(alphabetSizeMax, alphabetSizeLimit, tableGroup, tableIdx, s);
-  } else {
-    return readComplexHuffmanCode(alphabetSizeLimit, simpleCodeOrSkip, tableGroup, tableIdx, s);
   }
+  return readComplexHuffmanCode(alphabetSizeLimit, simpleCodeOrSkip, tableGroup, tableIdx, s);
 }
 function decodeContextMap(contextMapSize: number, contextMap: Int8Array, s: State): number {
+  let result: number;
   if (s.halfOffset > 2030) {
-    doReadMoreInput(s);
+    result = readMoreInput(s);
+    if (result < 0) {
+      return result;
+    }
   }
   const numTrees: number = decodeVarLenUnsignedByte(s) + 1;
   if (numTrees === 1) {
@@ -461,10 +494,17 @@ function decodeContextMap(contextMapSize: number, contextMap: Int8Array, s: Stat
   const tableSize: number = MAX_HUFFMAN_TABLE_SIZE[(alphabetSize + 31) >> 5];
   const table = new Int32Array(tableSize + 1);
   const tableIdx: number = table.length - 1;
-  readHuffmanCode(alphabetSize, alphabetSize, table, tableIdx, s);
-  for (let i = 0; i < contextMapSize; ) {
+  result = readHuffmanCode(alphabetSize, alphabetSize, table, tableIdx, s);
+  if (result < 0) {
+    return result;
+  }
+  let i = 0;
+  while (i < contextMapSize) {
     if (s.halfOffset > 2030) {
-      doReadMoreInput(s);
+      result = readMoreInput(s);
+      if (result < 0) {
+        return result;
+      }
     }
     if (s.bitOffset >= 16) {
       s.accumulator32 = (s.shortBuffer[s.halfOffset++] << 16) | (s.accumulator32 >>> 16);
@@ -482,14 +522,14 @@ function decodeContextMap(contextMapSize: number, contextMap: Int8Array, s: Stat
       let reps: number = (1 << code) + readFewBits(s, code);
       while (reps !== 0) {
         if (i >= contextMapSize) {
-          throw new Error("Corrupted context map");
+          return makeError(s, -3);
         }
         contextMap[i] = 0;
         i++;
         reps--;
       }
     } else {
-      contextMap[i] = (code - maxRunLengthPrefix);
+      contextMap[i] = code - maxRunLengthPrefix;
       i++;
     }
   }
@@ -547,7 +587,7 @@ function maybeReallocateRingBuffer(s: State): void {
   if (newSize > s.expectedTotalSize) {
     const minimalNewSize: number = s.expectedTotalSize;
     while ((newSize >> 1) > minimalNewSize) {
-      newSize >>= 1;
+      newSize = newSize >> 1;
     }
     if ((s.inputEnd === 0) && newSize < 16384 && s.maxRingBufferSize >= 16384) {
       newSize = 16384;
@@ -558,36 +598,51 @@ function maybeReallocateRingBuffer(s: State): void {
   }
   const ringBufferSizeWithSlack: number = newSize + 37;
   const newBuffer = new Int8Array(ringBufferSizeWithSlack);
-  if (s.ringBuffer.length !== 0) {
-    newBuffer.set(s.ringBuffer.subarray(0, s.ringBufferSize), 0);
+  const oldBuffer: Int8Array = s.ringBuffer;
+  if (oldBuffer.length !== 0) {
+    newBuffer.set(oldBuffer.subarray(0, s.ringBufferSize), 0);
   }
   s.ringBuffer = newBuffer;
   s.ringBufferSize = newSize;
 }
-function readNextMetablockHeader(s: State): void {
+function readNextMetablockHeader(s: State): number {
   if (s.inputEnd !== 0) {
     s.nextRunningState = 10;
     s.runningState = 12;
-    return;
+    return 0;
   }
   s.literalTreeGroup = new Int32Array(0);
   s.commandTreeGroup = new Int32Array(0);
   s.distanceTreeGroup = new Int32Array(0);
+  let result: number;
   if (s.halfOffset > 2030) {
-    doReadMoreInput(s);
+    result = readMoreInput(s);
+    if (result < 0) {
+      return result;
+    }
   }
-  decodeMetaBlockLength(s);
+  result = decodeMetaBlockLength(s);
+  if (result < 0) {
+    return result;
+  }
   if ((s.metaBlockLength === 0) && (s.isMetadata === 0)) {
-    return;
+    return 0;
   }
   if ((s.isUncompressed !== 0) || (s.isMetadata !== 0)) {
-    jumpToByteBoundary(s);
-    s.runningState = (s.isMetadata !== 0) ? 5 : 6;
+    result = jumpToByteBoundary(s);
+    if (result < 0) {
+      return result;
+    }
+    if (s.isMetadata === 0) {
+      s.runningState = 6;
+    } else {
+      s.runningState = 5;
+    }
   } else {
     s.runningState = 3;
   }
   if (s.isMetadata !== 0) {
-    return;
+    return 0;
   }
   s.expectedTotalSize += s.metaBlockLength;
   if (s.expectedTotalSize > 1 << 30) {
@@ -596,6 +651,7 @@ function readNextMetablockHeader(s: State): void {
   if (s.ringBufferSize < s.maxRingBufferSize) {
     maybeReallocateRingBuffer(s);
   }
+  return 0;
 }
 function readMetablockPartition(s: State, treeType: number, numBlockTypes: number): number {
   let offset: number = s.blockTrees[2 * treeType];
@@ -605,10 +661,18 @@ function readMetablockPartition(s: State, treeType: number, numBlockTypes: numbe
     return 1 << 28;
   }
   const blockTypeAlphabetSize: number = numBlockTypes + 2;
-  offset += readHuffmanCode(blockTypeAlphabetSize, blockTypeAlphabetSize, s.blockTrees, 2 * treeType, s);
+  let result: number = readHuffmanCode(blockTypeAlphabetSize, blockTypeAlphabetSize, s.blockTrees, 2 * treeType, s);
+  if (result < 0) {
+    return result;
+  }
+  offset += result;
   s.blockTrees[2 * treeType + 1] = offset;
   const blockLengthAlphabetSize = 26;
-  offset += readHuffmanCode(blockLengthAlphabetSize, blockLengthAlphabetSize, s.blockTrees, 2 * treeType + 1, s);
+  result = readHuffmanCode(blockLengthAlphabetSize, blockLengthAlphabetSize, s.blockTrees, 2 * treeType + 1, s);
+  if (result < 0) {
+    return result;
+  }
+  offset += result;
   s.blockTrees[2 * treeType + 2] = offset;
   return readBlockLength(s.blockTrees, 2 * treeType + 1, s);
 }
@@ -637,15 +701,30 @@ function calculateDistanceLut(s: State, alphabetSizeLimit: number): void {
     half = half ^ 1;
   }
 }
-function readMetablockHuffmanCodesAndContextMaps(s: State): void {
+function readMetablockHuffmanCodesAndContextMaps(s: State): number {
   s.numLiteralBlockTypes = decodeVarLenUnsignedByte(s) + 1;
-  s.literalBlockLength = readMetablockPartition(s, 0, s.numLiteralBlockTypes);
+  let result: number = readMetablockPartition(s, 0, s.numLiteralBlockTypes);
+  if (result < 0) {
+    return result;
+  }
+  s.literalBlockLength = result;
   s.numCommandBlockTypes = decodeVarLenUnsignedByte(s) + 1;
-  s.commandBlockLength = readMetablockPartition(s, 1, s.numCommandBlockTypes);
+  result = readMetablockPartition(s, 1, s.numCommandBlockTypes);
+  if (result < 0) {
+    return result;
+  }
+  s.commandBlockLength = result;
   s.numDistanceBlockTypes = decodeVarLenUnsignedByte(s) + 1;
-  s.distanceBlockLength = readMetablockPartition(s, 2, s.numDistanceBlockTypes);
+  result = readMetablockPartition(s, 2, s.numDistanceBlockTypes);
+  if (result < 0) {
+    return result;
+  }
+  s.distanceBlockLength = result;
   if (s.halfOffset > 2030) {
-    doReadMoreInput(s);
+    result = readMoreInput(s);
+    if (result < 0) {
+      return result;
+    }
   }
   if (s.bitOffset >= 16) {
     s.accumulator32 = (s.shortBuffer[s.halfOffset++] << 16) | (s.accumulator32 >>> 16);
@@ -654,39 +733,69 @@ function readMetablockHuffmanCodesAndContextMaps(s: State): void {
   s.distancePostfixBits = readFewBits(s, 2);
   s.numDirectDistanceCodes = readFewBits(s, 4) << s.distancePostfixBits;
   s.contextModes = new Int8Array(s.numLiteralBlockTypes);
-  for (let i = 0; i < s.numLiteralBlockTypes; ) {
+  let i = 0;
+  while (i < s.numLiteralBlockTypes) {
     const limit: number = Math.min(i + 96, s.numLiteralBlockTypes);
-    for (; i < limit; ++i) {
+    while (i < limit) {
       if (s.bitOffset >= 16) {
         s.accumulator32 = (s.shortBuffer[s.halfOffset++] << 16) | (s.accumulator32 >>> 16);
         s.bitOffset -= 16;
       }
       s.contextModes[i] = readFewBits(s, 2);
+      i++;
     }
     if (s.halfOffset > 2030) {
-      doReadMoreInput(s);
+      result = readMoreInput(s);
+      if (result < 0) {
+        return result;
+      }
     }
   }
-  s.contextMap = new Int8Array(s.numLiteralBlockTypes << 6);
-  const numLiteralTrees: number = decodeContextMap(s.numLiteralBlockTypes << 6, s.contextMap, s);
+  const contextMapLength: number = s.numLiteralBlockTypes << 6;
+  s.contextMap = new Int8Array(contextMapLength);
+  result = decodeContextMap(contextMapLength, s.contextMap, s);
+  if (result < 0) {
+    return result;
+  }
+  const numLiteralTrees: number = result;
   s.trivialLiteralContext = 1;
-  for (let j = 0; j < s.numLiteralBlockTypes << 6; j++) {
+  for (let j = 0; j < contextMapLength; ++j) {
     if (s.contextMap[j] !== j >> 6) {
       s.trivialLiteralContext = 0;
       break;
     }
   }
   s.distContextMap = new Int8Array(s.numDistanceBlockTypes << 2);
-  const numDistTrees: number = decodeContextMap(s.numDistanceBlockTypes << 2, s.distContextMap, s);
-  s.literalTreeGroup = decodeHuffmanTreeGroup(256, 256, numLiteralTrees, s);
-  s.commandTreeGroup = decodeHuffmanTreeGroup(704, 704, s.numCommandBlockTypes, s);
+  result = decodeContextMap(s.numDistanceBlockTypes << 2, s.distContextMap, s);
+  if (result < 0) {
+    return result;
+  }
+  const numDistTrees: number = result;
+  s.literalTreeGroup = new Int32Array(huffmanTreeGroupAllocSize(256, numLiteralTrees));
+  result = decodeHuffmanTreeGroup(256, 256, numLiteralTrees, s, s.literalTreeGroup);
+  if (result < 0) {
+    return result;
+  }
+  s.commandTreeGroup = new Int32Array(huffmanTreeGroupAllocSize(704, s.numCommandBlockTypes));
+  result = decodeHuffmanTreeGroup(704, 704, s.numCommandBlockTypes, s, s.commandTreeGroup);
+  if (result < 0) {
+    return result;
+  }
   let distanceAlphabetSizeMax: number = calculateDistanceAlphabetSize(s.distancePostfixBits, s.numDirectDistanceCodes, 24);
   let distanceAlphabetSizeLimit: number = distanceAlphabetSizeMax;
   if (s.isLargeWindow === 1) {
     distanceAlphabetSizeMax = calculateDistanceAlphabetSize(s.distancePostfixBits, s.numDirectDistanceCodes, 62);
-    distanceAlphabetSizeLimit = calculateDistanceAlphabetLimit(0x7FFFFFFC, s.distancePostfixBits, s.numDirectDistanceCodes);
+    result = calculateDistanceAlphabetLimit(s, 0x7FFFFFFC, s.distancePostfixBits, s.numDirectDistanceCodes);
+    if (result < 0) {
+      return result;
+    }
+    distanceAlphabetSizeLimit = result;
   }
-  s.distanceTreeGroup = decodeHuffmanTreeGroup(distanceAlphabetSizeMax, distanceAlphabetSizeLimit, numDistTrees, s);
+  s.distanceTreeGroup = new Int32Array(huffmanTreeGroupAllocSize(distanceAlphabetSizeLimit, numDistTrees));
+  result = decodeHuffmanTreeGroup(distanceAlphabetSizeMax, distanceAlphabetSizeLimit, numDistTrees, s, s.distanceTreeGroup);
+  if (result < 0) {
+    return result;
+  }
   calculateDistanceLut(s, distanceAlphabetSizeLimit);
   s.contextMapSlice = 0;
   s.distContextMapSlice = 0;
@@ -700,25 +809,37 @@ function readMetablockHuffmanCodesAndContextMaps(s: State): void {
   s.rings[7] = 0;
   s.rings[8] = 1;
   s.rings[9] = 0;
+  return 0;
 }
-function copyUncompressedData(s: State): void {
+function copyUncompressedData(s: State): number {
   const ringBuffer: Int8Array = s.ringBuffer;
+  let result: number;
   if (s.metaBlockLength <= 0) {
-    reload(s);
+    result = reload(s);
+    if (result < 0) {
+      return result;
+    }
     s.runningState = 2;
-    return;
+    return 0;
   }
   const chunkLength: number = Math.min(s.ringBufferSize - s.pos, s.metaBlockLength);
-  copyRawBytes(s, ringBuffer, s.pos, chunkLength);
+  result = copyRawBytes(s, ringBuffer, s.pos, chunkLength);
+  if (result < 0) {
+    return result;
+  }
   s.metaBlockLength -= chunkLength;
   s.pos += chunkLength;
   if (s.pos === s.ringBufferSize) {
     s.nextRunningState = 6;
     s.runningState = 12;
-    return;
+    return 0;
   }
-  reload(s);
+  result = reload(s);
+  if (result < 0) {
+    return result;
+  }
   s.runningState = 2;
+  return 0;
 }
 function writeRingBuffer(s: State): number {
   const toWrite: number = Math.min(s.outputLength - s.outputUsed, s.ringBufferBytesReady - s.ringBufferBytesWritten);
@@ -728,20 +849,25 @@ function writeRingBuffer(s: State): number {
     s.ringBufferBytesWritten += toWrite;
   }
   if (s.outputUsed < s.outputLength) {
-    return 1;
-  } else {
     return 0;
   }
+  return 2;
 }
-function decodeHuffmanTreeGroup(alphabetSizeMax: number, alphabetSizeLimit: number, n: number, s: State): Int32Array {
+function huffmanTreeGroupAllocSize(alphabetSizeLimit: number, n: number): number {
   const maxTableSize: number = MAX_HUFFMAN_TABLE_SIZE[(alphabetSizeLimit + 31) >> 5];
-  const group = new Int32Array(n + n * maxTableSize);
+  return n + n * maxTableSize;
+}
+function decodeHuffmanTreeGroup(alphabetSizeMax: number, alphabetSizeLimit: number, n: number, s: State, group: Int32Array): number {
   let next: number = n;
   for (let i = 0; i < n; ++i) {
     group[i] = next;
-    next += readHuffmanCode(alphabetSizeMax, alphabetSizeLimit, group, i, s);
+    const result: number = readHuffmanCode(alphabetSizeMax, alphabetSizeLimit, group, i, s);
+    if (result < 0) {
+      return result;
+    }
+    next += result;
   }
-  return group;
+  return 0;
 }
 function calculateFence(s: State): number {
   let result: number = s.ringBufferSize;
@@ -750,32 +876,35 @@ function calculateFence(s: State): number {
   }
   return result;
 }
-function doUseDictionary(s: State, fence: number): void {
+function doUseDictionary(s: State, fence: number): number {
   if (s.distance > 0x7FFFFFFC) {
-    throw new Error("Invalid backward reference");
+    return makeError(s, -9);
   }
   const address: number = s.distance - s.maxDistance - 1 - s.cdTotalSize;
   if (address < 0) {
-    initializeCompoundDictionaryCopy(s, -address - 1, s.copyLength);
+    const result: number = initializeCompoundDictionaryCopy(s, -address - 1, s.copyLength);
+    if (result < 0) {
+      return result;
+    }
     s.runningState = 14;
   } else {
     const dictionaryData: ByteBuffer = data;
     const wordLength: number = s.copyLength;
     if (wordLength > 31) {
-      throw new Error("Invalid backward reference");
+      return makeError(s, -9);
     }
     const shift: number = sizeBits[wordLength];
     if (shift === 0) {
-      throw new Error("Invalid backward reference");
+      return makeError(s, -9);
     }
     let offset: number = offsets[wordLength];
     const mask: number = (1 << shift) - 1;
     const wordIdx: number = address & mask;
-    const transformIdx: number = address >>> shift;
+    const transformIdx: number = address >> shift;
     offset += wordIdx * wordLength;
     const transforms: Transforms = RFC_TRANSFORMS;
     if (transformIdx >= transforms.numTransforms) {
-      throw new Error("Invalid backward reference");
+      return makeError(s, -9);
     }
     const len: number = transformDictionaryWord(s.ringBuffer, s.pos, dictionaryData, offset, wordLength, transforms, transformIdx);
     s.pos += len;
@@ -783,15 +912,16 @@ function doUseDictionary(s: State, fence: number): void {
     if (s.pos >= fence) {
       s.nextRunningState = 4;
       s.runningState = 12;
-      return;
+      return 0;
     }
     s.runningState = 4;
   }
+  return 0;
 }
 function initializeCompoundDictionary(s: State): void {
   s.cdBlockMap = new Int8Array(256);
   let blockBits = 8;
-  while (((s.cdTotalSize - 1) >>> blockBits) !== 0) {
+  while (((s.cdTotalSize - 1) >> blockBits) !== 0) {
     blockBits++;
   }
   blockBits -= 8;
@@ -802,20 +932,20 @@ function initializeCompoundDictionary(s: State): void {
     while (s.cdChunkOffsets[index + 1] < cursor) {
       index++;
     }
-    s.cdBlockMap[cursor >>> blockBits] = index;
+    s.cdBlockMap[cursor >> blockBits] = index;
     cursor += 1 << blockBits;
   }
 }
-function initializeCompoundDictionaryCopy(s: State, address: number, length: number): void {
+function initializeCompoundDictionaryCopy(s: State, address: number, length: number): number {
   if (s.cdBlockBits === -1) {
     initializeCompoundDictionary(s);
   }
-  let index: number = s.cdBlockMap[address >>> s.cdBlockBits];
+  let index: number = s.cdBlockMap[address >> s.cdBlockBits];
   while (address >= s.cdChunkOffsets[index + 1]) {
     index++;
   }
   if (s.cdTotalSize > address + length) {
-    throw new Error("Invalid backward reference");
+    return makeError(s, -9);
   }
   s.distRbIdx = (s.distRbIdx + 1) & 0x3;
   s.rings[s.distRbIdx] = s.distance;
@@ -824,6 +954,7 @@ function initializeCompoundDictionaryCopy(s: State, address: number, length: num
   s.cdBrOffset = address - s.cdChunkOffsets[index];
   s.cdBrLength = length;
   s.cdBrCopied = 0;
+  return 0;
 }
 function copyFromCompoundDictionary(s: State, fence: number): number {
   let pos: number = s.pos;
@@ -839,7 +970,7 @@ function copyFromCompoundDictionary(s: State, fence: number): number {
     if (length > space) {
       length = space;
     }
-    s.ringBuffer.set(s.cdChunks[s.cdBrIndex].slice(s.cdBrOffset, s.cdBrOffset + length), pos);
+    s.ringBuffer.set(s.cdChunks[s.cdBrIndex].subarray(s.cdBrOffset, s.cdBrOffset + length), pos);
     pos += length;
     s.cdBrOffset += length;
     s.cdBrCopied += length;
@@ -853,17 +984,21 @@ function copyFromCompoundDictionary(s: State, fence: number): number {
   }
   return pos - origPos;
 }
-function decompress(s: State): void {
+function decompress(s: State): number {
+  let result: number;
   if (s.runningState === 0) {
-    throw new Error("Can't decompress until initialized");
+    return makeError(s, -25);
+  }
+  if (s.runningState < 0) {
+    return makeError(s, -28);
   }
   if (s.runningState === 11) {
-    throw new Error("Can't decompress after close");
+    return makeError(s, -22);
   }
   if (s.runningState === 1) {
     const windowBits: number = decodeWindowBits(s);
     if (windowBits === -1) {
-      throw new Error("Invalid 'windowBits' code");
+      return makeError(s, -11);
     }
     s.maxRingBufferSize = 1 << windowBits;
     s.maxBackwardDistance = s.maxRingBufferSize - 16;
@@ -876,29 +1011,33 @@ function decompress(s: State): void {
     switch(s.runningState) {
       case 2:
         if (s.metaBlockLength < 0) {
-          throw new Error("Invalid metablock length");
+          return makeError(s, -10);
         }
-        readNextMetablockHeader(s);
+        result = readNextMetablockHeader(s);
+        if (result < 0) {
+          return result;
+        }
         fence = calculateFence(s);
         ringBufferMask = s.ringBufferSize - 1;
         ringBuffer = s.ringBuffer;
         continue;
-      // Fallthrough case in switch is intentional.
-      // tslint:disable-next-line:ban-ts-suppressions
-      // @ts-ignore error TS7029: Fallthrough case in switch.
       case 3:
-        readMetablockHuffmanCodesAndContextMaps(s);
+        result = readMetablockHuffmanCodesAndContextMaps(s);
+        if (result < 0) {
+          return result;
+        }
         s.runningState = 4;
-      // Fallthrough case in switch is intentional.
-      // tslint:disable-next-line:ban-ts-suppressions
-      // @ts-ignore error TS7029: Fallthrough case in switch.
+        continue;
       case 4:
         if (s.metaBlockLength <= 0) {
           s.runningState = 2;
           continue;
         }
         if (s.halfOffset > 2030) {
-          doReadMoreInput(s);
+          result = readMoreInput(s);
+          if (result < 0) {
+            return result;
+          }
         }
         if (s.commandBlockLength === 0) {
           decodeCommandBlockSwitch(s);
@@ -927,14 +1066,15 @@ function decompress(s: State): void {
         s.copyLength = copyLengthOffset + ((copyLengthExtraBits <= 16) ? readFewBits(s, copyLengthExtraBits) : readManyBits(s, copyLengthExtraBits));
         s.j = 0;
         s.runningState = 7;
-      // Fallthrough case in switch is intentional.
-      // tslint:disable-next-line:ban-ts-suppressions
-      // @ts-ignore error TS7029: Fallthrough case in switch.
+        continue;
       case 7:
         if (s.trivialLiteralContext !== 0) {
           while (s.j < s.insertLength) {
             if (s.halfOffset > 2030) {
-              doReadMoreInput(s);
+              result = readMoreInput(s);
+              if (result < 0) {
+                return result;
+              }
             }
             if (s.literalBlockLength === 0) {
               decodeLiteralBlockSwitch(s);
@@ -958,7 +1098,10 @@ function decompress(s: State): void {
           let prevByte2: number = ringBuffer[(s.pos - 2) & ringBufferMask] & 0xFF;
           while (s.j < s.insertLength) {
             if (s.halfOffset > 2030) {
-              doReadMoreInput(s);
+              result = readMoreInput(s);
+              if (result < 0) {
+                return result;
+              }
             }
             if (s.literalBlockLength === 0) {
               decodeLiteralBlockSwitch(s);
@@ -995,7 +1138,10 @@ function decompress(s: State): void {
           s.distance = s.rings[s.distRbIdx];
         } else {
           if (s.halfOffset > 2030) {
-            doReadMoreInput(s);
+            result = readMoreInput(s);
+            if (result < 0) {
+              return result;
+            }
           }
           if (s.distanceBlockLength === 0) {
             decodeDistanceBlockSwitch(s);
@@ -1011,7 +1157,7 @@ function decompress(s: State): void {
             const index: number = (s.distRbIdx + DISTANCE_SHORT_CODE_INDEX_OFFSET[distanceCode]) & 0x3;
             s.distance = s.rings[index] + DISTANCE_SHORT_CODE_VALUE_OFFSET[distanceCode];
             if (s.distance < 0) {
-              throw new Error("Negative distance");
+              return makeError(s, -12);
             }
           } else {
             const extraBits: number = s.distExtraBits[distanceCode];
@@ -1042,10 +1188,11 @@ function decompress(s: State): void {
           s.rings[s.distRbIdx] = s.distance;
         }
         if (s.copyLength > s.metaBlockLength) {
-          throw new Error("Invalid backward reference");
+          return makeError(s, -9);
         }
         s.j = 0;
         s.runningState = 8;
+        continue;
       case 8:
         let src: number = (s.pos - s.distance) & ringBufferMask;
         let dst: number = s.pos;
@@ -1054,7 +1201,8 @@ function decompress(s: State): void {
         const dstEnd: number = dst + copyLength;
         if ((srcEnd < ringBufferMask) && (dstEnd < ringBufferMask)) {
           if (copyLength < 12 || (srcEnd > dst && dstEnd > src)) {
-            for (let k = 0; k < copyLength; k += 4) {
+            const numQuads: number = (copyLength + 3) >> 2;
+            for (let k = 0; k < numQuads; ++k) {
               ringBuffer[dst++] = ringBuffer[src++];
               ringBuffer[dst++] = ringBuffer[src++];
               ringBuffer[dst++] = ringBuffer[src++];
@@ -1067,7 +1215,7 @@ function decompress(s: State): void {
           s.metaBlockLength -= copyLength;
           s.pos += copyLength;
         } else {
-          for (; s.j < s.copyLength; ) {
+          while (s.j < s.copyLength) {
             ringBuffer[s.pos] = ringBuffer[(s.pos - s.distance) & ringBufferMask];
             s.metaBlockLength--;
             s.pos++;
@@ -1084,21 +1232,27 @@ function decompress(s: State): void {
         }
         continue;
       case 9:
-        doUseDictionary(s, fence);
+        result = doUseDictionary(s, fence);
+        if (result < 0) {
+          return result;
+        }
         continue;
       case 14:
         s.pos += copyFromCompoundDictionary(s, fence);
         if (s.pos >= fence) {
           s.nextRunningState = 14;
           s.runningState = 12;
-          return;
+          return 2;
         }
         s.runningState = 4;
         continue;
       case 5:
         while (s.metaBlockLength > 0) {
           if (s.halfOffset > 2030) {
-            doReadMoreInput(s);
+            result = readMoreInput(s);
+            if (result < 0) {
+              return result;
+            }
           }
           if (s.bitOffset >= 16) {
             s.accumulator32 = (s.shortBuffer[s.halfOffset++] << 16) | (s.accumulator32 >>> 16);
@@ -1110,17 +1264,19 @@ function decompress(s: State): void {
         s.runningState = 2;
         continue;
       case 6:
-        copyUncompressedData(s);
+        result = copyUncompressedData(s);
+        if (result < 0) {
+          return result;
+        }
         continue;
-      // Fallthrough case in switch is intentional.
-      // tslint:disable-next-line:ban-ts-suppressions
-      // @ts-ignore error TS7029: Fallthrough case in switch.
       case 12:
         s.ringBufferBytesReady = Math.min(s.pos, s.ringBufferSize);
         s.runningState = 13;
+        continue;
       case 13:
-        if (writeRingBuffer(s) === 0) {
-          return;
+        result = writeRingBuffer(s);
+        if (result !== 0) {
+          return result;
         }
         if (s.pos >= s.maxBackwardDistance) {
           s.maxDistance = s.maxBackwardDistance;
@@ -1129,22 +1285,30 @@ function decompress(s: State): void {
           if (s.pos > s.ringBufferSize) {
             ringBuffer.copyWithin(0, s.ringBufferSize, s.pos);
           }
-          s.pos &= ringBufferMask;
+          s.pos = s.pos & ringBufferMask;
           s.ringBufferBytesWritten = 0;
         }
         s.runningState = s.nextRunningState;
         continue;
       default:
-        throw new Error("Unexpected state " + valueOf(s.runningState));
+        return makeError(s, -28);
     }
   }
-  if (s.runningState === 10) {
-    if (s.metaBlockLength < 0) {
-      throw new Error("Invalid metablock length");
-    }
-    jumpToByteBoundary(s);
-    checkHealth(s, 1);
+  if (s.runningState !== 10) {
+    return makeError(s, -29);
   }
+  if (s.metaBlockLength < 0) {
+    return makeError(s, -10);
+  }
+  result = jumpToByteBoundary(s);
+  if (result !== 0) {
+    return result;
+  }
+  result = checkHealth(s, 1);
+  if (result !== 0) {
+    return result;
+  }
+  return 1;
 }
 
 class Transforms {
@@ -1164,11 +1328,12 @@ class Transforms {
 
 const RFC_TRANSFORMS = new Transforms(121, 167, 50);
 function unpackTransforms(prefixSuffix: Int8Array, prefixSuffixHeads: Int32Array, transforms: Int32Array, prefixSuffixSrc: string, transformsSrc: string): void {
-  const n: number = prefixSuffixSrc.length;
+  const prefixSuffixBytes: Int32Array = toUtf8Runes(prefixSuffixSrc);
+  const n: number = prefixSuffixBytes.length;
   let index = 1;
   let j = 0;
   for (let i = 0; i < n; ++i) {
-    const c: number = prefixSuffixSrc.charCodeAt(i);
+    const c: number = prefixSuffixBytes[i];
     if (c === 35) {
       prefixSuffixHeads[index++] = j;
     } else {
@@ -1182,7 +1347,7 @@ function unpackTransforms(prefixSuffix: Int8Array, prefixSuffixHeads: Int32Array
 {
   unpackTransforms(RFC_TRANSFORMS.prefixSuffixStorage, RFC_TRANSFORMS.prefixSuffixHeads, RFC_TRANSFORMS.triplets, "# #s #, #e #.# the #.com/#\xC2\xA0# of # and # in # to #\"#\">#\n#]# for # a # that #. # with #'# from # by #. The # on # as # is #ing #\n\t#:#ed #(# at #ly #=\"# of the #. This #,# not #er #al #='#ful #ive #less #est #ize #ous #", "     !! ! ,  *!  &!  \" !  ) *   * -  ! # !  #!*!  +  ,$ !  -  %  .  / #   0  1 .  \"   2  3!*   4%  ! # /   5  6  7  8 0  1 &   $   9 +   :  ;  < '  !=  >  ?! 4  @ 4  2  &   A *# (   B  C& ) %  ) !*# *-% A +! *.  D! %'  & E *6  F  G% ! *A *%  H! D  I!+!  J!+   K +- *4! A  L!*4  M  N +6  O!*% +.! K *G  P +%(  ! G *D +D  Q +# *K!*G!+D!+# +G +A +4!+% +K!+4!*D!+K!*K");
 }
-function transformDictionaryWord(dst: Int8Array, dstOffset: number, src: ByteBuffer, srcOffset: number, len: number, transforms: Transforms, transformIndex: number): number {
+function transformDictionaryWord(dst: Int8Array, dstOffset: number, src: ByteBuffer, srcOffset: number, wordLen: number, transforms: Transforms, transformIndex: number): number {
   let offset: number = dstOffset;
   const triplets: Int32Array = transforms.triplets;
   const prefixSuffixStorage: Int8Array = transforms.prefixSuffixStorage;
@@ -1206,15 +1371,16 @@ function transformDictionaryWord(dst: Int8Array, dstOffset: number, src: ByteBuf
   while (prefix !== prefixEnd) {
     dst[offset++] = prefixSuffixStorage[prefix++];
   }
+  let len: number = wordLen;
   if (omitFirst > len) {
     omitFirst = len;
   }
-  srcOffset += omitFirst;
+  let dictOffset: number = srcOffset + omitFirst;
   len -= omitFirst;
   len -= omitLast;
   let i: number = len;
   while (i > 0) {
-    dst[offset++] = src[srcOffset++];
+    dst[offset++] = src[dictOffset++];
     i--;
   }
   if (transformType === 10 || transformType === 11) {
@@ -1226,16 +1392,16 @@ function transformDictionaryWord(dst: Int8Array, dstOffset: number, src: ByteBuf
       const c0: number = dst[uppercaseOffset] & 0xFF;
       if (c0 < 0xC0) {
         if (c0 >= 97 && c0 <= 122) {
-          dst[uppercaseOffset] ^= 32;
+          dst[uppercaseOffset] = dst[uppercaseOffset] ^ 32;
         }
         uppercaseOffset += 1;
         len -= 1;
       } else if (c0 < 0xE0) {
-        dst[uppercaseOffset + 1] ^= 32;
+        dst[uppercaseOffset + 1] = dst[uppercaseOffset + 1] ^ 32;
         uppercaseOffset += 2;
         len -= 2;
       } else {
-        dst[uppercaseOffset + 2] ^= 5;
+        dst[uppercaseOffset + 2] = dst[uppercaseOffset + 2] ^ 5;
         uppercaseOffset += 3;
         len -= 3;
       }
@@ -1249,14 +1415,14 @@ function transformDictionaryWord(dst: Int8Array, dstOffset: number, src: ByteBuf
       const c0: number = dst[shiftOffset] & 0xFF;
       if (c0 < 0x80) {
         scalar += c0;
-        dst[shiftOffset] = (scalar & 0x7F);
+        dst[shiftOffset] = scalar & 0x7F;
       } else if (c0 < 0xC0) {
       } else if (c0 < 0xE0) {
         if (len >= 2) {
           const c1: number = dst[shiftOffset + 1];
           scalar += (c1 & 0x3F) | ((c0 & 0x1F) << 6);
-          dst[shiftOffset] = (0xC0 | ((scalar >> 6) & 0x1F));
-          dst[shiftOffset + 1] = ((c1 & 0xC0) | (scalar & 0x3F));
+          dst[shiftOffset] = 0xC0 | ((scalar >> 6) & 0x1F);
+          dst[shiftOffset + 1] = (c1 & 0xC0) | (scalar & 0x3F);
           step = 2;
         } else {
           step = len;
@@ -1266,9 +1432,9 @@ function transformDictionaryWord(dst: Int8Array, dstOffset: number, src: ByteBuf
           const c1: number = dst[shiftOffset + 1];
           const c2: number = dst[shiftOffset + 2];
           scalar += (c2 & 0x3F) | ((c1 & 0x3F) << 6) | ((c0 & 0x0F) << 12);
-          dst[shiftOffset] = (0xE0 | ((scalar >> 12) & 0x0F));
-          dst[shiftOffset + 1] = ((c1 & 0xC0) | ((scalar >> 6) & 0x3F));
-          dst[shiftOffset + 2] = ((c2 & 0xC0) | (scalar & 0x3F));
+          dst[shiftOffset] = 0xE0 | ((scalar >> 12) & 0x0F);
+          dst[shiftOffset + 1] = (c1 & 0xC0) | ((scalar >> 6) & 0x3F);
+          dst[shiftOffset + 2] = (c2 & 0xC0) | (scalar & 0x3F);
           step = 3;
         } else {
           step = len;
@@ -1279,10 +1445,10 @@ function transformDictionaryWord(dst: Int8Array, dstOffset: number, src: ByteBuf
           const c2: number = dst[shiftOffset + 2];
           const c3: number = dst[shiftOffset + 3];
           scalar += (c3 & 0x3F) | ((c2 & 0x3F) << 6) | ((c1 & 0x3F) << 12) | ((c0 & 0x07) << 18);
-          dst[shiftOffset] = (0xF0 | ((scalar >> 18) & 0x07));
-          dst[shiftOffset + 1] = ((c1 & 0xC0) | ((scalar >> 12) & 0x3F));
-          dst[shiftOffset + 2] = ((c2 & 0xC0) | ((scalar >> 6) & 0x3F));
-          dst[shiftOffset + 3] = ((c3 & 0xC0) | (scalar & 0x3F));
+          dst[shiftOffset] = 0xF0 | ((scalar >> 18) & 0x07);
+          dst[shiftOffset + 1] = (c1 & 0xC0) | ((scalar >> 12) & 0x3F);
+          dst[shiftOffset + 2] = (c2 & 0xC0) | ((scalar >> 6) & 0x3F);
+          dst[shiftOffset + 3] = (c3 & 0xC0) | (scalar & 0x3F);
           step = 4;
         } else {
           step = len;
@@ -1304,69 +1470,74 @@ function transformDictionaryWord(dst: Int8Array, dstOffset: number, src: ByteBuf
 function getNextKey(key: number, len: number): number {
   let step: number = 1 << (len - 1);
   while ((key & step) !== 0) {
-    step >>= 1;
+    step = step >> 1;
   }
   return (key & (step - 1)) + step;
 }
 function replicateValue(table: Int32Array, offset: number, step: number, end: number, item: number): void {
-  do {
-    end -= step;
-    table[offset + end] = item;
-  } while (end > 0);
+  let pos: number = end;
+  while (pos > 0) {
+    pos -= step;
+    table[offset + pos] = item;
+  }
 }
 function nextTableBitSize(count: Int32Array, len: number, rootBits: number): number {
-  let left: number = 1 << (len - rootBits);
-  while (len < 15) {
-    left -= count[len];
+  let bits: number = len;
+  let left: number = 1 << (bits - rootBits);
+  while (bits < 15) {
+    left -= count[bits];
     if (left <= 0) {
       break;
     }
-    len++;
-    left <<= 1;
+    bits++;
+    left = left << 1;
   }
-  return len - rootBits;
+  return bits - rootBits;
 }
 function buildHuffmanTable(tableGroup: Int32Array, tableIdx: number, rootBits: number, codeLengths: Int32Array, codeLengthsSize: number): number {
   const tableOffset: number = tableGroup[tableIdx];
-  let key: number;
   const sorted = new Int32Array(codeLengthsSize);
   const count = new Int32Array(16);
   const offset = new Int32Array(16);
-  let symbol: number;
-  for (symbol = 0; symbol < codeLengthsSize; symbol++) {
-    count[codeLengths[symbol]]++;
+  for (let sym = 0; sym < codeLengthsSize; ++sym) {
+    count[codeLengths[sym]]++;
   }
   offset[1] = 0;
-  for (let len = 1; len < 15; len++) {
+  for (let len = 1; len < 15; ++len) {
     offset[len + 1] = offset[len] + count[len];
   }
-  for (symbol = 0; symbol < codeLengthsSize; symbol++) {
-    if (codeLengths[symbol] !== 0) {
-      sorted[offset[codeLengths[symbol]]++] = symbol;
+  for (let sym = 0; sym < codeLengthsSize; ++sym) {
+    if (codeLengths[sym] !== 0) {
+      sorted[offset[codeLengths[sym]]++] = sym;
     }
   }
   let tableBits: number = rootBits;
   let tableSize: number = 1 << tableBits;
   let totalSize: number = tableSize;
   if (offset[15] === 1) {
-    for (key = 0; key < totalSize; key++) {
-      tableGroup[tableOffset + key] = sorted[0];
+    for (let k = 0; k < totalSize; ++k) {
+      tableGroup[tableOffset + k] = sorted[0];
     }
     return totalSize;
   }
-  key = 0;
-  symbol = 0;
-  for (let len = 1, step = 2; len <= rootBits; len++, step <<= 1) {
-    for (; count[len] > 0; count[len]--) {
+  let key = 0;
+  let symbol = 0;
+  let step = 1;
+  for (let len = 1; len <= rootBits; ++len) {
+    step = step << 1;
+    while (count[len] > 0) {
       replicateValue(tableGroup, tableOffset + key, step, tableSize, len << 16 | sorted[symbol++]);
       key = getNextKey(key, len);
+      count[len]--;
     }
   }
   const mask: number = totalSize - 1;
   let low: number = -1;
   let currentOffset: number = tableOffset;
-  for (let len: number = rootBits + 1, step = 2; len <= 15; len++, step <<= 1) {
-    for (; count[len] > 0; count[len]--) {
+  step = 1;
+  for (let len: number = rootBits + 1; len <= 15; ++len) {
+    step = step << 1;
+    while (count[len] > 0) {
       if ((key & mask) !== low) {
         currentOffset += tableSize;
         tableBits = nextTableBitSize(count, len, rootBits);
@@ -1377,17 +1548,18 @@ function buildHuffmanTable(tableGroup: Int32Array, tableIdx: number, rootBits: n
       }
       replicateValue(tableGroup, currentOffset + (key >> rootBits), step, tableSize, (len - rootBits) << 16 | sorted[symbol++]);
       key = getNextKey(key, len);
+      count[len]--;
     }
   }
   return totalSize;
 }
 
-function doReadMoreInput(s: State): void {
+function readMoreInput(s: State): number {
   if (s.endOfStreamReached !== 0) {
     if (halfAvailable(s) >= -2) {
-      return;
+      return 0;
     }
-    throw new Error("No more input");
+    return makeError(s, -16);
   }
   const readOffset: number = s.halfOffset << 1;
   let bytesInBuffer: number = 4096 - readOffset;
@@ -1396,6 +1568,9 @@ function doReadMoreInput(s: State): void {
   while (bytesInBuffer < 4096) {
     const spaceLeft: number = 4096 - bytesInBuffer;
     const len: number = readInput(s, s.byteBuffer, bytesInBuffer, spaceLeft);
+    if (len < -1) {
+      return len;
+    }
     if (len <= 0) {
       s.endOfStreamReached = 1;
       s.tailBytes = bytesInBuffer;
@@ -1405,23 +1580,25 @@ function doReadMoreInput(s: State): void {
     bytesInBuffer += len;
   }
   bytesToNibbles(s, bytesInBuffer);
+  return 0;
 }
-function checkHealth(s: State, endOfStream: number): void {
+function checkHealth(s: State, endOfStream: number): number {
   if (s.endOfStreamReached === 0) {
-    return;
+    return 0;
   }
   const byteOffset: number = (s.halfOffset << 1) + ((s.bitOffset + 7) >> 3) - 4;
   if (byteOffset > s.tailBytes) {
-    throw new Error("Read after end");
+    return makeError(s, -13);
   }
   if ((endOfStream !== 0) && (byteOffset !== s.tailBytes)) {
-    throw new Error("Unused bytes after end");
+    return makeError(s, -17);
   }
+  return 0;
 }
 function readFewBits(s: State, n: number): number {
-  const val: number = (s.accumulator32 >>> s.bitOffset) & ((1 << n) - 1);
+  const v: number = (s.accumulator32 >>> s.bitOffset) & ((1 << n) - 1);
   s.bitOffset += n;
-  return val;
+  return v;
 }
 function readManyBits(s: State, n: number): number {
   const low: number = readFewBits(s, 16);
@@ -1429,38 +1606,47 @@ function readManyBits(s: State, n: number): number {
   s.bitOffset -= 16;
   return low | (readFewBits(s, n - 16) << 16);
 }
-function initBitReader(s: State): void {
+function initBitReader(s: State): number {
   s.byteBuffer = new Int8Array(4160);
   s.accumulator32 = 0;
   s.shortBuffer = new Int16Array(2080);
   s.bitOffset = 32;
   s.halfOffset = 2048;
   s.endOfStreamReached = 0;
-  prepare(s);
+  return prepare(s);
 }
-function prepare(s: State): void {
+function prepare(s: State): number {
   if (s.halfOffset > 2030) {
-    doReadMoreInput(s);
+    const result: number = readMoreInput(s);
+    if (result !== 0) {
+      return result;
+    }
   }
-  checkHealth(s, 0);
+  let health: number = checkHealth(s, 0);
+  if (health !== 0) {
+    return health;
+  }
   s.accumulator32 = (s.shortBuffer[s.halfOffset++] << 16) | (s.accumulator32 >>> 16);
   s.bitOffset -= 16;
   s.accumulator32 = (s.shortBuffer[s.halfOffset++] << 16) | (s.accumulator32 >>> 16);
   s.bitOffset -= 16;
+  return 0;
 }
-function reload(s: State): void {
+function reload(s: State): number {
   if (s.bitOffset === 32) {
-    prepare(s);
+    return prepare(s);
   }
+  return 0;
 }
-function jumpToByteBoundary(s: State): void {
+function jumpToByteBoundary(s: State): number {
   const padding: number = (32 - s.bitOffset) & 7;
   if (padding !== 0) {
     const paddingBits: number = readFewBits(s, padding);
     if (paddingBits !== 0) {
-      throw new Error("Corrupted padding bits");
+      return makeError(s, -5);
     }
   }
+  return 0;
 }
 function halfAvailable(s: State): number {
   let limit = 2048;
@@ -1469,70 +1655,75 @@ function halfAvailable(s: State): number {
   }
   return limit - s.halfOffset;
 }
-function copyRawBytes(s: State, data: Int8Array, offset: number, length: number): void {
+function copyRawBytes(s: State, data: Int8Array, offset: number, length: number): number {
+  let pos: number = offset;
+  let len: number = length;
   if ((s.bitOffset & 7) !== 0) {
-    throw new Error("Unaligned copyBytes");
+    return makeError(s, -30);
   }
-  while ((s.bitOffset !== 32) && (length !== 0)) {
-    data[offset++] = (s.accumulator32 >>> s.bitOffset);
+  while ((s.bitOffset !== 32) && (len !== 0)) {
+    data[pos++] = s.accumulator32 >>> s.bitOffset;
     s.bitOffset += 8;
-    length--;
+    len--;
   }
-  if (length === 0) {
-    return;
+  if (len === 0) {
+    return 0;
   }
-  const copyNibbles: number = Math.min(halfAvailable(s), length >> 1);
+  const copyNibbles: number = Math.min(halfAvailable(s), len >> 1);
   if (copyNibbles > 0) {
     const readOffset: number = s.halfOffset << 1;
     const delta: number = copyNibbles << 1;
-    data.set(s.byteBuffer.subarray(readOffset, readOffset + delta), offset);
-    offset += delta;
-    length -= delta;
+    data.set(s.byteBuffer.subarray(readOffset, readOffset + delta), pos);
+    pos += delta;
+    len -= delta;
     s.halfOffset += copyNibbles;
   }
-  if (length === 0) {
-    return;
+  if (len === 0) {
+    return 0;
   }
   if (halfAvailable(s) > 0) {
     if (s.bitOffset >= 16) {
       s.accumulator32 = (s.shortBuffer[s.halfOffset++] << 16) | (s.accumulator32 >>> 16);
       s.bitOffset -= 16;
     }
-    while (length !== 0) {
-      data[offset++] = (s.accumulator32 >>> s.bitOffset);
+    while (len !== 0) {
+      data[pos++] = s.accumulator32 >>> s.bitOffset;
       s.bitOffset += 8;
-      length--;
+      len--;
     }
-    checkHealth(s, 0);
-    return;
+    return checkHealth(s, 0);
   }
-  while (length > 0) {
-    const len: number = readInput(s, data, offset, length);
-    if (len === -1) {
-      throw new Error("Unexpected end of input");
+  while (len > 0) {
+    const chunkLen: number = readInput(s, data, pos, len);
+    if (len < -1) {
+      return len;
     }
-    offset += len;
-    length -= len;
+    if (chunkLen <= 0) {
+      return makeError(s, -16);
+    }
+    pos += chunkLen;
+    len -= chunkLen;
   }
+  return 0;
 }
 function bytesToNibbles(s: State, byteLen: number): void {
   const byteBuffer: Int8Array = s.byteBuffer;
   const halfLen: number = byteLen >> 1;
   const shortBuffer: Int16Array = s.shortBuffer;
   for (let i = 0; i < halfLen; ++i) {
-    shortBuffer[i] = ((byteBuffer[i * 2] & 0xFF) | ((byteBuffer[(i * 2) + 1] & 0xFF) << 8));
+    shortBuffer[i] = (byteBuffer[i * 2] & 0xFF) | ((byteBuffer[(i * 2) + 1] & 0xFF) << 8);
   }
 }
 
 const LOOKUP = new Int32Array(2048);
-function unpackLookupTable(lookup: Int32Array, map: string, rle: string): void {
+function unpackLookupTable(lookup: Int32Array, utfMap: string, utfRle: string): void {
   for (let i = 0; i < 256; ++i) {
     lookup[i] = i & 0x3F;
     lookup[512 + i] = i >> 2;
     lookup[1792 + i] = 2 + (i >> 6);
   }
   for (let i = 0; i < 128; ++i) {
-    lookup[1024 + i] = 4 * (map.charCodeAt(i) - 32);
+    lookup[1024 + i] = 4 * (utfMap.charCodeAt(i) - 32);
   }
   for (let i = 0; i < 64; ++i) {
     lookup[1152 + i] = i & 1;
@@ -1541,7 +1732,7 @@ function unpackLookupTable(lookup: Int32Array, map: string, rle: string): void {
   let offset = 1280;
   for (let k = 0; k < 19; ++k) {
     const value: number = k & 3;
-    const rep: number = rle.charCodeAt(k) - 32;
+    const rep: number = utfRle.charCodeAt(k) - 32;
     for (let i = 0; i < rep; ++i) {
       lookup[offset++] = value;
     }
@@ -1632,7 +1823,7 @@ class State {
   cdChunkOffsets = new Int32Array(0);
   cdBlockBits = 0;
   cdBlockMap = new Int8Array(0);
-  input: InputStream|null = null;
+  input = new InputStream(new Int8Array(0));
   constructor () {
     this.ringBuffer = new Int8Array(0);
     this.rings = new Int32Array(10);
@@ -1647,57 +1838,39 @@ let data = new Int8Array(0);
 const offsets = new Int32Array(32);
 const sizeBits = new Int32Array(32);
 function setData(newData: ByteBuffer, newSizeBits: Int32Array): void {
-  if (newSizeBits.length > 31) {
-    throw new Error("sizeBits length must be at most " + valueOf(31));
-  }
-  for (let i = 0; i < 4; ++i) {
-    if (newSizeBits[i] !== 0) {
-      throw new Error("first " + valueOf(4) + " must be 0");
-    }
-  }
   const dictionaryOffsets: Int32Array = offsets;
   const dictionarySizeBits: Int32Array = sizeBits;
-  dictionarySizeBits.set(newSizeBits.subarray(0, newSizeBits.length), 0);
+  for (let i = 0; i < newSizeBits.length; ++i) {
+    dictionarySizeBits[i] = newSizeBits[i];
+  }
   let pos = 0;
-  const limit: number = newData.length;
   for (let i = 0; i < newSizeBits.length; ++i) {
     dictionaryOffsets[i] = pos;
     const bits: number = dictionarySizeBits[i];
     if (bits !== 0) {
-      if (bits >= 31) {
-        throw new Error("newSizeBits values must be less than 31");
-      }
-      pos += i << bits;
-      if (pos <= 0 || pos > limit) {
-        throw new Error("newSizeBits is inconsistent: overflow");
-      }
+      pos += i << (bits & 31);
     }
   }
   for (let i: number = newSizeBits.length; i < 32; ++i) {
     dictionaryOffsets[i] = pos;
-  }
-  if (pos !== limit) {
-    throw new Error("newSizeBits is inconsistent: underflow");
   }
   data = newData;
 }
 
 function unpackDictionaryData(dictionary: ByteBuffer, data0: string, data1: string, skipFlip: string, sizeBits: Int32Array, sizeBitsData: string): void {
   const dict: Int8Array = toUsAsciiBytes(data0 + data1);
-  if (dict.length !== dictionary.length) {
-    throw new Error("Corrupted brotli dictionary");
-  }
+  const skipFlipRunes: Int32Array = toUtf8Runes(skipFlip);
   let offset = 0;
-  const n: number = skipFlip.length;
-  for (let i = 0; i < n; i += 2) {
-    const skip: number = skipFlip.charCodeAt(i) - 36;
-    const flip: number = skipFlip.charCodeAt(i + 1) - 36;
+  const n: number = skipFlipRunes.length >> 1;
+  for (let i = 0; i < n; ++i) {
+    const skip: number = skipFlipRunes[2 * i] - 36;
+    const flip: number = skipFlipRunes[2 * i + 1] - 36;
     for (let j = 0; j < skip; ++j) {
-      dict[offset] ^= 3;
+      dict[offset] = dict[offset] ^ 3;
       offset++;
     }
     for (let j = 0; j < flip; ++j) {
-      dict[offset] ^= 236;
+      dict[offset] = dict[offset] ^ 236;
       offset++;
     }
   }
@@ -1736,6 +1909,9 @@ function readInput(s: State, dst: Int8Array, offset: number, length: number): nu
   src.offset += bytesRead;
   return bytesRead;
 }
+function closeInput(s: State): void {
+  s.input = new InputStream(new Int8Array(0));
+}
 function toUsAsciiBytes(src: string): Int8Array {
   const n: number = src.length;
   const result = new Int8Array(n);
@@ -1743,6 +1919,23 @@ function toUsAsciiBytes(src: string): Int8Array {
     result[i] = src.charCodeAt(i);
   }
   return result;
+}
+function toUtf8Runes(src: string): Int32Array {
+  const n: number = src.length;
+  const result = new Int32Array(n);
+  for (let i = 0; i < n; ++i) {
+    result[i] = src.charCodeAt(i);
+  }
+  return result;
+}
+function makeError(s: State, code: number): number {
+  if (code >= 0) {
+    return code;
+  }
+  if (s.runningState >= 0) {
+    s.runningState = code;
+  }
+  throw new Error("Brotli error code: " + code);
 }
 
 /* GENERATED CODE END */
@@ -1775,6 +1968,7 @@ export function brotliDecode(
     if (s.outputUsed < 16384) break;
   }
   close(s);
+  closeInput(s);
   const result = new Int8Array(totalOutput);
   let offset = 0;
   for (let i = 0; i < chunks.length; ++i) {

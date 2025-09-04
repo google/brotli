@@ -3,7 +3,7 @@
 #include <algorithm>
 #include <exception>  /* terminate */
 
-#include "third_party/libdivsufsort/include/divsufsort.h"
+#include <divsufsort.h>
 
 /* Pointer to position in text. */
 typedef DurchschlagTextIdx TextIdx;
@@ -423,17 +423,20 @@ DurchschlagIndex durchschlag_index(const std::vector<uint8_t>& data) {
 }
 
 static void ScoreSlices(const std::vector<TextIdx>& offsets,
-    std::vector<MetaSlot>& map, const TextIdx* shortcut, TextIdx end) {
+                        std::vector<MetaSlot>& map, const TextIdx* shortcut,
+                        size_t slice_len, TextIdx end) {
   TextIdx piece = 0;
+  TextIdx boundary = offsets[0];
   /* Fresh map contains all zeroes -> initial mark should be different. */
   TextIdx mark = 1;
   for (TextIdx i = 0; i < end; ++i) {
-    if (offsets[piece] == i) {
+    if (i == boundary) {
       piece++;
       mark++;
+      boundary = offsets[piece];
     }
     MetaSlot& item = map[shortcut[i]];
-    if (item.mark != mark) {
+    if (item.mark != mark && i + slice_len <= boundary) {
       item.mark = mark;
       item.score++;
     }
@@ -471,7 +474,7 @@ static std::string durchschlagGenerateExclusive(
     return "";
   }
   TextIdx end = total - sliceLen + 1;
-  ScoreSlices(offsets, map, shortcut, end);
+  ScoreSlices(offsets, map, shortcut, sliceLen, end);
   TextIdx span = blockLen - sliceLen + 1;
   end = static_cast<TextIdx>(context.sliceMap.size()) - span;
   std::vector<TextIdx> candidates;
@@ -577,7 +580,7 @@ static std::string durchschlagGenerateCollaborative(
     return "";
   }
   TextIdx end = total - sliceLen + 1;
-  ScoreSlices(offsets, map, shortcut, end);
+  ScoreSlices(offsets, map, shortcut, sliceLen,end);
   TextIdx span = blockLen - sliceLen + 1;
   end = static_cast<TextIdx>(context.sliceMap.size()) - span;
   std::vector<Candidate> candidates;
@@ -666,7 +669,7 @@ void durchschlag_distill(size_t slice_len, size_t minimum_population,
   TextIdx sliceLen = context.sliceLen;
   TextIdx total = context.dataSize;
   TextIdx end = total - sliceLen + 1;
-  ScoreSlices(offsets, map, shortcut, end);
+  ScoreSlices(offsets, map, shortcut, sliceLen, end);
 
   /* Condense samples, omitting unique slices. */
   TextIdx readPos = 0;
@@ -708,7 +711,7 @@ void durchschlag_purify(size_t slice_len, size_t minimum_population,
   TextIdx sliceLen = context.sliceLen;
   TextIdx total = context.dataSize;
   TextIdx end = total - sliceLen + 1;
-  ScoreSlices(offsets, map, shortcut, end);
+  ScoreSlices(offsets, map, shortcut, sliceLen, end);
 
   /* Rewrite samples, zeroing out unique slices. */
   TextIdx lastNonUniquePos = 0;

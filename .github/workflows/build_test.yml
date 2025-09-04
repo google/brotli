@@ -28,43 +28,35 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # TODO: consider running this combination in docker
-          #- name: cmake:gcc4.4
-
-          # TODO: consider running this combination in docker
-          #- name: cmake:gcc7
-
-          - name: cmake:gcc9
+          - name: cmake:gcc-old
             build_system: cmake
-            c_compiler: gcc-9
-            cxx_compiler: g++-9
-            os: ubuntu-20.04
+            c_compiler: gcc
+            cxx_compiler: g++
+            os: ubuntu-22.04
 
-          # TODO: consider running this combination in docker
-          #- name: cmake:clang3.5
-
-          - name: cmake:clang15
+          - name: cmake:clang-old
             build_system: cmake
-            c_compiler: clang-15
-            cxx_compiler: clang++15
+            c_compiler: clang
+            cxx_compiler: clang
+            os: ubuntu-22.04
 
-          - name: cmake:clang15:asan
+          - name: cmake:clang:asan
             build_system: cmake
             sanitizer: address
-            c_compiler: clang-15
-            cxx_compiler: clang++15
+            c_compiler: clang
+            cxx_compiler: clang++
 
-          - name: cmake:clang15:tsan
+          - name: cmake:clang:tsan
             build_system: cmake
             sanitizer: thread
-            c_compiler: clang-15
-            cxx_compiler: clang++15
+            c_compiler: clang
+            cxx_compiler: clang++
 
-          - name: cmake:clang15:ubsan
+          - name: cmake:clang:ubsan
             build_system: cmake
             sanitizer: undefined
-            c_compiler: clang-15
-            cxx_compiler: clang++-15
+            c_compiler: clang
+            cxx_compiler: clang++
             c_flags: -fno-sanitize-recover=undefined,integer
 
           - name: cmake:qemu-arm-neon-gcc
@@ -86,63 +78,35 @@ jobs:
             cxx_compiler: g++
             os: macos-latest
 
-          - name: cmake-win64:msvc2019-rel
+          - name: cmake-win64:msvc-rel
             build_system: cmake
-            cmake_generator: Visual Studio 16 2019
+            cmake_generator: Visual Studio 17 2022
             cmake_config: Release
-            os: windows-2019
+            os: windows-latest
 
-          - name: cmake-win64:msvc2019-dbg
+          - name: cmake-win64:msvc-dbg
             build_system: cmake
-            cmake_generator: Visual Studio 16 2019
+            cmake_generator: Visual Studio 17 2022
             cmake_config: Debug
-            os: windows-2019
+            os: windows-latest
 
-          - name: fuzz:clang15
+          - name: fuzz:clang
             build_system: fuzz
-            c_compiler: clang-15
-            cxx_compiler: clang++15
+            c_compiler: clang
+            cxx_compiler: clang++
 
-          # TODO: consider running this combination in docker
-          #- name: python2.7:gcc5
-
-          # TODO: consider running this combination in docker
-          #- name: python27:clang9
-          #  build_system: python
-          #  c_compiler: clang-9
-          #  python_version: 2.7
-          #  cxx_compiler: clang++-9
-          #  os: ubuntu-20.04
-
-          # TODO: consider running this combination in docker
-          #- name: python27-win
-          #  build_system: python
-          #  python_version: 2.7
-          #  # TODO: investigate why win-builds can't run tests
-          #  py_setuptools_cmd: build_ext
-          #  os: windows-2016
-
-          # TODO: consider running this combination in docker
-          #- name: python3.6:gcc5
-
-          # TODO: consider running this combination in docker
-          #- name: python3.7:gcc5
-
-          # TODO: consider running this combination in docker
-          #- name: python3.8:gcc5
-
-          - name: python3.10:clang15
+          - name: python3.10:clang
             build_system: python
             python_version: "3.10"
-            c_compiler: clang-15
-            cxx_compiler: clang++-15
+            c_compiler: clang
+            cxx_compiler: clang++
 
           - name: python3.10-win
             build_system: python
             python_version: "3.10"
             # TODO: investigate why win-builds can't run tests
             py_setuptools_cmd: build_ext
-            os: windows-2019
+            os: windows-2022
 
           - name: maven
             build_system: maven
@@ -158,10 +122,6 @@ jobs:
           - name: bazel:java
             build_system: bazel
             bazel_project: java
-
-          - name: bazel:js
-            build_system: bazel
-            bazel_project: js
 
           - name: bazel:research
             build_system: bazel
@@ -182,11 +142,6 @@ jobs:
             bazel_project: java
             os: macos-latest
 
-          - name: bazel-osx:js
-            build_system: bazel
-            bazel_project: js
-            os: macos-latest
-
           - name: bazel-osx:research
             build_system: bazel
             bazel_project: research
@@ -197,21 +152,16 @@ jobs:
             bazel_project: .
             os: windows-latest
 
-          # TODO: use single dll on windows, otherwise it fails to link
+          # TODO(eustas): restore when go is fixed
           #- name: bazel-win:go
           #  build_system: bazel
           #  bazel_project: go
           #  os: windows-latest
 
-          - name: bazel-win:java
-            build_system: bazel
-            bazel_project: java
-            os: windows-latest
-
-          # TODO: blocked by Bazel Closure rules issue
-          #- name: bazel-win:js
+          # TODO(eustas): restore when kotlin is fixed
+          #- name: bazel-win:java
           #  build_system: bazel
-          #  bazel_project: js
+          #  bazel_project: java
           #  os: windows-latest
 
           - name: bazel-win:research
@@ -281,7 +231,7 @@ jobs:
       if: ${{ matrix.build_system == 'bazel' }}
       run: |
         cd ${GITHUB_WORKSPACE}/${{ matrix.bazel_project }}
-        bazelisk build -c opt ...:all
+        bazelisk build -c opt ...:all --java_runtime_version=remotejdk_21
 
     - name: Fix symlinks for Bazel (Windows)
       if: ${{ matrix.build_system == 'bazel' && runner.os == 'Windows' && matrix.bazel_project == 'java' }}
@@ -303,9 +253,9 @@ jobs:
           with open(match) as manifest:
             for entry in manifest:
               entry = entry.strip()
-              if not entry.startswith("org_brotli_java"):
+              if not entry.startswith("_main"):
                 continue
-              if entry.startswith('org_brotli_java/external'):
+              if entry.startswith("_main/external"):
                 continue
               (alias, space, link) = entry.partition(' ')
               if alias.endswith('.jar') or alias.endswith('.exe'):
@@ -326,7 +276,7 @@ jobs:
       run: |
         cd ${GITHUB_WORKSPACE}/${{ matrix.bazel_project }}
         bazelisk query "tests(...)" --output=label > ${RUNNER_TEMP}/tests.lst
-        [ -s ${RUNNER_TEMP}/tests.lst ] && bazelisk test -c opt ...:all
+        [ -s ${RUNNER_TEMP}/tests.lst ] && bazelisk test -c opt ...:all --java_runtime_version=remotejdk_21
         bazelisk clean
 
     - name: Build / Test with Maven
@@ -335,10 +285,11 @@ jobs:
         export MAVEN_OPTS=-Dorg.slf4j.simpleLogger.log.org.apache.maven.cli.transfer.Slf4jMavenTransferListener=warn
         cd java/org/brotli
         mvn -B install
-        cd integration
-        mvn -B verify
+        # TODO(eustas): nuke maven build?
+        # cd integration
+        # mvn -B verify
 
-    - uses: actions/setup-python@65d7f2d534ac1bc67fcd62888c5f4f3d2cb2b236 # v4.7.1
+    - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
       if: ${{ matrix.build_system == 'python' }}
       with:
         python-version: ${{ matrix.python_version }}

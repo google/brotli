@@ -87,7 +87,7 @@ final class State {
   int cdBlockBits;
   byte[] cdBlockMap;
 
-  InputStream /* @Nullable */ input; // BitReader
+  InputStream input = Utils.makeEmptyInput();  // BitReader
 
   State() {
     this.ringBuffer = new byte[0];

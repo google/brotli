@@ -23,7 +23,7 @@ concurrency:
 jobs:
   windows_build:
     name: Windows Build (vcpkg / ${{ matrix.triplet }})
-    runs-on: [windows-latest]
+    runs-on: ${{ matrix.runs_on }}
     strategy:
       fail-fast: false
       matrix:
@@ -31,15 +31,27 @@ jobs:
           - triplet: x86-windows-dynamic
             arch: '-A Win32'
             build_shared_libs: 'ON'
+            runs_on: windows-latest
           - triplet: x64-windows-dynamic
             arch: '-A x64'
             build_shared_libs: 'ON'
+            runs_on: windows-latest
+          - triplet: arm64-windows-dynamic
+            arch: '-A ARM64'
+            build_shared_libs: 'ON'
+            runs_on: windows-11-arm
           - triplet: x86-windows-static
             arch: '-A Win32'
             build_shared_libs: 'OFF'
+            runs_on: windows-latest
           - triplet: x64-windows-static
             arch: '-A x64'
             build_shared_libs: 'OFF'
+            runs_on: windows-latest
+          - triplet: arm64-windows-static
+            arch: '-A ARM64'
+            build_shared_libs: 'OFF'
+            runs_on: windows-11-arm
 
     env:
       VCPKG_VERSION: '2022.11.14'
@@ -53,7 +65,7 @@ jobs:
         submodules: false
         fetch-depth: 1
 
-    - uses: actions/cache@704facf57e6136b1bc63b828d79edcd491f0ee84 # v3.3.2
+    - uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
       id: cache-vcpkg
       with:
         path: vcpkg
@@ -61,12 +73,10 @@ jobs:
 
     - name: Download vcpkg
       if: steps.cache-vcpkg.outputs.cache-hit != 'true'
-      # wget doesn't seem to work under bash.
       shell: 'powershell'
       run: |
-        C:\msys64\usr\bin\wget.exe -nv `
-           https://github.com/microsoft/vcpkg/archive/refs/tags/${{ env.VCPKG_VERSION }}.zip `
-          -O vcpkg.zip
+        Invoke-WebRequest -Uri "https://github.com/microsoft/vcpkg/archive/refs/tags/${{ env.VCPKG_VERSION }}.zip" -OutFile "vcpkg.zip"
+        
     - name: Bootstrap vcpkg
       if: steps.cache-vcpkg.outputs.cache-hit != 'true'
       shell: 'bash'
@@ -102,7 +112,7 @@ jobs:
         cmake --build out --config Release --target install
         cp LICENSE prefix/bin/LICENSE.brotli
     - name: Upload artifacts
-      uses: actions/upload-artifact@a8a3f3ad30e3422c9c7b888a15615d19a852ae32 # v3.1.3
+      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
       with:
         name: brotli-${{matrix.triplet}}
         path: |
@@ -116,7 +126,7 @@ jobs:
 
     - name: Upload binaries to release
       if: github.event_name == 'release'
-      uses: softprops/action-gh-release@de2c0eb89ae2a093876385947365aca7b0e5f844 # v0.1.15
+      uses: softprops/action-gh-release@72f2c25fcb47643c292f7107632f7a47c1df5cd8 # v0.1.15
       with:
         files: brotli-${{matrix.triplet}}.zip
 
@@ -140,7 +150,7 @@ jobs:
 
     - name: Upload archive to release
       if: github.event_name == 'release'
-      uses: softprops/action-gh-release@de2c0eb89ae2a093876385947365aca7b0e5f844 # v0.1.15
+      uses: softprops/action-gh-release@72f2c25fcb47643c292f7107632f7a47c1df5cd8 # v0.1.15
       with:
         files: testdata.txz
 
