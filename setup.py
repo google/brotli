@@ -267,6 +267,7 @@ else:
                 "c/common/dictionary.h",
                 "c/common/platform.h",
                 "c/common/shared_dictionary_internal.h",
+                "c/common/static_init.h",
                 "c/common/transform.h",
                 "c/common/version.h",
                 "c/dec/bit_reader.h",
