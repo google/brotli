@@ -578,13 +578,24 @@ static PyMethodDef brotli_Compressor_methods[] = {
     {NULL} /* Sentinel */
 };
 
-static PyTypeObject brotli_CompressorType = {
 #if PY_MAJOR_VERSION >= 3
-    PyVarObject_HEAD_INIT(NULL, 0)
+static PyType_Slot brotli_Compressor_slots[] = {
+    {Py_tp_dealloc, (destructor)brotli_Compressor_dealloc},
+    {Py_tp_doc, (void*)brotli_Compressor_doc},
+    {Py_tp_methods, brotli_Compressor_methods},
+    {Py_tp_members, brotli_Compressor_members},
+    {Py_tp_init, (initproc)brotli_Compressor_init},
+    {Py_tp_new, brotli_Compressor_new},
+    {0, 0},
+};
+
+static PyType_Spec brotli_Compressor_spec = {
+    "brotli.Compressor", sizeof(brotli_Compressor), 0,
+    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE, brotli_Compressor_slots};
 #else
-    PyObject_HEAD_INIT(NULL) 0, /* ob_size*/
-#endif
-        "brotli.Compressor",               /* tp_name */
+static PyTypeObject brotli_CompressorType = {
+    PyObject_HEAD_INIT(NULL) 0,            /* ob_size */
+    "brotli.Compressor",                   /* tp_name */
     sizeof(brotli_Compressor),             /* tp_basicsize */
     0,                                     /* tp_itemsize */
     (destructor)brotli_Compressor_dealloc, /* tp_dealloc */
@@ -622,6 +633,7 @@ static PyTypeObject brotli_CompressorType = {
     0,                                     /* tp_alloc */
     brotli_Compressor_new,                 /* tp_new */
 };
+#endif
 
 PyDoc_STRVAR(brotli_Decompressor_doc,
              "An object to decompress a byte string.\n"
@@ -911,13 +923,24 @@ static PyMethodDef brotli_Decompressor_methods[] = {
     {NULL} /* Sentinel */
 };
 
-static PyTypeObject brotli_DecompressorType = {
 #if PY_MAJOR_VERSION >= 3
-    PyVarObject_HEAD_INIT(NULL, 0)
+static PyType_Slot brotli_Decompressor_slots[] = {
+    {Py_tp_dealloc, (destructor)brotli_Decompressor_dealloc},
+    {Py_tp_doc, (void*)brotli_Decompressor_doc},
+    {Py_tp_methods, brotli_Decompressor_methods},
+    {Py_tp_members, brotli_Decompressor_members},
+    {Py_tp_init, (initproc)brotli_Decompressor_init},
+    {Py_tp_new, brotli_Decompressor_new},
+    {0, 0},
+};
+
+static PyType_Spec brotli_Decompressor_spec = {
+    "brotli.Decompressor", sizeof(brotli_Decompressor), 0,
+    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE, brotli_Decompressor_slots};
 #else
-    PyObject_HEAD_INIT(NULL) 0, /* ob_size*/
-#endif
-        "brotli.Decompressor",               /* tp_name */
+static PyTypeObject brotli_DecompressorType = {
+    PyObject_HEAD_INIT(NULL) 0,              /* ob_size */
+    "brotli.Decompressor",                   /* tp_name */
     sizeof(brotli_Decompressor),             /* tp_basicsize */
     0,                                       /* tp_itemsize */
     (destructor)brotli_Decompressor_dealloc, /* tp_dealloc */
@@ -955,6 +978,7 @@ static PyTypeObject brotli_DecompressorType = {
     0,                                       /* tp_alloc */
     brotli_Decompressor_new,                 /* tp_new */
 };
+#endif
 
 PyDoc_STRVAR(brotli_decompress__doc__,
              "Decompress a compressed byte string.\n"
@@ -1080,6 +1104,9 @@ static struct PyModuleDef brotli_module = {
 
 PyMODINIT_FUNC INIT_BROTLI(void) {
   PyObject* m = CREATE_BROTLI;
+  if (m == NULL) {
+    RETURN_NULL;
+  }
 
   BrotliError = PyErr_NewException((char*)"brotli.error", NULL, NULL);
   if (BrotliError != NULL) {
@@ -1087,6 +1114,19 @@ PyMODINIT_FUNC INIT_BROTLI(void) {
     PyModule_AddObject(m, "error", BrotliError);
   }
 
+#if PY_MAJOR_VERSION >= 3
+  PyObject* compressor_type = PyType_FromSpec(&brotli_Compressor_spec);
+  if (compressor_type == NULL) {
+    RETURN_NULL;
+  }
+  PyModule_AddObject(m, "Compressor", compressor_type);
+
+  PyObject* decompressor_type = PyType_FromSpec(&brotli_Decompressor_spec);
+  if (decompressor_type == NULL) {
+    RETURN_NULL;
+  }
+  PyModule_AddObject(m, "Decompressor", decompressor_type);
+#else
   if (PyType_Ready(&brotli_CompressorType) < 0) {
     RETURN_NULL;
   }
@@ -1098,6 +1138,7 @@ PyMODINIT_FUNC INIT_BROTLI(void) {
   }
   Py_INCREF(&brotli_DecompressorType);
   PyModule_AddObject(m, "Decompressor", (PyObject*)&brotli_DecompressorType);
+#endif
 
   PyModule_AddIntConstant(m, "MODE_GENERIC", (int)BROTLI_MODE_GENERIC);
   PyModule_AddIntConstant(m, "MODE_TEXT", (int)BROTLI_MODE_TEXT);
