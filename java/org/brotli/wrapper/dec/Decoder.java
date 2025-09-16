@@ -15,7 +15,7 @@ import java.util.ArrayList;
 /**
  * Base class for InputStream / Channel implementations.
  */
-public class Decoder {
+public class Decoder implements AutoCloseable {
   private static final ByteBuffer EMPTY_BUFFER = ByteBuffer.allocate(0);
   private final ReadableByteChannel source;
   private final DecoderJNI.Wrapper decoder;
@@ -129,7 +129,8 @@ public class Decoder {
     return limit;
   }
 
-  void close() throws IOException {
+  @Override
+  public void close() throws IOException {
     if (closed) {
       return;
     }
@@ -140,9 +141,9 @@ public class Decoder {
 
   /** Decodes the given data buffer starting at offset till length. */
   public static byte[] decompress(byte[] data, int offset, int length) throws IOException {
-    DecoderJNI.Wrapper decoder = new DecoderJNI.Wrapper(length);
-    ArrayList<byte[]> output = new ArrayList<byte[]>();
+    ArrayList<byte[]> output = new ArrayList<>();
     int totalOutputSize = 0;
+    DecoderJNI.Wrapper decoder = new DecoderJNI.Wrapper(length);
     try {
       decoder.getInputBuffer().put(data, offset, length);
       decoder.push(length);
