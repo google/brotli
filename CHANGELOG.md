@@ -9,8 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### SECURITY
  - python: added `Decompressor::can_accept_more_data` method and optional
-           `max_output_length` argument `Decompressor::process`;
-           that allows mitigation of unexpextedely large output;
+           `output_buffer_limit` argument `Decompressor::process`;
+           that allows mitigation of unexpectedly large output;
            reported by Charles Chan (https://github.com/charleswhchan)
 
 

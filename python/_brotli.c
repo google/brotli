@@ -1,5 +1,6 @@
 #include <assert.h>
 #include <stdio.h>
+#include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
 #define PY_SSIZE_T_CLEAN 1
@@ -12,560 +13,857 @@
 #include <brotli/encode.h>
 
 #if PY_MAJOR_VERSION >= 3
-#define PyInt_Check PyLong_Check
-#define PyInt_AsLong PyLong_AsLong
+#define PY_GET_TYPE(Obj) (Py_TYPE(Obj))
 #else
-#define Py_ARRAY_LENGTH(array) (sizeof(array) / sizeof((array)[0]))
+#define PY_GET_TYPE(Obj) ((Obj)->ob_type)
 #endif
 
 static PyObject* BrotliError;
 
-/* -----------------------------------
-     BlocksOutputBuffer code
-   ----------------------------------- */
-typedef struct {
-  /* List of blocks */
-  PyObject* list;
-  /* Number of whole allocated size. */
-  Py_ssize_t allocated;
-  Py_ssize_t size_limit;
-} BlocksOutputBuffer;
+static const char kInvalidBufferError[] =
+    "brotli: data must be a C-contiguous buffer";
+static const char kOomError[] = "brotli: unable to allocate memory";
+static const char kCompressCreateError[] =
+    "brotli: failed to create native encoder instance";
+static const char kCompressUnhealthyError[] = "brotli: encoder is unhealthy";
+static const char kCompressConcurrentError[] =
+    "brotli: encoder concurrent access";
+static const char kCompressError[] = "brotli: encoder failed";
+static const char kInvalidModeError[] = "brotli: invalid mode";
+static const char kInvalidQualityError[] =
+    "brotli: invalid quality; range is 0 to 11";
+static const char kInvalidLgwinError[] =
+    "brotli: invalid lgwin; range is 10 to 24";
+static const char kInvalidLgblockError[] =
+    "brotli: invalid lgblock; range is 16 to 24, or 0";
+static const char kDecompressCreateError[] =
+    "brotli: failed to create native decoder instance";
+static const char kDecompressUnhealthyError[] = "brotli: decoder is unhealthy";
+static const char kDecompressConcurrentError[] =
+    "brotli: decoder concurrent access";
+static const char kDecompressSinkError[] =
+    "brotli: decoder process called with data when 'can_accept_more_data()' is "
+    "False";
+static const char kDecompressError[] = "brotli: decoder failed";
 
-static const char unable_allocate_msg[] = "Unable to allocate output buffer.";
+/* clang-format off */
+PyDoc_STRVAR(brotli_error_doc,
+"An error occurred in the Brotli implementation.");
+PyDoc_STRVAR(brotli_Compressor_doc,
+"An object to compress a byte string.\n"
+"\n"
+"Signature:\n"
+"  Compressor(mode=MODE_GENERIC, quality=11, lgwin=22, lgblock=0)\n"
+"\n"
+"Args:\n"
+"  mode (int): The compression mode can be MODE_GENERIC (default),\n"
+"    MODE_TEXT (for UTF-8 format text input) or MODE_FONT (for WOFF 2.0).\n"
+"  quality (int): Controls the compression-speed vs compression-\n"
+"    density tradeoff. The higher the quality, the slower the compression.\n"
+"    Must be in [0 .. 11]. Defaults to 11.\n"
+"  lgwin (int): Base 2 logarithm of the sliding window size.\n"
+"    Must be in [10 .. 24]. Defaults to 22.\n"
+"  lgblock (int): Base 2 logarithm of the maximum input block size.\n"
+"    Must be 0 or in [16 .. 24]. If set to 0, the value will be set based\n"
+"    on the quality. Defaults to 0.\n"
+"\n"
+"Raises:\n"
+"  brotli.error: If arguments are invalid.\n");
+PyDoc_STRVAR(brotli_Compressor_process_doc,
+"Process 'data' for compression, returning a bytes-object that contains\n"
+"compressed output data. This data should be concatenated to the output\n"
+"produced by any preceding calls to the 'process()' or 'flush()' methods.\n"
+"Some or all of the input may be kept in internal buffers for later\n"
+"processing, and the compressed output data may be empty until enough input\n"
+"has been accumulated.\n"
+"\n"
+"Signature:\n"
+"  process(data) -> bytes\n"
+"\n"
+"Args:\n"
+"  data (bytes): The input data;\n"
+"                MUST provide C-contiguous one-dimensional bytes view.\n"
+"\n"
+"Returns:\n"
+"  The compressed output data (bytes)\n"
+"\n"
+"Raises:\n"
+"  brotli.error: If compression fails\n");
+PyDoc_STRVAR(brotli_Compressor_flush_doc,
+"Process all pending input, returning a bytes-object containing the remaining\n"
+"compressed data. This data should be concatenated to the output produced by\n"
+"any preceding calls to the 'process()' or 'flush()' methods.\n"
+"\n"
+"Signature:\n"
+"  flush() -> bytes\n"
+"\n"
+"Returns:\n"
+"  The compressed output data (bytes)\n"
+"\n"
+"Raises:\n"
+"  brotli.error: If compression fails\n");
+PyDoc_STRVAR(brotli_Compressor_finish_doc,
+"Process all pending input and complete all compression, returning\n"
+"a 'bytes'-object containing the remaining compressed data. This data\n"
+"should be concatenated to the output produced by any preceding calls\n"
+"to the 'process()' or 'flush()' methods.\n"
+"After calling 'finish()', the 'process()' and 'flush()' methods\n"
+"cannot be called again, and a new \"Compressor\" object should be created.\n"
+"\n"
+"Signature:\n"
+"  finish() -> bytes\n"
+"\n"
+"Returns:\n"
+"  The compressed output data (bytes)\n"
+"\n"
+"Raises:\n"
+"  brotli.error: If compression fails\n");
+PyDoc_STRVAR(brotli_Decompressor_doc,
+"An object to decompress a byte string.\n"
+"\n"
+"Signature:\n"
+"  Decompressor()\n"
+"\n"
+"Raises:\n"
+"  brotli.error: If arguments are invalid.\n");
+PyDoc_STRVAR(brotli_Decompressor_process_doc,
+"Process 'data' for decompression, returning a bytes-object that contains \n"
+"decompressed output data. This data should be concatenated to the output\n"
+"produced by any preceding calls to the 'process()' method.\n"
+"Some or all of the input may be kept in internal buffers for later\n"
+"processing, and the decompressed output data may be empty until enough input\n"
+"has been accumulated.\n"
+"\n"
+"Signature:\n"
+"  process(data, output_buffer_limit=int) -> bytes\n"
+"\n"
+"Args:\n"
+"  data (bytes): The input data;\n"
+"                MUST provide C-contiguous one-dimensional bytes view.\n"
+"  output_buffer_limit (int): The maximum size of the output buffer.\n"
+"                If set, the output buffer will not grow once its size\n"
+"                equal or exceeding that value. If the limit is reached,\n"
+"                further calls to process (potentially with empty input) will\n"
+"                continue to yield more data. Following 'process()' must only\n"
+"                be called with empty input until 'can_accept_more_data()'\n"
+"                once returns True.\n"
+"\n"
+"Returns:\n"
+"  The decompressed output data (bytes)\n"
+"\n"
+"Raises:\n"
+"  brotli.error: If decompression fails\n");
+PyDoc_STRVAR(brotli_Decompressor_is_finished_doc,
+"Checks if decoder instance reached the final state.\n"
+"\n"
+"Signature:\n"
+"  is_finished() -> bool\n"
+"\n"
+"Returns:\n"
+"  True  if the decoder is in a state where it reached the end of the input\n"
+"        and produced all of the output\n"
+"  False otherwise\n");
+PyDoc_STRVAR(brotli_Decompressor_can_accept_more_data_doc,
+"Checks if the decoder instance can accept more compressed data.\n"
+"If the 'decompress()' method on this instance of decompressor was never\n"
+"called with 'max_length', this method will always return True.\n"
+"\n"
+"Signature:"
+"  can_accept_more_data() -> bool\n"
+"\n"
+"Returns:\n"
+"  True  if the decoder is ready to accept more compressed data via\n"
+"        'decompress()'\n"
+"  False if the decoder needs to output some data via 'decompress(b'')'\n"
+"        before being provided any more compressed data\n");
+PyDoc_STRVAR(brotli_decompress__doc__,
+"Decompress a compressed byte string.\n"
+"\n"
+"Signature:\n"
+"  decompress(data) -> bytes\n"
+"\n"
+"Args:\n"
+"  data (bytes): The input data;\n"
+"                MUST provide C-contiguous one-dimensional bytes view.\n"
+"\n"
+"Returns:\n"
+"  The decompressed byte string.\n"
+"\n"
+"Raises:\n"
+"  brotli.error: If decompressor fails.\n");
+PyDoc_STRVAR(brotli_doc,
+"Implementation module for the Brotli library.");
+/* clang-format on */
 
-/* Block size sequence */
-#define KB (1024)
-#define MB (1024 * 1024)
-static const Py_ssize_t BUFFER_BLOCK_SIZE[] = {
-    32 * KB, 64 * KB, 256 * KB, 1 * MB,   4 * MB,  8 * MB,
-    16 * MB, 16 * MB, 32 * MB,  32 * MB,  32 * MB, 32 * MB,
-    64 * MB, 64 * MB, 128 * MB, 128 * MB, 256 * MB};
-#undef KB
-#undef MB
-
-/* According to the block sizes defined by BUFFER_BLOCK_SIZE, the whole
-   allocated size growth step is:
-    1   32 KB       +32 KB
-    2   96 KB       +64 KB
-    3   352 KB      +256 KB
-    4   1.34 MB     +1 MB
-    5   5.34 MB     +4 MB
-    6   13.34 MB    +8 MB
-    7   29.34 MB    +16 MB
-    8   45.34 MB    +16 MB
-    9   77.34 MB    +32 MB
-    10  109.34 MB   +32 MB
-    11  141.34 MB   +32 MB
-    12  173.34 MB   +32 MB
-    13  237.34 MB   +64 MB
-    14  301.34 MB   +64 MB
-    15  429.34 MB   +128 MB
-    16  557.34 MB   +128 MB
-    17  813.34 MB   +256 MB
-    18  1069.34 MB  +256 MB
-    19  1325.34 MB  +256 MB
-    20  1581.34 MB  +256 MB
-    21  1837.34 MB  +256 MB
-    22  2093.34 MB  +256 MB
-    ...
-*/
-
-/* Initialize the buffer, and grow the buffer.
-   Return 0 on success
-   Return -1 on failure
-*/
-static inline int BlocksOutputBuffer_InitAndGrow(BlocksOutputBuffer* buffer,
-                                                 Py_ssize_t size_limit,
-                                                 size_t* avail_out,
-                                                 uint8_t** next_out) {
-  PyObject* b;
-  Py_ssize_t block_size = BUFFER_BLOCK_SIZE[0];
-
-  assert(size_limit > 0);
-
-  if (size_limit < block_size) {
-    block_size = size_limit;
-  }
-
-  // Ensure .list was set to NULL, for BlocksOutputBuffer_OnError().
-  assert(buffer->list == NULL);
-
-  // The first block
-  b = PyBytes_FromStringAndSize(NULL, block_size);
-  if (b == NULL) {
-    return -1;
-  }
-
-  // Create list
-  buffer->list = PyList_New(1);
-  if (buffer->list == NULL) {
-    Py_DECREF(b);
-    return -1;
-  }
-  PyList_SET_ITEM(buffer->list, 0, b);
-
-  // Set variables
-  buffer->allocated = block_size;
-  buffer->size_limit = size_limit;
-
-  *avail_out = (size_t)block_size;
-  *next_out = (uint8_t*)PyBytes_AS_STRING(b);
-  return 0;
+static void set_brotli_exception(const char* msg) {
+  PyErr_SetString(BrotliError, msg);
 }
 
-/* Grow the buffer. The avail_out must be 0, please check it before calling.
-   Return 0 on success
-   Return -1 on failure
-*/
-static inline int BlocksOutputBuffer_Grow(BlocksOutputBuffer* buffer,
-                                          size_t* avail_out,
-                                          uint8_t** next_out) {
-  PyObject* b;
-  const Py_ssize_t list_len = Py_SIZE(buffer->list);
-  Py_ssize_t block_size;
-
-  // Ensure no gaps in the data
-  assert(*avail_out == 0);
-
-  // Get block size
-  if (list_len < (Py_ssize_t)Py_ARRAY_LENGTH(BUFFER_BLOCK_SIZE)) {
-    block_size = BUFFER_BLOCK_SIZE[list_len];
+/*
+   Checks if the `object` provides a C-bytes buffer view.
+   Returns non-zero on success.
+   Returns zero and sets an exception on failure.
+ */
+static int get_data_view(PyObject* object, Py_buffer* view) {
+  /* PyBUF_SIMPLE means: no shape, no strides, no sub-offsets. */
+  if (PyObject_GetBuffer(object, view, PyBUF_SIMPLE) != 0) goto error;
+  if (view->len == 0) return 1;
+  /* https://docs.python.org/3/c-api/buffer.html:
+     If shape is NULL as a result of a PyBUF_SIMPLE or a PyBUF_WRITABLE request,
+    the consumer must disregard itemsize and assume itemsize == 1.*/
+  if (((view->ndim == 0) || (view->ndim == 1)) && (view->shape == NULL) &&
+      (view->strides == NULL)) {
+    return 1;
   } else {
-    block_size = BUFFER_BLOCK_SIZE[Py_ARRAY_LENGTH(BUFFER_BLOCK_SIZE) - 1];
+    PyBuffer_Release(view);
   }
-
-  if (block_size > buffer->size_limit - buffer->allocated) {
-    block_size = buffer->size_limit - buffer->allocated;
-  }
-
-  if (block_size == 0) {
-    // We are at the size_limit (either the provided one, in which case we
-    // shouldn't have been called, or the implicit PY_SSIZE_T_MAX one, in
-    // which case we wouldn't be able to concatenate the blocks at the end).
-    PyErr_SetString(PyExc_MemoryError, "too long");
-    return -1;
-  }
-
-  // Create the block
-  b = PyBytes_FromStringAndSize(NULL, block_size);
-  if (b == NULL) {
-    PyErr_SetString(PyExc_MemoryError, unable_allocate_msg);
-    return -1;
-  }
-  if (PyList_Append(buffer->list, b) < 0) {
-    Py_DECREF(b);
-    return -1;
-  }
-  Py_DECREF(b);
-
-  // Set variables
-  buffer->allocated += block_size;
-
-  *avail_out = (size_t)block_size;
-  *next_out = (uint8_t*)PyBytes_AS_STRING(b);
+error:
+  PyErr_SetString(PyExc_TypeError, kInvalidBufferError);
   return 0;
 }
 
-/* Finish the buffer.
-   Return a bytes object on success
-   Return NULL on failure
+/* --- Buffer --- */
+
+typedef struct {
+  size_t size;
+  void* next; /* Block* */
+  uint8_t payload[16];
+} Block;
+
+typedef struct {
+  Block* head;
+  Block* tail;
+  size_t avail_out;
+  uint8_t* next_out;
+  size_t num_blocks;
+  uint64_t total_allocated;
+} Buffer;
+
+static void Buffer_Init(Buffer* buffer) {
+  buffer->head = NULL;
+  buffer->tail = NULL;
+  buffer->avail_out = 0;
+  buffer->next_out = NULL;
+  buffer->num_blocks = 0;
+  buffer->total_allocated = 0;
+}
+
+/*
+   Grow the buffer.
+
+   Return 0 on success.
+   Return -1 on failure, but do NOT raise an exception.
 */
-static inline PyObject* BlocksOutputBuffer_Finish(BlocksOutputBuffer* buffer,
-                                                  size_t avail_out) {
-  PyObject *result, *block;
-  const Py_ssize_t list_len = Py_SIZE(buffer->list);
+static int Buffer_Grow(Buffer* buffer) {
+  size_t log_size = buffer->num_blocks + 15;
+  size_t size = 1 << (log_size > 24 ? 24 : log_size);
+  size_t payload_size = size - offsetof(Block, payload);
+  Block* block = NULL;
 
-  // Fast path for single block
-  if ((list_len == 1 && avail_out == 0) ||
-      (list_len == 2 &&
-       Py_SIZE(PyList_GET_ITEM(buffer->list, 1)) == (Py_ssize_t)avail_out)) {
-    block = PyList_GET_ITEM(buffer->list, 0);
-    Py_INCREF(block);
+  assert(buffer->avail_out == 0);
 
-    Py_CLEAR(buffer->list);
-    return block;
+  if (buffer->total_allocated >= PY_SSIZE_T_MAX - payload_size) return -1;
+
+  assert(size > sizeof(Block));
+  block = (Block*)malloc(size);
+  if (block == NULL) return -1;
+  block->size = payload_size;
+  block->next = NULL;
+  if (buffer->head == NULL) {
+    buffer->head = block;
+  } else {
+    buffer->tail->next = block;
   }
+  buffer->tail = block;
+  buffer->next_out = block->payload;
+  buffer->avail_out = payload_size;
+  buffer->total_allocated += payload_size;
+  buffer->num_blocks++;
+  return 0;
+}
 
-  // Final bytes object
-  result = PyBytes_FromStringAndSize(NULL, buffer->allocated - avail_out);
-  if (result == NULL) {
-    PyErr_SetString(PyExc_MemoryError, unable_allocate_msg);
+static void Buffer_Cleanup(Buffer* buffer) {
+  Block* block = NULL;
+  if (buffer->head == NULL) return;
+  block = buffer->head;
+  buffer->head = NULL;
+  while (block != NULL) {
+    Block* next = block->next;
+    block->next = NULL;
+    free(block);
+    block = next;
+  }
+}
+
+/*
+   Finish the buffer.
+
+   Return a bytes object on success.
+   Return NULL on OOM, but do NOT raise an exception.
+*/
+static PyObject* Buffer_Finish(Buffer* buffer) {
+  uint64_t out_size = buffer->total_allocated - buffer->avail_out;
+  Py_ssize_t len = (Py_ssize_t)out_size;
+  PyObject* result = NULL;
+  uint8_t* out = NULL;
+  Py_ssize_t pos = 0;
+  Block* block = NULL;
+  size_t tail_len = 0;
+
+  if ((uint64_t)len != out_size) {
     return NULL;
   }
 
-  // Memory copy
-  if (list_len > 0) {
-    char* posi = PyBytes_AS_STRING(result);
-
-    // Blocks except the last one
-    Py_ssize_t i = 0;
-    for (; i < list_len - 1; i++) {
-      block = PyList_GET_ITEM(buffer->list, i);
-      memcpy(posi, PyBytes_AS_STRING(block), Py_SIZE(block));
-      posi += Py_SIZE(block);
-    }
-    // The last block
-    block = PyList_GET_ITEM(buffer->list, i);
-    memcpy(posi, PyBytes_AS_STRING(block), Py_SIZE(block) - avail_out);
-  } else {
-    assert(Py_SIZE(result) == 0);
+  result = PyBytes_FromStringAndSize(NULL, len);
+  if (result == NULL) {
+    PyErr_Clear();  /* OOM exception will be raised by callers. */
+    return NULL;
   }
+  if (len == 0) return result;
 
-  Py_CLEAR(buffer->list);
+  out = PyBytes_AS_STRING(result);
+  block = buffer->head;
+  while (block != buffer->tail) {
+    memcpy(out + pos, block->payload, block->size);
+    pos += block->size;
+    block = block->next;
+  }
+  tail_len = block->size - buffer->avail_out;
+  if (tail_len > 0) {
+    memcpy(out + pos, block->payload, tail_len);
+  }
   return result;
 }
 
-/* Clean up the buffer */
-static inline void BlocksOutputBuffer_OnError(BlocksOutputBuffer* buffer) {
-  Py_CLEAR(buffer->list);
-}
-
-static int as_bounded_int(PyObject* o, int* result, int lower_bound,
-                          int upper_bound) {
-  long value = PyInt_AsLong(o);
-  if ((value < (long)lower_bound) || (value > (long)upper_bound)) {
-    return 0;
-  }
-  *result = (int)value;
-  return 1;
-}
-
-static int mode_convertor(PyObject* o, BrotliEncoderMode* mode) {
-  if (!PyInt_Check(o)) {
-    PyErr_SetString(BrotliError, "Invalid mode");
-    return 0;
-  }
-
-  int mode_value = -1;
-  if (!as_bounded_int(o, &mode_value, 0, 255)) {
-    PyErr_SetString(BrotliError, "Invalid mode");
-    return 0;
-  }
-  *mode = (BrotliEncoderMode)mode_value;
-  if (*mode != BROTLI_MODE_GENERIC && *mode != BROTLI_MODE_TEXT &&
-      *mode != BROTLI_MODE_FONT) {
-    PyErr_SetString(BrotliError, "Invalid mode");
-    return 0;
-  }
-
-  return 1;
-}
-
-static int quality_convertor(PyObject* o, int* quality) {
-  if (!PyInt_Check(o)) {
-    PyErr_SetString(BrotliError, "Invalid quality");
-    return 0;
-  }
-
-  if (!as_bounded_int(o, quality, 0, 11)) {
-    PyErr_SetString(BrotliError, "Invalid quality. Range is 0 to 11.");
-    return 0;
-  }
-
-  return 1;
-}
-
-static int lgwin_convertor(PyObject* o, int* lgwin) {
-  if (!PyInt_Check(o)) {
-    PyErr_SetString(BrotliError, "Invalid lgwin");
-    return 0;
-  }
-
-  if (!as_bounded_int(o, lgwin, 10, 24)) {
-    PyErr_SetString(BrotliError, "Invalid lgwin. Range is 10 to 24.");
-    return 0;
-  }
-
-  return 1;
-}
-
-static int lgblock_convertor(PyObject* o, int* lgblock) {
-  if (!PyInt_Check(o)) {
-    PyErr_SetString(BrotliError, "Invalid lgblock");
-    return 0;
-  }
-
-  if (!as_bounded_int(o, lgblock, 0, 24) || (*lgblock != 0 && *lgblock < 16)) {
-    PyErr_SetString(BrotliError,
-                    "Invalid lgblock. Can be 0 or in range 16 to 24.");
-    return 0;
-  }
-
-  return 1;
-}
-
-static PyObject* compress_stream(BrotliEncoderState* enc,
-                                 BrotliEncoderOperation op, uint8_t* input,
-                                 size_t input_length) {
-  BROTLI_BOOL ok;
-
-  size_t available_in = input_length;
-  const uint8_t* next_in = input;
-
-  size_t available_out;
-  uint8_t* next_out;
-  BlocksOutputBuffer buffer = {.list = NULL};
-  PyObject* ret;
-
-  if (BlocksOutputBuffer_InitAndGrow(&buffer, PY_SSIZE_T_MAX, &available_out,
-                                     &next_out) < 0) {
-    goto error;
-  }
-
-  while (1) {
-    Py_BEGIN_ALLOW_THREADS ok = BrotliEncoderCompressStream(
-        enc, op, &available_in, &next_in, &available_out, &next_out, NULL);
-    Py_END_ALLOW_THREADS if (!ok) { goto error; }
-
-    if (available_in || BrotliEncoderHasMoreOutput(enc)) {
-      if (available_out == 0) {
-        if (BlocksOutputBuffer_Grow(&buffer, &available_out, &next_out) < 0) {
-          goto error;
-        }
-      }
-      continue;
-    }
-
-    break;
-  }
-
-  ret = BlocksOutputBuffer_Finish(&buffer, available_out);
-  if (ret != NULL) {
-    return ret;
-  }
-
-error:
-  BlocksOutputBuffer_OnError(&buffer);
-  return NULL;
-}
-
-PyDoc_STRVAR(
-    brotli_Compressor_doc,
-    "An object to compress a byte string.\n"
-    "\n"
-    "Signature:\n"
-    "  Compressor(mode=MODE_GENERIC, quality=11, lgwin=22, lgblock=0)\n"
-    "\n"
-    "Args:\n"
-    "  mode (int, optional): The compression mode can be MODE_GENERIC "
-    "(default),\n"
-    "    MODE_TEXT (for UTF-8 format text input) or MODE_FONT (for WOFF 2.0). "
-    "\n"
-    "  quality (int, optional): Controls the compression-speed vs "
-    "compression-\n"
-    "    density tradeoff. The higher the quality, the slower the "
-    "compression.\n"
-    "    Range is 0 to 11. Defaults to 11.\n"
-    "  lgwin (int, optional): Base 2 logarithm of the sliding window size. "
-    "Range\n"
-    "    is 10 to 24. Defaults to 22.\n"
-    "  lgblock (int, optional): Base 2 logarithm of the maximum input block "
-    "size.\n"
-    "    Range is 16 to 24. If set to 0, the value will be set based on the\n"
-    "    quality. Defaults to 0.\n"
-    "\n"
-    "Raises:\n"
-    "  brotli.error: If arguments are invalid.\n");
+/* --- Compressor --- */
 
 typedef struct {
   PyObject_HEAD BrotliEncoderState* enc;
-} brotli_Compressor;
-
-static void brotli_Compressor_dealloc(brotli_Compressor* self) {
-  BrotliEncoderDestroyInstance(self->enc);
-#if PY_MAJOR_VERSION >= 3
-  Py_TYPE(self)->tp_free((PyObject*)self);
-#else
-  self->ob_type->tp_free((PyObject*)self);
-#endif
-}
+  int healthy;
+  int processing;
+} PyBrotli_Compressor;
 
 static PyObject* brotli_Compressor_new(PyTypeObject* type, PyObject* args,
                                        PyObject* keywds) {
-  brotli_Compressor* self;
-  self = (brotli_Compressor*)type->tp_alloc(type, 0);
+  /* `tp_itemsize` is 0, so `nitems` could be 0. */
+  PyBrotli_Compressor* self = (PyBrotli_Compressor*)type->tp_alloc(type, 0);
 
-  if (self != NULL) {
-    self->enc = BrotliEncoderCreateInstance(0, 0, 0);
+  if (self == NULL) return NULL;
+
+  self->healthy = 0;
+  self->processing = 0;
+  self->enc = BrotliEncoderCreateInstance(0, 0, 0);
+  if (self->enc == NULL) {
+    set_brotli_exception(kCompressCreateError);
+    PY_GET_TYPE(self)->tp_free((PyObject*)self);
+    return NULL;
   }
+  self->healthy = 1;
 
   return (PyObject*)self;
 }
 
-static int brotli_Compressor_init(brotli_Compressor* self, PyObject* args,
+static int brotli_Compressor_init(PyBrotli_Compressor* self, PyObject* args,
                                   PyObject* keywds) {
-  BrotliEncoderMode mode = (BrotliEncoderMode)-1;
-  int quality = -1;
-  int lgwin = -1;
-  int lgblock = -1;
-  int ok;
-
   static const char* kwlist[] = {"mode", "quality", "lgwin", "lgblock", NULL};
 
-  ok = PyArg_ParseTupleAndKeywords(
-      args, keywds, "|O&O&O&O&:Compressor", (char**)kwlist, &mode_convertor,
-      &mode, &quality_convertor, &quality, &lgwin_convertor, &lgwin,
-      &lgblock_convertor, &lgblock);
-  if (!ok) return -1;
-  if (!self->enc) return -1;
+  unsigned char mode = BROTLI_DEFAULT_MODE;
+  unsigned char quality = BROTLI_DEFAULT_QUALITY;
+  unsigned char lgwin = BROTLI_DEFAULT_WINDOW;
+  unsigned char lgblock = 0;
 
-  if ((int)mode != -1)
+  int ok = PyArg_ParseTupleAndKeywords(args, keywds, "|bbbb:Compressor",
+                                       (char**)kwlist, &mode, &quality, &lgwin,
+                                       &lgblock);
+
+  assert(self->healthy);
+
+  if (!ok) {
+    self->healthy = 0;
+    return -1;
+  }
+
+  if ((mode == 0) || (mode == 1) || (mode == 2)) {
     BrotliEncoderSetParameter(self->enc, BROTLI_PARAM_MODE, (uint32_t)mode);
-  if (quality != -1)
+  } else {
+    set_brotli_exception(kInvalidModeError);
+    self->healthy = 0;
+    return -1;
+  }
+  if (quality <= 11) {
     BrotliEncoderSetParameter(self->enc, BROTLI_PARAM_QUALITY,
                               (uint32_t)quality);
-  if (lgwin != -1)
+  } else {
+    set_brotli_exception(kInvalidQualityError);
+    self->healthy = 0;
+    return -1;
+  }
+  if ((10 <= lgwin) && (lgwin <= 24)) {
     BrotliEncoderSetParameter(self->enc, BROTLI_PARAM_LGWIN, (uint32_t)lgwin);
-  if (lgblock != -1)
+  } else {
+    set_brotli_exception(kInvalidLgwinError);
+    self->healthy = 0;
+    return -1;
+  }
+  if ((lgblock == 0) || ((16 <= lgblock) && (lgblock <= 24))) {
     BrotliEncoderSetParameter(self->enc, BROTLI_PARAM_LGBLOCK,
                               (uint32_t)lgblock);
+  } else {
+    set_brotli_exception(kInvalidLgblockError);
+    self->healthy = 0;
+    return -1;
+  }
 
   return 0;
 }
 
-PyDoc_STRVAR(
-    brotli_Compressor_process_doc,
-    "Process \"string\" for compression, returning a string that contains \n"
-    "compressed output data.  This data should be concatenated to the output \n"
-    "produced by any preceding calls to the \"process()\" or flush()\" "
-    "methods. \n"
-    "Some or all of the input may be kept in internal buffers for later \n"
-    "processing, and the compressed output data may be empty until enough "
-    "input \n"
-    "has been accumulated.\n"
-    "\n"
-    "Signature:\n"
-    "  compress(string)\n"
-    "\n"
-    "Args:\n"
-    "  string (bytes): The input data\n"
-    "\n"
-    "Returns:\n"
-    "  The compressed output data (bytes)\n"
-    "\n"
-    "Raises:\n"
-    "  brotli.error: If compression fails\n");
+static void brotli_Compressor_dealloc(PyBrotli_Compressor* self) {
+  if (self->enc) BrotliEncoderDestroyInstance(self->enc);
+  PY_GET_TYPE(self)->tp_free((PyObject*)self);
+}
 
-static PyObject* brotli_Compressor_process(brotli_Compressor* self,
+/*
+   Compress "utility knife" used for process / flush / finish.
+
+   Continues processing until all input is consumed.
+   Might return NULL on OOM or internal encoder error.
+ */
+static PyObject* compress_stream(PyBrotli_Compressor* self,
+                                 BrotliEncoderOperation op, uint8_t* input,
+                                 size_t input_length) {
+  size_t available_in = input_length;
+  const uint8_t* next_in = input;
+  Buffer buffer;
+  PyObject* ret = NULL;
+  int oom = 0;
+  BROTLI_BOOL ok = BROTLI_FALSE;
+  BrotliEncoderState* enc = self->enc;
+  /* Callers must ensure mutually exclusive access to the encoder. */
+  assert(self->processing == 1);
+
+  Buffer_Init(&buffer);
+  if (Buffer_Grow(&buffer) < 0) {
+    oom = 1;
+    goto error;
+  }
+
+  Py_BEGIN_ALLOW_THREADS;
+  while (1) {
+    ok = BrotliEncoderCompressStream(enc, op, &available_in, &next_in,
+                                     &buffer.avail_out, &buffer.next_out, NULL);
+    if (!ok) break;
+
+    if ((available_in > 0) || BrotliEncoderHasMoreOutput(enc)) {
+      if (buffer.avail_out == 0) {
+        if (Buffer_Grow(&buffer) < 0) {
+          oom = 1;
+          break;
+        }
+      }
+      continue;
+    }
+    break;
+  }
+  Py_END_ALLOW_THREADS;
+
+  if (oom) goto error;
+  if (ok) {
+    ret = Buffer_Finish(&buffer);
+    if (ret == NULL) oom = 1;
+  } else {  /* Not ok */
+    set_brotli_exception(kCompressError);
+  }
+
+error:
+  if (oom) {
+    PyErr_SetString(PyExc_MemoryError, kOomError);
+    assert(ret == NULL);
+  }
+  Buffer_Cleanup(&buffer);
+  if (PyErr_Occurred() != NULL) {
+    assert(ret == NULL);
+    self->healthy = 0;
+    return NULL;
+  }
+  return ret;
+}
+
+static PyObject* brotli_Compressor_process(PyBrotli_Compressor* self,
                                            PyObject* args) {
-  PyObject* ret;
+  PyObject* ret = NULL;
+  PyObject* input_object = NULL;
   Py_buffer input;
-  int ok;
 
-#if PY_MAJOR_VERSION >= 3
-  ok = PyArg_ParseTuple(args, "y*:process", &input);
-#else
-  ok = PyArg_ParseTuple(args, "s*:process", &input);
-#endif
-
-  if (!ok) {
+  if (self->healthy == 0) {
+    set_brotli_exception(kCompressUnhealthyError);
+    return NULL;
+  }
+  if (self->processing != 0) {
+    set_brotli_exception(kCompressConcurrentError);
     return NULL;
   }
 
-  if (!self->enc) {
-    goto error;
+  if (!PyArg_ParseTuple(args, "O:process", &input_object)) {
+    return NULL;
+  }
+  if (!get_data_view(input_object, &input)) {
+    return NULL;
   }
 
-  ret = compress_stream(self->enc, BROTLI_OPERATION_PROCESS,
-                        (uint8_t*)input.buf, input.len);
-  if (ret != NULL) {
-    goto finally;
-  }
-
-error:
-  PyErr_SetString(
-      BrotliError,
-      "BrotliEncoderCompressStream failed while processing the stream");
-  ret = NULL;
-
-finally:
+  self->processing = 1;
+  ret = compress_stream(self, BROTLI_OPERATION_PROCESS, (uint8_t*)input.buf,
+                        input.len);
   PyBuffer_Release(&input);
+  self->processing = 0;
   return ret;
 }
 
-PyDoc_STRVAR(
-    brotli_Compressor_flush_doc,
-    "Process all pending input, returning a string containing the remaining\n"
-    "compressed data. This data should be concatenated to the output produced "
-    "by\n"
-    "any preceding calls to the \"process()\" or \"flush()\" methods.\n"
-    "\n"
-    "Signature:\n"
-    "  flush()\n"
-    "\n"
-    "Returns:\n"
-    "  The compressed output data (bytes)\n"
-    "\n"
-    "Raises:\n"
-    "  brotli.error: If compression fails\n");
+static PyObject* brotli_Compressor_flush(PyBrotli_Compressor* self) {
+  PyObject* ret = NULL;
 
-static PyObject* brotli_Compressor_flush(brotli_Compressor* self) {
-  PyObject* ret;
-
-  if (!self->enc) {
-    goto error;
+  if (self->healthy == 0) {
+    set_brotli_exception(kCompressUnhealthyError);
+    return NULL;
+  }
+  if (self->processing != 0) {
+    set_brotli_exception(kCompressConcurrentError);
+    return NULL;
   }
 
-  ret = compress_stream(self->enc, BROTLI_OPERATION_FLUSH, NULL, 0);
+  self->processing = 1;
+  ret = compress_stream(self, BROTLI_OPERATION_FLUSH, NULL, 0);
+  self->processing = 0;
+  return ret;
+}
+
+static PyObject* brotli_Compressor_finish(PyBrotli_Compressor* self) {
+  PyObject* ret = NULL;
+
+  if (self->healthy == 0) {
+    set_brotli_exception(kCompressUnhealthyError);
+    return NULL;
+  }
+  if (self->processing != 0) {
+    set_brotli_exception(kCompressConcurrentError);
+    return NULL;
+  }
+
+  self->processing = 1;
+  ret = compress_stream(self, BROTLI_OPERATION_FINISH, NULL, 0);
+  self->processing = 0;
   if (ret != NULL) {
+    assert(BrotliEncoderIsFinished(self->enc));
+  }
+  return ret;
+}
+
+/* --- Decompressor --- */
+
+typedef struct {
+  PyObject_HEAD BrotliDecoderState* dec;
+  uint8_t* unconsumed_data;
+  size_t unconsumed_data_length;
+  int healthy;
+  int processing;
+} PyBrotli_Decompressor;
+
+static PyObject* brotli_Decompressor_new(PyTypeObject* type, PyObject* args,
+                                         PyObject* keywds) {
+  /* `tp_itemsize` is 0, so `nitems` could be 0. */
+  PyBrotli_Decompressor* self = (PyBrotli_Decompressor*)type->tp_alloc(type, 0);
+
+  if (self == NULL) return NULL;
+  self->healthy = 0;
+  self->processing = 0;
+
+  self->dec = BrotliDecoderCreateInstance(0, 0, 0);
+  if (self->dec == NULL) {
+    set_brotli_exception(kDecompressCreateError);
+    PY_GET_TYPE(self)->tp_free((PyObject*)self);
+    return NULL;
+  }
+
+  self->unconsumed_data = NULL;
+  self->unconsumed_data_length = 0;
+  self->healthy = 1;
+
+  return (PyObject*)self;
+}
+
+static int brotli_Decompressor_init(PyBrotli_Decompressor* self, PyObject* args,
+                                    PyObject* keywds) {
+  static const char* kwlist[] = {NULL};
+
+  int ok = PyArg_ParseTupleAndKeywords(args, keywds, "|:Decompressor",
+                                       (char**)kwlist);
+
+  assert(self->healthy);
+
+  if (!ok) {
+    self->healthy = 0;
+    return -1;
+  }
+
+  return 0;
+}
+
+static void brotli_Decompressor_dealloc(PyBrotli_Decompressor* self) {
+  if (self->dec) BrotliDecoderDestroyInstance(self->dec);
+  if (self->unconsumed_data) {
+    free(self->unconsumed_data);
+    self->unconsumed_data = NULL;
+  }
+  PY_GET_TYPE(self)->tp_free((PyObject*)self);
+}
+
+static PyObject* brotli_Decompressor_process(PyBrotli_Decompressor* self,
+                                             PyObject* args, PyObject* keywds) {
+  static const char* kwlist[] = {"", "output_buffer_limit", NULL};
+
+  PyObject* ret = NULL;
+  PyObject* input_object = NULL;
+  Py_buffer input;
+  Py_ssize_t output_buffer_limit = PY_SSIZE_T_MAX;
+  const uint8_t* next_in = NULL;
+  size_t avail_in = 0;
+  BrotliDecoderResult result = BROTLI_DECODER_RESULT_ERROR;
+  Buffer buffer;
+  uint8_t* new_tail = NULL;
+  size_t new_tail_length = 0;
+  int oom = 0;
+
+  if (self->healthy == 0) {
+    set_brotli_exception(kDecompressUnhealthyError);
+    return NULL;
+  }
+  if (self->processing != 0) {
+    set_brotli_exception(kDecompressConcurrentError);
+    return NULL;
+  }
+
+  if (!PyArg_ParseTupleAndKeywords(args, keywds, "O|n:process", (char**)kwlist,
+                                   &input_object, &output_buffer_limit)) {
+    return NULL;
+  }
+  if (!get_data_view(input_object, &input)) {
+    return NULL;
+  }
+
+  Buffer_Init(&buffer);
+  self->processing = 1;
+
+  if (self->unconsumed_data_length > 0) {
+    if (input.len > 0) {
+      set_brotli_exception(kDecompressSinkError);
+      goto finally;
+    }
+    next_in = self->unconsumed_data;
+    avail_in = self->unconsumed_data_length;
+  } else {
+    next_in = (uint8_t*)input.buf;
+    avail_in = input.len;
+  }
+
+  /* While not guaranteed, we expect that some output will be produced. */
+  if (Buffer_Grow(&buffer) < 0) {
+    oom = 1;
     goto finally;
   }
 
-error:
-  PyErr_SetString(
-      BrotliError,
-      "BrotliEncoderCompressStream failed while flushing the stream");
-  ret = NULL;
+  Py_BEGIN_ALLOW_THREADS;
+  while (1) {
+    result = BrotliDecoderDecompressStream(self->dec, &avail_in, &next_in,
+                                           &buffer.avail_out, &buffer.next_out,
+                                           NULL);
+
+    if (result == BROTLI_DECODER_RESULT_NEEDS_MORE_OUTPUT) {
+      assert(buffer.avail_out == 0);
+      /* All allocated is used -> reached the output length limit. */
+      if (buffer.total_allocated >= output_buffer_limit) break;
+      if (Buffer_Grow(&buffer) < 0) {
+        oom = 1;
+        break;
+      }
+      continue;
+    }
+    break;
+  }
+  Py_END_ALLOW_THREADS;
+
+  if (oom) {
+    goto finally;
+  } else if (result == BROTLI_DECODER_RESULT_ERROR) {
+    set_brotli_exception(kDecompressError);
+    goto finally;
+  }
+
+  /* Here result is either SUCCESS / NEEDS_MORE_INPUT / NEEDS_MORE_OUTPUT (if
+     `output_buffer_limit` was reached). */
+
+  if (avail_in > 0) {
+    new_tail = malloc(avail_in);
+    if (new_tail == NULL) {
+      oom = 1;
+      goto finally;
+    }
+    memcpy(new_tail, next_in, avail_in);
+    new_tail_length = avail_in;
+  }
+
+  if ((result == BROTLI_DECODER_RESULT_SUCCESS) && (avail_in > 0)) {
+    /* TODO(eustas): Add API to ignore / fetch unused "tail"? */
+    set_brotli_exception(kDecompressError);
+    goto finally;
+  }
+
+  ret = Buffer_Finish(&buffer);
+  if (ret == NULL) oom = 1;
+
 finally:
+  if (oom) {
+    PyErr_SetString(PyExc_MemoryError, kOomError);
+    assert(ret == NULL);
+  }
+  PyBuffer_Release(&input);
+  Buffer_Cleanup(&buffer);
+  if (self->unconsumed_data) {
+    free(self->unconsumed_data);
+    self->unconsumed_data = NULL;
+  }
+  self->unconsumed_data = new_tail;
+  self->unconsumed_data_length = new_tail_length;
+  if (PyErr_Occurred() != NULL) {
+    assert(ret == NULL);
+    self->healthy = 0;
+  }
+  self->processing = 0;
   return ret;
 }
 
-PyDoc_STRVAR(
-    brotli_Compressor_finish_doc,
-    "Process all pending input and complete all compression, returning a "
-    "string\n"
-    "containing the remaining compressed data. This data should be "
-    "concatenated\n"
-    "to the output produced by any preceding calls to the \"process()\" or\n"
-    "\"flush()\" methods.\n"
-    "After calling \"finish()\", the \"process()\" and \"flush()\" methods\n"
-    "cannot be called again, and a new \"Compressor\" object should be "
-    "created.\n"
-    "\n"
-    "Signature:\n"
-    "  finish(string)\n"
-    "\n"
-    "Returns:\n"
-    "  The compressed output data (bytes)\n"
-    "\n"
-    "Raises:\n"
-    "  brotli.error: If compression fails\n");
+static PyObject* brotli_Decompressor_is_finished(PyBrotli_Decompressor* self) {
+  if (self->healthy == 0) {
+    set_brotli_exception(kDecompressUnhealthyError);
+    return NULL;
+  }
+  if (self->processing != 0) {
+    set_brotli_exception(kDecompressConcurrentError);
+    return NULL;
+  }
+  if (BrotliDecoderIsFinished(self->dec)) {
+    Py_RETURN_TRUE;
+  } else {
+    Py_RETURN_FALSE;
+  }
+}
 
-static PyObject* brotli_Compressor_finish(brotli_Compressor* self) {
-  PyObject* ret;
+static PyObject* brotli_Decompressor_can_accept_more_data(
+    PyBrotli_Decompressor* self) {
+  if (self->healthy == 0) {
+    set_brotli_exception(kDecompressUnhealthyError);
+    return NULL;
+  }
+  if (self->processing != 0) {
+    set_brotli_exception(kDecompressConcurrentError);
+    return NULL;
+  }
+  if (self->unconsumed_data_length > 0) {
+    Py_RETURN_FALSE;
+  } else {
+    Py_RETURN_TRUE;
+  }
+}
 
-  if (!self->enc) {
-    goto error;
+/* --- Module functions --- */
+
+static PyObject* brotli_decompress(PyObject* self, PyObject* args,
+                                   PyObject* keywds) {
+  static const char* kwlist[] = {"string", NULL};
+
+  BrotliDecoderState* state = NULL;
+  BrotliDecoderResult result = BROTLI_DECODER_RESULT_ERROR;
+  const uint8_t* next_in = NULL;
+  size_t available_in = 0;
+  Buffer buffer;
+  PyObject* ret = NULL;
+  PyObject* input_object = NULL;
+  Py_buffer input;
+  int oom = 0;
+
+  if (!PyArg_ParseTupleAndKeywords(args, keywds, "O|:decompress",
+                                   (char**)kwlist, &input_object)) {
+    return NULL;
+  }
+  if (!get_data_view(input_object, &input)) {
+    return NULL;
   }
 
-  ret = compress_stream(self->enc, BROTLI_OPERATION_FINISH, NULL, 0);
+  Buffer_Init(&buffer);
 
-  if (ret == NULL || !BrotliEncoderIsFinished(self->enc)) {
-    goto error;
+  next_in = (uint8_t*)input.buf;
+  available_in = input.len;
+
+  state = BrotliDecoderCreateInstance(0, 0, 0);
+  if (state == NULL) {
+    oom = 1;
+    goto finally;
   }
-  goto finally;
 
-error:
-  PyErr_SetString(
-      BrotliError,
-      "BrotliEncoderCompressStream failed while finishing the stream");
-  ret = NULL;
+  if (Buffer_Grow(&buffer) < 0) {
+    oom = 1;
+    goto finally;
+  }
+
+  Py_BEGIN_ALLOW_THREADS;
+  while (1) {
+    result = BrotliDecoderDecompressStream(
+        state, &available_in, &next_in, &buffer.avail_out, &buffer.next_out, 0);
+    if (result == BROTLI_DECODER_RESULT_NEEDS_MORE_OUTPUT) {
+      assert(buffer.avail_out == 0);
+      if (Buffer_Grow(&buffer) < 0) {
+        oom = 1;
+        break;
+      }
+      continue;
+    }
+    break;
+  }
+  Py_END_ALLOW_THREADS;
+
+  if (oom) {
+    goto finally;
+  } else if (result != BROTLI_DECODER_RESULT_SUCCESS || available_in > 0) {
+    set_brotli_exception(kDecompressError);
+    goto finally;
+  }
+
+  ret = Buffer_Finish(&buffer);
+  if (ret == NULL) oom = 1;
+
 finally:
+  if (oom) PyErr_SetString(PyExc_MemoryError, kOomError);
+  PyBuffer_Release(&input);
+  Buffer_Cleanup(&buffer);
+  if (state) BrotliDecoderDestroyInstance(state);
   return ret;
 }
 
-static PyMemberDef brotli_Compressor_members[] = {
-    {NULL} /* Sentinel */
+/* Module definition */
+
+static PyMethodDef brotli_methods[] = {
+    {"decompress", (PyCFunction)brotli_decompress, METH_VARARGS | METH_KEYWORDS,
+     brotli_decompress__doc__},
+    {NULL, NULL, 0, NULL}};
+
+static struct PyModuleDef brotli_module = {
+    PyModuleDef_HEAD_INIT,
+    "_brotli",      /* m_name */
+    brotli_doc,     /* m_doc */
+    0,              /* m_size */
+    brotli_methods, /* m_methods */
+    NULL,           /* m_reload */
+    NULL,           /* m_traverse */
+    NULL,           /* m_clear */
+    NULL            /* m_free */
 };
 
 static PyMethodDef brotli_Compressor_methods[] = {
@@ -578,25 +876,51 @@ static PyMethodDef brotli_Compressor_methods[] = {
     {NULL} /* Sentinel */
 };
 
+static PyMethodDef brotli_Decompressor_methods[] = {
+    {"process", (PyCFunction)brotli_Decompressor_process,
+     METH_VARARGS | METH_KEYWORDS, brotli_Decompressor_process_doc},
+    {"is_finished", (PyCFunction)brotli_Decompressor_is_finished, METH_NOARGS,
+     brotli_Decompressor_is_finished_doc},
+    {"can_accept_more_data",
+     (PyCFunction)brotli_Decompressor_can_accept_more_data, METH_NOARGS,
+     brotli_Decompressor_can_accept_more_data_doc},
+    {NULL} /* Sentinel */
+};
+
 #if PY_MAJOR_VERSION >= 3
+
 static PyType_Slot brotli_Compressor_slots[] = {
     {Py_tp_dealloc, (destructor)brotli_Compressor_dealloc},
     {Py_tp_doc, (void*)brotli_Compressor_doc},
     {Py_tp_methods, brotli_Compressor_methods},
-    {Py_tp_members, brotli_Compressor_members},
     {Py_tp_init, (initproc)brotli_Compressor_init},
     {Py_tp_new, brotli_Compressor_new},
     {0, 0},
 };
 
 static PyType_Spec brotli_Compressor_spec = {
-    "brotli.Compressor", sizeof(brotli_Compressor), 0,
+    "brotli.Compressor", sizeof(PyBrotli_Compressor), 0,
     Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE, brotli_Compressor_slots};
+
+static PyType_Slot brotli_Decompressor_slots[] = {
+    {Py_tp_dealloc, (destructor)brotli_Decompressor_dealloc},
+    {Py_tp_doc, (void*)brotli_Decompressor_doc},
+    {Py_tp_methods, brotli_Decompressor_methods},
+    {Py_tp_init, (initproc)brotli_Decompressor_init},
+    {Py_tp_new, brotli_Decompressor_new},
+    {0, 0},
+};
+
+static PyType_Spec brotli_Decompressor_spec = {
+    "brotli.Decompressor", sizeof(PyBrotli_Decompressor), 0,
+    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE, brotli_Decompressor_slots};
+
 #else
+
 static PyTypeObject brotli_CompressorType = {
     PyObject_HEAD_INIT(NULL) 0,            /* ob_size */
     "brotli.Compressor",                   /* tp_name */
-    sizeof(brotli_Compressor),             /* tp_basicsize */
+    sizeof(PyBrotli_Compressor),           /* tp_basicsize */
     0,                                     /* tp_itemsize */
     (destructor)brotli_Compressor_dealloc, /* tp_dealloc */
     0,                                     /* tp_print */
@@ -622,7 +946,7 @@ static PyTypeObject brotli_CompressorType = {
     0,                                     /* tp_iter */
     0,                                     /* tp_iternext */
     brotli_Compressor_methods,             /* tp_methods */
-    brotli_Compressor_members,             /* tp_members */
+    0,                                     /* tp_members */
     0,                                     /* tp_getset */
     0,                                     /* tp_base */
     0,                                     /* tp_dict */
@@ -633,315 +957,11 @@ static PyTypeObject brotli_CompressorType = {
     0,                                     /* tp_alloc */
     brotli_Compressor_new,                 /* tp_new */
 };
-#endif
 
-PyDoc_STRVAR(brotli_Decompressor_doc,
-             "An object to decompress a byte string.\n"
-             "\n"
-             "Signature:\n"
-             "  Decompressor()\n"
-             "\n"
-             "Raises:\n"
-             "  brotli.error: If arguments are invalid.\n");
-
-typedef struct {
-  PyObject_HEAD BrotliDecoderState* dec;
-  uint8_t* unconsumed_data;
-  size_t unconsumed_data_length;
-} brotli_Decompressor;
-
-static void brotli_Decompressor_dealloc(brotli_Decompressor* self) {
-  BrotliDecoderDestroyInstance(self->dec);
-  if (self->unconsumed_data) free(self->unconsumed_data);
-#if PY_MAJOR_VERSION >= 3
-  Py_TYPE(self)->tp_free((PyObject*)self);
-#else
-  self->ob_type->tp_free((PyObject*)self);
-#endif
-}
-
-static PyObject* brotli_Decompressor_new(PyTypeObject* type, PyObject* args,
-                                         PyObject* keywds) {
-  brotli_Decompressor* self;
-  self = (brotli_Decompressor*)type->tp_alloc(type, 0);
-
-  if (self != NULL) {
-    self->dec = BrotliDecoderCreateInstance(0, 0, 0);
-  }
-
-  self->unconsumed_data = NULL;
-  self->unconsumed_data_length = 0;
-
-  return (PyObject*)self;
-}
-
-static int brotli_Decompressor_init(brotli_Decompressor* self, PyObject* args,
-                                    PyObject* keywds) {
-  int ok;
-
-  static const char* kwlist[] = {NULL};
-
-  ok = PyArg_ParseTupleAndKeywords(args, keywds, "|:Decompressor",
-                                   (char**)kwlist);
-  if (!ok) return -1;
-  if (!self->dec) return -1;
-
-  return 0;
-}
-
-static PyObject* decompress_stream(brotli_Decompressor* self, uint8_t* input,
-                                   size_t input_length,
-                                   Py_ssize_t max_output_length) {
-  BrotliDecoderResult result;
-
-  size_t available_in = input_length;
-  const uint8_t* next_in = input;
-
-  size_t available_out;
-  uint8_t* next_out;
-  uint8_t* new_tail;
-  BlocksOutputBuffer buffer = {.list = NULL};
-  PyObject* ret;
-
-  if (BlocksOutputBuffer_InitAndGrow(&buffer, max_output_length, &available_out,
-                                     &next_out) < 0) {
-    goto error;
-  }
-
-  while (1) {
-    Py_BEGIN_ALLOW_THREADS result = BrotliDecoderDecompressStream(
-        self->dec, &available_in, &next_in, &available_out, &next_out, NULL);
-    Py_END_ALLOW_THREADS
-
-        if (result == BROTLI_DECODER_RESULT_NEEDS_MORE_OUTPUT) {
-      if (available_out == 0) {
-        if (buffer.allocated == PY_SSIZE_T_MAX) {
-          PyErr_SetString(PyExc_MemoryError, unable_allocate_msg);
-          goto error;
-        }
-        if (buffer.allocated == max_output_length) {
-          // We've reached the output length limit.
-          break;
-        }
-        if (BlocksOutputBuffer_Grow(&buffer, &available_out, &next_out) < 0) {
-          goto error;
-        }
-      }
-      continue;
-    }
-
-    if (result == BROTLI_DECODER_RESULT_ERROR || available_in != 0) {
-      available_in = 0;
-      goto error;
-    }
-
-    break;
-  }
-
-  ret = BlocksOutputBuffer_Finish(&buffer, available_out);
-  if (ret != NULL) {
-    goto finally;
-  }
-
-error:
-  BlocksOutputBuffer_OnError(&buffer);
-  ret = NULL;
-
-finally:
-  new_tail = available_in > 0 ? malloc(available_in) : NULL;
-  if (available_in > 0) {
-    memcpy(new_tail, next_in, available_in);
-  }
-  if (self->unconsumed_data) {
-    free(self->unconsumed_data);
-  }
-  self->unconsumed_data = new_tail;
-  self->unconsumed_data_length = available_in;
-
-  return ret;
-}
-
-PyDoc_STRVAR(
-    brotli_Decompressor_process_doc,
-    "Process \"string\" for decompression, returning a string that contains \n"
-    "decompressed output data.  This data should be concatenated to the output "
-    "\n"
-    "produced by any preceding calls to the \"process()\" method. \n"
-    "Some or all of the input may be kept in internal buffers for later \n"
-    "processing, and the decompressed output data may be empty until enough "
-    "input \n"
-    "has been accumulated.\n"
-    "If max_output_length is set, no more than max_output_length bytes will "
-    "be\n"
-    "returned. If the limit is reached, further calls to process (potentially "
-    "with\n"
-    "empty input) will continue to yield more data. If, after returning a "
-    "string of\n"
-    "the length equal to limit, can_accept_more_data() returns False, "
-    "process()\n"
-    "must only be called with empty input until can_accept_more_data() once "
-    "again\n"
-    "returns True.\n"
-    "\n"
-    "Signature:\n"
-    "  decompress(string, max_output_length=int)\n"
-    "\n"
-    "Args:\n"
-    "  string (bytes): The input data\n"
-    "\n"
-    "Returns:\n"
-    "  The decompressed output data (bytes)\n"
-    "\n"
-    "Raises:\n"
-    "  brotli.error: If decompression fails\n");
-
-static PyObject* brotli_Decompressor_process(brotli_Decompressor* self,
-                                             PyObject* args, PyObject* keywds) {
-  PyObject* ret;
-  Py_buffer input;
-  int ok;
-  Py_ssize_t max_output_length = PY_SSIZE_T_MAX;
-  uint8_t* data;
-  size_t data_length;
-
-  static char* kwlist[] = {"", "max_output_length", NULL};
-
-#if PY_MAJOR_VERSION >= 3
-  ok = PyArg_ParseTupleAndKeywords(args, keywds, "y*|n:process", kwlist, &input,
-                                   &max_output_length);
-#else
-  ok = PyArg_ParseTupleAndKeywords(args, keywds, "s*|n:process", kwlist, &input,
-                                   &max_output_length);
-#endif
-
-  if (!ok) {
-    return NULL;
-  }
-
-  if (!self->dec) {
-    goto error;
-  }
-
-  if (self->unconsumed_data_length > 0) {
-    if (input.len > 0) {
-      PyErr_SetString(
-          BrotliError,
-          "process called with data when accept_more_data is False");
-      ret = NULL;
-      goto finally;
-    }
-    data = self->unconsumed_data;
-    data_length = self->unconsumed_data_length;
-  } else {
-    data = (uint8_t*)input.buf;
-    data_length = input.len;
-  }
-
-  ret = decompress_stream(self, data, data_length, max_output_length);
-  if (ret != NULL) {
-    goto finally;
-  }
-
-error:
-  PyErr_SetString(
-      BrotliError,
-      "BrotliDecoderDecompressStream failed while processing the stream");
-  ret = NULL;
-
-finally:
-  PyBuffer_Release(&input);
-  return ret;
-}
-
-PyDoc_STRVAR(brotli_Decompressor_is_finished_doc,
-             "Checks if decoder instance reached the final state.\n"
-             "\n"
-             "Signature:\n"
-             "  is_finished()\n"
-             "\n"
-             "Returns:\n"
-             "  True  if the decoder is in a state where it reached the end of "
-             "the input\n"
-             "        and produced all of the output\n"
-             "  False otherwise\n"
-             "\n"
-             "Raises:\n"
-             "  brotli.error: If decompression fails\n");
-
-static PyObject* brotli_Decompressor_is_finished(brotli_Decompressor* self) {
-  if (!self->dec) {
-    PyErr_SetString(BrotliError,
-                    "BrotliDecoderState is NULL while checking is_finished");
-    return NULL;
-  }
-
-  if (BrotliDecoderIsFinished(self->dec)) {
-    Py_RETURN_TRUE;
-  } else {
-    Py_RETURN_FALSE;
-  }
-}
-
-PyDoc_STRVAR(brotli_Decompressor_can_accept_more_data_doc,
-             "Checks if the decoder instance can accept more compressed data. "
-             "If the decompress()\n"
-             "method on this instance of decompressor was never called with "
-             "max_length,\n"
-             "this method will always return True.\n"
-             "\n"
-             "Signature:"
-             "  can_accept_more_data()\n"
-             "\n"
-             "Returns:\n"
-             "  True  if the decoder is ready to accept more compressed data "
-             "via decompress()\n"
-             "  False if the decoder needs to output some data via "
-             "decompress(b'') before\n"
-             "        being provided any more compressed data\n");
-
-static PyObject* brotli_Decompressor_can_accept_more_data(
-    brotli_Decompressor* self) {
-  if (self->unconsumed_data_length > 0) {
-    Py_RETURN_FALSE;
-  } else {
-    Py_RETURN_TRUE;
-  }
-}
-
-static PyMemberDef brotli_Decompressor_members[] = {
-    {NULL} /* Sentinel */
-};
-
-static PyMethodDef brotli_Decompressor_methods[] = {
-    {"process", (PyCFunction)brotli_Decompressor_process,
-     METH_VARARGS | METH_KEYWORDS, brotli_Decompressor_process_doc},
-    {"is_finished", (PyCFunction)brotli_Decompressor_is_finished, METH_NOARGS,
-     brotli_Decompressor_is_finished_doc},
-    {"can_accept_more_data",
-     (PyCFunction)brotli_Decompressor_can_accept_more_data, METH_NOARGS,
-     brotli_Decompressor_can_accept_more_data_doc},
-    {NULL} /* Sentinel */
-};
-
-#if PY_MAJOR_VERSION >= 3
-static PyType_Slot brotli_Decompressor_slots[] = {
-    {Py_tp_dealloc, (destructor)brotli_Decompressor_dealloc},
-    {Py_tp_doc, (void*)brotli_Decompressor_doc},
-    {Py_tp_methods, brotli_Decompressor_methods},
-    {Py_tp_members, brotli_Decompressor_members},
-    {Py_tp_init, (initproc)brotli_Decompressor_init},
-    {Py_tp_new, brotli_Decompressor_new},
-    {0, 0},
-};
-
-static PyType_Spec brotli_Decompressor_spec = {
-    "brotli.Decompressor", sizeof(brotli_Decompressor), 0,
-    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE, brotli_Decompressor_slots};
-#else
 static PyTypeObject brotli_DecompressorType = {
     PyObject_HEAD_INIT(NULL) 0,              /* ob_size */
     "brotli.Decompressor",                   /* tp_name */
-    sizeof(brotli_Decompressor),             /* tp_basicsize */
+    sizeof(PyBrotli_Decompressor),           /* tp_basicsize */
     0,                                       /* tp_itemsize */
     (destructor)brotli_Decompressor_dealloc, /* tp_dealloc */
     0,                                       /* tp_print */
@@ -967,7 +987,7 @@ static PyTypeObject brotli_DecompressorType = {
     0,                                       /* tp_iter */
     0,                                       /* tp_iternext */
     brotli_Decompressor_methods,             /* tp_methods */
-    brotli_Decompressor_members,             /* tp_members */
+    0,                                       /* tp_members */
     0,                                       /* tp_getset */
     0,                                       /* tp_base */
     0,                                       /* tp_dict */
@@ -978,123 +998,14 @@ static PyTypeObject brotli_DecompressorType = {
     0,                                       /* tp_alloc */
     brotli_Decompressor_new,                 /* tp_new */
 };
+
 #endif
-
-PyDoc_STRVAR(brotli_decompress__doc__,
-             "Decompress a compressed byte string.\n"
-             "\n"
-             "Signature:\n"
-             "  decompress(string)\n"
-             "\n"
-             "Args:\n"
-             "  string (bytes): The compressed input data.\n"
-             "\n"
-             "Returns:\n"
-             "  The decompressed byte string.\n"
-             "\n"
-             "Raises:\n"
-             "  brotli.error: If decompressor fails.\n");
-
-static PyObject* brotli_decompress(PyObject* self, PyObject* args,
-                                   PyObject* keywds) {
-  BrotliDecoderState* state;
-  BrotliDecoderResult result;
-
-  const uint8_t* next_in;
-  size_t available_in;
-
-  uint8_t* next_out;
-  size_t available_out;
-  BlocksOutputBuffer buffer = {.list = NULL};
-  PyObject* ret;
-
-  static const char* kwlist[] = {"string", NULL};
-  Py_buffer input;
-  int ok;
-
-#if PY_MAJOR_VERSION >= 3
-  ok = PyArg_ParseTupleAndKeywords(args, keywds, "y*|:decompress",
-                                   (char**)kwlist, &input);
-#else
-  ok = PyArg_ParseTupleAndKeywords(args, keywds, "s*|:decompress",
-                                   (char**)kwlist, &input);
-#endif
-
-  if (!ok) {
-    return NULL;
-  }
-
-  state = BrotliDecoderCreateInstance(0, 0, 0);
-
-  next_in = (uint8_t*)input.buf;
-  available_in = input.len;
-
-  if (BlocksOutputBuffer_InitAndGrow(&buffer, PY_SSIZE_T_MAX, &available_out,
-                                     &next_out) < 0) {
-    goto error;
-  }
-
-  while (1) {
-    Py_BEGIN_ALLOW_THREADS result = BrotliDecoderDecompressStream(
-        state, &available_in, &next_in, &available_out, &next_out, 0);
-    Py_END_ALLOW_THREADS
-
-        if (result == BROTLI_DECODER_RESULT_NEEDS_MORE_OUTPUT) {
-      if (available_out == 0) {
-        if (BlocksOutputBuffer_Grow(&buffer, &available_out, &next_out) < 0) {
-          goto error;
-        }
-      }
-      continue;
-    }
-
-    break;
-  }
-
-  if (result != BROTLI_DECODER_RESULT_SUCCESS || available_in != 0) {
-    goto error;
-  }
-
-  ret = BlocksOutputBuffer_Finish(&buffer, available_out);
-  if (ret != NULL) {
-    goto finally;
-  }
-
-error:
-  BlocksOutputBuffer_OnError(&buffer);
-  PyErr_SetString(BrotliError, "BrotliDecompress failed");
-  ret = NULL;
-
-finally:
-  BrotliDecoderDestroyInstance(state);
-  PyBuffer_Release(&input);
-  return ret;
-}
-
-static PyMethodDef brotli_methods[] = {
-    {"decompress", (PyCFunction)brotli_decompress, METH_VARARGS | METH_KEYWORDS,
-     brotli_decompress__doc__},
-    {NULL, NULL, 0, NULL}};
-
-PyDoc_STRVAR(brotli_doc, "Implementation module for the Brotli library.");
 
 #if PY_MAJOR_VERSION >= 3
 #define INIT_BROTLI PyInit__brotli
 #define CREATE_BROTLI PyModule_Create(&brotli_module)
 #define RETURN_BROTLI return m
 #define RETURN_NULL return NULL
-
-static struct PyModuleDef brotli_module = {
-    PyModuleDef_HEAD_INIT,
-    "_brotli",      /* m_name */
-    brotli_doc,     /* m_doc */
-    0,              /* m_size */
-    brotli_methods, /* m_methods */
-    NULL,           /* m_reload */
-    NULL,           /* m_traverse */
-    NULL,           /* m_clear */
-    NULL            /* m_free */
-};
 #else
 #define INIT_BROTLI init_brotli
 #define CREATE_BROTLI Py_InitModule3("_brotli", brotli_methods, brotli_doc)
@@ -1102,53 +1013,84 @@ static struct PyModuleDef brotli_module = {
 #define RETURN_NULL return
 #endif
 
+/* Emulates PyModule_AddObject */
+static int RegisterObject(PyObject* mod, const char* name, PyObject* value) {
+  assert(value != NULL);
+#if PY_MAJOR_VERSION >= 3 && PY_MINOR_VERSION >= 10
+  int ret = PyModule_AddObjectRef(mod, name, value);
+  /* Emulates PyModule_AddObject, i.e. decrements the reference count on
+     success. */
+  if (ret == 0) Py_DECREF(value);
+  return ret;
+#else
+  return PyModule_AddObject(mod, name, value);
+#endif
+}
+
 PyMODINIT_FUNC INIT_BROTLI(void) {
   PyObject* m = CREATE_BROTLI;
-  if (m == NULL) {
-    RETURN_NULL;
-  }
+  PyObject* error_type = NULL;
+  PyObject* compressor_type = NULL;
+  PyObject* decompressor_type = NULL;
 
-  BrotliError = PyErr_NewException((char*)"brotli.error", NULL, NULL);
-  if (BrotliError != NULL) {
-    Py_INCREF(BrotliError);
-    PyModule_AddObject(m, "error", BrotliError);
-  }
+  if (m == NULL) goto error;
+
+  error_type = PyErr_NewExceptionWithDoc((char*)"brotli.error",
+                                         brotli_error_doc, NULL, NULL);
+  if (error_type == NULL) goto error;
+
+  if (RegisterObject(m, "error", error_type) < 0) goto error;
+  /* Assumption: pointer is used only while module is alive and well. */
+  BrotliError = error_type;
+  error_type = NULL;
 
 #if PY_MAJOR_VERSION >= 3
-  PyObject* compressor_type = PyType_FromSpec(&brotli_Compressor_spec);
-  if (compressor_type == NULL) {
-    RETURN_NULL;
-  }
-  PyModule_AddObject(m, "Compressor", compressor_type);
-
-  PyObject* decompressor_type = PyType_FromSpec(&brotli_Decompressor_spec);
-  if (decompressor_type == NULL) {
-    RETURN_NULL;
-  }
-  PyModule_AddObject(m, "Decompressor", decompressor_type);
+  compressor_type = PyType_FromSpec(&brotli_Compressor_spec);
+  decompressor_type = PyType_FromSpec(&brotli_Decompressor_spec);
 #else
-  if (PyType_Ready(&brotli_CompressorType) < 0) {
-    RETURN_NULL;
-  }
-  Py_INCREF(&brotli_CompressorType);
-  PyModule_AddObject(m, "Compressor", (PyObject*)&brotli_CompressorType);
-
-  if (PyType_Ready(&brotli_DecompressorType) < 0) {
-    RETURN_NULL;
-  }
-  Py_INCREF(&brotli_DecompressorType);
-  PyModule_AddObject(m, "Decompressor", (PyObject*)&brotli_DecompressorType);
+  compressor_type = &brotli_CompressorType;
+  Py_INCREF(compressor_type);
+  decompressor_type = &brotli_DecompressorType;
+  Py_INCREF(decompressor_type);
 #endif
+  if (compressor_type == NULL) goto error;
+  if (PyType_Ready((PyTypeObject*)compressor_type) < 0) goto error;
+  if (RegisterObject(m, "Compressor", compressor_type) < 0) goto error;
+  compressor_type = NULL;
+
+  if (decompressor_type == NULL) goto error;
+  if (PyType_Ready((PyTypeObject*)decompressor_type) < 0) goto error;
+  if (RegisterObject(m, "Decompressor", decompressor_type) < 0) goto error;
+  decompressor_type = NULL;
 
   PyModule_AddIntConstant(m, "MODE_GENERIC", (int)BROTLI_MODE_GENERIC);
   PyModule_AddIntConstant(m, "MODE_TEXT", (int)BROTLI_MODE_TEXT);
   PyModule_AddIntConstant(m, "MODE_FONT", (int)BROTLI_MODE_FONT);
 
-  char version[16];
+  char version[16]; /* 3 + 1 + 4 + 1 + 4 + 1 == 14 */
   uint32_t decoderVersion = BrotliDecoderVersion();
   snprintf(version, sizeof(version), "%d.%d.%d", decoderVersion >> 24,
            (decoderVersion >> 12) & 0xFFF, decoderVersion & 0xFFF);
   PyModule_AddStringConstant(m, "__version__", version);
 
   RETURN_BROTLI;
+
+error:
+  if (m != NULL) {
+    Py_DECREF(m);
+    m = NULL;
+  }
+  if (error_type != NULL) {
+    Py_DECREF(error_type);
+    error_type = NULL;
+  }
+  if (compressor_type != NULL) {
+    Py_DECREF(compressor_type);
+    compressor_type = NULL;
+  }
+  if (decompressor_type != NULL) {
+    Py_DECREF(decompressor_type);
+    decompressor_type = NULL;
+  }
+  RETURN_NULL;
 }
