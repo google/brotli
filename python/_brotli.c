@@ -854,18 +854,6 @@ static PyMethodDef brotli_methods[] = {
      brotli_decompress__doc__},
     {NULL, NULL, 0, NULL}};
 
-static struct PyModuleDef brotli_module = {
-    PyModuleDef_HEAD_INIT,
-    "_brotli",      /* m_name */
-    brotli_doc,     /* m_doc */
-    0,              /* m_size */
-    brotli_methods, /* m_methods */
-    NULL,           /* m_reload */
-    NULL,           /* m_traverse */
-    NULL,           /* m_clear */
-    NULL            /* m_free */
-};
-
 static PyMethodDef brotli_Compressor_methods[] = {
     {"process", (PyCFunction)brotli_Compressor_process, METH_VARARGS,
      brotli_Compressor_process_doc},
@@ -888,6 +876,18 @@ static PyMethodDef brotli_Decompressor_methods[] = {
 };
 
 #if PY_MAJOR_VERSION >= 3
+
+static struct PyModuleDef brotli_module = {
+    PyModuleDef_HEAD_INIT,
+    "_brotli",      /* m_name */
+    brotli_doc,     /* m_doc */
+    0,              /* m_size */
+    brotli_methods, /* m_methods */
+    NULL,           /* m_reload */
+    NULL,           /* m_traverse */
+    NULL,           /* m_clear */
+    NULL            /* m_free */
+};
 
 static PyType_Slot brotli_Compressor_slots[] = {
     {Py_tp_dealloc, (destructor)brotli_Compressor_dealloc},

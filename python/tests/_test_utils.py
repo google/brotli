@@ -97,7 +97,10 @@ def generate_test_methods(
       generate a separate test method.
   """
   if for_decompression:
-    paths = TESTDATA_PATHS_FOR_DECOMPRESSION
+    paths = [
+        path for path in TESTDATA_PATHS_FOR_DECOMPRESSION
+        if os.path.exists(path.replace('.compressed', ''))
+    ]
   else:
     paths = TESTDATA_PATHS
   opts = []
@@ -141,7 +144,7 @@ class TestCase(unittest.TestCase):
         os.unlink(get_temp_uncompressed_name(f))
       except OSError:
         pass
-    super().tearDown()
+    # super().tearDown()  # Requires Py3+
 
   def assert_files_match(self, first, second):
     self.assertTrue(

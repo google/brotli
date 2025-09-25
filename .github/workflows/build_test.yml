@@ -18,7 +18,7 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  ubuntu_build:
+  build_test:
     name: Build and test ${{ matrix.name }}
     runs-on: ${{ matrix.os || 'ubuntu-latest' }}
     defaults:
@@ -188,13 +188,6 @@ jobs:
         submodules: false
         fetch-depth: 1
 
-    #- name: Checkout VC9 for Python
-    #  if: ${{ runner.os == 'Windows' && matrix.build_system == 'python' &&  matrix.python_version == '2.7' }}
-    #  uses: actions/checkout@3df4ab11eba7bda6032a0b82a6bb43b11571feac # v4.0.0
-    #  with:
-    #    repository: reider-roque/sulley-win-installer
-    #    path: third_party/VCForPython27
-
     - name: Configure / Build / Test with CMake
       if: ${{ matrix.build_system == 'cmake' }}
       run: |
@@ -294,17 +287,36 @@ jobs:
       with:
         python-version: ${{ matrix.python_version }}
 
-    # TODO: investigate, why msiexec hangs
-    #- name: Install VC9 for Python
-    #  if: ${{ runner.os == 'Windows' && matrix.build_system == 'python' &&  matrix.python_version == '2.7' }}
-    #  run: |
-    #    echo "070474db76a2e625513a5835df4595df9324d820f9cc97eab2a596dcbc2f5cbf  third_party/VCForPython27/VCForPython27.msi" | sha256sum --check --status
-    #    msiexec ALLUSERS=1 /qn /norestart /i third_party/VCForPython27/VCForPython27.msi /l*v ${RUNNER_TEMP}/msiexec.log
-    #    cat ${RUNNER_TEMP}/msiexec.log
-
     - name: Build / Test with Python
       if: ${{ matrix.build_system == 'python' }}
       run: |
         python -VV
         python -c "import sys; sys.exit('Invalid python version') if '.'.join(map(str,sys.version_info[0:2])) != '${{ matrix.python_version }}' else True"
         python setup.py ${{ matrix.py_setuptools_cmd || 'test'}}
+
+  build_test_py27:
+    name: Build and test with Python 2.7
+    runs-on: ubuntu-latest
+    container:
+      image: ubuntu:22.04
+    steps:
+
+    - name: Install deps
+      run: |
+        apt update
+        apt install -y curl gcc python2.7 python2.7-dev
+        curl https://bootstrap.pypa.io/pip/2.7/get-pip.py --output get-pip.py
+        python2.7 get-pip.py
+        python2.7 -m pip install distutils-pytest==0.1
+
+    - name: Checkout the source
+      uses: actions/checkout@3df4ab11eba7bda6032a0b82a6bb43b11571feac # v4.0.0
+      with:
+        submodules: false
+        fetch-depth: 1
+
+    - name: Build / Test
+      run: |
+        python2.7 -VV
+        python2.7 -c "import sys; sys.exit('Invalid python version') if '.'.join(map(str,sys.version_info[0:2])) != '2.7' else True"
+        python2.7 setup.py test

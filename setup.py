@@ -24,7 +24,7 @@ from distutils import log
 CURR_DIR = os.path.abspath(os.path.dirname(os.path.realpath(__file__)))
 
 
-def bool_from_environ(key: str):
+def bool_from_environ(key):
     value = os.environ.get(key)
     if not value:
         return False
@@ -32,7 +32,7 @@ def bool_from_environ(key: str):
        return True
     if value == "0":
        return False
-    raise ValueError(f"Environment variable {key} has invalid value {value}. Please set it to 1, 0 or an empty string")
+    raise ValueError("Environment variable {} has invalid value {}. Please set it to 1, 0 or an empty string".format(key, value))
 
 
 def read_define(path, macro):
