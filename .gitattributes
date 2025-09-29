@@ -51,3 +51,4 @@ tests/testdata/empty !export-ignore
 tests/testdata/empty.compressed !export-ignore
 tests/testdata/ukkonooa !export-ignore
 tests/testdata/ukkonooa.compressed !export-ignore
+tests/testdata/zerosukkanooa.compressed !export-ignore

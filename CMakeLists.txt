@@ -108,8 +108,6 @@ elseif(${CMAKE_SYSTEM_NAME} MATCHES "FreeBSD")
   add_definitions(-DOS_FREEBSD)
 elseif(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
   add_definitions(-DOS_MACOSX)
-  set(CMAKE_MACOS_RPATH TRUE)
-  set(CMAKE_INSTALL_NAME_DIR "${CMAKE_INSTALL_FULL_LIBDIR}")
 endif()
 
 if(BROTLI_EMSCRIPTEN)
@@ -295,13 +293,16 @@ if(NOT BROTLI_DISABLE_TESTS AND BROTLI_BUILD_TOOLS)
     tests/testdata/*.compressed*)
 
   foreach(INPUT ${COMPATIBILITY_INPUTS})
-    add_test(NAME "${BROTLI_TEST_PREFIX}compatibility/${INPUT}"
-      COMMAND "${CMAKE_COMMAND}"
-        -DBROTLI_WRAPPER=${BROTLI_WRAPPER}
-        -DBROTLI_WRAPPER_LD_PREFIX=${BROTLI_WRAPPER_LD_PREFIX}
-        -DBROTLI_CLI=$<TARGET_FILE:brotli>
-        -DINPUT=${CMAKE_CURRENT_SOURCE_DIR}/${INPUT}
-        -P ${CMAKE_CURRENT_SOURCE_DIR}/tests/run-compatibility-test.cmake)
+    string(REGEX REPLACE "([a-zA-Z0-9\\.]+)\\.compressed(\\.[0-9]+)?$" "\\1" UNCOMPRESSED_INPUT "${INPUT}")
+    if (EXISTS ${UNCOMPRESSED_INPUT})
+      add_test(NAME "${BROTLI_TEST_PREFIX}compatibility/${INPUT}"
+        COMMAND "${CMAKE_COMMAND}"
+          -DBROTLI_WRAPPER=${BROTLI_WRAPPER}
+          -DBROTLI_WRAPPER_LD_PREFIX=${BROTLI_WRAPPER_LD_PREFIX}
+          -DBROTLI_CLI=$<TARGET_FILE:brotli>
+          -DINPUT=${CMAKE_CURRENT_SOURCE_DIR}/${INPUT}
+          -P ${CMAKE_CURRENT_SOURCE_DIR}/tests/run-compatibility-test.cmake)
+    endif()
   endforeach()
 endif()  # BROTLI_DISABLE_TESTS
 
