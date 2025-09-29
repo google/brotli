@@ -10,6 +10,7 @@ bin_path = "dictionary.bin"
 with open(bin_path, "rb") as raw:
   data = raw.read()
 
+
 def check_digest(name, expected, actual):
   if expected == actual:
     print("[OK] " + name)
@@ -22,15 +23,11 @@ check_digest(
     "0x5136cb04",
     hex(zlib.crc32(data)))
 
-check_digest(
-    "MD5",
-    "96cecd2ee7a666d5aa3627d74735b32a",
-    hashlib.md5(data).hexdigest())
+check_digest("MD5", "96cecd2ee7a666d5aa3627d74735b32a",
+             hashlib.md5(data).hexdigest())
 
-check_digest(
-    "SHA1",
-    "72b41051cb61a9281ba3c4414c289da50d9a7640",
-    hashlib.sha1(data).hexdigest())
+check_digest("SHA1", "72b41051cb61a9281ba3c4414c289da50d9a7640",
+             hashlib.sha1(data).hexdigest())
 
 check_digest(
     "SHA256",

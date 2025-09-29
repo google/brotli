@@ -1,0 +1,12 @@
+The following table shows code page 852. Each character is shown with its equivalent Unicode code point. Only the second half of the table (128–255) is shown, the first half (0–127) being the same as code page 437.
+
+Code page 852
+0	1	2	3	4	5	6	7	8	9	A	B	C	D	E	F
+8x	Ç	ü	é	â	ä	ů	ć	ç	ł	ë	Ő	ő	î	Ź	Ä	Ć
+9x	É	Ĺ	ĺ	ô	ö	Ľ	ľ	Ś	ś	Ö	Ü	Ť	ť	Ł	×	č
+Ax	á	í	ó	ú	Ą	ą	Ž	ž	Ę	ę	¬	ź	Č	ş	«	»
+Bx	░	▒	▓	│	┤	Á	Â	Ě	Ş	╣	║	╗	╝	Ż	ż	┐
+Cx	└	┴	┬	├	─	┼	Ă	ă	╚	╔	╩	╦	╠	═	╬	¤
+Dx	đ	Đ	Ď	Ë	ď	Ň	Í	Î	ě	┘	┌	█	▄	Ţ	Ů	▀
+Ex	Ó	ß	Ô	Ń	ń	ň	Š	š	Ŕ	Ú	ŕ	Ű	ý	Ý	ţ	´
+Fx	SHY	˝	˛	ˇ	˘	§	÷	¸	°	¨	˙	ű	Ř	ř	■	NBSP

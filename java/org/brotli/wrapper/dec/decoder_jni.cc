@@ -4,16 +4,24 @@
    See file LICENSE for detail or copy at https://opensource.org/licenses/MIT
 */
 
+#include "decoder_jni.h"  // NOLINT: build/include
+
 #include <jni.h>
 
+#include <cstddef>
+#include <cstdint>
 #include <new>
 
+#include <brotli/shared_dictionary.h>
 #include <brotli/decode.h>
 
 namespace {
 /* A structure used to persist the decoder's state in between calls. */
 typedef struct DecoderHandle {
   BrotliDecoderState* state;
+
+  jobject dictionary_refs[15];
+  size_t dictionary_count;
 
   uint8_t* input_start;
   size_t input_offset;
@@ -54,6 +62,10 @@ Java_org_brotli_wrapper_dec_DecoderJNI_nativeCreate(
   ok = !!handle;
 
   if (ok) {
+    for (int i = 0; i < 15; ++i) {
+      handle->dictionary_refs[i] = nullptr;
+    }
+    handle->dictionary_count = 0;
     handle->input_offset = 0;
     handle->input_length = 0;
     handle->input_start = nullptr;
@@ -72,7 +84,7 @@ Java_org_brotli_wrapper_dec_DecoderJNI_nativeCreate(
   }
 
   if (ok) {
-    /* TODO: future versions (e.g. when 128-bit architecture comes)
+    /* TODO(eustas): future versions (e.g. when 128-bit architecture comes)
                      might require thread-safe cookie<->handle mapping. */
     context[0] = reinterpret_cast<jlong>(handle);
   } else if (!!handle) {
@@ -193,8 +205,51 @@ Java_org_brotli_wrapper_dec_DecoderJNI_nativeDestroy(
   env->GetLongArrayRegion(ctx, 0, 3, context);
   DecoderHandle* handle = getHandle(reinterpret_cast<void*>(context[0]));
   BrotliDecoderDestroyInstance(handle->state);
+  for (size_t i = 0; i < handle->dictionary_count; ++i) {
+    env->DeleteGlobalRef(handle->dictionary_refs[i]);
+  }
   delete[] handle->input_start;
   delete handle;
+}
+
+JNIEXPORT jboolean JNICALL
+Java_org_brotli_wrapper_dec_DecoderJNI_nativeAttachDictionary(
+    JNIEnv* env, jobject /*jobj*/, jlongArray ctx, jobject dictionary) {
+  jlong context[3];
+  env->GetLongArrayRegion(ctx, 0, 3, context);
+  DecoderHandle* handle = getHandle(reinterpret_cast<void*>(context[0]));
+  jobject ref = nullptr;
+  uint8_t* address = nullptr;
+  jlong capacity = 0;
+
+  bool ok = true;
+  if (ok && !dictionary) {
+    ok = false;
+  }
+  if (ok && handle->dictionary_count >= 15) {
+    ok = false;
+  }
+  if (ok) {
+    ref = env->NewGlobalRef(dictionary);
+    ok = !!ref;
+  }
+  if (ok) {
+    handle->dictionary_refs[handle->dictionary_count] = ref;
+    handle->dictionary_count++;
+    address = static_cast<uint8_t*>(env->GetDirectBufferAddress(ref));
+    ok = !!address;
+  }
+  if (ok) {
+    capacity = env->GetDirectBufferCapacity(ref);
+    ok = (capacity > 0) && (capacity < (1 << 30));
+  }
+  if (ok) {
+    size_t size = static_cast<size_t>(capacity);
+    ok = !!BrotliDecoderAttachDictionary(handle->state,
+        BROTLI_SHARED_DICTIONARY_RAW, size, address);
+  }
+
+  return static_cast<jboolean>(ok);
 }
 
 #ifdef __cplusplus

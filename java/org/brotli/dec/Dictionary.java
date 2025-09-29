@@ -21,7 +21,7 @@ public final class Dictionary {
   static final int MIN_DICTIONARY_WORD_LENGTH = 4;
   static final int MAX_DICTIONARY_WORD_LENGTH = 31;
 
-  private static ByteBuffer data;
+  private static ByteBuffer data = ByteBuffer.allocateDirect(0);
   static final int[] offsets = new int[32];
   static final int[] sizeBits = new int[32];
 
@@ -39,49 +39,59 @@ public final class Dictionary {
     }
   }
 
-  public static void setData(ByteBuffer data, int[] sizeBits) {
-    if (!data.isDirect() || !data.isReadOnly()) {
-      throw new BrotliRuntimeException("data must be a direct read-only byte buffer");
-    }
-    // TODO: is that so?
-    if (sizeBits.length > MAX_DICTIONARY_WORD_LENGTH) {
-      throw new BrotliRuntimeException(
-          "sizeBits length must be at most " + MAX_DICTIONARY_WORD_LENGTH);
-    }
-    for (int i = 0; i < MIN_DICTIONARY_WORD_LENGTH; ++i) {
-      if (sizeBits[i] != 0) {
-        throw new BrotliRuntimeException("first " + MIN_DICTIONARY_WORD_LENGTH + " must be 0");
+  private static final int DICTIONARY_DEBUG = Utils.isDebugMode();
+
+  public static void setData(ByteBuffer newData, int[] newSizeBits) {
+    if (DICTIONARY_DEBUG != 0) {
+      if ((Utils.isDirect(newData) == 0) || (Utils.isReadOnly(newData) == 0)) {
+        throw new BrotliRuntimeException("newData must be a direct read-only byte buffer");
+      }
+      // TODO: is that so?
+      if (newSizeBits.length > MAX_DICTIONARY_WORD_LENGTH) {
+        throw new BrotliRuntimeException(
+            "sizeBits length must be at most " + String.valueOf(MAX_DICTIONARY_WORD_LENGTH));
+      }
+      for (int i = 0; i < MIN_DICTIONARY_WORD_LENGTH; ++i) {
+        if (newSizeBits[i] != 0) {
+          throw new BrotliRuntimeException(
+              "first " + String.valueOf(MIN_DICTIONARY_WORD_LENGTH) + " must be 0");
+        }
       }
     }
-    int[] dictionaryOffsets = Dictionary.offsets;
-    int[] dictionarySizeBits = Dictionary.sizeBits;
-    System.arraycopy(sizeBits, 0, dictionarySizeBits, 0, sizeBits.length);
+    final int[] dictionaryOffsets = Dictionary.offsets;
+    final int[] dictionarySizeBits = Dictionary.sizeBits;
+    for (int i = 0; i < newSizeBits.length; ++i) {
+      dictionarySizeBits[i] = newSizeBits[i];
+    }
     int pos = 0;
-    int limit = data.capacity();
-    for (int i = 0; i < sizeBits.length; ++i) {
+    for (int i = 0; i < newSizeBits.length; ++i) {
       dictionaryOffsets[i] = pos;
-      int bits = dictionarySizeBits[i];
+      final int bits = dictionarySizeBits[i];
       if (bits != 0) {
-        if (bits >= 31) {
-          throw new BrotliRuntimeException("sizeBits values must be less than 31");
-        }
-        pos += i << bits;
-        if (pos <= 0 || pos > limit) {
-          throw new BrotliRuntimeException("sizeBits is inconsistent: overflow");
+        pos += i << (bits & 31);
+        if (DICTIONARY_DEBUG != 0) {
+          if (bits >= 31) {
+            throw new BrotliRuntimeException("newSizeBits values must be less than 31");
+          }
+          if (pos <= 0 || pos > newData.capacity()) {
+            throw new BrotliRuntimeException("newSizeBits is inconsistent: overflow");
+          }
         }
       }
     }
-    for (int i = sizeBits.length; i < 32; ++i) {
+    for (int i = newSizeBits.length; i < 32; ++i) {
       dictionaryOffsets[i] = pos;
     }
-    if (pos != limit) {
-      throw new BrotliRuntimeException("sizeBits is inconsistent: underflow");
+    if (DICTIONARY_DEBUG != 0) {
+      if (pos != newData.capacity()) {
+        throw new BrotliRuntimeException("newSizeBits is inconsistent: underflow");
+      }
     }
-    Dictionary.data = data;
+    Dictionary.data = newData;
   }
 
   public static ByteBuffer getData() {
-    if (data != null) {
+    if (data.capacity() != 0) {
       return data;
     }
     if (!DataLoader.OK) {

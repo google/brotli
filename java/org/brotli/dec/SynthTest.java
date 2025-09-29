@@ -6,36 +6,29 @@
 
 package org.brotli.dec;
 
+import static org.brotli.dec.TestUtils.newBrotliInputStream;
+import static org.brotli.dec.TestUtils.readUniBytes;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.fail;
+import static org.junit.Assume.assumeTrue;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.util.Arrays;
+import java.io.InputStream;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link Decode}.
- */
+/** Tests for {@link BrotliInputStream}. */
 @RunWith(JUnit4.class)
 public class SynthTest {
-
-  static byte[] readUniBytes(String uniBytes) {
-    byte[] result = new byte[uniBytes.length()];
-    for (int i = 0; i < result.length; ++i) {
-      result[i] = (byte) uniBytes.charAt(i);
-    }
-    return result;
-  }
 
   private byte[] decompress(byte[] data) throws IOException {
     byte[] buffer = new byte[65536];
     ByteArrayInputStream input = new ByteArrayInputStream(data);
     ByteArrayOutputStream output = new ByteArrayOutputStream();
-    BrotliInputStream brotliInput = new BrotliInputStream(input);
+    InputStream brotliInput = newBrotliInputStream(input);
     while (true) {
       int len = brotliInput.read(buffer, 0, buffer.length);
       if (len <= 0) {
@@ -47,8 +40,7 @@ public class SynthTest {
     return output.toByteArray();
   }
 
-  private void checkSynth(byte[] compressed, boolean expectSuccess,
-      String expectedOutput) {
+  private void checkSynth(byte[] compressed, boolean expectSuccess, String expectedOutput) {
     byte[] expected = readUniBytes(expectedOutput);
     try {
       byte[] actual = decompress(compressed);
@@ -58,9 +50,17 @@ public class SynthTest {
       assertArrayEquals(expected, actual);
     } catch (IOException ex) {
       if (expectSuccess) {
-        fail("expected to succeed decoding, but failed");
+        throw new AssertionError("expected to succeed decoding, but failed", ex);
       }
     }
+  }
+
+  private static String times(int count, String str) {
+    StringBuilder out = new StringBuilder(count * str.length());
+    for (int i = 0; i < count; ++i) {
+      out.append(str);
+    }
+    return out.toString();
   }
 
 /* GENERATED CODE START */
@@ -575,7 +575,8 @@ public class SynthTest {
      */
       compressed,
       true,
-      "aaaaaaaaaaaaaaaaaaaaaaaaaaaatime"
+      times(28, "a")
+      + "time"
     );
   }
 
@@ -839,18 +840,8 @@ public class SynthTest {
      */
       compressed,
       true,
-      "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-      + "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-      + "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-      + "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-      + "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-      + "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-      + "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-      + "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-      + "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-      + "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-      + "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-      + "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaabbbbbbbbbb"
+      times(1022, "a")
+      + times(10, "b")
     );
   }
 
@@ -878,18 +869,8 @@ public class SynthTest {
      */
       compressed,
       true,
-      "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-      + "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-      + "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-      + "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-      + "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-      + "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-      + "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-      + "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-      + "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-      + "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-      + "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-      + "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaabbbbbbbbbb"
+      times(1022, "a")
+      + times(10, "b")
     );
   }
 
@@ -2545,13 +2526,7 @@ public class SynthTest {
      */
       compressed,
       true,
-      "abababababababababababababababababababababababababababababababababababababababababababababab"
-      + "ababababababababababababababababababababababababababababababababababababababababababababab"
-      + "ababababababababababababababababababababababababababababababababababababababababababababab"
-      + "ababababababababababababababababababababababababababababababababababababababababababababab"
-      + "ababababababababababababababababababababababababababababababababababababababababababababab"
-      + "ababababababababababababababababababababababababababababababababababababababababababababab"
-      + "ababababababababababababababababababababababababababababab"
+      times(300, "ab")
     );
   }
 
@@ -2659,6 +2634,41 @@ public class SynthTest {
   }
 
   @Test
+  public void testPeculiarWrap() {
+    byte[] compressed = {
+      (byte) 0x21, (byte) 0xfc, (byte) 0x1f, (byte) 0x00, (byte) 0x00, (byte) 0xa1, (byte) 0x12,
+      (byte) 0x82, (byte) 0x04, (byte) 0x60, (byte) 0x1d, (byte) 0x00, (byte) 0xca, (byte) 0xfe,
+      (byte) 0xba, (byte) 0xbe, (byte) 0xde, (byte) 0xad, (byte) 0xbe, (byte) 0xef, (byte) 0x21,
+      (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x38, (byte) 0x4e,
+      (byte) 0xdb, (byte) 0x00, (byte) 0x00, (byte) 0x70, (byte) 0xb0, (byte) 0x65, (byte) 0x12,
+      (byte) 0x03, (byte) 0x24, (byte) 0x00, (byte) 0x00, (byte) 0xee, (byte) 0xb4, (byte) 0x91,
+      (byte) 0x61, (byte) 0x68, (byte) 0x64, (byte) 0x0c
+    };
+    checkSynth(
+    /*
+     * main_header: 10
+     * // See ZeroCostCommand
+     * metablock_header_begin: 0, 0, 2048, 0
+     * metablock_header_trivial_context
+     * huffman_simple: 0,1,256, 42
+     * huffman_simple: 0,1,704, 130
+     * huffman_simple: 0,1,64, 0
+     * // Metadata block; at least 8 bytes long
+     * bits: "0", "11", "0", "01", "00000111"
+     * byte_boundary
+     * bits: "11001010", "11111110", "10111010", "10111110"
+     * bits: "11011110", "10101101", "10111110", "11101111"
+     * metablock_header_easy: 3, 1
+     * command_easy: 0, "abc", 0
+     */
+      compressed,
+      true,
+      times(512, "left")
+      + "abc"
+    );
+  }
+
+  @Test
   public void testSimplePrefix() {
     byte[] compressed = {
       (byte) 0x1b, (byte) 0x03, (byte) 0x00, (byte) 0x00, (byte) 0xa0, (byte) 0xc3, (byte) 0xc4,
@@ -2730,9 +2740,9 @@ public class SynthTest {
     );
   }
 
-/* DISABLED: Java decoder does not tolerate extra input after the brotli stream.
   @Test
   public void testSimplePrefixPlusExtraData() {
+    assumeTrue(false);
     byte[] compressed = {
       (byte) 0x1b, (byte) 0x03, (byte) 0x00, (byte) 0x00, (byte) 0xa0, (byte) 0xc3, (byte) 0xc4,
       (byte) 0xc6, (byte) 0xc8, (byte) 0x02, (byte) 0x00, (byte) 0x70, (byte) 0xb0, (byte) 0x65,
@@ -2740,12 +2750,23 @@ public class SynthTest {
       (byte) 0x51, (byte) 0xa0, (byte) 0x1d, (byte) 0x55, (byte) 0xaa
     };
     checkSynth(
+    /*
+     * main_header
+     * metablock_header_begin: 1, 0, 4, 0
+     * metablock_header_trivial_context
+     * huffman_simple: 1,4,256, 97,98,99,100  // ASCII codes for a, b, c, d
+     * huffman_fixed: 704
+     * huffman_fixed: 64
+     * command_inscopy_easy: 4, 0
+     * command_literal_bits: 0, 10, 110, 111  // a, b, c, d
+     * byte_boundary
+     * bits: "01010101", "10101010"
+     */
       compressed,
       true,
       "abcd"
     );
   }
-*/
 
   @Test
   public void testStressReadDistanceExtraBits() {
@@ -2769,8 +2790,6 @@ public class SynthTest {
       (byte) 0x37, (byte) 0x38, (byte) 0x39, (byte) 0x41, (byte) 0x42, (byte) 0x43, (byte) 0x44,
       (byte) 0x45, (byte) 0x46, (byte) 0x03
     };
-    /* This line is added manually. */
-    char[] stub = new char[8388602]; Arrays.fill(stub, 'c'); String hex = "0123456789ABCDEF";
     checkSynth(
     /*
      * main_header: 24
@@ -2823,8 +2842,10 @@ public class SynthTest {
      */
       compressed,
       true,
-      /* This line is modified manually. */
-      "abc" + new String(stub) + "abc" + hex + hex + hex
+      "abc"
+      + times(8388602, "c")
+      + "abc"
+      + times(3, "0123456789ABCDEF")
     );
   }
 
@@ -2908,6 +2929,28 @@ public class SynthTest {
   }
 
   @Test
+  public void testZeroCostCommand() {
+    byte[] compressed = {
+      (byte) 0xa1, (byte) 0xf8, (byte) 0x1f, (byte) 0x00, (byte) 0x00, (byte) 0xa1, (byte) 0x12,
+      (byte) 0x82, (byte) 0x04, (byte) 0x00
+    };
+    checkSynth(
+    /*
+     * main_header: 10
+     * metablock_header_begin: 1, 0, 1024, 0  // last, not empty, length, compressed
+     * metablock_header_trivial_context
+     * huffman_simple: 0,1,256, 42  // literal: any
+     * huffman_simple: 0,1,704, 130  // command: insert = 0, copy = 4, distance_code = -1
+     * huffman_simple: 0,1,64, 0 // distance: last
+     * // 256 0-bit commands with direct distances
+     */
+      compressed,
+      true,
+      times(256, "left")
+    );
+  }
+
+  @Test
   public void testZeroCostLiterals() {
     byte[] compressed = {
       (byte) 0x9b, (byte) 0xff, (byte) 0xff, (byte) 0xff, (byte) 0x00, (byte) 0x20, (byte) 0x54,
@@ -2915,8 +2958,6 @@ public class SynthTest {
       (byte) 0x12, (byte) 0x00, (byte) 0x00, (byte) 0x77, (byte) 0xda, (byte) 0xcc, (byte) 0xe1,
       (byte) 0x7b, (byte) 0xfa, (byte) 0x0f
     };
-    /* This lines is added manually. */
-    char[] expected = new char[16777216]; Arrays.fill(expected, '*');
     checkSynth(
     /*
      * main_header
@@ -2930,8 +2971,7 @@ public class SynthTest {
      */
       compressed,
       true,
-      /* This line is modified manually. */
-      new String(expected)
+      times(16777216, "*")
     );
   }
 

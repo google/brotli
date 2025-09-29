@@ -14,6 +14,8 @@ from itertools import accumulate, repeat
 from collections import defaultdict, deque
 from functools import partial
 
+DICTIONARY_PATH = 'dictionary.bin'
+
 class InvalidStream(Exception): pass
 #lookup table
 L, I, D = "literal", "insert&copy", "distance"
@@ -517,7 +519,7 @@ class Enumerator(WithExtra):
     extraTable is a class variable that contains
     the extraBits of the symbols from 0
     value0 contains the value of symbol 0
-    encodings is not neccessary, but allowed.
+    encodings is not necessary, but allowed.
     Note: place for FixedCode to make sure extraBits works
     """
     def __init__(self, name=None, **args):
@@ -590,7 +592,7 @@ class PrefixCodeHeader(WithExtra):
                 map(str, lengths[index:index+5]))
             )
 
-class TreeShapeAlhabet(BoolCode):
+class TreeShapeAlphabet(BoolCode):
     """The bit used to indicate if four word code is "deep" or "wide"
     """
     name = 'SHAPE'
@@ -1263,7 +1265,7 @@ class WordList:
              10, 10, 10,  9,  9,  8,  7,  7,  8,  7,
               7,  6,  6,  5,  5]
     def __init__(self):
-        self.file = open('dict', 'rb')
+        self.file = open(DICTIONARY_PATH, 'rb')
         self.compileActions()
 
     def word(self, size, dist):
@@ -1450,7 +1452,7 @@ class Layout:
             del alphabet.mnemonic
             if numberOfSymbols==4:
                 #read tree shape to redefine lengths
-                lengths = self.verboseRead(TreeShapeAlhabet())
+                lengths = self.verboseRead(TreeShapeAlphabet())
             #construct the alphabet prefix code
             alphabet.setLength(dict(zip(table, lengths)))
         return alphabet
@@ -1704,7 +1706,7 @@ class Layout:
         """Read literal context modes.
         LSB6: lower 6 bits of last char
         MSB6: upper 6 bits of last char
-        UTF8: rougly dependent on categories:
+        UTF8: roughly dependent on categories:
             upper 4 bits depend on category of last char:
                 control/whitespace/space/ punctuation/quote/%/open/close/
                 comma/period/=/digits/ VOWEL/CONSONANT/vowel/consonant
@@ -1720,7 +1722,7 @@ class Layout:
 
     def contextMap(self, kind):
         """Read context maps
-        Returns the number of differnt values on the context map
+        Returns the number of different values on the context map
         (In other words, the number of prefix trees)
         """
         NTREES = self.verboseRead(TypeCountAlphabet(
@@ -2238,7 +2240,7 @@ __test__ = {
 
 'file': """
     >>> try: Layout(BitStream(
-    ... open("H:/Downloads/brotli-master/tests/testdata/10x10y.compressed",'rb')
+    ... open("./tests/testdata/10x10y.compressed",'rb')
     ...     .read())).processStream()
     ... except NotImplementedError: pass
     addr  hex               binary context explanation
@@ -2340,9 +2342,12 @@ __test__ = {
 
 }
 
-if __name__=='__main__':
+if __name__ == '__main__':
+    import os
     import sys
-    if len(sys.argv)>1:
+    here = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
+    DICTIONARY_PATH = os.path.realpath(os.path.join(here, DICTIONARY_PATH))
+    if len(sys.argv) > 1:
         l = Layout(BitStream(open(sys.argv[1],'rb').read()))
         l.processStream()
     else:

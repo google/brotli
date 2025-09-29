@@ -10,7 +10,6 @@
 #define BROTLI_ENC_ENTROPY_ENCODE_H_
 
 #include "../common/platform.h"
-#include <brotli/types.h>
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
@@ -66,7 +65,7 @@ BROTLI_INTERNAL void BrotliOptimizeHuffmanCountsForRle(
    of a Huffman tree. The generated Huffman tree is to be compressed once
    more using a Huffman tree */
 BROTLI_INTERNAL void BrotliWriteHuffmanTree(const uint8_t* depth,
-                                            size_t num,
+                                            size_t length,
                                             size_t* tree_size,
                                             uint8_t* tree,
                                             uint8_t* extra_bits_data);
@@ -76,12 +75,12 @@ BROTLI_INTERNAL void BrotliConvertBitDepthsToSymbols(const uint8_t* depth,
                                                      size_t len,
                                                      uint16_t* bits);
 
+BROTLI_INTERNAL extern BROTLI_MODEL("small") const size_t kBrotliShellGaps[6];
 /* Input size optimized Shell sort. */
 typedef BROTLI_BOOL (*HuffmanTreeComparator)(
     const HuffmanTree*, const HuffmanTree*);
 static BROTLI_INLINE void SortHuffmanTreeItems(HuffmanTree* items,
     const size_t n, HuffmanTreeComparator comparator) {
-  static const size_t gaps[] = {132, 57, 23, 10, 4, 1};
   if (n < 13) {
     /* Insertion sort. */
     size_t i;
@@ -101,7 +100,7 @@ static BROTLI_INLINE void SortHuffmanTreeItems(HuffmanTree* items,
     /* Shell sort. */
     int g = n < 57 ? 2 : 0;
     for (; g < 6; ++g) {
-      size_t gap = gaps[g];
+      size_t gap = kBrotliShellGaps[g];
       size_t i;
       for (i = gap; i < n; ++i) {
         size_t j = i;

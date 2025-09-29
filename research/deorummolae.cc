@@ -1,9 +1,13 @@
-#include "./deorummolae.h"
+#include "deorummolae.h"
 
 #include <array>
 #include <cstdio>
 
-#include "./esaxx/sais.hxx"
+#include <sais.hxx>
+
+#if defined(_MSC_VER)
+#include <intrin.h>  /* __popcnt64 */
+#endif
 
 /* Used for quick SA-entry to file mapping. Each file is padded to size that
    is a multiple of chunk size. */
@@ -30,7 +34,11 @@ typedef uint32_t TextIdx;
 typedef int32_t TextSaIdx;
 
 static size_t popcount(uint64_t u) {
+#if defined(_MSC_VER)
+  return static_cast<size_t>(__popcnt64(u));
+#else
   return static_cast<size_t>(__builtin_popcountll(u));
+#endif
 }
 
 /* Condense terminators and pad file entries. */
@@ -89,7 +97,7 @@ static void buildFullText(std::vector<std::vector<TextChar>>* data,
 }
 
 /* Build longest-common-prefix based on suffix array and text.
-   TODO: borrowed -> unknown efficiency. */
+   TODO(eustas): borrowed -> unknown efficiency. */
 static void buildLcp(std::vector<TextChar>* text, std::vector<TextIdx>* sa,
     std::vector<TextIdx>* lcp, std::vector<TextIdx>* invese_sa) {
   TextIdx size = static_cast<TextIdx>(text->size());

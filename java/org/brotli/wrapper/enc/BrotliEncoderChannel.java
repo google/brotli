@@ -6,6 +6,7 @@
 
 package org.brotli.wrapper.enc;
 
+import org.brotli.enc.PreparedDictionary;
 import java.io.IOException;
 import java.nio.Buffer;
 import java.nio.ByteBuffer;
@@ -40,6 +41,11 @@ public class BrotliEncoderChannel extends Encoder implements WritableByteChannel
 
   public BrotliEncoderChannel(WritableByteChannel destination) throws IOException {
     this(destination, new Encoder.Parameters());
+  }
+
+  @Override
+  public void attachDictionary(PreparedDictionary dictionary) throws IOException {
+    super.attachDictionary(dictionary);
   }
 
   @Override

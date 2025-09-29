@@ -8,6 +8,7 @@ package org.brotli.wrapper.dec;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.ByteBuffer;
 import java.nio.channels.Channels;
 
 /**
@@ -34,6 +35,10 @@ public class BrotliInputStream extends InputStream {
     this(source, DEFAULT_BUFFER_SIZE);
   }
 
+  public void attachDictionary(ByteBuffer dictionary) throws IOException {
+    decoder.attachDictionary(dictionary);
+  }
+
   public void enableEagerOutput() {
     decoder.enableEagerOutput();
   }
@@ -54,7 +59,7 @@ public class BrotliInputStream extends InputStream {
       throw new IOException("read after close");
     }
     int decoded;
-    // Iterate until at leat one byte is decoded, or EOF reached.
+    // Iterate until at least one byte is decoded, or EOF reached.
     while (true) {
       decoded = decoder.decode();
       if (decoded != 0) {

@@ -5,7 +5,7 @@
 
 import urllib2
 
-response = urllib2.urlopen('https://tools.ietf.org/rfc/rfc7932.txt')
+response = urllib2.urlopen("https://tools.ietf.org/rfc/rfc7932.txt")
 
 text = response.read()
 path = "rfc7932.txt"

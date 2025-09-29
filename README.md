@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="https://github.com/google/brotli/actions/workflows/build_test.yml/badge.svg" alt="GitHub Actions Build Status" href="https://github.com/google/brotli/actions?query=branch%3Amaster">
+  <img src="https://oss-fuzz-build-logs.storage.googleapis.com/badges/brotli.svg" alt="Fuzzing Status" href="https://oss-fuzz-build-logs.storage.googleapis.com/index.html#brotli">
+</p>
 <p align="center"><img src="https://brotli.org/brotli.svg" alt="Brotli" width="64"></p>
 
 ### Introduction
@@ -12,12 +16,10 @@ The specification of the Brotli Compressed Data Format is defined in [RFC 7932](
 
 Brotli is open-sourced under the MIT License, see the LICENSE file.
 
-Brotli mailing list:
-https://groups.google.com/forum/#!forum/brotli
-
-[![TravisCI Build Status](https://travis-ci.org/google/brotli.svg?branch=master)](https://travis-ci.org/google/brotli)
-[![AppVeyor Build Status](https://ci.appveyor.com/api/projects/status/github/google/brotli?branch=master&svg=true)](https://ci.appveyor.com/project/szabadka/brotli)
-[![Fuzzing Status](https://oss-fuzz-build-logs.storage.googleapis.com/badges/brotli.svg)](https://oss-fuzz-build-logs.storage.googleapis.com/index.html#brotli)
+> **Please note:** brotli is a "stream" format; it does not contain
+> meta-information, like checksums or uncompressed data length. It is possible
+> to modify "raw" ranges of the compressed stream and the decoder will not
+> notice that.
 
 ### Build instructions
 
@@ -29,24 +31,9 @@ You can download and install brotli using the [vcpkg](https://github.com/Microso
     cd vcpkg
     ./bootstrap-vcpkg.sh
     ./vcpkg integrate install
-    vcpkg install brotli
+    ./vcpkg install brotli
 
 The brotli port in vcpkg is kept up to date by Microsoft team members and community contributors. If the version is out of date, please [create an issue or pull request](https://github.com/Microsoft/vcpkg) on the vcpkg repository.
-
-#### Autotools-style CMake
-
-[configure-cmake](https://github.com/nemequ/configure-cmake) is an
-autotools-style configure script for CMake-based projects (not supported on Windows).
-
-The basic commands to build, test and install brotli are:
-
-    $ mkdir out && cd out
-    $ ../configure-cmake
-    $ make
-    $ make test
-    $ make install
-
-By default, debug binaries are built. To generate "release" `Makefile` specify `--disable-debug` option to `configure-cmake`.
 
 #### Bazel
 
@@ -62,10 +49,6 @@ The basic commands to build and install brotli are:
 
 You can use other [CMake](https://cmake.org/) configuration.
 
-#### Premake5
-
-See [Premake5](https://premake.github.io/)
-
 #### Python
 
 To install the latest release of the Python module, run the following:
@@ -78,6 +61,18 @@ To install the tip-of-the-tree version, run:
 
 See the [Python readme](python/README.md) for more details on installing
 from source, development, and testing.
+
+### Contributing
+
+We glad to answer/library related questions in
+[brotli mailing list](https://groups.google.com/forum/#!forum/brotli).
+
+Regular issues / feature requests should be reported in
+[issue tracker](https://github.com/google/brotli/issues).
+
+For reporting vulnerability please read [SECURITY](SECURITY.md).
+
+For contributing changes please read [CONTRIBUTING](CONTRIBUTING.md).
 
 ### Benchmarks
 * [Squash Compression Benchmark](https://quixdb.github.io/squash-benchmark/) / [Unstable Squash Compression Benchmark](https://quixdb.github.io/squash-benchmark/unstable/)
@@ -96,3 +91,5 @@ Hand ported [decoder / encoder](https://github.com/dominikhlbg/BrotliHaxe) in ha
 7Zip [plugin](https://github.com/mcmilk/7-Zip-Zstd)
 
 Dart [native bindings](https://github.com/thosakwe/brotli)
+
+Dart compression framework with [fast FFI-based Brotli implementation](https://pub.dev/documentation/es_compression/latest/brotli/brotli-library.html) with ready-to-use prebuilt binaries for Win/Linux/Mac

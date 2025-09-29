@@ -5,10 +5,10 @@
   <parent>
     <groupId>org.brotli</groupId>
     <artifactId>parent</artifactId>
-    <version>0.2.0-SNAPSHOT</version>
+    <version>1.0.0-SNAPSHOT</version>
   </parent>
   <artifactId>integration</artifactId>
-  <version>0.2.0-SNAPSHOT</version>
+  <version>1.0.0-SNAPSHOT</version>
   <packaging>jar</packaging>
 
   <name>${project.groupId}:${project.artifactId}</name>
@@ -17,7 +17,7 @@
     <dependency>
       <groupId>org.brotli</groupId>
       <artifactId>dec</artifactId>
-      <version>0.2.0-SNAPSHOT</version>
+      <version>1.0.0-SNAPSHOT</version>
     </dependency>
   </dependencies>
 

@@ -76,11 +76,12 @@ final class Transform {
 
   private static void unpackTransforms(byte[] prefixSuffix,
       int[] prefixSuffixHeads, int[] transforms, String prefixSuffixSrc, String transformsSrc) {
-    int n = prefixSuffixSrc.length();
+    final int[] prefixSuffixBytes = Utils.toUtf8Runes(prefixSuffixSrc); 
+    final int n = prefixSuffixBytes.length;
     int index = 1;
     int j = 0;
     for (int i = 0; i < n; ++i) {
-      char c = prefixSuffixSrc.charAt(i);
+      final int c = prefixSuffixBytes[i];
       if (c == 35) { // == #
         prefixSuffixHeads[index++] = j;
       } else {
@@ -89,7 +90,7 @@ final class Transform {
     }
 
     for (int i = 0; i < NUM_RFC_TRANSFORMS * 3; ++i) {
-      transforms[i] = transformsSrc.charAt(i) - 32;
+      transforms[i] = (int) transformsSrc.charAt(i) - 32;
     }
   }
 
@@ -99,19 +100,19 @@ final class Transform {
   }
 
   static int transformDictionaryWord(byte[] dst, int dstOffset, ByteBuffer src, int srcOffset,
-      int len, Transforms transforms, int transformIndex) {
+      int wordLen, Transforms transforms, int transformIndex) {
     int offset = dstOffset;
-    int[] triplets = transforms.triplets;
-    byte[] prefixSuffixStorage = transforms.prefixSuffixStorage;
-    int[] prefixSuffixHeads = transforms.prefixSuffixHeads;
-    int transformOffset = 3 * transformIndex;
-    int prefixIdx = triplets[transformOffset];
-    int transformType = triplets[transformOffset + 1];
-    int suffixIdx = triplets[transformOffset + 2];
+    final int[] triplets = transforms.triplets;
+    final byte[] prefixSuffixStorage = transforms.prefixSuffixStorage;
+    final int[] prefixSuffixHeads = transforms.prefixSuffixHeads;
+    final int transformOffset = 3 * transformIndex;
+    final int prefixIdx = triplets[transformOffset];
+    final int transformType = triplets[transformOffset + 1];
+    final int suffixIdx = triplets[transformOffset + 2];
     int prefix = prefixSuffixHeads[prefixIdx];
-    int prefixEnd = prefixSuffixHeads[prefixIdx + 1];
+    final int prefixEnd = prefixSuffixHeads[prefixIdx + 1];
     int suffix = prefixSuffixHeads[suffixIdx];
-    int suffixEnd = prefixSuffixHeads[suffixIdx + 1];
+    final int suffixEnd = prefixSuffixHeads[suffixIdx + 1];
 
     int omitFirst = transformType - OMIT_FIRST_BASE;
     int omitLast = transformType - OMIT_LAST_BASE;
@@ -127,16 +128,17 @@ final class Transform {
       dst[offset++] = prefixSuffixStorage[prefix++];
     }
 
+    int len = wordLen;
     // Copy trimmed word.
     if (omitFirst > len) {
       omitFirst = len;
     }
-    srcOffset += omitFirst;
+    int dictOffset = srcOffset + omitFirst;
     len -= omitFirst;
     len -= omitLast;
     int i = len;
     while (i > 0) {
-      dst[offset++] = src.get(srcOffset++);
+      dst[offset++] = src.get(dictOffset++);
       i--;
     }
 
@@ -147,31 +149,31 @@ final class Transform {
         len = 1;
       }
       while (len > 0) {
-        int c0 = dst[uppercaseOffset] & 0xFF;
+        final int c0 = (int) dst[uppercaseOffset] & 0xFF;
         if (c0 < 0xC0) {
           if (c0 >= 97 && c0 <= 122) { // in [a..z] range
-            dst[uppercaseOffset] ^= (byte) 32;
+            dst[uppercaseOffset] = (byte) ((int) dst[uppercaseOffset] ^ 32);
           }
           uppercaseOffset += 1;
           len -= 1;
         } else if (c0 < 0xE0) {
-          dst[uppercaseOffset + 1] ^= (byte) 32;
+          dst[uppercaseOffset + 1] = (byte) ((int) dst[uppercaseOffset + 1] ^ 32);
           uppercaseOffset += 2;
           len -= 2;
         } else {
-          dst[uppercaseOffset + 2] ^= (byte) 5;
+          dst[uppercaseOffset + 2] = (byte) ((int) dst[uppercaseOffset + 2] ^ 5);
           uppercaseOffset += 3;
           len -= 3;
         }
       }
     } else if (transformType == SHIFT_FIRST || transformType == SHIFT_ALL) {
       int shiftOffset = offset - len;
-      short param = transforms.params[transformIndex];
+      final int param = (int) transforms.params[transformIndex];
       /* Limited sign extension: scalar < (1 << 24). */
       int scalar = (param & 0x7FFF) + (0x1000000 - (param & 0x8000));
       while (len > 0) {
         int step = 1;
-        int c0 = dst[shiftOffset] & 0xFF;
+        final int c0 = (int) dst[shiftOffset] & 0xFF;
         if (c0 < 0x80) {
           /* 1-byte rune / 0sssssss / 7 bit scalar (ASCII). */
           scalar += c0;
@@ -181,7 +183,7 @@ final class Transform {
         } else if (c0 < 0xE0) {
           /* 2-byte rune / 110sssss AAssssss / 11 bit scalar. */
           if (len >= 2) {
-            byte c1 = dst[shiftOffset + 1];
+            final int c1 = (int) dst[shiftOffset + 1];
             scalar += (c1 & 0x3F) | ((c0 & 0x1F) << 6);
             dst[shiftOffset] = (byte) (0xC0 | ((scalar >> 6) & 0x1F));
             dst[shiftOffset + 1] = (byte) ((c1 & 0xC0) | (scalar & 0x3F));
@@ -192,8 +194,8 @@ final class Transform {
         } else if (c0 < 0xF0) {
           /* 3-byte rune / 1110ssss AAssssss BBssssss / 16 bit scalar. */
           if (len >= 3) {
-            byte c1 = dst[shiftOffset + 1];
-            byte c2 = dst[shiftOffset + 2];
+            final int c1 = (int) dst[shiftOffset + 1];
+            final int c2 = (int) dst[shiftOffset + 2];
             scalar += (c2 & 0x3F) | ((c1 & 0x3F) << 6) | ((c0 & 0x0F) << 12);
             dst[shiftOffset] = (byte) (0xE0 | ((scalar >> 12) & 0x0F));
             dst[shiftOffset + 1] = (byte) ((c1 & 0xC0) | ((scalar >> 6) & 0x3F));
@@ -205,9 +207,9 @@ final class Transform {
         } else if (c0 < 0xF8) {
           /* 4-byte rune / 11110sss AAssssss BBssssss CCssssss / 21 bit scalar. */
           if (len >= 4) {
-            byte c1 = dst[shiftOffset + 1];
-            byte c2 = dst[shiftOffset + 2];
-            byte c3 = dst[shiftOffset + 3];
+            final int c1 = (int) dst[shiftOffset + 1];
+            final int c2 = (int) dst[shiftOffset + 2];
+            final int c3 = (int) dst[shiftOffset + 3];
             scalar += (c3 & 0x3F) | ((c2 & 0x3F) << 6) | ((c1 & 0x3F) << 12) | ((c0 & 0x07) << 18);
             dst[shiftOffset] = (byte) (0xF0 | ((scalar >> 18) & 0x07));
             dst[shiftOffset + 1] = (byte) ((c1 & 0xC0) | ((scalar >> 12) & 0x3F));

@@ -21,6 +21,11 @@ frustration later on.
 All submissions, including submissions by project members, require review. We
 use Github pull requests for this purpose.
 
+### Code style
+Code should follow applicable formatting and style guides described in
+[Google Style Guides](https://google.github.io/styleguide/). C code should be
+C89 compatible.
+
 ### The small print
 Contributions made by corporations are covered by a different agreement than
 the one above, the [Software Grant and Corporate Contributor License Agreement]

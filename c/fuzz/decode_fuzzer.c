@@ -27,6 +27,11 @@ int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   size_t total_out = 0;
 
   BrotliDecoderState* state = BrotliDecoderCreateInstance(0, 0, 0);
+  if (!state) {
+    // OOM is out-of-scope here.
+    free(buffer);
+    return 0;
+  }
 
   if (addend == 0)
     addend = size;

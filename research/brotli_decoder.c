@@ -6,9 +6,19 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>
 
 #include <brotli/decode.h>
+
+#if !defined(_WIN32)
+#include <unistd.h>
+#else
+#include <io.h>
+#define fdopen _fdopen
+#if !defined(__MINGW32__)
+#define STDIN_FILENO _fileno(stdin)
+#define STDOUT_FILENO _fileno(stdout)
+#endif
+#endif
 
 #define BUFFER_SIZE (1u << 20)
 
@@ -38,6 +48,7 @@ void cleanup(Context* ctx) {
 
 void fail(Context* ctx, const char* message) {
   fprintf(stderr, "%s\n", message);
+  cleanup(ctx);
   exit(1);
 }
 

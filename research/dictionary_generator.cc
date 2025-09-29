@@ -3,11 +3,14 @@
 #include <cstdio>
 #include <cstring>
 #include <fstream>
+#if !defined(_MSC_VER)
+#include <glob.h>
+#endif
 #include <vector>
 
-#include "./deorummolae.h"
-#include "./durchschlag.h"
-#include "./sieve.h"
+#include "deorummolae.h"
+#include "durchschlag.h"
+#include "sieve.h"
 
 /* This isn't a definitive list of "--foo" arguments, only those that take an
  * additional "=#" integer parameter, like "--foo=20" or "--foo=32K".
@@ -71,14 +74,13 @@ static void writeFile(const char* file, const std::string& content) {
   outfile.close();
 }
 
-static void writeSamples(char const* argv[], const std::vector<int>& pathArgs,
+static void writeSamples(const std::vector<std::string>& paths,
     const std::vector<size_t>& sizes, const uint8_t* data) {
   size_t offset = 0;
-  for (size_t i = 0; i < pathArgs.size(); ++i) {
-    int j = pathArgs[i];
-    const char* file = argv[j];
+  for (size_t i = 0; i < paths.size(); ++i) {
+    const char* path = paths[i].c_str();
     size_t sampleSize = sizes[i];
-    std::ofstream outfile(file, std::ofstream::binary);
+    std::ofstream outfile(path, std::ofstream::binary);
     outfile.write(reinterpret_cast<const char*>(data + offset),
         static_cast<std::streamsize>(sampleSize));
     outfile.close();
@@ -135,7 +137,7 @@ int main(int argc, char const* argv[]) {
 
   std::vector<uint8_t> data;
   std::vector<size_t> sizes;
-  std::vector<int> pathArgs;
+  std::vector<std::string> paths;
   size_t total = 0;
   for (int i = 1; i < argc; ++i) {
     if (argv[i] == nullptr) {
@@ -217,6 +219,9 @@ int main(int argc, char const* argv[]) {
         }
       } else if (arg1 == 's') {
         sliceLen = readInt(arg2);
+        // TODO(eustas): investigate why sliceLen == 4..5 greatly slows down
+        //               durschlag engine, but only from command line;
+        //               durschlag_runner seems to work fine with those.
         if (sliceLen < 4 || sliceLen > 256) {
           printHelp(fileName(argv[0]));
           fprintf(stderr, "Invalid option '%s'\n", argv[i]);
@@ -265,27 +270,48 @@ int main(int argc, char const* argv[]) {
       }
     }
 
-    std::string content = readFile(argv[i]);
-    if (chunkLen == 0) {
-      pathArgs.push_back(i);
-      data.insert(data.end(), content.begin(), content.end());
-      total += content.size();
-      sizes.push_back(content.size());
-      continue;
-    } else if (chunkLen <= overlapLen) {
-      printHelp(fileName(argv[0]));
-      fprintf(stderr, "Invalid chunkLen - overlapLen combination\n");
-      exit(1);
+    bool ok = true;
+#if defined(_MSC_VER)
+        const char* resolved_path = argv[i];
+#else
+    glob_t resolved_paths;
+    memset(&resolved_paths, 0, sizeof(resolved_paths));
+    if (glob(argv[i], GLOB_TILDE, NULL, &resolved_paths) == 0) {
+      for(size_t j = 0; j < resolved_paths.gl_pathc; ++j) {
+        const char* resolved_path = resolved_paths.gl_pathv[j];
+#endif
+        std::string content = readFile(resolved_path);
+        if (chunkLen == 0) {
+          paths.emplace_back(resolved_path);
+          data.insert(data.end(), content.begin(), content.end());
+          total += content.size();
+          sizes.push_back(content.size());
+          continue;
+        } else if (chunkLen <= overlapLen) {
+          printHelp(fileName(argv[0]));
+          fprintf(stderr, "Invalid chunkLen - overlapLen combination\n");
+          exit(1);
+        }
+        for (size_t chunkStart = 0;
+            chunkStart < content.size();
+            chunkStart += chunkLen - overlapLen) {
+          std::string chunk = content.substr(chunkStart, chunkLen);
+          data.insert(data.end(), chunk.begin(), chunk.end());
+          total += chunk.size();
+          sizes.push_back(chunk.size());
+        }
+#if !defined(_MSC_VER)
+      }
+    } else {
+      ok = false;
     }
-    for (size_t chunkStart = 0;
-        chunkStart < content.size();
-        chunkStart += chunkLen - overlapLen) {
-      std::string chunk = content.substr(chunkStart, chunkLen);
-      data.insert(data.end(), chunk.begin(), chunk.end());
-      total += chunk.size();
-      sizes.push_back(chunk.size());
-    }
+    globfree(&resolved_paths);
+#endif
+    if (!ok) exit(1);
   }
+
+  fprintf(stderr, "Number of chunks: %zu; total size: %zu\n", sizes.size(),
+          total);
 
   bool wantDictionary = (dictionaryArg == -1);
   if (method == METHOD_DISTILL || method == METHOD_PURIFY) {
@@ -313,10 +339,10 @@ int main(int argc, char const* argv[]) {
         targetSize, sliceLen, blockSize, sizes, data.data()));
   } else if (method == METHOD_DISTILL) {
     durchschlag_distill(sliceLen, minimumPopulation, &sizes, data.data());
-    writeSamples(argv, pathArgs, sizes, data.data());
+    writeSamples(paths, sizes, data.data());
   } else if (method == METHOD_PURIFY) {
     durchschlag_purify(sliceLen, minimumPopulation, sizes, data.data());
-    writeSamples(argv, pathArgs, sizes, data.data());
+    writeSamples(paths, sizes, data.data());
   } else {
     printHelp(fileName(argv[0]));
     fprintf(stderr, "Unknown generator\n");

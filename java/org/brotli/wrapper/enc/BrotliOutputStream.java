@@ -9,6 +9,7 @@ package org.brotli.wrapper.enc;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.channels.Channels;
+import org.brotli.enc.PreparedDictionary;
 
 /**
  * Output stream that wraps native brotli encoder.
@@ -38,6 +39,10 @@ public class BrotliOutputStream extends OutputStream {
 
   public BrotliOutputStream(OutputStream destination) throws IOException {
     this(destination, new Encoder.Parameters());
+  }
+
+  public void attachDictionary(PreparedDictionary dictionary) throws IOException {
+    encoder.attachDictionary(dictionary);
   }
 
   @Override

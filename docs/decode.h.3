@@ -1,4 +1,4 @@
-.TH "decode.h" 3 "Thu Feb 22 2018" "Brotli" \" -*- nroff -*-
+.TH "decode.h" 3 "August 2021" "Brotli" \" -*- nroff -*-
 .ad l
 .nh
 .SH NAME
@@ -23,6 +23,14 @@ decode.h \- API for Brotli decompression\&.
 
 .in +1c
 .ti -1c
+.RI "typedef void(* \fBbrotli_decoder_metadata_chunk_func\fP) (void *opaque, const uint8_t *data, size_t size)"
+.br
+.RI "\fICallback to fire on metadata block chunk becomes available\&. \fP"
+.ti -1c
+.RI "typedef void(* \fBbrotli_decoder_metadata_start_func\fP) (void *opaque, size_t size)"
+.br
+.RI "\fICallback to fire on metadata block start\&. \fP"
+.ti -1c
 .RI "typedef enum \fBBrotliDecoderParameter\fP \fBBrotliDecoderParameter\fP"
 .br
 .RI "\fIOptions to be used with \fBBrotliDecoderSetParameter\fP\&. \fP"
@@ -35,6 +43,10 @@ decode.h \- API for Brotli decompression\&.
 .SS "Functions"
 
 .in +1c
+.ti -1c
+.RI "\fBBROTLI_BOOL\fP \fBBrotliDecoderAttachDictionary\fP (\fBBrotliDecoderState\fP *state, BrotliSharedDictionaryType type, size_t data_size, const uint8_t data[data_size])"
+.br
+.RI "\fIAdds LZ77 prefix dictionary, adds or replaces built-in static dictionary and transforms\&. \fP"
 .ti -1c
 .RI "\fBBrotliDecoderState\fP * \fBBrotliDecoderCreateInstance\fP (\fBbrotli_alloc_func\fP alloc_func, \fBbrotli_free_func\fP free_func, void *opaque)"
 .br
@@ -71,6 +83,10 @@ decode.h \- API for Brotli decompression\&.
 .RI "\fBBROTLI_BOOL\fP \fBBrotliDecoderIsUsed\fP (const \fBBrotliDecoderState\fP *state)"
 .br
 .RI "\fIChecks if instance has already consumed input\&. \fP"
+.ti -1c
+.RI "void \fBBrotliDecoderSetMetadataCallbacks\fP (\fBBrotliDecoderState\fP *state, \fBbrotli_decoder_metadata_start_func\fP start_func, \fBbrotli_decoder_metadata_chunk_func\fP chunk_func, void *opaque)"
+.br
+.RI "\fISets callback for receiving metadata blocks\&. \fP"
 .ti -1c
 .RI "\fBBROTLI_BOOL\fP \fBBrotliDecoderSetParameter\fP (\fBBrotliDecoderState\fP *state, \fBBrotliDecoderParameter\fP param, uint32_t value)"
 .br
@@ -119,6 +135,34 @@ BROTLI_DECODER_ERROR_CODES_LIST(CASE_, NEWLINE_)
 The value of the last error code, negative integer\&. All other error code values are in the range from \fBBROTLI_LAST_ERROR_CODE\fP to \fC-1\fP\&. There are also 4 other possible non-error codes \fC0\fP \&.\&. \fC3\fP in \fBBrotliDecoderErrorCode\fP enumeration\&. 
 .SH "Typedef Documentation"
 .PP 
+.SS "typedef void(* brotli_decoder_metadata_chunk_func) (void *opaque, const uint8_t *data, size_t size)"
+
+.PP
+Callback to fire on metadata block chunk becomes available\&. This function can be invoked multiple times per metadata block; block should be considered finished when sum of \fCsize\fP matches the announced metadata block size\&. Chunks contents pointed by \fCdata\fP are transient and shouln not be accessed after leaving the callback\&.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIopaque\fP callback handle 
+.br
+\fIdata\fP pointer to metadata contents 
+.br
+\fIsize\fP size of metadata block chunk, at least \fC1\fP 
+.RE
+.PP
+
+.SS "typedef void(* brotli_decoder_metadata_start_func) (void *opaque, size_t size)"
+
+.PP
+Callback to fire on metadata block start\&. After this callback is fired, if \fCsize\fP is not \fC0\fP, it is followed by \fBbrotli_decoder_metadata_chunk_func\fP as more metadata block contents become accessible\&.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIopaque\fP callback handle 
+.br
+\fIsize\fP size of metadata block 
+.RE
+.PP
+
 .SS "typedef enum \fBBrotliDecoderParameter\fP  \fBBrotliDecoderParameter\fP"
 
 .PP
@@ -167,6 +211,35 @@ Partially done; should be called again with more input\&.
 Partially done; should be called again with more output\&. 
 .SH "Function Documentation"
 .PP 
+.SS "\fBBROTLI_BOOL\fP BrotliDecoderAttachDictionary (\fBBrotliDecoderState\fP * state, BrotliSharedDictionaryType type, size_t data_size, const uint8_t data[data_size])"
+
+.PP
+Adds LZ77 prefix dictionary, adds or replaces built-in static dictionary and transforms\&. Attached dictionary ownership is not transferred\&. Data provided to this method should be kept accessible until decoding is finished and decoder instance is destroyed\&.
+.PP
+\fBNote:\fP
+.RS 4
+Dictionaries can NOT be attached after actual decoding is started\&.
+.RE
+.PP
+\fBParameters:\fP
+.RS 4
+\fIstate\fP decoder instance 
+.br
+\fItype\fP dictionary data format 
+.br
+\fIdata_size\fP length of memory region pointed by \fCdata\fP 
+.br
+\fIdata\fP dictionary data in format corresponding to \fCtype\fP 
+.RE
+.PP
+\fBReturns:\fP
+.RS 4
+\fBBROTLI_FALSE\fP if dictionary is corrupted, or dictionary count limit is reached 
+.PP
+\fBBROTLI_TRUE\fP if dictionary is accepted / attached 
+.RE
+.PP
+
 .SS "\fBBrotliDecoderState\fP* BrotliDecoderCreateInstance (\fBbrotli_alloc_func\fP alloc_func, \fBbrotli_free_func\fP free_func, void * opaque)"
 
 .PP
@@ -345,6 +418,23 @@ Checks if instance has already consumed input\&. Instance that returns \fBBROTLI
 .RE
 .PP
 
+.SS "void BrotliDecoderSetMetadataCallbacks (\fBBrotliDecoderState\fP * state, \fBbrotli_decoder_metadata_start_func\fP start_func, \fBbrotli_decoder_metadata_chunk_func\fP chunk_func, void * opaque)"
+
+.PP
+Sets callback for receiving metadata blocks\&. 
+.PP
+\fBParameters:\fP
+.RS 4
+\fIstate\fP decoder instance 
+.br
+\fIstart_func\fP callback on metadata block start 
+.br
+\fIchunk_func\fP callback on metadata block chunk 
+.br
+\fIopaque\fP callback handle 
+.RE
+.PP
+
 .SS "\fBBROTLI_BOOL\fP BrotliDecoderSetParameter (\fBBrotliDecoderState\fP * state, \fBBrotliDecoderParameter\fP param, uint32_t value)"
 
 .PP
@@ -409,7 +499,7 @@ pointer to output data
 .SS "uint32_t BrotliDecoderVersion (void)"
 
 .PP
-Gets a decoder library version\&. Look at BROTLI_VERSION for more information\&. 
+Gets a decoder library version\&. Look at BROTLI_MAKE_HEX_VERSION for more information\&. 
 .SH "Author"
 .PP 
 Generated automatically by Doxygen for Brotli from the source code\&.
