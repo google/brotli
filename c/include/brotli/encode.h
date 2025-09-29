@@ -283,6 +283,10 @@ typedef struct BrotliEncoderPreparedDictionaryStruct
  * passed to @p alloc_func and @p free_func when they are called. @p free_func
  * has to return without doing anything when asked to free a NULL pointer.
  *
+ * @warning Created instance is "lean"; it does not contain copy of @p data,
+ *          rather it contains only pointer to it; therefore,
+ *          @p data @b MUST outlive the created instance.
+ *
  * @param type type of dictionary stored in data
  * @param data_size size of @p data buffer
  * @param data pointer to the dictionary data

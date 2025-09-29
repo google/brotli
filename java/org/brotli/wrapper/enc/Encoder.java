@@ -17,7 +17,7 @@ import org.brotli.enc.PreparedDictionary;
 /**
  * Base class for OutputStream / Channel implementations.
  */
-public class Encoder {
+public class Encoder implements AutoCloseable {
   private final WritableByteChannel destination;
   private final List<PreparedDictionary> dictionaries;
   private final EncoderJNI.Wrapper encoder;
@@ -64,12 +64,6 @@ public class Encoder {
     private Mode mode;
 
     public Parameters() { }
-
-    private Parameters(Parameters other) {
-      this.quality = other.quality;
-      this.lgwin = other.lgwin;
-      this.mode = other.mode;
-    }
 
     /**
      * Setup encoder quality.
@@ -199,7 +193,8 @@ public class Encoder {
     encode(EncoderJNI.Operation.FLUSH);
   }
 
-  void close() throws IOException {
+  @Override
+  public void close() throws IOException {
     if (closed) {
       return;
     }
@@ -221,10 +216,10 @@ public class Encoder {
       return empty;
     }
     /* data.length > 0 */
+    ArrayList<byte[]> output = new ArrayList<>();
+    int totalOutputSize = 0;
     EncoderJNI.Wrapper encoder =
         new EncoderJNI.Wrapper(length, params.quality, params.lgwin, params.mode);
-    ArrayList<byte[]> output = new ArrayList<byte[]>();
-    int totalOutputSize = 0;
     try {
       encoder.getInputBuffer().put(data, offset, length);
       encoder.push(EncoderJNI.Operation.FINISH, length);
