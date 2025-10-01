@@ -535,6 +535,11 @@ Result is only valid if quality is at least \fC2\fP and, in case \fBBrotliEncode
 .PP
 Prepares a shared dictionary from the given file format for the encoder\&. \fCalloc_func\fP and \fCfree_func\fP \fBMUST\fP be both zero or both non-zero\&. In the case they are both zero, default memory allocators are used\&. \fCopaque\fP is passed to \fCalloc_func\fP and \fCfree_func\fP when they are called\&. \fCfree_func\fP has to return without doing anything when asked to free a NULL pointer\&.
 .PP
+\fBWarning:\fP
+.RS 4
+Created instance is 'lean'; it does not contain copy of \fCdata\fP, rather it contains only pointer to it; therefore, \fCdata\fP \fBMUST\fP outlive the created instance\&.
+.RE
+.PP
 \fBParameters:\fP
 .RS 4
 \fItype\fP type of dictionary stored in data 

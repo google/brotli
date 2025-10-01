@@ -291,6 +291,32 @@ static BROTLI_INLINE void BrotliUnalignedWrite64(void* p, uint64_t v) {
   memcpy(p, &v, sizeof v);
 }
 
+#if BROTLI_GNUC_HAS_BUILTIN(__builtin_bswap16, 4, 3, 0)
+#define BROTLI_BSWAP16(V) ((uint16_t)__builtin_bswap16(V))
+#else
+#define BROTLI_BSWAP16(V) ((uint16_t)( \
+  (((V) & 0xFFU) << 8) | \
+  (((V) >> 8) & 0xFFU)))
+#endif
+
+#if BROTLI_GNUC_HAS_BUILTIN(__builtin_bswap32, 4, 3, 0)
+#define BROTLI_BSWAP32(V) ((uint32_t)__builtin_bswap32(V))
+#else
+#define BROTLI_BSWAP32(V) ((uint32_t)( \
+  (((V) & 0xFFU) << 24) | (((V) & 0xFF00U) << 8) | \
+  (((V) >> 8) & 0xFF00U) | (((V) >> 24) & 0xFFU)))
+#endif
+
+#if BROTLI_GNUC_HAS_BUILTIN(__builtin_bswap64, 4, 3, 0)
+#define BROTLI_BSWAP64(V) ((uint64_t)__builtin_bswap64(V))
+#else
+#define BROTLI_BSWAP64(V) ((uint64_t)( \
+  (((V) & 0xFFU) << 56) | (((V) & 0xFF00U) << 40) | \
+  (((V) & 0xFF0000U) << 24) | (((V) & 0xFF000000U) << 8) | \
+  (((V) >> 8) & 0xFF000000U) | (((V) >> 24) & 0xFF0000U) | \
+  (((V) >> 40) & 0xFF00U) | (((V) >> 56) & 0xFFU)))
+#endif
+
 #if BROTLI_LITTLE_ENDIAN
 /* Straight endianness. Just read / write values. */
 #define BROTLI_UNALIGNED_LOAD16LE BrotliUnalignedRead16
@@ -298,32 +324,20 @@ static BROTLI_INLINE void BrotliUnalignedWrite64(void* p, uint64_t v) {
 #define BROTLI_UNALIGNED_LOAD64LE BrotliUnalignedRead64
 #define BROTLI_UNALIGNED_STORE64LE BrotliUnalignedWrite64
 #elif BROTLI_BIG_ENDIAN  /* BROTLI_LITTLE_ENDIAN */
-/* Explain compiler to byte-swap values. */
-#define BROTLI_BSWAP16_(V) ((uint16_t)( \
-  (((V) & 0xFFU) << 8) | \
-  (((V) >> 8) & 0xFFU)))
 static BROTLI_INLINE uint16_t BROTLI_UNALIGNED_LOAD16LE(const void* p) {
   uint16_t value = BrotliUnalignedRead16(p);
-  return BROTLI_BSWAP16_(value);
+  return BROTLI_BSWAP16(value);
 }
-#define BROTLI_BSWAP32_(V) ( \
-  (((V) & 0xFFU) << 24) | (((V) & 0xFF00U) << 8) | \
-  (((V) >> 8) & 0xFF00U) | (((V) >> 24) & 0xFFU))
 static BROTLI_INLINE uint32_t BROTLI_UNALIGNED_LOAD32LE(const void* p) {
   uint32_t value = BrotliUnalignedRead32(p);
-  return BROTLI_BSWAP32_(value);
+  return BROTLI_BSWAP32(value);
 }
-#define BROTLI_BSWAP64_(V) ( \
-  (((V) & 0xFFU) << 56) | (((V) & 0xFF00U) << 40) | \
-  (((V) & 0xFF0000U) << 24) | (((V) & 0xFF000000U) << 8) | \
-  (((V) >> 8) & 0xFF000000U) | (((V) >> 24) & 0xFF0000U) | \
-  (((V) >> 40) & 0xFF00U) | (((V) >> 56) & 0xFFU))
 static BROTLI_INLINE uint64_t BROTLI_UNALIGNED_LOAD64LE(const void* p) {
   uint64_t value = BrotliUnalignedRead64(p);
-  return BROTLI_BSWAP64_(value);
+  return BROTLI_BSWAP64(value);
 }
 static BROTLI_INLINE void BROTLI_UNALIGNED_STORE64LE(void* p, uint64_t v) {
-  uint64_t value = BROTLI_BSWAP64_(v);
+  uint64_t value = BROTLI_BSWAP64(v);
   BrotliUnalignedWrite64(p, value);
 }
 #else  /* BROTLI_LITTLE_ENDIAN */
