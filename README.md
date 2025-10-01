@@ -12,7 +12,8 @@ and 2nd order context modeling, with a compression ratio comparable to the best
 currently available general-purpose compression methods. It is similar in speed
 with deflate but offers more dense compression.
 
-The specification of the Brotli Compressed Data Format is defined in [RFC 7932](https://tools.ietf.org/html/rfc7932).
+The specification of the Brotli Compressed Data Format is defined in
+[RFC 7932](https://datatracker.ietf.org/doc/html/rfc7932).
 
 Brotli is open-sourced under the MIT License, see the LICENSE file.
 
@@ -25,7 +26,8 @@ Brotli is open-sourced under the MIT License, see the LICENSE file.
 
 #### Vcpkg
 
-You can download and install brotli using the [vcpkg](https://github.com/Microsoft/vcpkg/) dependency manager:
+You can download and install brotli using the
+[vcpkg](https://github.com/Microsoft/vcpkg/) dependency manager:
 
     git clone https://github.com/Microsoft/vcpkg.git
     cd vcpkg
@@ -33,11 +35,13 @@ You can download and install brotli using the [vcpkg](https://github.com/Microso
     ./vcpkg integrate install
     ./vcpkg install brotli
 
-The brotli port in vcpkg is kept up to date by Microsoft team members and community contributors. If the version is out of date, please [create an issue or pull request](https://github.com/Microsoft/vcpkg) on the vcpkg repository.
+The brotli port in vcpkg is kept up to date by Microsoft team members and
+community contributors. If the version is out of date, please [create an issue
+or pull request](https://github.com/Microsoft/vcpkg) on the vcpkg repository.
 
 #### Bazel
 
-See [Bazel](http://www.bazel.build/)
+See [Bazel](https://www.bazel.build/)
 
 #### CMake
 
@@ -65,7 +69,7 @@ from source, development, and testing.
 ### Contributing
 
 We glad to answer/library related questions in
-[brotli mailing list](https://groups.google.com/forum/#!forum/brotli).
+[brotli mailing list](https://groups.google.com/g/brotli).
 
 Regular issues / feature requests should be reported in
 [issue tracker](https://github.com/google/brotli/issues).
@@ -76,20 +80,24 @@ For contributing changes please read [CONTRIBUTING](CONTRIBUTING.md).
 
 ### Benchmarks
 * [Squash Compression Benchmark](https://quixdb.github.io/squash-benchmark/) / [Unstable Squash Compression Benchmark](https://quixdb.github.io/squash-benchmark/unstable/)
-* [Large Text Compression Benchmark](http://mattmahoney.net/dc/text.html)
+* [Large Text Compression Benchmark](https://mattmahoney.net/dc/text.html)
 * [Lzturbo Benchmark](https://sites.google.com/site/powturbo/home/benchmark)
 
 ### Related projects
 > **Disclaimer:** Brotli authors take no responsibility for the third party projects mentioned in this section.
 
-Independent [decoder](https://github.com/madler/brotli) implementation by Mark Adler, based entirely on format specification.
+Independent [decoder](https://github.com/madler/brotli) implementation
+by Mark Adler, based entirely on format specification.
 
-JavaScript port of brotli [decoder](https://github.com/devongovett/brotli.js). Could be used directly via `npm install brotli`
+JavaScript port of brotli [decoder](https://github.com/devongovett/brotli.js).
+Could be used directly via `npm install brotli`
 
-Hand ported [decoder / encoder](https://github.com/dominikhlbg/BrotliHaxe) in haxe by Dominik Homberger. Output source code: JavaScript, PHP, Python, Java and C#
+Hand ported [decoder / encoder](https://github.com/dominikhlbg/BrotliHaxe)
+in haxe by Dominik Homberger.
+Output source code: JavaScript, PHP, Python, Java and C#
 
 7Zip [plugin](https://github.com/mcmilk/7-Zip-Zstd)
 
-Dart [native bindings](https://github.com/thosakwe/brotli)
-
-Dart compression framework with [fast FFI-based Brotli implementation](https://pub.dev/documentation/es_compression/latest/brotli/brotli-library.html) with ready-to-use prebuilt binaries for Win/Linux/Mac
+Dart compression framework with
+[fast FFI-based Brotli implementation](https://pub.dev/documentation/es_compression/latest/brotli/)
+with ready-to-use prebuilt binaries for Win/Linux/Mac
