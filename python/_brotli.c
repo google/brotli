@@ -892,6 +892,8 @@ finally:
 
 /* Module definition */
 
+static int init_brotli_mod(PyObject* m);
+
 static PyMethodDef brotli_methods[] = {
     {"decompress", (PyCFunction)brotli_decompress, METH_VARARGS | METH_KEYWORDS,
      brotli_decompress__doc__},
@@ -920,16 +922,29 @@ static PyMethodDef brotli_Decompressor_methods[] = {
 
 #if PY_MAJOR_VERSION >= 3
 
+#if PY_MINOR_VERSION >= 5
+static PyModuleDef_Slot brotli_mod_slots[] = {
+    {Py_mod_exec, init_brotli_mod},
+#if PY_MINOR_VERSION >= 12
+    {Py_mod_multiple_interpreters, Py_MOD_PER_INTERPRETER_GIL_SUPPORTED},
+#endif
+    {0, NULL}};
+#endif
+
 static struct PyModuleDef brotli_module = {
     PyModuleDef_HEAD_INIT,
     "_brotli",      /* m_name */
     brotli_doc,     /* m_doc */
     0,              /* m_size */
     brotli_methods, /* m_methods */
-    NULL,           /* m_reload */
-    NULL,           /* m_traverse */
-    NULL,           /* m_clear */
-    NULL            /* m_free */
+#if PY_MINOR_VERSION >= 5
+    brotli_mod_slots, /* m_slots */
+#else
+    NULL, /* m_reload */
+#endif
+    NULL, /* m_traverse */
+    NULL, /* m_clear */
+    NULL  /* m_free */
 };
 
 static PyType_Slot brotli_Compressor_slots[] = {
@@ -957,6 +972,20 @@ static PyType_Slot brotli_Decompressor_slots[] = {
 static PyType_Spec brotli_Decompressor_spec = {
     "brotli.Decompressor", sizeof(PyBrotli_Decompressor), 0,
     Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE, brotli_Decompressor_slots};
+
+PyMODINIT_FUNC PyInit__brotli(void) {
+#if PY_MINOR_VERSION < 5
+  PyObject* m = PyModule_Create(&brotli_module);
+  if (m == NULL) return NULL;
+  if (init_brotli_mod(m) < 0) {
+    Py_DECREF(m);
+    m = NULL;
+  }
+  return m;
+#else
+  return PyModuleDef_Init(&brotli_module);
+#endif
+}
 
 #else
 
@@ -1042,18 +1071,12 @@ static PyTypeObject brotli_DecompressorType = {
     brotli_Decompressor_new,                 /* tp_new */
 };
 
-#endif
+PyMODINIT_FUNC init_brotli(void) {
+  PyObject* m = Py_InitModule3("_brotli", brotli_methods, brotli_doc);
+  if (m == NULL) return;
+  init_brotli_mod(m);
+}
 
-#if PY_MAJOR_VERSION >= 3
-#define INIT_BROTLI PyInit__brotli
-#define CREATE_BROTLI PyModule_Create(&brotli_module)
-#define RETURN_BROTLI return m
-#define RETURN_NULL return NULL
-#else
-#define INIT_BROTLI init_brotli
-#define CREATE_BROTLI Py_InitModule3("_brotli", brotli_methods, brotli_doc)
-#define RETURN_BROTLI return
-#define RETURN_NULL return
 #endif
 
 /* Emulates PyModule_AddObject */
@@ -1070,13 +1093,11 @@ static int RegisterObject(PyObject* mod, const char* name, PyObject* value) {
 #endif
 }
 
-PyMODINIT_FUNC INIT_BROTLI(void) {
-  PyObject* m = CREATE_BROTLI;
+static int init_brotli_mod(PyObject* m) {
   PyObject* error_type = NULL;
   PyObject* compressor_type = NULL;
   PyObject* decompressor_type = NULL;
-
-  if (m == NULL) goto error;
+  assert(m != NULL);
 
   error_type = PyErr_NewExceptionWithDoc((char*)"brotli.error",
                                          brotli_error_doc, NULL, NULL);
@@ -1124,13 +1145,9 @@ PyMODINIT_FUNC INIT_BROTLI(void) {
            (decoderVersion >> 12) & 0xFFF, decoderVersion & 0xFFF);
   PyModule_AddStringConstant(m, "__version__", version);
 
-  RETURN_BROTLI;
+  return 0;
 
 error:
-  if (m != NULL) {
-    Py_DECREF(m);
-    m = NULL;
-  }
   if (error_type != NULL) {
     Py_DECREF(error_type);
     error_type = NULL;
@@ -1143,5 +1160,5 @@ error:
     Py_DECREF(decompressor_type);
     decompressor_type = NULL;
   }
-  RETURN_NULL;
+  return -1;
 }
