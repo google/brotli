@@ -283,6 +283,7 @@ public class SynthTest {
      */
       compressed,
       true,
+      // typo:off
       "|categories|categories | categories |ategories|Categories |categories the | categories|s cat"
       + "egories |categories of |Categories|categories and |tegories|categorie|, categories |catego"
       + "ries, | Categories |categories in |categories to |e categories |categories\"|categories.|c"
@@ -301,6 +302,7 @@ public class SynthTest {
       + "\"|categoriesous |CATEGORIES, |Categories='| Categories,| CATEGORIES=\"| CATEGORIES, |CATE"
       + "GORIES,|CATEGORIES(|CATEGORIES. | CATEGORIES.|CATEGORIES='| CATEGORIES. | Categories=\"| C"
       + "ATEGORIES='| Categories='"
+      // typo:on
     );
   }
 

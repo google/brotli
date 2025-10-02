@@ -343,22 +343,22 @@ static uint32_t ComputeDistanceShortcut(const size_t block_start,
                                         const size_t max_backward_limit,
                                         const size_t gap,
                                         const ZopfliNode* nodes) {
-  const size_t clen = ZopfliNodeCopyLength(&nodes[pos]);
-  const size_t ilen = nodes[pos].dcode_insert_length & 0x7FFFFFF;
+  const size_t c_len = ZopfliNodeCopyLength(&nodes[pos]);
+  const size_t i_len = nodes[pos].dcode_insert_length & 0x7FFFFFF;
   const size_t dist = ZopfliNodeCopyDistance(&nodes[pos]);
   /* Since |block_start + pos| is the end position of the command, the copy part
-     starts from |block_start + pos - clen|. Distances that are greater than
+     starts from |block_start + pos - c_len|. Distances that are greater than
      this or greater than |max_backward_limit| + |gap| are static dictionary
      references, and do not update the last distances.
      Also distance code 0 (last distance) does not update the last distances. */
   if (pos == 0) {
     return 0;
-  } else if (dist + clen <= block_start + pos + gap &&
+  } else if (dist + c_len <= block_start + pos + gap &&
              dist <= max_backward_limit + gap &&
              ZopfliNodeDistanceCode(&nodes[pos]) > 0) {
     return (uint32_t)pos;
   } else {
-    return nodes[pos - clen - ilen].u.shortcut;
+    return nodes[pos - c_len - i_len].u.shortcut;
   }
 }
 
@@ -376,12 +376,12 @@ static void ComputeDistanceCache(const size_t pos,
   int idx = 0;
   size_t p = nodes[pos].u.shortcut;
   while (idx < 4 && p > 0) {
-    const size_t ilen = nodes[p].dcode_insert_length & 0x7FFFFFF;
-    const size_t clen = ZopfliNodeCopyLength(&nodes[p]);
+    const size_t i_len = nodes[p].dcode_insert_length & 0x7FFFFFF;
+    const size_t c_len = ZopfliNodeCopyLength(&nodes[p]);
     const size_t dist = ZopfliNodeCopyDistance(&nodes[p]);
     dist_cache[idx++] = (int)dist;
-    /* Because of prerequisite, p >= clen + ilen >= 2. */
-    p = nodes[p - clen - ilen].u.shortcut;
+    /* Because of prerequisite, p >= c_len + i_len >= 2. */
+    p = nodes[p - c_len - i_len].u.shortcut;
   }
   for (; idx < 4; ++idx) {
     dist_cache[idx] = *starting_dist_cache++;
