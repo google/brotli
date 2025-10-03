@@ -63,7 +63,7 @@ echo "${CODE//$PATTERN/$REPLACEMENT}" > org/brotli/dec/BrotliInputStream.cs
 
 #-------------------------------------------------------------------------------
 
-echo -e '\n\033[01;33mDowloading dependencies.\033[00m'
+echo -e '\n\033[01;33mDownloading dependencies.\033[00m'
 
 cd build
 nuget install NUnit -Version 3.6.1
