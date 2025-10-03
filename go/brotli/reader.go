@@ -9,7 +9,6 @@ import (
 	"bytes"
 	"errors"
 	"io"
-	"io/ioutil"
 	"strconv"
 	"unsafe"
 )
@@ -127,5 +126,5 @@ func Decode(encodedData []byte) ([]byte, error) {
 func DecodeWithRawDictionary(encodedData []byte, dictionary []byte) ([]byte, error) {
 	r := NewReaderWithOptions(bytes.NewReader(encodedData), ReaderOptions{RawDictionary: dictionary})
 	defer r.Close()
-	return ioutil.ReadAll(r)
+	return io.ReadAll(r)
 }
