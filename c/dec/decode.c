@@ -484,7 +484,7 @@ static BROTLI_INLINE int BrotliCopyPreloadedSymbolsToU8(const HuffmanCode* table
   /* Calculate range where CheckInputAmount is always true.
      Start with the number of bytes we can read. */
   int64_t new_lim = br->guard_in - br->next_in;
-  /* Convert to bits, since sybmols use variable number of bits. */
+  /* Convert to bits, since symbols use variable number of bits. */
   new_lim *= 8;
   /* At most 15 bits per symbol, so this is safe. */
   new_lim /= 15;
@@ -1539,7 +1539,7 @@ static BROTLI_BOOL AttachCompoundDictionary(
   return BROTLI_TRUE;
 }
 
-static void EnsureCoumpoundDictionaryInitialized(BrotliDecoderState* state) {
+static void EnsureCompoundDictionaryInitialized(BrotliDecoderState* state) {
   BrotliDecoderCompoundDictionary* addon = state->compound_dictionary;
   /* 256 = (1 << 8) slots in block map. */
   int block_bits = 8;
@@ -1560,7 +1560,7 @@ static BROTLI_BOOL InitializeCompoundDictionaryCopy(BrotliDecoderState* s,
     int address, int length) {
   BrotliDecoderCompoundDictionary* addon = s->compound_dictionary;
   int index;
-  EnsureCoumpoundDictionaryInitialized(s);
+  EnsureCompoundDictionaryInitialized(s);
   index = addon->block_map[address >> addon->block_bits];
   while (address >= addon->chunk_offsets[index + 1]) index++;
   if (addon->total_size < address + length) return BROTLI_FALSE;
