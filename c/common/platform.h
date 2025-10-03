@@ -267,6 +267,46 @@ OR:
 #endif
 
 /* Portable unaligned memory access: read / write values via memcpy. */
+#if !defined(BROTLI_USE_PACKED_FOR_UNALIGNED)
+#if defined(__mips__) && (!defined(__mips_isa_rev) || __mips_isa_rev < 6)
+#define BROTLI_USE_PACKED_FOR_UNALIGNED 1
+#else
+#define BROTLI_USE_PACKED_FOR_UNALIGNED 0
+#endif
+#endif /* defined(BROTLI_USE_PACKED_FOR_UNALIGNED) */
+
+#if BROTLI_USE_PACKED_FOR_UNALIGNED
+
+typedef union BrotliPackedValue {
+  uint16_t u16;
+  uint32_t u32;
+  uint64_t u64;
+  size_t szt;
+} __attribute__ ((packed)) BrotliPackedValue;
+
+static BROTLI_INLINE uint16_t BrotliUnalignedRead16(const void* p) {
+  const BrotliPackedValue* address = (const BrotliPackedValue*)p;
+  return address->u16;
+}
+static BROTLI_INLINE uint32_t BrotliUnalignedRead32(const void* p) {
+  const BrotliPackedValue* address = (const BrotliPackedValue*)p;
+  return address->u32;
+}
+static BROTLI_INLINE uint64_t BrotliUnalignedRead64(const void* p) {
+  const BrotliPackedValue* address = (const BrotliPackedValue*)p;
+  return address->u64;
+}
+static BROTLI_INLINE size_t BrotliUnalignedReadSizeT(const void* p) {
+  const BrotliPackedValue* address = (const BrotliPackedValue*)p;
+  return address->szt;
+}
+static BROTLI_INLINE void BrotliUnalignedWrite64(void* p, uint64_t v) {
+  BrotliPackedValue* address = (BrotliPackedValue*)p;
+  address->u64 = v;
+}
+
+#else  /* not BROTLI_USE_PACKED_FOR_UNALIGNED */
+
 static BROTLI_INLINE uint16_t BrotliUnalignedRead16(const void* p) {
   uint16_t t;
   memcpy(&t, p, sizeof t);
@@ -290,6 +330,8 @@ static BROTLI_INLINE size_t BrotliUnalignedReadSizeT(const void* p) {
 static BROTLI_INLINE void BrotliUnalignedWrite64(void* p, uint64_t v) {
   memcpy(p, &v, sizeof v);
 }
+
+#endif  /* BROTLI_USE_PACKED_FOR_UNALIGNED */
 
 #if BROTLI_GNUC_HAS_BUILTIN(__builtin_bswap16, 4, 3, 0)
 #define BROTLI_BSWAP16(V) ((uint16_t)__builtin_bswap16(V))
