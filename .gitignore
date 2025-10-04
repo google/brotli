@@ -18,3 +18,11 @@ __pycache__/
 *.txt.uncompressed
 *.br
 *.unbr
+
+# Build
+/build
+/_build
+/out 
+
+# OSX
+*.DS_Store
