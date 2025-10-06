@@ -85,6 +85,7 @@ public class DecodeTest {
 
   @Test
   public void testUkkonooa() throws IOException {
+    // typo:off
     checkDecodeResource(
         "ukko nooa, ukko nooa oli kunnon mies, kun han meni saunaan, "
             + "pisti laukun naulaan, ukko nooa, ukko nooa oli kunnon mies.",
@@ -92,6 +93,7 @@ public class DecodeTest {
             + "6\u000E\u009C\u00E0\u0090\u0003\u00F7\u008B\u009E8\u00E6\u00B6\u0000\u00AB\u00C3\u00CA"
             + "\u00A0\u00C2\u00DAf6\u00DC\u00CD\u0080\u008D.!\u00D7n\u00E3\u00EAL\u00B8\u00F0\u00D2"
             + "\u00B8\u00C7\u00C2pM:\u00F0i~\u00A1\u00B8Es\u00AB\u00C4W\u001E");
+    // typo:on
   }
 
   @Test

@@ -239,6 +239,7 @@ testAllTransforms10() {
      */
     compressed,
     true,
+    // typo:off
     '|categories|categories | categories |ategories|Categories |categories the '
     + '| categories|s categories |categories of |Categories|categories and |teg'
     + 'ories|categorie|, categories |categories, | Categories |categories in |c'
@@ -261,6 +262,7 @@ testAllTransforms10() {
     + '|CATEGORIES, |Categories=\'| Categories,| CATEGORIES="| CATEGORIES, |CAT'
     + 'EGORIES,|CATEGORIES(|CATEGORIES. | CATEGORIES.|CATEGORIES=\'| CATEGORIES'
     + '. | Categories="| CATEGORIES=\'| Categories=\''
+    // typo:on
   );
 },
 

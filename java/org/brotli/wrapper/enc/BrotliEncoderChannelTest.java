@@ -42,8 +42,8 @@ public class BrotliEncoderChannelTest extends BrotliJniTestBase {
     try {
       List<String> entries = BundleHelper.listEntries(bundle);
       for (String entry : entries) {
-        suite.addTest(new ChannleTestCase(entry, TestMode.WRITE_ALL));
-        suite.addTest(new ChannleTestCase(entry, TestMode.WRITE_CHUNKS));
+        suite.addTest(new ChannelTestCase(entry, TestMode.WRITE_ALL));
+        suite.addTest(new ChannelTestCase(entry, TestMode.WRITE_CHUNKS));
       }
     } finally {
       bundle.close();
@@ -52,10 +52,10 @@ public class BrotliEncoderChannelTest extends BrotliJniTestBase {
   }
 
   /** Test case with a unique name. */
-  static class ChannleTestCase extends TestCase {
+  static class ChannelTestCase extends TestCase {
     final String entryName;
     final TestMode mode;
-    ChannleTestCase(String entryName, TestMode mode) {
+    ChannelTestCase(String entryName, TestMode mode) {
       super("BrotliEncoderChannelTest." + entryName + "." + mode.name());
       this.entryName = entryName;
       this.mode = mode;

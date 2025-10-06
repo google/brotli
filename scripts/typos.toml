@@ -1,0 +1,17 @@
+[default]
+extend-ignore-re = [
+  "(?Rm)^.*// notypo$",  # disable check in current line
+  "(?s)(#|//)\\s*typo:off.*?\\n\\s*(#|//)\\s*typo:on",  # disable check in block
+  "0x[0-9a-fA-F]+[ ,u]",  # hexadecimal literal
+  "\\W2-nd\\W",  # second
+  "\\W2\\^nd\\W",  # second with superscript
+]
+
+[default.extend-words]
+sais = "sais"  # SAIS library
+uncompressible = "uncompressible"  # personal choice
+flate = "flate"  # compression algorithm
+
+[default.extend-identifiers]
+gl_pathc = "gl_pathc"  # glob_t
+

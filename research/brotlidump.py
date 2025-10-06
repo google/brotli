@@ -1286,8 +1286,9 @@ class WordList:
         return word.encode('utf8')
 
 
-    #Super compact form of action table.
-    #_ means space, .U means UpperCaseAll, U(w) means UpperCaseFirst
+    # Super compact form of action table.
+    # _ means space, .U means UpperCaseAll, U(w) means UpperCaseFirst
+    # typo:off
     actionTable = r"""
         0:w        25:w+_for_     50:w+\n\t       75:w+. This_100:w+ize_
         1:w+_      26:w[3:]       51:w+:          76:w+,      101:w.U+.
@@ -1315,6 +1316,7 @@ class WordList:
        23:w[:-3]   48:w[:-7]                      98:_+w+=\'
        24:w+]      49:w[:-1]+ing_ 74:U(w)+\'      99:U(w)+,
         """
+    # typo:on
 
     def compileActions(self):
         """Build the action table from the text above
