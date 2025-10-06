@@ -7,6 +7,6 @@
 
 module(
     name = "brotli",
-    version = "1.1.0",
+    version = "1.2.0",
     repo_name = "org_brotli",
 )

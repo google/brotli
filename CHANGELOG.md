@@ -7,11 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## [1.2.0] - 2025-10-xx
+
 ### SECURITY
  - python: added `Decompressor::can_accept_more_data` method and optional
            `output_buffer_limit` argument `Decompressor::process`;
            that allows mitigation of unexpectedly large output;
            reported by Charles Chan (https://github.com/charleswhchan)
+
+### Added
+ - **decoder / encoder: added static initialization to reduce binary size**
+ - python: allow limiting decoder output (see SECURITY section)
+ - CLI: `brcat` alias; allow decoding concatenated brotli streams
+ - kt: pure Kotlin decoder
+ - cgo: support "raw" dictionaries
+ - build: Bazel modules
+
+### Removed
+ - java: dropped `finalize()` for native entities
+
+### Fixed
+ - java: in `compress` pass correct length to native encoder
+
+### Improved
+ - build: install man pages
+ - build: updated / fixed / refined Bazel buildfiles
+ - encoder: faster encoding
+ - cgo: link via pkg-config
+ - python: modernize extension / allow multi-phase module initialization
+
+### Changed
+ - decoder / encoder: static tables use "small" model (allows 2GiB+ binaries)
 
 
 ## [1.1.0] - 2023-08-28
