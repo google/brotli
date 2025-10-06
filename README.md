@@ -22,6 +22,17 @@ Brotli is open-sourced under the MIT License, see the LICENSE file.
 > to modify "raw" ranges of the compressed stream and the decoder will not
 > notice that.
 
+### Installation
+
+In most Linux distributions, installing `brotli` is just a matter of using
+the package management system. For example in Debian-based distributions:
+`apt install brotli` will install `brotli`. On MacOS, you can use
+[Homebrew](https://brew.sh/): `brew install brotli`.
+
+[![brotli packaging status](https://repology.org/badge/vertical-allrepos/brotli.svg?exclude_unsupported=1&columns=3&exclude_sources=modules,site&header=brotli%20packaging%20status)](https://repology.org/project/brotli/versions)
+
+Of course you can also build brotli from sources.
+
 ### Build instructions
 
 #### Vcpkg
