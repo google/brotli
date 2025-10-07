@@ -203,9 +203,19 @@ OR:
 #define BROTLI_TARGET_LOONGARCH64
 #endif
 
+/* This does not seem to be an indicator of z/Architecture (64-bit); neither
+   that allows to use unaligned loads. */
+#if defined(__s390x__)
+#define BROTLI_TARGET_S390X
+#endif
+
+#if defined(__mips64)
+#define BROTLI_TARGET_MIPS64
+#endif
+
 #if defined(BROTLI_TARGET_X64) || defined(BROTLI_TARGET_ARMV8_64) || \
     defined(BROTLI_TARGET_POWERPC64) || defined(BROTLI_TARGET_RISCV64) || \
-    defined(BROTLI_TARGET_LOONGARCH64)
+    defined(BROTLI_TARGET_LOONGARCH64) || defined(BROTLI_TARGET_MIPS64)
 #define BROTLI_TARGET_64_BITS 1
 #else
 #define BROTLI_TARGET_64_BITS 0
