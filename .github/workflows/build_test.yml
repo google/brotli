@@ -28,17 +28,35 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          - name: cmake:gcc
+            build_system: cmake
+            c_compiler: gcc
+            cxx_compiler: g++
+
           - name: cmake:gcc-old
             build_system: cmake
             c_compiler: gcc
             cxx_compiler: g++
             os: ubuntu-22.04
 
+          - name: cmake:clang
+            build_system: cmake
+            c_compiler: clang
+            cxx_compiler: clang
+
           - name: cmake:clang-old
             build_system: cmake
             c_compiler: clang
             cxx_compiler: clang
             os: ubuntu-22.04
+
+          - name: cmake:package
+            build_system: cmake
+            cmake_args: -DBROTLI_BUILD_FOR_PACKAGE=ON
+
+          - name: cmake:static
+            build_system: cmake
+            cmake_args: -DBUILD_SHARED_LIBS=OFF
 
           - name: cmake:clang:asan
             build_system: cmake
@@ -192,7 +210,7 @@ jobs:
       if: ${{ matrix.build_system == 'cmake' }}
       run: |
         export ASAN_OPTIONS=detect_leaks=0
-        declare -a CMAKE_OPTIONS=()
+        declare -a CMAKE_OPTIONS=(${{ matrix.cmake_args || '' }})
         CMAKE_OPTIONS+=("-DCMAKE_VERBOSE_MAKEFILE=ON")
         [ ! -z '${{ matrix.c_compiler || '' }}' ] && CMAKE_OPTIONS+=(-DCMAKE_C_COMPILER='${{ matrix.c_compiler }}')
         [ ! -z '${{ matrix.cxx_compiler || '' }}' ] && CMAKE_OPTIONS+=(-DCMAKE_CXX_COMPILER='${{ matrix.cxx_compiler }}')
