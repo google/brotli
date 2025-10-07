@@ -7,5 +7,5 @@ Name: libbrotlicommon
 URL: https://github.com/google/brotli
 Description: Brotli common dictionary library
 Version: @PACKAGE_VERSION@
-Libs: -L${libdir} -lbrotlicommon
+Libs: -L${libdir} -lbrotlicommon @libm@
 Cflags: -I${includedir}
