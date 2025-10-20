@@ -138,7 +138,7 @@ jobs:
 
     - name: Upload binaries to release
       if: github.event_name == 'release'
-      uses: softprops/action-gh-release@62c96d0c4e8a889135c1f3a25910db8dbe0e85f7 # v0.1.15
+      uses: softprops/action-gh-release@6da8fa9354ddfdc4aeace5fc48d7f679b5214090 # v0.1.15
       with:
         files: brotli-${{matrix.triplet}}.zip
 
@@ -167,7 +167,7 @@ jobs:
 
     - name: Upload archive to release
       if: github.event_name == 'release'
-      uses: softprops/action-gh-release@62c96d0c4e8a889135c1f3a25910db8dbe0e85f7 # v0.1.15
+      uses: softprops/action-gh-release@6da8fa9354ddfdc4aeace5fc48d7f679b5214090 # v0.1.15
       with:
         files: testdata.txz
 
