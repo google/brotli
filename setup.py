@@ -158,7 +158,8 @@ CLASSIFIERS = [
     "Development Status :: 4 - Beta",
     "Environment :: Console",
     "Intended Audience :: Developers",
-    "License :: OSI Approved :: MIT License",
+    # Deprecated, see https://packaging.python.org/en/latest/guides/writing-pyproject-toml/#license for details.
+    # "License :: OSI Approved :: MIT License",
     "Operating System :: MacOS :: MacOS X",
     "Operating System :: Microsoft :: Windows",
     "Operating System :: POSIX :: Linux",

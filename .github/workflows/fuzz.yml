@@ -27,13 +27,13 @@ jobs:
         egress-policy: audit
 
     - name: Build Fuzzers
-      uses: google/oss-fuzz/infra/cifuzz/actions/build_fuzzers@master
+      uses: google/oss-fuzz/infra/cifuzz/actions/build_fuzzers@3e6a7fd7bcd631647ab9beed1fe0897498e6af39 # 22.09.2025
       with:
         oss-fuzz-project-name: 'brotli'
         dry-run: false
 
     - name: Run Fuzzers
-      uses: google/oss-fuzz/infra/cifuzz/actions/run_fuzzers@master
+      uses: google/oss-fuzz/infra/cifuzz/actions/run_fuzzers@3e6a7fd7bcd631647ab9beed1fe0897498e6af39 # 22.09.2025
       with:
         oss-fuzz-project-name: 'brotli'
         fuzz-seconds: 600

@@ -69,7 +69,7 @@ jobs:
         egress-policy: audit
 
     - name: Checkout the source
-      uses: actions/checkout@3df4ab11eba7bda6032a0b82a6bb43b11571feac # v4.0.0
+      uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
       with:
         submodules: false
         fetch-depth: 1
@@ -85,7 +85,7 @@ jobs:
       shell: 'powershell'
       run: |
         Invoke-WebRequest -Uri "https://github.com/microsoft/vcpkg/archive/refs/tags/${{ env.VCPKG_VERSION }}.zip" -OutFile "vcpkg.zip"
-        
+
     - name: Bootstrap vcpkg
       if: steps.cache-vcpkg.outputs.cache-hit != 'true'
       shell: 'bash'
@@ -138,7 +138,7 @@ jobs:
 
     - name: Upload binaries to release
       if: github.event_name == 'release'
-      uses: softprops/action-gh-release@62c96d0c4e8a889135c1f3a25910db8dbe0e85f7 # v0.1.15
+      uses: softprops/action-gh-release@6da8fa9354ddfdc4aeace5fc48d7f679b5214090 # v2.4.1
       with:
         files: brotli-${{matrix.triplet}}.zip
 
@@ -156,7 +156,7 @@ jobs:
         egress-policy: audit
 
     - name: Checkout the source
-      uses: actions/checkout@3df4ab11eba7bda6032a0b82a6bb43b11571feac # v4.0.0
+      uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
       with:
         submodules: false
         fetch-depth: 1
@@ -167,7 +167,7 @@ jobs:
 
     - name: Upload archive to release
       if: github.event_name == 'release'
-      uses: softprops/action-gh-release@62c96d0c4e8a889135c1f3a25910db8dbe0e85f7 # v0.1.15
+      uses: softprops/action-gh-release@6da8fa9354ddfdc4aeace5fc48d7f679b5214090 # v2.4.1
       with:
         files: testdata.txz
 
@@ -186,7 +186,7 @@ jobs:
         egress-policy: audit
 
     - name: Checkout the source
-      uses: actions/checkout@3df4ab11eba7bda6032a0b82a6bb43b11571feac # v4.0.0
+      uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
       with:
         submodules: false
         fetch-depth: 1

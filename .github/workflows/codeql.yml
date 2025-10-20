@@ -40,11 +40,11 @@ jobs:
         egress-policy: audit
 
     - name: Checkout repository
-      uses: actions/checkout@3df4ab11eba7bda6032a0b82a6bb43b11571feac # v4.0.0
+      uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
 
     # Initializes the CodeQL tools for scanning.
     - name: Initialize CodeQL
-      uses: github/codeql-action/init@43750fe4fc4f068f04f2215206e6f6a29c78c763 # v2.14.4
+      uses: github/codeql-action/init@f443b600d91635bebf5b0d9ebc620189c0d6fba5 # v3.29.5
       with:
         languages: ${{ matrix.language }}
         # CodeQL is currently crashing on files with large lists:
@@ -56,7 +56,7 @@ jobs:
 
     - if: matrix.language == 'cpp'
       name: Build CPP
-      uses: github/codeql-action/autobuild@43750fe4fc4f068f04f2215206e6f6a29c78c763 # v2.14.4
+      uses: github/codeql-action/autobuild@f443b600d91635bebf5b0d9ebc620189c0d6fba5 # v3.29.5
 
     - if: matrix.language == 'cpp' || matrix.language == 'java'
       name: Build Java
@@ -66,7 +66,7 @@ jobs:
 
     - if: matrix.language == 'javascript'
       name: Build JS
-      uses: github/codeql-action/autobuild@43750fe4fc4f068f04f2215206e6f6a29c78c763 # v2.14.4
+      uses: github/codeql-action/autobuild@f443b600d91635bebf5b0d9ebc620189c0d6fba5 # v3.29.5
 
     - if: matrix.language == 'cpp' || matrix.language == 'python'
       name: Build Python
@@ -74,7 +74,7 @@ jobs:
         python setup.py build_ext
 
     - name: Perform CodeQL Analysis
-      uses: github/codeql-action/analyze@43750fe4fc4f068f04f2215206e6f6a29c78c763 # v2.14.4
+      uses: github/codeql-action/analyze@f443b600d91635bebf5b0d9ebc620189c0d6fba5 # v3.29.5
       with:
         category: "/language:${{matrix.language}}"
         ref: "${{ github.ref != 'master' && github.ref || '/refs/heads/master' }}"
