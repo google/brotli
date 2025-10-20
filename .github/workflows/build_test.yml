@@ -6,12 +6,16 @@
 # Workflow for building and running tests under Ubuntu
 
 name: Build/Test
+
 on:
   push:
     branches:
       - master
   pull_request:
-    types: [opened, reopened, labeled, synchronize]
+    types: [opened, reopened, labeled, unlabeled, synchronize]
+
+permissions:
+  contents: read
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}
@@ -192,6 +196,12 @@ jobs:
       CXX: ${{ matrix.cxx_compiler || 'gcc' }}
 
     steps:
+
+    - name: Harden Runner
+      uses: step-security/harden-runner@f4a75cfd619ee5ce8d5b864b0d183aff3c69b55a # v2.13.1
+      with:
+        egress-policy: audit
+
     - name: Install extra deps @ Ubuntu
       if: ${{ runner.os == 'Linux' }}
       # Already installed: bazel, clang{13-15}, cmake, gcc{9.5-13.1}, java{8,11,17,21}, maven, python{3.10}
@@ -318,6 +328,11 @@ jobs:
     container:
       image: ubuntu:22.04
     steps:
+
+    - name: Harden Runner
+      uses: step-security/harden-runner@f4a75cfd619ee5ce8d5b864b0d183aff3c69b55a # v2.13.1
+      with:
+        egress-policy: audit
 
     - name: Install deps
       run: |

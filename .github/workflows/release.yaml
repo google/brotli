@@ -14,7 +14,10 @@ on:
   release:
     types: [ published ]
   pull_request:
-    types: [opened, reopened, labeled, synchronize]
+    types: [opened, reopened, labeled, unlabeled, synchronize]
+
+permissions:
+  contents: read
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}
@@ -59,6 +62,12 @@ jobs:
       VCPKG_DISABLE_METRICS: 1
 
     steps:
+
+    - name: Harden Runner
+      uses: step-security/harden-runner@f4a75cfd619ee5ce8d5b864b0d183aff3c69b55a # v2.13.1
+      with:
+        egress-policy: audit
+
     - name: Checkout the source
       uses: actions/checkout@3df4ab11eba7bda6032a0b82a6bb43b11571feac # v4.0.0
       with:
@@ -100,17 +109,20 @@ jobs:
           -DCMAKE_TOOLCHAIN_FILE=${VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake \
           -DVCPKG_TARGET_TRIPLET=${{ matrix.triplet }} \
         #
+
     - name: Build
       shell: 'bash'
       run: |
         set -x
         cmake --build out --config Release
+
     - name: Install
       shell: 'bash'
       run: |
         set -x
         cmake --build out --config Release --target install
         cp LICENSE prefix/bin/LICENSE.brotli
+
     - name: Upload artifacts
       uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
       with:
@@ -138,6 +150,11 @@ jobs:
         shell: bash
     steps:
 
+    - name: Harden Runner
+      uses: step-security/harden-runner@f4a75cfd619ee5ce8d5b864b0d183aff3c69b55a # v2.13.1
+      with:
+        egress-policy: audit
+
     - name: Checkout the source
       uses: actions/checkout@3df4ab11eba7bda6032a0b82a6bb43b11571feac # v4.0.0
       with:
@@ -162,6 +179,11 @@ jobs:
       run:
         shell: bash
     steps:
+
+    - name: Harden Runner
+      uses: step-security/harden-runner@f4a75cfd619ee5ce8d5b864b0d183aff3c69b55a # v2.13.1
+      with:
+        egress-policy: audit
 
     - name: Checkout the source
       uses: actions/checkout@3df4ab11eba7bda6032a0b82a6bb43b11571feac # v4.0.0

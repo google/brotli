@@ -1,3 +1,10 @@
+# Copyright 2025 Google Inc. All Rights Reserved.
+#
+# Distributed under MIT license.
+# See file LICENSE for detail or copy at https://opensource.org/licenses/MIT
+
+# Workflow for checking typos and buildifier, formatting, etc.
+
 name: "Lint"
 
 on:
@@ -7,6 +14,9 @@ on:
     branches: [ "master" ]
   schedule:
     - cron: '18 15 * * 0'
+
+permissions:
+  contents: read
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}
@@ -18,6 +28,12 @@ jobs:
     runs-on: 'ubuntu-latest'
 
     steps:
+
+    - name: Harden Runner
+      uses: step-security/harden-runner@f4a75cfd619ee5ce8d5b864b0d183aff3c69b55a # v2.13.1
+      with:
+        egress-policy: audit
+
     - name: Checkout repository
       uses: actions/checkout@3df4ab11eba7bda6032a0b82a6bb43b11571feac # v4.0.0
 

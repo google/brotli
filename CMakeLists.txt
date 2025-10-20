@@ -10,17 +10,8 @@ cmake_minimum_required(VERSION 3.15)
 cmake_policy(SET CMP0048 NEW)
 project(brotli C)
 
-# Reflect CMake variable as a build option.
-option(BUILD_SHARED_LIBS "Build shared libraries" ON)
-set(BROTLI_BUILD_TOOLS ON CACHE BOOL "Build/install CLI tools")
-set(BROTLI_BUILD_FOR_PACKAGE OFF CACHE BOOL "Build/install both shared and static libraries")
-
-if (BROTLI_BUILD_FOR_PACKAGE AND NOT BUILD_SHARED_LIBS)
-  message(FATAL_ERROR "Both BROTLI_BUILD_FOR_PACKAGE and BUILD_SHARED_LIBS are set.")
-endif()
-
 if (NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
-  message(STATUS "Setting build type to Release as none was specified.")
+  message(STATUS "Setting build type to Release as none was specified")
   set(CMAKE_BUILD_TYPE "Release" CACHE STRING "Choose the type of build" FORCE)
 else()
   message(STATUS "Build type is '${CMAKE_BUILD_TYPE}'")
@@ -37,6 +28,20 @@ if (BROTLI_EMSCRIPTEN)
   message("-- Compiler is EMSCRIPTEN")
 else()
   message("-- Compiler is not EMSCRIPTEN")
+endif()
+
+if (BROTLI_EMSCRIPTEN)
+  message(STATUS "Switching to static build for EMSCRIPTEN")
+  set(BUILD_SHARED_LIBS OFF)
+endif()
+
+# Reflect CMake variable as a build option.
+option(BUILD_SHARED_LIBS "Build shared libraries" ON)
+set(BROTLI_BUILD_TOOLS ON CACHE BOOL "Build/install CLI tools")
+set(BROTLI_BUILD_FOR_PACKAGE OFF CACHE BOOL "Build/install both shared and static libraries")
+
+if (BROTLI_BUILD_FOR_PACKAGE AND NOT BUILD_SHARED_LIBS)
+  message(FATAL_ERROR "Both BROTLI_BUILD_FOR_PACKAGE and BUILD_SHARED_LIBS are set")
 endif()
 
 # If Brotli is being bundled in another project, we don't want to
@@ -86,9 +91,13 @@ endif ()
 
 include(CheckLibraryExists)
 set(LIBM_LIBRARY)
+set(LIBM_DEP)
 CHECK_LIBRARY_EXISTS(m log2 "" HAVE_LIB_M)
 if (HAVE_LIB_M)
   set(LIBM_LIBRARY "m")
+  if (NOT BUILD_SHARED_LIBS)
+    set(LIBM_DEP "-lm")
+  endif()
 endif()
 
 set(BROTLI_INCLUDE_DIRS "${CMAKE_CURRENT_SOURCE_DIR}/c/include")
@@ -110,16 +119,10 @@ else()  # NOT BROTLI_BUILD_FOR_PACKAGE
 endif()  # BROTLI_BUILD_FOR_PACKAGE
 mark_as_advanced(BROTLI_LIBRARIES)
 
-if (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
-  add_definitions(-DOS_LINUX)
-elseif (${CMAKE_SYSTEM_NAME} MATCHES "FreeBSD")
-  add_definitions(-DOS_FREEBSD)
-elseif (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
-  add_definitions(-DOS_MACOSX)
-endif()  # CMAKE_SYSTEM_NAME
+if (MSVC)
+  message(STATUS "Defining _CRT_SECURE_NO_WARNINGS to avoid warnings about security")
 
-if (BROTLI_EMSCRIPTEN)
-  set(BUILD_SHARED_LIBS OFF)
+  add_definitions(-D_CRT_SECURE_NO_WARNINGS)
 endif()
 
 file(GLOB_RECURSE BROTLI_COMMON_SOURCES RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} c/common/*.c)
@@ -159,10 +162,8 @@ foreach(lib ${BROTLI_SHARED_LIBRARIES} ${BROTLI_STATIC_LIBRARIES})
   set_property(TARGET ${lib} APPEND PROPERTY INTERFACE_INCLUDE_DIRECTORIES "$<BUILD_INTERFACE:${BROTLI_INCLUDE_DIRS}>")
 endforeach()  # BROTLI_xxx_LIBRARIES
 
-if (NOT BROTLI_EMSCRIPTEN)
-  target_link_libraries(brotlidec brotlicommon)
-  target_link_libraries(brotlienc brotlicommon)
-endif()
+target_link_libraries(brotlidec brotlicommon)
+target_link_libraries(brotlienc brotlicommon)
 
 # For projects stuck on older versions of CMake, this will set the
 # BROTLI_INCLUDE_DIRS and BROTLI_LIBRARIES variables so they still
@@ -216,7 +217,14 @@ if (NOT BROTLI_DISABLE_TESTS AND BROTLI_BUILD_TOOLS)
       message(STATUS "wine not found, disabling tests")
       set(BROTLI_DISABLE_TESTS TRUE)
     endif()
-  endif()
+  endif()  # WIN32 emulation
+  if (BROTLI_EMSCRIPTEN)
+    find_program(BROTLI_WRAPPER NAMES node)
+    if (NOT BROTLI_WRAPPER)
+      message(STATUS "node not found, disabling tests")
+      set(BROTLI_DISABLE_TESTS TRUE)
+    endif()
+  endif()  # BROTLI_EMSCRIPTEN
 endif()  # BROTLI_DISABLE_TESTS
 
 # NB: BROTLI_DISABLE_TESTS might have changed.
@@ -346,6 +354,7 @@ function(transform_pc_file INPUT_FILE OUTPUT_FILE VERSION)
   set(PREFIX "${CMAKE_INSTALL_PREFIX}")
   string(REGEX REPLACE "@prefix@" "${PREFIX}" TEXT ${TEXT})
   string(REGEX REPLACE "@exec_prefix@" "${PREFIX}" TEXT ${TEXT})
+  string(REGEX REPLACE "@libm@" "${LIBM_DEP}" TEXT ${TEXT})
 
   generate_pkg_config_path(LIBDIR "${CMAKE_INSTALL_FULL_LIBDIR}" prefix "${PREFIX}")
   string(REGEX REPLACE "@libdir@" "${LIBDIR}" TEXT ${TEXT})
