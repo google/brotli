@@ -72,10 +72,10 @@ final class BitReader {
     while (bytesInBuffer < CAPACITY) {
       final int spaceLeft = CAPACITY - bytesInBuffer;
       final int len = Utils.readInput(s, s.byteBuffer, bytesInBuffer, spaceLeft);
-      // EOF is -1 in Java, but 0 in C#.
       if (len < BROTLI_ERROR) {
         return len;
       }
+      // EOF is -1 in Java, but 0 in C#.
       if (len <= 0) {
         s.endOfStreamReached = 1;
         s.tailBytes = bytesInBuffer;
@@ -276,10 +276,10 @@ final class BitReader {
     // Now it is possible to copy bytes directly.
     while (len > 0) {
       final int chunkLen = Utils.readInput(s, data, pos, len);
-      // EOF is -1 in Java, but 0 in C#.
-      if (len < BROTLI_ERROR) {
-        return len;
+      if (chunkLen < BROTLI_ERROR) {
+        return chunkLen;
       }
+      // EOF is -1 in Java, but 0 in C#.
       if (chunkLen <= 0) {
         return Utils.makeError(s, BROTLI_ERROR_TRUNCATED_INPUT);
       }
