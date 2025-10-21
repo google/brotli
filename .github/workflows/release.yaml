@@ -175,6 +175,12 @@ jobs:
       contents: write
 
     steps:
+    - name: Checkout the source
+      uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+      with:
+        submodules: false
+        fetch-depth: 1
+
     - name: Download all artifacts
       uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5.0.0
       with:
@@ -190,6 +196,7 @@ jobs:
   archive_build:
     needs: testdata_upload
     name: Build and test from archive
+    needs: [publish_release_assets]
     runs-on: 'ubuntu-latest'
     defaults:
       run:
