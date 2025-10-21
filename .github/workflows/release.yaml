@@ -194,9 +194,8 @@ jobs:
         gh release upload ${{ github.event.release.tag_name }} ./release_assets/*
 
   archive_build:
-    needs: testdata_upload
+    needs: publish_release_assets
     name: Build and test from archive
-    needs: [publish_release_assets]
     runs-on: 'ubuntu-latest'
     defaults:
       run:
