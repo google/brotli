@@ -123,24 +123,18 @@ jobs:
         cmake --build out --config Release --target install
         cp LICENSE prefix/bin/LICENSE.brotli
 
-    - name: Upload artifacts
-      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
-      with:
-        name: brotli-${{matrix.triplet}}
-        path: |
-          prefix/bin/*
-
     - name: Package release zip
       shell: 'powershell'
       run: |
         Compress-Archive -Path prefix\bin\* `
           -DestinationPath brotli-${{matrix.triplet}}.zip
 
-    - name: Upload binaries to release
-      if: github.event_name == 'release'
-      uses: softprops/action-gh-release@6da8fa9354ddfdc4aeace5fc48d7f679b5214090 # v2.4.1
+    - name: Upload package
+      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
       with:
-        files: brotli-${{matrix.triplet}}.zip
+        name: brotli-${{matrix.triplet}}
+        path: brotli-${{matrix.triplet}}.zip
+        compression-level: 0
 
   testdata_upload:
     name: Upload testdata
@@ -165,11 +159,33 @@ jobs:
       run: |
         tar cvfJ testdata.txz tests/testdata
 
-    - name: Upload archive to release
-      if: github.event_name == 'release'
-      uses: softprops/action-gh-release@6da8fa9354ddfdc4aeace5fc48d7f679b5214090 # v2.4.1
+    - name: Upload archive
+      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
       with:
-        files: testdata.txz
+        name: testdata
+        path: testdata.txz
+        compression-level: 0
+
+  publish_release_assets:
+    name: Publish release assets
+    needs: [windows_build, testdata_upload]
+    if: github.event_name == 'release'
+    runs-on: [ubuntu-latest]
+    permissions:
+      contents: write
+
+    steps:
+    - name: Download all artifacts
+      uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5.0.0
+      with:
+        path: release_assets
+        merge-multiple: true
+
+    - name: Publish assets
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        gh release upload ${{ github.event.release.tag_name }} ./release_assets/*
 
   archive_build:
     needs: testdata_upload
