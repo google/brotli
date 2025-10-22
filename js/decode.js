@@ -2026,8 +2026,8 @@ let makeBrotliDecode = () => {
     }
     while (len > 0) {
       const /** @type {number} */ chunkLen = readInput(s, data, pos, len);
-      if (len < -1) {
-        return len;
+      if (chunkLen < -1) {
+        return chunkLen;
       }
       if (chunkLen <= 0) {
         return makeError(s, -16);

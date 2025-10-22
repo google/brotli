@@ -1879,8 +1879,8 @@ func copyRawBytes(s *_State, data []int8, offset int32, length int32) int32 {
 	}
 	for len > 0 {
 		var chunkLen int32 = readInput(s, data, pos, len)
-		if len < -1 {
-			return len
+		if chunkLen < -1 {
+			return chunkLen
 		}
 		if chunkLen <= 0 {
 			return makeError(s, -16)

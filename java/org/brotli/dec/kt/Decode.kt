@@ -1706,8 +1706,8 @@ internal fun copyRawBytes(s: State, data: ByteArray, offset: Int, length: Int): 
   }
   while (len > 0) {
     val chunkLen: Int = readInput(s, data, pos, len);
-    if (len < -1) {
-      return len;
+    if (chunkLen < -1) {
+      return chunkLen;
     }
     if (chunkLen <= 0) {
       return makeError(s, -16);
