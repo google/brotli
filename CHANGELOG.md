@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
-## [1.2.0] - 2025-10-xx
+## [1.2.0] - 2025-10-27
 
 ### SECURITY
  - python: added `Decompressor::can_accept_more_data` method and optional
