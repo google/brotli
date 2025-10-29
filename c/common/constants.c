@@ -6,7 +6,7 @@
 
 #include "constants.h"
 
-const BROTLI_MODEL("small")
+const
 BrotliPrefixCodeRange _kBrotliPrefixCodeRanges[BROTLI_NUM_BLOCK_LEN_SYMBOLS] = {
     {1, 2},     {5, 2},     {9, 2},   {13, 2},    {17, 3},    {25, 3},
     {33, 3},    {41, 3},    {49, 4},  {65, 4},    {81, 4},    {97, 4},

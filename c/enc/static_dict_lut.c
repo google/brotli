@@ -207,9 +207,7 @@ BROTLI_BOOL BrotliEncoderInitStaticDictionaryLut(
   return ok;
 }
 
-BROTLI_MODEL("small")
 uint16_t kStaticDictionaryBuckets[BROTLI_ENC_STATIC_DICT_LUT_NUM_BUCKETS];
-BROTLI_MODEL("small")
 DictWord kStaticDictionaryWords[BROTLI_ENC_STATIC_DICT_LUT_NUM_ITEMS];
 
 #else  /* BROTLI_STATIC_INIT */

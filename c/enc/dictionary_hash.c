@@ -128,9 +128,7 @@ BROTLI_BOOL BROTLI_COLD BrotliEncoderInitDictionaryHash(
   return BROTLI_TRUE;
 }
 
-BROTLI_MODEL("small")
 uint16_t kStaticDictionaryHashWords[BROTLI_ENC_NUM_HASH_BUCKETS];
-BROTLI_MODEL("small")
 uint8_t kStaticDictionaryHashLengths[BROTLI_ENC_NUM_HASH_BUCKETS];
 
 #else  /* BROTLI_STATIC_INIT */

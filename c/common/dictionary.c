@@ -14,9 +14,9 @@ extern "C" {
 #if !defined(BROTLI_EXTERNAL_DICTIONARY_DATA)
 /* Embed kBrotliDictionaryData */
 #include "dictionary_inc.h"
-static const BROTLI_MODEL("small") BrotliDictionary kBrotliDictionary = {
+static const BrotliDictionary kBrotliDictionary = {
 #else
-static BROTLI_MODEL("small") BrotliDictionary kBrotliDictionary = {
+static BrotliDictionary kBrotliDictionary = {
 #endif
   /* size_bits_by_length */
   {
