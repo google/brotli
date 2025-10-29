@@ -22,7 +22,7 @@ extern "C" {
   ((sizeof(brotli_reg_t) << 3) - BROTLI_REVERSE_BITS_MAX)
 #else
 #define BROTLI_REVERSE_BITS_BASE 0
-static BROTLI_MODEL("small")
+static
 uint8_t kReverseBits[1 << BROTLI_REVERSE_BITS_MAX] = {
   0x00, 0x80, 0x40, 0xC0, 0x20, 0xA0, 0x60, 0xE0,
   0x10, 0x90, 0x50, 0xD0, 0x30, 0xB0, 0x70, 0xF0,

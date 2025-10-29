@@ -27,14 +27,14 @@ extern "C" {
 #if (BROTLI_STATIC_INIT != BROTLI_STATIC_INIT_NONE)
 BROTLI_BOOL BROTLI_INTERNAL BrotliEncoderInitDictionaryHash(
     const BrotliDictionary* dictionary, uint16_t* words, uint8_t* lengths);
-BROTLI_INTERNAL extern BROTLI_MODEL("small") uint16_t
+BROTLI_INTERNAL extern uint16_t
     kStaticDictionaryHashWords[BROTLI_ENC_NUM_HASH_BUCKETS];
-BROTLI_INTERNAL extern BROTLI_MODEL("small") uint8_t
+BROTLI_INTERNAL extern uint8_t
     kStaticDictionaryHashLengths[BROTLI_ENC_NUM_HASH_BUCKETS];
 #else
-BROTLI_INTERNAL extern const BROTLI_MODEL("small") uint16_t
+BROTLI_INTERNAL extern const uint16_t
     kStaticDictionaryHashWords[BROTLI_ENC_NUM_HASH_BUCKETS];
-BROTLI_INTERNAL extern const BROTLI_MODEL("small") uint8_t
+BROTLI_INTERNAL extern const uint8_t
     kStaticDictionaryHashLengths[BROTLI_ENC_NUM_HASH_BUCKETS];
 #endif
 

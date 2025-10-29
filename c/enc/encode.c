@@ -200,7 +200,7 @@ static void EncodeWindowBits(int lgwin, BROTLI_BOOL large_window,
 /* TODO(eustas): move to compress_fragment.c? */
 /* Initializes the command and distance prefix codes for the first block. */
 static void InitCommandPrefixCodes(BrotliOnePassArena* s) {
-  static const BROTLI_MODEL("small") uint8_t kDefaultCommandDepths[128] = {
+  static const uint8_t kDefaultCommandDepths[128] = {
     0, 4, 4, 5, 6, 6, 7, 7, 7, 7, 7, 8, 8, 8, 8, 8,
     0, 0, 0, 4, 4, 4, 4, 4, 5, 5, 6, 6, 6, 6, 7, 7,
     7, 7, 10, 10, 10, 10, 10, 10, 0, 4, 4, 5, 5, 5, 6, 6,
@@ -210,7 +210,7 @@ static void InitCommandPrefixCodes(BrotliOnePassArena* s) {
     4, 4, 4, 5, 5, 5, 5, 5, 5, 6, 6, 7, 7, 7, 8, 10,
     12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12,
   };
-  static const BROTLI_MODEL("small") uint16_t kDefaultCommandBits[128] = {
+  static const uint16_t kDefaultCommandBits[128] = {
     0,   0,   8,   9,   3,  35,   7,   71,
     39, 103,  23,  47, 175, 111, 239,   31,
     0,   0,   0,   4,  12,   2,  10,    6,
@@ -224,7 +224,7 @@ static void InitCommandPrefixCodes(BrotliOnePassArena* s) {
     2, 10, 6, 21, 13, 29, 3, 19, 11, 15, 47, 31, 95, 63, 127, 255,
     767, 2815, 1791, 3839, 511, 2559, 1535, 3583, 1023, 3071, 2047, 4095,
   };
-  static const BROTLI_MODEL("small") uint8_t kDefaultCommandCode[] = {
+  static const uint8_t kDefaultCommandCode[] = {
     0xff, 0x77, 0xd5, 0xbf, 0xe7, 0xde, 0xea, 0x9e, 0x51, 0x5d, 0xde, 0xc6,
     0x70, 0x57, 0xbc, 0x58, 0x58, 0x58, 0xd8, 0xd8, 0x58, 0xd5, 0xcb, 0x8c,
     0xea, 0xe0, 0xc3, 0x87, 0x1f, 0x83, 0xc1, 0x60, 0x1c, 0x67, 0xb2, 0xaa,
@@ -265,14 +265,14 @@ static void ChooseContextMap(int quality,
                              uint32_t* bigram_histo,
                              size_t* num_literal_contexts,
                              const uint32_t** literal_context_map) {
-  static const BROTLI_MODEL("small")
+  static const
   uint32_t kStaticContextMapContinuation[64] = {
     1, 1, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
   };
-  static const BROTLI_MODEL("small")
+  static const
   uint32_t kStaticContextMapSimpleUTF8[64] = {
     0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -329,7 +329,7 @@ static BROTLI_BOOL ShouldUseComplexStaticContextMap(const uint8_t* input,
     size_t start_pos, size_t length, size_t mask, int quality, size_t size_hint,
     size_t* num_literal_contexts, const uint32_t** literal_context_map,
     uint32_t* arena) {
-  static const BROTLI_MODEL("small")
+  static const
   uint32_t kStaticContextMapComplexUTF8[64] = {
     11, 11, 12, 12, /* 0 special */
     0, 0, 0, 0, /* 4 lf */

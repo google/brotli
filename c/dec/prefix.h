@@ -28,11 +28,11 @@ typedef struct CmdLutElement {
 } CmdLutElement;
 
 #if (BROTLI_STATIC_INIT == BROTLI_STATIC_INIT_NONE)
-BROTLI_INTERNAL extern const BROTLI_MODEL("small")
+BROTLI_INTERNAL extern const
     CmdLutElement kCmdLut[BROTLI_NUM_COMMAND_SYMBOLS];
 #else
 BROTLI_INTERNAL BROTLI_BOOL BrotliDecoderInitCmdLut(CmdLutElement* items);
-BROTLI_INTERNAL extern BROTLI_MODEL("small")
+BROTLI_INTERNAL extern
     CmdLutElement kCmdLut[BROTLI_NUM_COMMAND_SYMBOLS];
 #endif
 

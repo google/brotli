@@ -58,7 +58,6 @@ BROTLI_COLD BROTLI_BOOL BrotliDecoderInitCmdLut(CmdLutElement* items) {
   return BROTLI_TRUE;
 }
 
-BROTLI_MODEL("small")
 CmdLutElement kCmdLut[BROTLI_NUM_COMMAND_SYMBOLS];
 #endif  /* BROTLI_STATIC_INIT */
 
