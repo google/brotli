@@ -180,6 +180,8 @@ endif()
 if (BROTLI_BUILD_TOOLS)
   add_executable(brotli c/tools/brotli.c)
   target_link_libraries(brotli ${BROTLI_LIBRARIES})
+  # brotli is a CLI tool
+  set_target_properties(brotli PROPERTIES MACOSX_BUNDLE OFF)
 endif()
 
 # Installation
