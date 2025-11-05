@@ -100,6 +100,16 @@ jobs:
             cxx_compiler: g++
             os: macos-latest
 
+          - name: cmake-ios:clang
+            build_system: cmake
+            c_compiler: clang
+            cxx_compiler: clang++
+            os: macos-latest
+            skip_tests: true  # TODO(eustas): run tests in a simulator
+            cmake_args: >-
+              -DCMAKE_SYSTEM_NAME=iOS
+              -DCMAKE_OSX_ARCHITECTURES=arm64
+
           - name: cmake-win64:msvc-rel
             build_system: cmake
             cmake_generator: Visual Studio 17 2022
@@ -233,7 +243,9 @@ jobs:
 
         cmake -B out . ${CMAKE_OPTIONS[*]} -DCMAKE_C_FLAGS='${{ matrix.c_flags || '' }}'
         cmake --build out ${CMAKE_BUILD_OPTIONS[*]}
-        cd out; ctest ${CMAKE_TEST_OPTIONS[*]}; cd ..
+        cd out
+        [ ! -z '${{ matrix.skip_tests || '' }}' ] || ctest ${CMAKE_TEST_OPTIONS[*]}
+        cd ..
 
     - name: Quick Fuzz
       if: ${{ matrix.build_system == 'fuzz' }}
