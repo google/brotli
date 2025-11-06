@@ -140,7 +140,7 @@ class BuildExt(build_ext):
         )
 
 
-NAME = "Brotli"
+NAME = "brotli"
 
 VERSION = get_version()
 
