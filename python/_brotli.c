@@ -170,7 +170,7 @@ PyDoc_STRVAR(brotli_Decompressor_is_finished_doc,
 "  False otherwise\n");
 PyDoc_STRVAR(brotli_Decompressor_can_accept_more_data_doc,
 "Checks if the decoder instance can accept more compressed data.\n"
-"If the 'decompress()' method on this instance of decompressor was never\n"
+"If the 'process()' method on this instance of decompressor was never\n"
 "called with 'max_length', this method will always return True.\n"
 "\n"
 "Signature:"
@@ -178,8 +178,8 @@ PyDoc_STRVAR(brotli_Decompressor_can_accept_more_data_doc,
 "\n"
 "Returns:\n"
 "  True  if the decoder is ready to accept more compressed data via\n"
-"        'decompress()'\n"
-"  False if the decoder needs to output some data via 'decompress(b'')'\n"
+"        'process()'\n"
+"  False if the decoder needs to output some data via 'process(b'')'\n"
 "        before being provided any more compressed data\n");
 PyDoc_STRVAR(brotli_decompress__doc__,
 "Decompress a compressed byte string.\n"
