@@ -171,7 +171,7 @@ PyDoc_STRVAR(brotli_Decompressor_is_finished_doc,
 PyDoc_STRVAR(brotli_Decompressor_can_accept_more_data_doc,
 "Checks if the decoder instance can accept more compressed data.\n"
 "If the 'process()' method on this instance of decompressor was never\n"
-"called with 'max_length', this method will always return True.\n"
+"called with 'output_buffer_limit', this method will always return True.\n"
 "\n"
 "Signature:"
 "  can_accept_more_data() -> bool\n"
