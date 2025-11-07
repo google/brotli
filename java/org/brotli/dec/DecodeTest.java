@@ -144,7 +144,6 @@ public class DecodeTest {
   public void testUtils() {
     new Context();
     new Decode();
-    new Dictionary();
     new Huffman();
   }
 }

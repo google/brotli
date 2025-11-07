@@ -6,6 +6,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 
+/** Toy decoder CLI; mostly used for simple benchmarking. */
 public class Decoder {
   private static long decodeBytes(InputStream input, OutputStream output, byte[] buffer)
       throws IOException {
@@ -53,6 +54,7 @@ public class Decoder {
     System.out.println(mbDecoded / timeDelta + " MiB/s");
   }
 
+  /** CLI entry point. */
   public static void main(String... args) throws IOException {
     if (args.length != 2 && args.length != 3) {
       System.out.println("Usage: decoder <compressed_in> <decompressed_out> [repeat]");
@@ -69,4 +71,7 @@ public class Decoder {
       decompress(args[0], args[1], buffer);
     }
   }
+
+  /** Non-instantiable. */
+  private Decoder() {}
 }
