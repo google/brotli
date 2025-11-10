@@ -41,6 +41,7 @@ public final class Dictionary {
 
   private static final int DICTIONARY_DEBUG = Utils.isDebugMode();
 
+  /** Initialize static dictionary. */
   public static void setData(ByteBuffer newData, int[] newSizeBits) {
     if (DICTIONARY_DEBUG != 0) {
       if ((Utils.isDirect(newData) == 0) || (Utils.isReadOnly(newData) == 0)) {
@@ -90,6 +91,7 @@ public final class Dictionary {
     Dictionary.data = newData;
   }
 
+  /** Access static dictionary. */
   public static ByteBuffer getData() {
     if (data.capacity() != 0) {
       return data;
@@ -100,4 +102,7 @@ public final class Dictionary {
     /* Might have been set when {@link DictionaryData} was loaded.*/
     return data;
   }
+
+  /** Non-instantiable. */
+  private Dictionary() {}
 }

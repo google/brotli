@@ -16,6 +16,7 @@ import java.io.InputStream;
  */
 public class BrotliInputStream extends InputStream {
 
+  /** Default size of internal buffer (used for faster byte-by-byte reading). */
   public static final int DEFAULT_INTERNAL_BUFFER_SIZE = 256;
 
   /**
@@ -93,14 +94,17 @@ public class BrotliInputStream extends InputStream {
     }
   }
 
+  /** Attach "RAW" dictionary (chunk) to decoder. */
   public void attachDictionaryChunk(byte[] data) {
     Decode.attachDictionaryChunk(state, data);
   }
 
+  /** Request decoder to produce output as soon as it is available. */
   public void enableEagerOutput() {
     Decode.enableEagerOutput(state);
   }
 
+  /** Enable "large window" stream feature. */
   public void enableLargeWindow() {
     Decode.enableLargeWindow(state);
   }
