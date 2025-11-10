@@ -22,12 +22,12 @@ class TestDecompressor(_test_utils.TestCase):
   MIN_OUTPUT_BUFFER_SIZE = 32768  # Actually, several bytes less.
 
   def setUp(self):
-    # super().setUp()  # Requires Py3+
+    super().setUp()
     self.decompressor = brotli.Decompressor()
 
   def tearDown(self):
     self.decompressor = None
-    # super().tearDown()  # Requires Py3+
+    super().tearDown()
 
   def _check_decompression(self, test_data):
     # Verify decompression matches the original.

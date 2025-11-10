@@ -20,7 +20,7 @@ class _TestCompressor(object):
 
   def tearDown(self):
     self.compressor = None
-    # super().tearDown()  # Requires Py3+
+    super().tearDown()
 
   def _check_decompression(self, test_data):
     # Write decompression to temp file and verify it matches the original.
@@ -71,28 +71,28 @@ _test_utils.generate_test_methods(_TestCompressor)
 class TestCompressorQuality1(_TestCompressor, _test_utils.TestCase):
 
   def setUp(self):
-    # super().setUp()  # Requires Py3+
+    super().setUp()
     self.compressor = brotli.Compressor(quality=1)
 
 
 class TestCompressorQuality6(_TestCompressor, _test_utils.TestCase):
 
   def setUp(self):
-    # super().setUp()  # Requires Py3+
+    super().setUp()
     self.compressor = brotli.Compressor(quality=6)
 
 
 class TestCompressorQuality9(_TestCompressor, _test_utils.TestCase):
 
   def setUp(self):
-    # super().setUp()  # Requires Py3+
+    super().setUp()
     self.compressor = brotli.Compressor(quality=9)
 
 
 class TestCompressorQuality11(_TestCompressor, _test_utils.TestCase):
 
   def setUp(self):
-    # super().setUp()  # Requires Py3+
+    super().setUp()
     self.compressor = brotli.Compressor(quality=11)
 
 

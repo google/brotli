@@ -5,13 +5,13 @@ import filecmp
 import glob
 import itertools
 import os
+import pathlib
 import sys
 import sysconfig
 import tempfile
 import unittest
 
-# TODO(eustas): use str(pathlib.PurePath(file).parent.parent) for Python 3.4+
-project_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+project_dir = str(pathlib.PurePath(__file__).parent.parent.parent)
 test_dir = os.getenv('BROTLI_TESTS_PATH')
 BRO_ARGS = [os.getenv('BROTLI_WRAPPER')]
 

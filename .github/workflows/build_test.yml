@@ -336,38 +336,6 @@ jobs:
         pip install setuptools==51.3.3
         python setup.py ${{ matrix.py_setuptools_cmd || 'test'}}
 
-  build_test_py27:
-    name: Build and test with Python 2.7
-    runs-on: ubuntu-latest
-    container:
-      image: ubuntu:22.04
-    steps:
-
-    - name: Harden Runner
-      uses: step-security/harden-runner@f4a75cfd619ee5ce8d5b864b0d183aff3c69b55a # v2.13.1
-      with:
-        egress-policy: audit
-
-    - name: Install deps
-      run: |
-        apt update
-        apt install -y curl gcc python2.7 python2.7-dev
-        curl https://bootstrap.pypa.io/pip/2.7/get-pip.py --output get-pip.py
-        python2.7 get-pip.py
-        python2.7 -m pip install distutils-pytest==0.1
-
-    - name: Checkout the source
-      uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
-      with:
-        submodules: false
-        fetch-depth: 1
-
-    - name: Build / Test
-      run: |
-        python2.7 -VV
-        python2.7 -c "import sys; sys.exit('Invalid python version') if '.'.join(map(str,sys.version_info[0:2])) != '2.7' else True"
-        python2.7 setup.py test
-
   build_test_dotnet:
     name: Build and test with .NET
     runs-on: ubuntu-latest
