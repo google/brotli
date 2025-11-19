@@ -3,116 +3,89 @@
 # Distributed under MIT license.
 # See file LICENSE for detail or copy at https://opensource.org/licenses/MIT
 
-import functools
-import os
-import unittest
-
 import brotli
+import pytest
 
 from . import _test_utils
 
-
-def _get_original_name(test_data):
-  return test_data.split('.compressed')[0]
+MIN_OUTPUT_BUFFER_SIZE = 32768  # Actually, several bytes less.
 
 
-class TestDecompressor(_test_utils.TestCase):
+@pytest.mark.parametrize(
+    'compressed_name, original_name', _test_utils.gather_compressed_inputs()
+)
+def test_decompress(compressed_name, original_name):
+  decompressor = brotli.Decompressor()
+  compressed = _test_utils.take_input(compressed_name)
+  original = _test_utils.take_input(original_name)
+  chunk_size = 1
+  chunks = _test_utils.chunk_input(compressed, chunk_size)
+  decompressed = b''
+  for chunk in chunks:
+    decompressed += decompressor.process(chunk)
+  assert decompressor.is_finished()
+  assert original == decompressed
 
-  CHUNK_SIZE = 1
-  MIN_OUTPUT_BUFFER_SIZE = 32768  # Actually, several bytes less.
 
-  def setUp(self):
-    super().setUp()
-    self.decompressor = brotli.Decompressor()
-
-  def tearDown(self):
-    self.decompressor = None
-    super().tearDown()
-
-  def _check_decompression(self, test_data):
-    # Verify decompression matches the original.
-    temp_uncompressed = _test_utils.get_temp_uncompressed_name(test_data)
-    original = _get_original_name(test_data)
-    self.assert_files_match(temp_uncompressed, original)
-
-  def _decompress(self, test_data):
-    temp_uncompressed = _test_utils.get_temp_uncompressed_name(test_data)
-    with open(temp_uncompressed, 'wb') as out_file:
-      with open(test_data, 'rb') as in_file:
-        read_chunk = functools.partial(in_file.read, self.CHUNK_SIZE)
-        for data in iter(read_chunk, b''):
-          out_file.write(self.decompressor.process(data))
-    self.assertTrue(self.decompressor.is_finished())
-
-  def _decompress_with_limit(self, test_data):
-    output_buffer_limit = 10922
-    temp_uncompressed = _test_utils.get_temp_uncompressed_name(test_data)
-    with open(temp_uncompressed, 'wb') as out_file:
-      with open(test_data, 'rb') as in_file:
-        chunk_iter = iter(functools.partial(in_file.read, 10 * 1024), b'')
-        while not self.decompressor.is_finished():
-          data = b''
-          if self.decompressor.can_accept_more_data():
-            data = next(chunk_iter, b'')
-          decompressed_data = self.decompressor.process(
-              data, output_buffer_limit=output_buffer_limit
-          )
-          self.assertLessEqual(
-              len(decompressed_data), self.MIN_OUTPUT_BUFFER_SIZE
-          )
-          out_file.write(decompressed_data)
-        self.assertIsNone(next(chunk_iter, None))
-
-  def _test_decompress(self, test_data):
-    self._decompress(test_data)
-    self._check_decompression(test_data)
-
-  def _test_decompress_with_limit(self, test_data):
-    self._decompress_with_limit(test_data)
-    self._check_decompression(test_data)
-
-  def test_too_much_input(self):
-    with open(
-        os.path.join(_test_utils.TESTDATA_DIR, 'zerosukkanooa.compressed'), 'rb'
-    ) as in_file:
-      compressed = in_file.read()
-      self.decompressor.process(compressed[:-1], output_buffer_limit=10240)
-      # the following assertion checks whether the test setup is correct
-      self.assertFalse(self.decompressor.can_accept_more_data())
-      with self.assertRaises(brotli.error):
-        self.decompressor.process(compressed[-1:])
-
-  def test_changing_limit(self):
-    test_data = os.path.join(
-        _test_utils.TESTDATA_DIR, 'zerosukkanooa.compressed'
+@pytest.mark.parametrize(
+    'compressed_name, original_name', _test_utils.gather_compressed_inputs()
+)
+def test_decompress_with_limit(compressed_name, original_name):
+  decompressor = brotli.Decompressor()
+  compressed = _test_utils.take_input(compressed_name)
+  original = _test_utils.take_input(original_name)
+  chunk_size = 10 * 1024
+  output_buffer_limit = 10922
+  chunks = _test_utils.chunk_input(compressed, chunk_size)
+  decompressed = b''
+  while not decompressor.is_finished():
+    data = b''
+    if decompressor.can_accept_more_data() and chunks:
+      data = chunks.pop(0)
+    decompressed_chunk = decompressor.process(
+        data, output_buffer_limit=output_buffer_limit
     )
-    check_output = os.path.exists(test_data.replace('.compressed', ''))
-    temp_uncompressed = _test_utils.get_temp_uncompressed_name(test_data)
-    with open(temp_uncompressed, 'wb') as out_file:
-      with open(test_data, 'rb') as in_file:
-        compressed = in_file.read()
-        uncompressed = self.decompressor.process(
-            compressed[:-1], output_buffer_limit=10240
-        )
-        self.assertLessEqual(len(uncompressed), self.MIN_OUTPUT_BUFFER_SIZE)
-        out_file.write(uncompressed)
-        while not self.decompressor.can_accept_more_data():
-          out_file.write(self.decompressor.process(b''))
-        out_file.write(self.decompressor.process(compressed[-1:]))
-    if check_output:
-      self._check_decompression(test_data)
-
-  def test_garbage_appended(self):
-    with self.assertRaises(brotli.error):
-      self.decompressor.process(brotli.compress(b'a') + b'a')
-
-  def test_already_finished(self):
-    self.decompressor.process(brotli.compress(b'a'))
-    with self.assertRaises(brotli.error):
-      self.decompressor.process(b'a')
+    assert len(decompressed_chunk) <= MIN_OUTPUT_BUFFER_SIZE
+    decompressed += decompressed_chunk
+  assert not chunks
+  assert original == decompressed
 
 
-_test_utils.generate_test_methods(TestDecompressor, for_decompression=True)
+def test_too_much_input():
+  decompressor = brotli.Decompressor()
+  compressed = _test_utils.take_input('zerosukkanooa.compressed')
+  decompressor.process(compressed[:-1], output_buffer_limit=10240)
+  # The following assertion checks whether the test setup is correct.
+  assert not decompressor.can_accept_more_data()
+  with pytest.raises(brotli.error):
+    decompressor.process(compressed[-1:])
 
-if __name__ == '__main__':
-  unittest.main()
+
+def test_changing_limit():
+  decompressor = brotli.Decompressor()
+  input_name = 'zerosukkanooa'
+  compressed = _test_utils.take_input(input_name + '.compressed')
+  check_output = _test_utils.has_input(input_name)
+  decompressed = decompressor.process(
+      compressed[:-1], output_buffer_limit=10240
+  )
+  assert len(decompressed) <= MIN_OUTPUT_BUFFER_SIZE
+  while not decompressor.can_accept_more_data():
+    decompressed += decompressor.process(b'')
+  decompressed += decompressor.process(compressed[-1:])
+  if check_output:
+    original = _test_utils.take_input(input_name)
+    assert original == decompressed
+
+
+def test_garbage_appended():
+  decompressor = brotli.Decompressor()
+  with pytest.raises(brotli.error):
+    decompressor.process(brotli.compress(b'a') + b'a')
+
+
+def test_already_finished():
+  decompressor = brotli.Decompressor()
+  decompressor.process(brotli.compress(b'a'))
+  with pytest.raises(brotli.error):
+    decompressor.process(b'a')

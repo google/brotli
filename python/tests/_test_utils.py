@@ -1,27 +1,21 @@
 """Common utilities for Brotli tests."""
 
 from __future__ import print_function
-import filecmp
 import glob
-import itertools
 import os
 import pathlib
 import sys
 import sysconfig
-import tempfile
-import unittest
 
 project_dir = str(pathlib.PurePath(__file__).parent.parent.parent)
+runtime_dir = os.getenv('TEST_SRCDIR')
 test_dir = os.getenv('BROTLI_TESTS_PATH')
-BRO_ARGS = [os.getenv('BROTLI_WRAPPER')]
 
 # Fallbacks
-if test_dir is None:
+if test_dir and runtime_dir:
+  test_dir = os.path.join(runtime_dir, test_dir)
+elif test_dir is None:
   test_dir = os.path.join(project_dir, 'tests')
-if BRO_ARGS[0] is None:
-  python_exe = sys.executable or 'python'
-  bro_path = os.path.join(project_dir, 'python', 'bro.py')
-  BRO_ARGS = [python_exe, bro_path]
 
 # Get the platform/version-specific build folder.
 # By default, the distutils build base is in the same location as setup.py.
@@ -41,113 +35,49 @@ else:
 
 TESTDATA_DIR = os.path.join(test_dir, 'testdata')
 
-TESTDATA_FILES = [
-    'empty',  # Empty file
-    '10x10y',  # Small text
-    'alice29.txt',  # Large text
-    'random_org_10k.bin',  # Small data
-    'mapsdatazrh',  # Large data
-    'ukkonooa',  # Poem
-    'cp1251-utf16le',  # Codepage 1251 table saved in UTF16-LE encoding
-    'cp852-utf8',  # Codepage 852 table saved in UTF8 encoding
-    # TODO(eustas): add test on already compressed content
-]
 
-# Some files might be missing in a lightweight sources pack.
-TESTDATA_PATH_CANDIDATES = [
-    os.path.join(TESTDATA_DIR, f) for f in TESTDATA_FILES
-]
-
-TESTDATA_PATHS = [
-    path for path in TESTDATA_PATH_CANDIDATES if os.path.isfile(path)
-]
-
-TESTDATA_PATHS_FOR_DECOMPRESSION = glob.glob(
-    os.path.join(TESTDATA_DIR, '*.compressed')
-)
-
-TEMP_DIR = tempfile.mkdtemp()
+def gather_text_inputs():
+  """Discover inputs for decompression tests."""
+  all_inputs = [
+      'empty',  # Empty file
+      '10x10y',  # Small text
+      'alice29.txt',  # Large text
+      'random_org_10k.bin',  # Small data
+      'mapsdatazrh',  # Large data
+      'ukkonooa',  # Poem
+      'cp1251-utf16le',  # Codepage 1251 table saved in UTF16-LE encoding
+      'cp852-utf8',  # Codepage 852 table saved in UTF8 encoding
+      # TODO(eustas): add test on already compressed content
+  ]
+  # Filter out non-existing files; e.g. in lightweight sources pack.
+  return [
+      f for f in all_inputs if os.path.isfile(os.path.join(TESTDATA_DIR, f))
+  ]
 
 
-def get_temp_compressed_name(filename):
-  return os.path.join(TEMP_DIR, os.path.basename(filename + '.bro'))
+def gather_compressed_inputs():
+  """Discover inputs for compression tests."""
+  candidates = glob.glob(os.path.join(TESTDATA_DIR, '*.compressed'))
+  pairs = [(f, f.split('.compressed')[0]) for f in candidates]
+  existing = [
+      pair
+      for pair in pairs
+      if os.path.isfile(pair[0]) and os.path.isfile(pair[1])
+  ]
+  return [
+      (os.path.basename(pair[0]), (os.path.basename(pair[1])))
+      for pair in existing
+  ]
 
 
-def get_temp_uncompressed_name(filename):
-  return os.path.join(TEMP_DIR, os.path.basename(filename + '.unbro'))
+def take_input(input_name):
+  with open(os.path.join(TESTDATA_DIR, input_name), 'rb') as f:
+    return f.read()
 
 
-def bind_method_args(method, *args, **kwargs):
-  return lambda self: method(self, *args, **kwargs)
+def has_input(input_name):
+  return os.path.isfile(os.path.join(TESTDATA_DIR, input_name))
 
 
-# TODO(eustas): migrate to absl.testing.parameterized.
-def generate_test_methods(
-    test_case_class, for_decompression=False, variants=None
-):
-  """Adds test methods for each test data file and each variant.
-
-  This makes identifying problems with specific compression scenarios easier.
-
-  Args:
-    test_case_class: The test class to add methods to.
-    for_decompression: If True, uses compressed test data files.
-    variants: A dictionary where keys are option names and values are lists of
-      possible values for that option. Each combination of variants will
-      generate a separate test method.
-  """
-  if for_decompression:
-    paths = [
-        path for path in TESTDATA_PATHS_FOR_DECOMPRESSION
-        if os.path.exists(path.replace('.compressed', ''))
-    ]
-  else:
-    paths = TESTDATA_PATHS
-  opts = []
-  if variants:
-    opts_list = []
-    for k, v in variants.items():
-      opts_list.append([r for r in itertools.product([k], v)])
-    for o in itertools.product(*opts_list):
-      opts_name = '_'.join([str(i) for i in itertools.chain(*o)])
-      opts_dict = dict(o)
-      opts.append([opts_name, opts_dict])
-  else:
-    opts.append(['', {}])
-  for method in [m for m in dir(test_case_class) if m.startswith('_test')]:
-    for testdata in paths:
-      for opts_name, opts_dict in opts:
-        f = os.path.splitext(os.path.basename(testdata))[0]
-        name = 'test_{method}_{options}_{file}'.format(
-            method=method, options=opts_name, file=f
-        )
-        func = bind_method_args(
-            getattr(test_case_class, method), testdata, **opts_dict
-        )
-        setattr(test_case_class, name, func)
-
-
-class TestCase(unittest.TestCase):
-  """Base class for Brotli test cases.
-
-  Provides common setup and teardown logic, including cleaning up temporary
-  files and a utility for comparing file contents.
-  """
-
-  def tearDown(self):
-    for f in TESTDATA_PATHS:
-      try:
-        os.unlink(get_temp_compressed_name(f))
-      except OSError:
-        pass
-      try:
-        os.unlink(get_temp_uncompressed_name(f))
-      except OSError:
-        pass
-    # super().tearDown()  # Requires Py3+
-
-  def assert_files_match(self, first, second):
-    self.assertTrue(
-        filecmp.cmp(first, second, shallow=False),
-        'File {} differs from {}'.format(first, second),
-    )
+def chunk_input(data, chunk_size):
+  return [data[i:i + chunk_size] for i in range(0, len(data), chunk_size)]

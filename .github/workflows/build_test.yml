@@ -137,7 +137,6 @@ jobs:
             build_system: python
             python_version: "3.10"
             # TODO: investigate why win-builds can't run tests
-            py_setuptools_cmd: build_ext
             os: windows-2022
 
           - name: maven
@@ -333,8 +332,9 @@ jobs:
       run: |
         python -VV
         python -c "import sys; sys.exit('Invalid python version') if '.'.join(map(str,sys.version_info[0:2])) != '${{ matrix.python_version }}' else True"
-        pip install setuptools==51.3.3
-        python setup.py ${{ matrix.py_setuptools_cmd || 'test'}}
+        pip install setuptools==51.3.3 pytest
+        python setup.py build_ext --inplace
+        pytest ./python/tests
 
   build_test_dotnet:
     name: Build and test with .NET
