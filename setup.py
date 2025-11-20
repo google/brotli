@@ -4,16 +4,11 @@
 # See file LICENSE for detail or copy at https://opensource.org/licenses/MIT
 
 import os
-import platform
 import re
 import unittest
 
-try:
-    from setuptools import Extension
-    from setuptools import setup
-except:
-    from distutils.core import Extension
-    from distutils.core import setup
+from setuptools import Extension
+from setuptools import setup
 from distutils.command.build_ext import build_ext
 from distutils import errors
 from distutils import dep_util
@@ -166,12 +161,12 @@ CLASSIFIERS = [
     "Programming Language :: C",
     "Programming Language :: C++",
     "Programming Language :: Python",
-    "Programming Language :: Python :: 2",
-    "Programming Language :: Python :: 2.7",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.3",
-    "Programming Language :: Python :: 3.4",
-    "Programming Language :: Python :: 3.5",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Programming Language :: Unix Shell",
     "Topic :: Software Development :: Libraries",
     "Topic :: Software Development :: Libraries :: Python Modules",

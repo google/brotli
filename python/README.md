@@ -1,7 +1,7 @@
 This directory contains the code for the Python `brotli` module,
-`bro.py` tool, and roundtrip tests.
+and roundtrip tests.
 
-Only Python 2.7+ is supported.
+Only Python 3.10+ is supported.
 
 We provide a `Makefile` to simplify common development commands.
 
@@ -17,13 +17,17 @@ following command from this directory:
 
     $ make install
 
-If you already have native Brotli installed on your system and want to use this one instead of the vendored sources, you
-should set the `USE_SYSTEM_BROTLI=1` environment variable when building the wheel, like this:
+If you already have native Brotli installed on your system and want to use
+this one instead of the vendored sources, you should set
+the `USE_SYSTEM_BROTLI=1` environment variable when building the wheel,
+like this:
 
     $ USE_SYSTEM_BROTLI=1 pip install brotli --no-binary brotli
 
-Brotli is found via the `pkg-config` utility. Moreover, you must build all 3 `brotlicommon`, `brotlienc`, and `brotlidec`
-components. If you're installing brotli from the package manager, you need the development package, like this on Fedora:
+Brotli is found via the `pkg-config` utility. Moreover, you must build
+all 3 `brotlicommon`, `brotlienc`, and `brotlidec` components. If you're
+installing brotli from the package manager, you need the development package,
+like this on Fedora:
 
     $ dnf install brotli brotli-devel
 
@@ -45,8 +49,8 @@ able to edit the source files, you can use the `setuptools`
 
 ### Code Style
 
-Brotli's code follows the [Google Python Style Guide][].  To
-automatically format your code, first install [YAPF][]:
+Brotli code follows the [Google Python Style Guide][].
+To automatically format your code, first install [YAPF][]:
 
     $ pip install yapf
 
@@ -55,7 +59,6 @@ Then, to format all files in the project, you can run:
     $ make fix      # Automatically format code
 
 See the [YAPF usage][] documentation for more information.
-
 
 [PyPI]: https://pypi.org/project/Brotli/
 [development mode]: https://setuptools.readthedocs.io/en/latest/setuptools.html#development-mode
