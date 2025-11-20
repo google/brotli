@@ -40,11 +40,16 @@ jobs:
     - name: Install tools
       run: |
         eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
-        brew install buildifier typos-cli
+        brew install buildifier ruff typos-cli
 
     - name: Check typos
       run: |
         eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
         ./scripts/check_typos.sh
+
+    - name: Lint Python code
+      run: |
+        eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+        ruff check
 
     # TODO(eustas): run buildifier
