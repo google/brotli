@@ -53,8 +53,7 @@ def get_version():
 
 def get_test_suite():
     test_loader = unittest.TestLoader()
-    test_suite = test_loader.discover("python", pattern="*_test.py")
-    return test_suite
+    return test_loader.discover("python", pattern="*_test.py")
 
 
 class BuildExt(build_ext):
@@ -77,13 +76,9 @@ class BuildExt(build_ext):
         if not (self.force or dep_util.newer_group(depends, ext_path, "newer")):
             log.debug("skipping '%s' extension (up-to-date)", ext.name)
             return
-        else:
-            log.info("building '%s' extension", ext.name)
+        log.info("building '%s' extension", ext.name)
 
-        c_sources = []
-        for source in ext.sources:
-            if source.endswith(".c"):
-                c_sources.append(source)
+        c_sources = [source for source in ext.sources if source.endswith(".c")]
         extra_args = ext.extra_compile_args or []
 
         objects = []
@@ -184,7 +179,7 @@ USE_SYSTEM_BROTLI = bool_from_environ("USE_SYSTEM_BROTLI")
 
 if USE_SYSTEM_BROTLI:
     import pkgconfig
-    
+
     REQUIRED_BROTLI_SYSTEM_LIBRARIES = ["libbrotlicommon", "libbrotlienc", "libbrotlidec"]
 
     define_macros = []

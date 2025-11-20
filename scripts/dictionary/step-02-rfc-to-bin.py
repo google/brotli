@@ -18,13 +18,11 @@ for line in lines:
   if appendix_a_found:
     if re_data_line.match(line) is not None:
       data = line.strip()
-      for i in range(32):
-        dictionary.append(int(data[2 * i:2 * i + 2], 16))
+      dictionary.extend(int(data[2 * i:2 * i + 2], 16) for i in range(32))
       if len(dictionary) == 122784:
         break
-  else:
-    if line.startswith("Appendix A."):
-      appendix_a_found = True
+  elif line.startswith("Appendix A."):
+    appendix_a_found = True
 
 bin_path = "dictionary.bin"
 
