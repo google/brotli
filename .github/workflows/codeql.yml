@@ -44,7 +44,7 @@ jobs:
 
     # Initializes the CodeQL tools for scanning.
     - name: Initialize CodeQL
-      uses: github/codeql-action/init@0499de31b99561a6d14a36a5f662c2a54f91beee # v3.29.5
+      uses: github/codeql-action/init@e12f0178983d466f2f6028f5cc7a6d786fd97f4b # v3.29.5
       with:
         languages: ${{ matrix.language }}
         # CodeQL is currently crashing on files with large lists:
@@ -56,7 +56,7 @@ jobs:
 
     - if: matrix.language == 'cpp'
       name: Build CPP
-      uses: github/codeql-action/autobuild@0499de31b99561a6d14a36a5f662c2a54f91beee # v3.29.5
+      uses: github/codeql-action/autobuild@e12f0178983d466f2f6028f5cc7a6d786fd97f4b # v3.29.5
 
     - if: matrix.language == 'cpp' || matrix.language == 'java'
       name: Build Java
@@ -66,7 +66,7 @@ jobs:
 
     - if: matrix.language == 'javascript'
       name: Build JS
-      uses: github/codeql-action/autobuild@0499de31b99561a6d14a36a5f662c2a54f91beee # v3.29.5
+      uses: github/codeql-action/autobuild@e12f0178983d466f2f6028f5cc7a6d786fd97f4b # v3.29.5
 
     - if: matrix.language == 'cpp' || matrix.language == 'python'
       name: Build Python
@@ -74,7 +74,7 @@ jobs:
         python setup.py build_ext
 
     - name: Perform CodeQL Analysis
-      uses: github/codeql-action/analyze@0499de31b99561a6d14a36a5f662c2a54f91beee # v3.29.5
+      uses: github/codeql-action/analyze@e12f0178983d466f2f6028f5cc7a6d786fd97f4b # v3.29.5
       with:
         category: "/language:${{matrix.language}}"
         ref: "${{ github.ref != 'master' && github.ref || '/refs/heads/master' }}"
