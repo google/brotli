@@ -3,6 +3,10 @@
 # Distributed under MIT license.
 # See file LICENSE for detail or copy at https://opensource.org/licenses/MIT
 
+import queue
+import threading
+import time
+
 import brotli
 import pytest
 
@@ -89,3 +93,76 @@ def test_already_finished():
   decompressor.process(brotli.compress(b'a'))
   with pytest.raises(brotli.error):
     decompressor.process(b'a')
+
+
+def make_input(size):
+  compressor = brotli.Compressor(quality=1)
+  prologue = compressor.process(b'b')
+  prologue += compressor.flush()
+  filler = compressor.process(b'c')
+  filler += compressor.flush()
+  epilogue = compressor.finish()
+  return b''.join([prologue] + [filler] * (size // len(filler)) + [epilogue])
+
+
+def _thread_decompress(compressed, decompressor, results):
+  _ = decompressor.process(compressed)
+  if decompressor.is_finished():
+    results.put(1)
+
+
+def _thread_concurrent_process(decompressor, results):
+  time.sleep(0.01)
+  try:
+    _ = decompressor.process(b'')
+  except brotli.error:
+    results.put(2)
+
+
+def _thread_concurrent_can_accept_more_data(decompressor, results):
+  time.sleep(0.02)
+  try:
+    _ = decompressor.can_accept_more_data()
+  except brotli.error:
+    results.put(3)
+
+
+def _thread_concurrent_is_finished(decompressor, results):
+  time.sleep(0.03)
+  try:
+    _ = decompressor.is_finished()
+  except brotli.error:
+    results.put(4)
+
+
+def test_concurrency():
+  compressed = make_input(16 * 1024 * 1024)
+  decompressor = brotli.Decompressor()
+  results = queue.Queue()
+  threads = []
+  threads.append(
+      threading.Thread(
+          target=_thread_decompress, args=(compressed, decompressor, results)
+      )
+  )
+  threads.append(
+      threading.Thread(
+          target=_thread_concurrent_process, args=(decompressor, results)
+      )
+  )
+  threads.append(
+      threading.Thread(
+          target=_thread_concurrent_can_accept_more_data,
+          args=(decompressor, results),
+      )
+  )
+  threads.append(
+      threading.Thread(
+          target=_thread_concurrent_is_finished, args=(decompressor, results)
+      )
+  )
+  for thread in threads:
+    thread.start()
+  for thread in threads:
+    thread.join()
+  assert sorted(list(results.queue)) == [1, 2, 3, 4]

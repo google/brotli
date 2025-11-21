@@ -71,6 +71,8 @@ jobs:
     - if: matrix.language == 'cpp' || matrix.language == 'python'
       name: Build Python
       run: |
+        python -VV
+        pip install "setuptools>=70.0.0"
         python setup.py build_ext
 
     - name: Perform CodeQL Analysis
