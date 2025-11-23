@@ -1,0 +1,14 @@
+{
+  "homepage": "https://github.com/google/brotli",
+  "maintainers": [
+    {
+      "email": "eustas@google.com",
+      "github": "eustas",
+      "name": "Evgenii Kliuchnikov",
+      "github_user_id": 203457
+    }
+  ],
+  "repository": ["github:google/brotli"],
+  "versions": [],
+  "yanked_versions": {}
+}
