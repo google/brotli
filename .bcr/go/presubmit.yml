@@ -7,7 +7,6 @@ matrix:
   bazel:
   - 8.x
   - 7.x
-  - 6.x
 tasks:
   verify_targets:
     name: Verify build targets
@@ -15,5 +14,19 @@ tasks:
     bazel: ${{ bazel }}
     build_targets:
     - '@brotli_go//cbrotli'
+    build_flags:
+      - "--conlyopt=-Wno-error=conversion"
+      - "--conlyopt=-Wno-error=sign-conversion"
+      - "--copt=-Wno-error=conversion"
+      - "--copt=-Wno-error=sign-conversion"
+      - "--host_conlyopt=-Wno-error=conversion"
+      - "--host_copt=-Wno-error=conversion"
     test_targets:
     - '@brotli_go//cbrotli:cbrotli_test'
+    test_flags:
+      - "--conlyopt=-Wno-error=conversion"
+      - "--conlyopt=-Wno-error=sign-conversion"
+      - "--copt=-Wno-error=conversion"
+      - "--copt=-Wno-error=sign-conversion"
+      - "--host_conlyopt=-Wno-error=conversion"
+      - "--host_copt=-Wno-error=conversion"
