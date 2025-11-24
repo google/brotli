@@ -40,13 +40,12 @@ for b in data:
       is_skip = False
       hi.append(unichr(cntr))
       cntr = skip_flip_offset + 1
+  elif value >= 0x80:
+    cntr += 1
   else:
-    if value >= 0x80:
-      cntr += 1
-    else:
-      is_skip = True
-      hi.append(unichr(cntr))
-      cntr = skip_flip_offset + 1
+    is_skip = True
+    hi.append(unichr(cntr))
+    cntr = skip_flip_offset + 1
 hi.append(unichr(cntr))
 
 low0 = low[0:len(low) // 2]
@@ -56,15 +55,15 @@ low1 = low[len(low) // 2:len(low)]
 def escape(chars):
   result = []
   for c in chars:
-    if "\r" == c:
+    if c == "\r":
       result.append("\\r")
-    elif "\n" == c:
+    elif c == "\n":
       result.append("\\n")
-    elif "\t" == c:
+    elif c == "\t":
       result.append("\\t")
-    elif "\"" == c:
+    elif c == "\"":
       result.append("\\\"")
-    elif "\\" == c:
+    elif c == "\\":
       result.append("\\\\")
     elif ord(c) < 32 or ord(c) >= 127:
       result.append("\\u%04X" % ord(c))

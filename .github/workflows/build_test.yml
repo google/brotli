@@ -137,7 +137,6 @@ jobs:
             build_system: python
             python_version: "3.10"
             # TODO: investigate why win-builds can't run tests
-            py_setuptools_cmd: build_ext
             os: windows-2022
 
           - name: maven
@@ -208,7 +207,7 @@ jobs:
     steps:
 
     - name: Harden Runner
-      uses: step-security/harden-runner@f4a75cfd619ee5ce8d5b864b0d183aff3c69b55a # v2.13.1
+      uses: step-security/harden-runner@95d9a5deda9de15063e7595e9719c11c38c90ae2 # v2.13.2
       with:
         egress-policy: audit
 
@@ -221,7 +220,7 @@ jobs:
         sudo apt install -y ${EXTRA_PACKAGES}
 
     - name: Checkout the source
-      uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+      uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
       with:
         submodules: false
         fetch-depth: 1
@@ -333,40 +332,9 @@ jobs:
       run: |
         python -VV
         python -c "import sys; sys.exit('Invalid python version') if '.'.join(map(str,sys.version_info[0:2])) != '${{ matrix.python_version }}' else True"
-        pip install setuptools==51.3.3
-        python setup.py ${{ matrix.py_setuptools_cmd || 'test'}}
-
-  build_test_py27:
-    name: Build and test with Python 2.7
-    runs-on: ubuntu-latest
-    container:
-      image: ubuntu:22.04
-    steps:
-
-    - name: Harden Runner
-      uses: step-security/harden-runner@f4a75cfd619ee5ce8d5b864b0d183aff3c69b55a # v2.13.1
-      with:
-        egress-policy: audit
-
-    - name: Install deps
-      run: |
-        apt update
-        apt install -y curl gcc python2.7 python2.7-dev
-        curl https://bootstrap.pypa.io/pip/2.7/get-pip.py --output get-pip.py
-        python2.7 get-pip.py
-        python2.7 -m pip install distutils-pytest==0.1
-
-    - name: Checkout the source
-      uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
-      with:
-        submodules: false
-        fetch-depth: 1
-
-    - name: Build / Test
-      run: |
-        python2.7 -VV
-        python2.7 -c "import sys; sys.exit('Invalid python version') if '.'.join(map(str,sys.version_info[0:2])) != '2.7' else True"
-        python2.7 setup.py test
+        pip install setuptools==51.3.3 pytest
+        python setup.py build_ext --inplace
+        pytest ./python/tests
 
   build_test_dotnet:
     name: Build and test with .NET
@@ -374,7 +342,7 @@ jobs:
     steps:
 
     - name: Checkout the source
-      uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+      uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
       with:
         submodules: false
         fetch-depth: 1

@@ -8,6 +8,7 @@ I found the following issues with the Brotli format:
 - The block type code is useless if NBLTYPES==2, you would only need 1 symbol
   anyway, so why don't you just switch to "the other" type?
 """
+# ruff: noqa
 import struct
 from operator import itemgetter, methodcaller
 from itertools import accumulate, repeat

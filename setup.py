@@ -4,16 +4,11 @@
 # See file LICENSE for detail or copy at https://opensource.org/licenses/MIT
 
 import os
-import platform
 import re
 import unittest
 
-try:
-    from setuptools import Extension
-    from setuptools import setup
-except:
-    from distutils.core import Extension
-    from distutils.core import setup
+from setuptools import Extension
+from setuptools import setup
 from distutils.command.build_ext import build_ext
 from distutils import errors
 from distutils import dep_util
@@ -58,8 +53,7 @@ def get_version():
 
 def get_test_suite():
     test_loader = unittest.TestLoader()
-    test_suite = test_loader.discover("python", pattern="*_test.py")
-    return test_suite
+    return test_loader.discover("python", pattern="*_test.py")
 
 
 class BuildExt(build_ext):
@@ -82,13 +76,9 @@ class BuildExt(build_ext):
         if not (self.force or dep_util.newer_group(depends, ext_path, "newer")):
             log.debug("skipping '%s' extension (up-to-date)", ext.name)
             return
-        else:
-            log.info("building '%s' extension", ext.name)
+        log.info("building '%s' extension", ext.name)
 
-        c_sources = []
-        for source in ext.sources:
-            if source.endswith(".c"):
-                c_sources.append(source)
+        c_sources = [source for source in ext.sources if source.endswith(".c")]
         extra_args = ext.extra_compile_args or []
 
         objects = []
@@ -166,12 +156,12 @@ CLASSIFIERS = [
     "Programming Language :: C",
     "Programming Language :: C++",
     "Programming Language :: Python",
-    "Programming Language :: Python :: 2",
-    "Programming Language :: Python :: 2.7",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.3",
-    "Programming Language :: Python :: 3.4",
-    "Programming Language :: Python :: 3.5",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Programming Language :: Unix Shell",
     "Topic :: Software Development :: Libraries",
     "Topic :: Software Development :: Libraries :: Python Modules",
@@ -189,7 +179,7 @@ USE_SYSTEM_BROTLI = bool_from_environ("USE_SYSTEM_BROTLI")
 
 if USE_SYSTEM_BROTLI:
     import pkgconfig
-    
+
     REQUIRED_BROTLI_SYSTEM_LIBRARIES = ["libbrotlicommon", "libbrotlienc", "libbrotlidec"]
 
     define_macros = []
