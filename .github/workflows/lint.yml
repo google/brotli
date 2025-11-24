@@ -50,6 +50,6 @@ jobs:
     - name: Lint Python code
       run: |
         eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
-        ruff check
+        ruff check --extend-select=C4,C90,PERF,RET,SIM,W
 
     # TODO(eustas): run buildifier
