@@ -1,0 +1,41 @@
+matrix:
+  platform:
+  - debian10
+  - ubuntu2004
+  - macos
+  - macos_arm64
+  bazel:
+  - 7.x
+  - 8.x
+tasks:
+  verify_targets:
+    name: Verify build targets
+    platform: ${{ platform }}
+    bazel: ${{ bazel }}
+    build_targets:
+      - '@brotli//:brotli'
+      - '@brotli//:brotlicommon'
+      - '@brotli//:brotlidec'
+      - '@brotli//:brotlienc'
+    build_flags:
+      - "--cxxopt=-std=c++17"
+      - "--conlyopt=-Wno-error=conversion"
+      - "--conlyopt=-Wno-error=sign-conversion"
+      - "--copt=-Wno-error=conversion"
+      - "--copt=-Wno-error=sign-conversion"
+      - "--host_conlyopt=-Wno-error=conversion"
+      - "--host_copt=-Wno-error=conversion"
+  verify_targets_windows:
+    name: Verify build targets
+    platform: windows
+    bazel: ${{ bazel }}
+    build_flags:
+      - "--cxxopt=/std:c++17"
+      - "--cxxopt=/D_WIN32_WINNT=0x0602"
+      - "--cxxopt=/DWINVER=0x0602"
+      - "--host_cxxopt=/std:c++17"
+    build_targets:
+      - '@brotli//:brotli'
+      - '@brotli//:brotlicommon'
+      - '@brotli//:brotlidec'
+      - '@brotli//:brotlienc'
