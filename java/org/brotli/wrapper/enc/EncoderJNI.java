@@ -8,11 +8,10 @@ package org.brotli.wrapper.enc;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.brotli.enc.PreparedDictionary;
 
-/**
- * JNI wrapper for brotli encoder.
- */
+/** JNI wrapper for brotli encoder. */
 class EncoderJNI {
   private static native ByteBuffer nativeCreate(long[] context);
   private static native void nativePush(long[] context, int length);
@@ -72,9 +71,9 @@ class EncoderJNI {
     protected final long[] context = new long[5];
     private final ByteBuffer inputBuffer;
     private boolean fresh = true;
+    private AtomicInteger crowdness = new AtomicInteger(0);
 
-    Wrapper(int inputBufferSize, int quality, int lgwin, Encoder.Mode mode)
-        throws IOException {
+    Wrapper(int inputBufferSize, int quality, int lgwin, Encoder.Mode mode) throws IOException {
       if (inputBufferSize <= 0) {
         throw new IOException("buffer size must be positive");
       }
@@ -92,35 +91,56 @@ class EncoderJNI {
       this.context[4] = 0;
     }
 
+    private void lock() {
+      int newCrowdness = crowdness.incrementAndGet();
+      if (newCrowdness != 1) {
+        throw new IllegalStateException("encoder is not idle");
+      }
+    }
+
+    private void unlock() {
+      crowdness.decrementAndGet();
+    }
+
     boolean attachDictionary(ByteBuffer dictionary) {
-      if (!dictionary.isDirect()) {
-        throw new IllegalArgumentException("only direct buffers allowed");
+      try {
+        lock();
+        if (!dictionary.isDirect()) {
+          throw new IllegalArgumentException("only direct buffers allowed");
+        }
+        if (context[0] == 0) {
+          throw new IllegalStateException("brotli decoder is already destroyed");
+        }
+        if (!fresh) {
+          throw new IllegalStateException("decoding is already started");
+        }
+        return nativeAttachDictionary(context, dictionary);
+      } finally {
+        unlock();
       }
-      if (context[0] == 0) {
-        throw new IllegalStateException("brotli decoder is already destroyed");
-      }
-      if (!fresh) {
-        throw new IllegalStateException("decoding is already started");
-      }
-      return nativeAttachDictionary(context, dictionary);
     }
 
     void push(Operation op, int length) {
-      if (length < 0) {
-        throw new IllegalArgumentException("negative block length");
+      try {
+        lock();
+        if (length < 0) {
+          throw new IllegalArgumentException("negative block length");
+        }
+        if (context[0] == 0) {
+          throw new IllegalStateException("brotli encoder is already destroyed");
+        }
+        if (!isSuccess() || hasMoreOutput()) {
+          throw new IllegalStateException("pushing input to encoder in unexpected state");
+        }
+        if (hasRemainingInput() && length != 0) {
+          throw new IllegalStateException("pushing input to encoder over previous input");
+        }
+        context[1] = op.ordinal();
+        fresh = false;
+        nativePush(context, length);
+      } finally {
+        unlock();
       }
-      if (context[0] == 0) {
-        throw new IllegalStateException("brotli encoder is already destroyed");
-      }
-      if (!isSuccess() || hasMoreOutput()) {
-        throw new IllegalStateException("pushing input to encoder in unexpected state");
-      }
-      if (hasRemainingInput() && length != 0) {
-        throw new IllegalStateException("pushing input to encoder over previous input");
-      }
-      context[1] = op.ordinal();
-      fresh = false;
-      nativePush(context, length);
     }
 
     boolean isSuccess() {
@@ -144,25 +164,35 @@ class EncoderJNI {
     }
 
     ByteBuffer pull() {
-      if (context[0] == 0) {
-        throw new IllegalStateException("brotli encoder is already destroyed");
+      try {
+        lock();
+        if (context[0] == 0) {
+          throw new IllegalStateException("brotli encoder is already destroyed");
+        }
+        if (!isSuccess() || !hasMoreOutput()) {
+          throw new IllegalStateException("pulling while data is not ready");
+        }
+        fresh = false;
+        return nativePull(context);
+      } finally {
+        unlock();
       }
-      if (!isSuccess() || !hasMoreOutput()) {
-        throw new IllegalStateException("pulling while data is not ready");
-      }
-      fresh = false;
-      return nativePull(context);
     }
 
     /**
      * Releases native resources.
      */
     void destroy() {
-      if (context[0] == 0) {
-        throw new IllegalStateException("brotli encoder is already destroyed");
+      try {
+        lock();
+        if (context[0] == 0) {
+          throw new IllegalStateException("brotli encoder is already destroyed");
+        }
+        nativeDestroy(context);
+        context[0] = 0;
+      } finally {
+        unlock();
       }
-      nativeDestroy(context);
-      context[0] = 0;
     }
   }
 }
