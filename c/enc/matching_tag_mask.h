@@ -28,7 +28,7 @@ static BROTLI_INLINE uint64_t GetMatchingTagMask(
   }
 #else
   const int chunk_size = sizeof(size_t);
-  const size_t shift_amount = ((chunk_size * 8) - chunk_size);
+  const size_t shift_amount = (size_t)((chunk_size * 8) - chunk_size);
   const size_t xFF = ~((size_t)0);
   const size_t x01 = xFF / 0xFF;
   const size_t x80 = x01 << 7;
