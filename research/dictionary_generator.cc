@@ -3,6 +3,7 @@
 #include <cstdio>
 #include <cstring>
 #include <fstream>
+#include <utility>
 #if !defined(_MSC_VER)
 #include <glob.h>
 #endif
@@ -106,6 +107,8 @@ static void printHelp(const char* name) {
       "  --dsh      use 'durchschlag' engine (default)\n"
       "  --purify   rewrite samples; unique text parts are zeroed out\n"
       "  --sieve    use 'sieve' engine\n"
+      "  --skip_empty\n"
+      "             skip 0-length samples\n"
       "  -b#, --block_len=#\n"
       "             set block length for 'durchschlag'; default: 1024\n"
       "  -s#, --slice_len=#\n"
@@ -134,6 +137,7 @@ int main(int argc, char const* argv[]) {
   size_t minimumPopulation = 2;
   size_t chunkLen = 0;
   size_t overlapLen = 0;
+  bool skipEmpty = false;
 
   std::vector<uint8_t> data;
   std::vector<size_t> sizes;
@@ -174,6 +178,10 @@ int main(int argc, char const* argv[]) {
         }
         if (std::strcmp(argv[i], "--purify") == 0) {
           method = METHOD_PURIFY;
+          continue;
+        }
+        if (std::strcmp(argv[i], "--skip_empty") == 0) {
+          skipEmpty = true;
           continue;
         }
 
@@ -308,6 +316,30 @@ int main(int argc, char const* argv[]) {
     globfree(&resolved_paths);
 #endif
     if (!ok) exit(1);
+  }
+
+  if (skipEmpty) {
+    std::vector<uint8_t> new_data;
+    std::vector<size_t> new_sizes;
+    std::vector<std::string> new_paths;
+    size_t offset = 0;
+    for (size_t i = 0; i < sizes.size(); ++i) {
+      if (sizes[i] == 0) {
+        offset += sizes[i];
+        continue;
+      }
+      new_data.insert(new_data.end(),
+                      data.begin() + static_cast<ptrdiff_t>(offset),
+                      data.begin() + static_cast<ptrdiff_t>(offset + sizes[i]));
+      new_sizes.push_back(sizes[i]);
+      if (!paths.empty()) {
+        new_paths.push_back(paths[i]);
+      }
+      offset += sizes[i];
+    }
+    data = std::move(new_data);
+    sizes = std::move(new_sizes);
+    paths = std::move(new_paths);
   }
 
   fprintf(stderr, "Number of chunks: %zu; total size: %zu\n", sizes.size(),
