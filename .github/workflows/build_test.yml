@@ -133,11 +133,22 @@ jobs:
             c_compiler: clang
             cxx_compiler: clang++
 
-          - name: python3.10-win
+          - name: python3.14:clang
             build_system: python
-            python_version: "3.10"
-            # TODO: investigate why win-builds can't run tests
-            os: windows-2022
+            python_version: "3.14"
+            c_compiler: clang
+            cxx_compiler: clang++
+
+          - name: python3.14t:clang
+            build_system: python
+            python_version: "3.14t"
+            c_compiler: clang
+            cxx_compiler: clang++
+
+          - name: python3.14-win
+            build_system: python
+            python_version: "3.14"
+            os: windows-latest
 
           - name: maven
             build_system: maven
@@ -331,8 +342,7 @@ jobs:
       if: ${{ matrix.build_system == 'python' }}
       run: |
         python -VV
-        python -c "import sys; sys.exit('Invalid python version') if '.'.join(map(str,sys.version_info[0:2])) != '${{ matrix.python_version }}' else True"
-        pip install setuptools==51.3.3 pytest
+        pip install "setuptools>=70.0.0" pytest
         python setup.py build_ext --inplace
         pytest ./python/tests
 
