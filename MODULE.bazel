@@ -10,3 +10,5 @@ module(
     version = "1.2.0",
     repo_name = "org_brotli",
 )
+
+bazel_dep(name = "rules_cc", version = "0.2.16")
