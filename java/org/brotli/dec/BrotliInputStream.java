@@ -169,7 +169,7 @@ public class BrotliInputStream extends InputStream {
       copyLen += state.outputUsed;
       copyLen = (copyLen > 0) ? copyLen : END_OF_STREAM_MARKER;
       return copyLen;
-    } catch (BrotliRuntimeException ex) {
+    } catch (BrotliRuntimeException | IllegalStateException ex) {
       throw new IOException("Brotli stream decoding failed", ex);
     }
 
