@@ -165,4 +165,4 @@ def test_concurrency():
     thread.start()
   for thread in threads:
     thread.join()
-  assert sorted(list(results.queue)) == [1, 2, 3, 4]
+  assert sorted(results.queue) == [1, 2, 3, 4]

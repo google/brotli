@@ -75,10 +75,7 @@ class BuildExt(build_ext.build_ext):
       LOGGER.debug("skipping '%s' extension (up-to-date)", ext.name)
       return
 
-    c_sources = []
-    for source in ext.sources:
-      if source.endswith(".c"):
-        c_sources.append(source)
+    c_sources = [source for source in ext.sources if source.endswith(".c")]
     extra_args = ext.extra_compile_args or []
 
     objects = []
