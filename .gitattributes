@@ -16,7 +16,7 @@ README.md !export-ignore
 SECURITY.md !export-ignore
 setup.cfg !export-ignore
 setup.py !export-ignore
-WORKSPACE.bazel !export-ignore
+MODULE.bazel !export-ignore
 
 # Add sources
 c !export-ignore
