@@ -1,6 +1,7 @@
 # Description:
 #   Java port of Brotli decoder.
 
+load("@rules_java//java:java_library.bzl", "java_library")
 load(":build_defs.bzl", "brotli_java_test")
 
 package(default_visibility = ["//visibility:public"])
