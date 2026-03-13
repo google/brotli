@@ -231,7 +231,7 @@ jobs:
         sudo apt install -y ${EXTRA_PACKAGES}
 
     - name: Checkout the source
-      uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
+      uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
       with:
         submodules: false
         fetch-depth: 1
@@ -352,7 +352,7 @@ jobs:
     steps:
 
     - name: Checkout the source
-      uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
+      uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
       with:
         submodules: false
         fetch-depth: 1
