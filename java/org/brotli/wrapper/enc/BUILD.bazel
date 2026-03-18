@@ -1,3 +1,6 @@
+load("@rules_java//java:java_library.bzl", "java_library")
+load("@rules_java//java:java_test.bzl", "java_test")
+
 package(default_visibility = ["//visibility:public"])
 
 licenses(["notice"])  # MIT
@@ -18,11 +21,11 @@ java_library(
         ["*.java"],
         exclude = ["*Test*.java"],
     ),
+    resources = ["//:license"],
     deps = [
         "//org/brotli/common:shared_dictionary",
         "//org/brotli/enc:prepared_dictionary",
     ],
-    resources = ["//:license"],
 )
 
 java_library(
