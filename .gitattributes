@@ -3,7 +3,7 @@ tests/testdata/* binary
 # Exclude everything
 **/** export-ignore
 
-# Add top-level files
+# Allowlist some filenames
 .bazelignore !export-ignore
 BUILD.bazel !export-ignore
 CHANGELOG.md !export-ignore
@@ -11,12 +11,12 @@ CMakeLists.txt !export-ignore
 CONTRIBUTING.md !export-ignore
 LICENSE !export-ignore
 MANIFEST.in !export-ignore
+MODULE.bazel !export-ignore
 README !export-ignore
 README.md !export-ignore
 SECURITY.md !export-ignore
 setup.cfg !export-ignore
 setup.py !export-ignore
-WORKSPACE.bazel !export-ignore
 
 # Add sources
 c !export-ignore
@@ -52,3 +52,10 @@ tests/testdata/empty.compressed !export-ignore
 tests/testdata/ukkonooa !export-ignore
 tests/testdata/ukkonooa.compressed !export-ignore
 tests/testdata/zerosukkanooa.compressed !export-ignore
+
+# Add JNI wrappers
+java !export-ignore
+java/org !export-ignore
+java/org/brotli !export-ignore
+java/org/brotli/wrapper !export-ignore
+java/org/brotli/wrapper/** !export-ignore
