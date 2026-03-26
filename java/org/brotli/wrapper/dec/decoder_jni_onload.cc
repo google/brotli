@@ -13,19 +13,19 @@ extern "C" {
 #endif
 
 static const JNINativeMethod kDecoderMethods[] = {
-    {"nativeCreate", "([J)Ljava/nio/ByteBuffer;",
+    {(char*)"nativeCreate", (char*)"([J)Ljava/nio/ByteBuffer;",
      reinterpret_cast<void*>(
          Java_org_brotli_wrapper_dec_DecoderJNI_nativeCreate)},
-    {"nativePush", "([JI)V",
+    {(char*)"nativePush", (char*)"([JI)V",
      reinterpret_cast<void*>(
          Java_org_brotli_wrapper_dec_DecoderJNI_nativePush)},
-    {"nativePull", "([J)Ljava/nio/ByteBuffer;",
+    {(char*)"nativePull", (char*)"([J)Ljava/nio/ByteBuffer;",
      reinterpret_cast<void*>(
          Java_org_brotli_wrapper_dec_DecoderJNI_nativePull)},
-    {"nativeDestroy", "([J)V",
+    {(char*)"nativeDestroy", (char*)"([J)V",
      reinterpret_cast<void*>(
          Java_org_brotli_wrapper_dec_DecoderJNI_nativeDestroy)},
-    {"nativeAttachDictionary", "([JLjava/nio/ByteBuffer;)Z",
+    {(char*)"nativeAttachDictionary", (char*)"([JLjava/nio/ByteBuffer;)Z",
      reinterpret_cast<void*>(
          Java_org_brotli_wrapper_dec_DecoderJNI_nativeAttachDictionary)}};
 
