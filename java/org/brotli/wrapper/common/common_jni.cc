@@ -21,13 +21,14 @@ extern "C" {
 JNIEXPORT jint JNICALL
 Java_org_brotli_wrapper_common_CommonJNI_nativeSetDictionaryData(
     JNIEnv* env, jobject /*jobj*/, jobject buffer) {
-  jobject buffer_ref = env->NewGlobalRef(buffer);
+  jobject buffer_ref = env->functions->NewGlobalRef(env, buffer);
   if (!buffer_ref) {
     return false;
   }
-  uint8_t* data = static_cast<uint8_t*>(env->GetDirectBufferAddress(buffer));
+  uint8_t* data = static_cast<uint8_t*>(
+      env->functions->GetDirectBufferAddress(env, buffer));
   if (!data) {
-    env->DeleteGlobalRef(buffer_ref);
+    env->functions->DeleteGlobalRef(env, buffer_ref);
     return false;
   }
 
@@ -35,7 +36,7 @@ Java_org_brotli_wrapper_common_CommonJNI_nativeSetDictionaryData(
 
   const BrotliDictionary* dictionary = BrotliGetDictionary();
   if (dictionary->data != data) {
-    env->DeleteGlobalRef(buffer_ref);
+    env->functions->DeleteGlobalRef(env, buffer_ref);
   } else {
     /* Don't release reference; it is an intended memory leak. */
   }

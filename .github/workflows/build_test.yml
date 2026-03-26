@@ -133,11 +133,22 @@ jobs:
             c_compiler: clang
             cxx_compiler: clang++
 
-          - name: python3.10-win
+          - name: python3.14:clang
             build_system: python
-            python_version: "3.10"
-            # TODO: investigate why win-builds can't run tests
-            os: windows-2022
+            python_version: "3.14"
+            c_compiler: clang
+            cxx_compiler: clang++
+
+          - name: python3.14t:clang
+            build_system: python
+            python_version: "3.14t"
+            c_compiler: clang
+            cxx_compiler: clang++
+
+          - name: python3.14-win
+            build_system: python
+            python_version: "3.14"
+            os: windows-latest
 
           - name: maven
             build_system: maven
@@ -207,7 +218,7 @@ jobs:
     steps:
 
     - name: Harden Runner
-      uses: step-security/harden-runner@95d9a5deda9de15063e7595e9719c11c38c90ae2 # v2.13.2
+      uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594 # v2.16.0
       with:
         egress-policy: audit
 
@@ -220,7 +231,7 @@ jobs:
         sudo apt install -y ${EXTRA_PACKAGES}
 
     - name: Checkout the source
-      uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       with:
         submodules: false
         fetch-depth: 1
@@ -321,7 +332,7 @@ jobs:
         # cd integration
         # mvn -B verify
 
-    - uses: actions/setup-python@e797f83bcb11b83ae66e0230d6156d7c80228e7c # v6.0.0
+    - uses: actions/setup-python@83679a892e2d95755f2dac6acb0bfd1e9ac5d548 # v6.1.0
       if: ${{ matrix.build_system == 'python' }}
       with:
         python-version: ${{ matrix.python_version }}
@@ -331,8 +342,7 @@ jobs:
       if: ${{ matrix.build_system == 'python' }}
       run: |
         python -VV
-        python -c "import sys; sys.exit('Invalid python version') if '.'.join(map(str,sys.version_info[0:2])) != '${{ matrix.python_version }}' else True"
-        pip install setuptools==51.3.3 pytest
+        pip install "setuptools>=70.0.0" pytest
         python setup.py build_ext --inplace
         pytest ./python/tests
 
@@ -342,7 +352,7 @@ jobs:
     steps:
 
     - name: Checkout the source
-      uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       with:
         submodules: false
         fetch-depth: 1
