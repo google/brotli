@@ -139,6 +139,9 @@ public class BrotliInputStream extends InputStream {
    */
   @Override
   public int read(byte[] destBuffer, int destOffset, int destLen) throws IOException {
+    if (destBuffer == null) {
+      throw new NullPointerException("destBuffer is null");
+    }
     if (destOffset < 0) {
       throw new IllegalArgumentException("Bad offset: " + destOffset);
     } else if (destLen < 0) {
