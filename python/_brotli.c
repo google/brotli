@@ -22,6 +22,28 @@
 #error "Only Python 3.10+ is supported"
 #endif
 
+/*
+Decoder / encoder nature does not support concurrent access. Attempt to enter
+concurrently will result in an exception.
+
+"Critical" parts used in prologues to ensure that only one thread enters.
+For consistency, we use them in epilogues as well. "Critical" is essential for
+free-threaded. In GIL environment those rendered as a scope (i.e. `{` and `}`).
+
+NB: `Py_BEGIN_ALLOW_THREADS` / `Py_END_ALLOW_THREADS` are still required to
+unblock the stop-the-world GC.
+*/
+#ifdef Py_GIL_DISABLED
+#if PY_MAJOR_VERSION < 3 || (PY_MAJOR_VERSION == 3 && PY_MINOR_VERSION < 13)
+#error "Critical sections are only available in Python 3.13+"
+#endif
+#define BROTLI_CRITICAL_START Py_BEGIN_CRITICAL_SECTION(self)
+#define BROTLI_CRITICAL_END Py_END_CRITICAL_SECTION()
+#else
+#define BROTLI_CRITICAL_START {
+#define BROTLI_CRITICAL_END }
+#endif
+
 static const char kErrorAttr[] = "error";
 static const char kModuleAttr[] = "_module";
 
@@ -449,6 +471,33 @@ static void brotli_Compressor_dealloc(PyBrotli_Compressor* self) {
   Py_TYPE(self)->tp_free((PyObject*)self);
 }
 
+static int brotli_compressor_enter(PyBrotli_Compressor* self) {
+  PyObject* self_type = (PyObject*)Py_TYPE((PyObject*)self);
+  int ok = 1;
+
+  BROTLI_CRITICAL_START;
+  if (self->healthy == 0) {
+    set_brotli_exception(self_type, kCompressUnhealthyError);
+    ok = 0;
+  }
+  if (ok && self->processing != 0) {
+    set_brotli_exception(self_type, kCompressConcurrentError);
+    ok = 0;
+  }
+  if (ok) {
+    self->processing = 1;
+  }
+  BROTLI_CRITICAL_END;
+  return ok;
+}
+
+static void brotli_compressor_leave(PyBrotli_Compressor* self) {
+  BROTLI_CRITICAL_START;
+  assert(self->processing == 1);
+  self->processing = 0;
+  BROTLI_CRITICAL_END;
+}
+
 /*
    Compress "utility knife" used for process / flush / finish.
 
@@ -522,28 +571,27 @@ static PyObject* brotli_Compressor_process(PyBrotli_Compressor* self,
   PyObject* ret = NULL;
   PyObject* input_object = NULL;
   Py_buffer input;
+  int ok = 1;
 
-  if (self->healthy == 0) {
-    set_brotli_exception(self_type, kCompressUnhealthyError);
-    return NULL;
-  }
-  if (self->processing != 0) {
-    set_brotli_exception(self_type, kCompressConcurrentError);
-    return NULL;
-  }
+  if (!brotli_compressor_enter(self)) return NULL;
 
   if (!PyArg_ParseTuple(args, "O:process", &input_object)) {
-    return NULL;
+    ok = 0;
   }
-  if (!get_data_view(input_object, &input)) {
+  if (ok && !get_data_view(input_object, &input)) {
+    ok = 0;
+  }
+  if (!ok) {
+    self->healthy = 0;
+    brotli_compressor_leave(self);
     return NULL;
   }
 
-  self->processing = 1;
   ret = compress_stream(self, BROTLI_OPERATION_PROCESS, (uint8_t*)input.buf,
                         input.len);
   PyBuffer_Release(&input);
-  self->processing = 0;
+  brotli_compressor_leave(self);
+
   return ret;
 }
 
@@ -551,18 +599,10 @@ static PyObject* brotli_Compressor_flush(PyBrotli_Compressor* self) {
   PyObject* self_type = (PyObject*)Py_TYPE((PyObject*)self);
   PyObject* ret = NULL;
 
-  if (self->healthy == 0) {
-    set_brotli_exception(self_type, kCompressUnhealthyError);
-    return NULL;
-  }
-  if (self->processing != 0) {
-    set_brotli_exception(self_type, kCompressConcurrentError);
-    return NULL;
-  }
-
-  self->processing = 1;
+  if (!brotli_compressor_enter(self)) return NULL;
   ret = compress_stream(self, BROTLI_OPERATION_FLUSH, NULL, 0);
-  self->processing = 0;
+  brotli_compressor_leave(self);
+
   return ret;
 }
 
@@ -570,18 +610,10 @@ static PyObject* brotli_Compressor_finish(PyBrotli_Compressor* self) {
   PyObject* self_type = (PyObject*)Py_TYPE((PyObject*)self);
   PyObject* ret = NULL;
 
-  if (self->healthy == 0) {
-    set_brotli_exception(self_type, kCompressUnhealthyError);
-    return NULL;
-  }
-  if (self->processing != 0) {
-    set_brotli_exception(self_type, kCompressConcurrentError);
-    return NULL;
-  }
-
-  self->processing = 1;
+  if (!brotli_compressor_enter(self)) return NULL;
   ret = compress_stream(self, BROTLI_OPERATION_FINISH, NULL, 0);
-  self->processing = 0;
+  brotli_compressor_leave(self);
+
   if (ret != NULL) {
     assert(BrotliEncoderIsFinished(self->enc));
   }
@@ -639,6 +671,33 @@ static int brotli_Decompressor_init(PyBrotli_Decompressor* self, PyObject* args,
   return 0;
 }
 
+static int brotli_decompressor_enter(PyBrotli_Decompressor* self) {
+  PyObject* self_type = (PyObject*)Py_TYPE((PyObject*)self);
+  int ok = 1;
+
+  BROTLI_CRITICAL_START;
+  if (self->healthy == 0) {
+    set_brotli_exception(self_type, kDecompressUnhealthyError);
+    ok = 0;
+  }
+  if (ok && self->processing != 0) {
+    set_brotli_exception(self_type, kDecompressConcurrentError);
+    ok = 0;
+  }
+  if (ok) {
+    self->processing = 1;
+  }
+  BROTLI_CRITICAL_END;
+  return ok;
+}
+
+static void brotli_decompressor_leave(PyBrotli_Decompressor* self) {
+  BROTLI_CRITICAL_START;
+  assert(self->processing == 1);
+  self->processing = 0;
+  BROTLI_CRITICAL_END;
+}
+
 static void brotli_Decompressor_dealloc(PyBrotli_Decompressor* self) {
   if (self->dec) BrotliDecoderDestroyInstance(self->dec);
   if (self->unconsumed_data) {
@@ -664,26 +723,24 @@ static PyObject* brotli_Decompressor_process(PyBrotli_Decompressor* self,
   uint8_t* new_tail = NULL;
   size_t new_tail_length = 0;
   int oom = 0;
+  int ok = 1;
 
-  if (self->healthy == 0) {
-    set_brotli_exception(self_type, kDecompressUnhealthyError);
-    return NULL;
-  }
-  if (self->processing != 0) {
-    set_brotli_exception(self_type, kDecompressConcurrentError);
-    return NULL;
-  }
+  if (!brotli_decompressor_enter(self)) return NULL;
 
   if (!PyArg_ParseTupleAndKeywords(args, keywds, "O|n:process", (char**)kwlist,
                                    &input_object, &output_buffer_limit)) {
-    return NULL;
+    ok = 0;
   }
-  if (!get_data_view(input_object, &input)) {
+  if (ok && !get_data_view(input_object, &input)) {
+    ok = 0;
+  }
+  if (!ok) {
+    self->healthy = 0;
+    brotli_decompressor_leave(self);
     return NULL;
   }
 
   Buffer_Init(&buffer);
-  self->processing = 1;
 
   if (self->unconsumed_data_length > 0) {
     if (input.len > 0) {
@@ -769,21 +826,17 @@ finally:
     assert(ret == NULL);
     self->healthy = 0;
   }
-  self->processing = 0;
+  brotli_decompressor_leave(self);
+
   return ret;
 }
 
 static PyObject* brotli_Decompressor_is_finished(PyBrotli_Decompressor* self) {
-  PyObject* self_type = (PyObject*)Py_TYPE((PyObject*)self);
-  if (self->healthy == 0) {
-    set_brotli_exception(self_type, kDecompressUnhealthyError);
-    return NULL;
-  }
-  if (self->processing != 0) {
-    set_brotli_exception(self_type, kDecompressConcurrentError);
-    return NULL;
-  }
-  if (BrotliDecoderIsFinished(self->dec)) {
+  int result;
+  if (!brotli_decompressor_enter(self)) return NULL;
+  result = BrotliDecoderIsFinished(self->dec);
+  brotli_decompressor_leave(self);
+  if (result) {
     Py_RETURN_TRUE;
   } else {
     Py_RETURN_FALSE;
@@ -792,16 +845,11 @@ static PyObject* brotli_Decompressor_is_finished(PyBrotli_Decompressor* self) {
 
 static PyObject* brotli_Decompressor_can_accept_more_data(
     PyBrotli_Decompressor* self) {
-  PyObject* self_type = (PyObject*)Py_TYPE((PyObject*)self);
-  if (self->healthy == 0) {
-    set_brotli_exception(self_type, kDecompressUnhealthyError);
-    return NULL;
-  }
-  if (self->processing != 0) {
-    set_brotli_exception(self_type, kDecompressConcurrentError);
-    return NULL;
-  }
-  if (self->unconsumed_data_length > 0) {
+  int result;
+  if (!brotli_decompressor_enter(self)) return NULL;
+  result = (self->unconsumed_data_length > 0);
+  brotli_decompressor_leave(self);
+  if (result) {
     Py_RETURN_FALSE;
   } else {
     Py_RETURN_TRUE;
@@ -1003,7 +1051,9 @@ static PyMethodDef brotli_methods[] = {
 
 static PyModuleDef_Slot brotli_mod_slots[] = {
     {Py_mod_exec, brotli_init_mod},
-#if (PY_MAJOR_VERSION > 3) || (PY_MINOR_VERSION >= 12)
+#ifdef Py_GIL_DISABLED
+    {Py_mod_gil, Py_MOD_GIL_NOT_USED},
+#elif (PY_MAJOR_VERSION > 3) || (PY_MINOR_VERSION >= 12)
     {Py_mod_multiple_interpreters, Py_MOD_PER_INTERPRETER_GIL_SUPPORTED},
 #endif
     {0, NULL}};
