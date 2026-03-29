@@ -1540,6 +1540,8 @@ static BROTLI_BOOL AttachCompoundDictionary(
     state->compound_dictionary = addon;
   }
   if (addon->num_chunks == 15) return BROTLI_FALSE;
+  if (size > (size_t)0x7FFFFFFF) return BROTLI_FALSE;
+  if ((int)size > 0x7FFFFFFF - addon->total_size) return BROTLI_FALSE;
   addon->chunks[addon->num_chunks] = data;
   addon->num_chunks++;
   addon->total_size += (int)size;
