@@ -31,7 +31,7 @@ public class BundleChecker implements Runnable {
   private final boolean sanityCheck;
 
   /**
-   * @param sanityCheck do not calculate checksum and ignore {@link IOException}.
+   * @param sanityCheck do not calculate checksum and ignore {@link IOException}
    */
   public BundleChecker(InputStream input, AtomicInteger nextJob, boolean sanityCheck) {
     this.input = input;
