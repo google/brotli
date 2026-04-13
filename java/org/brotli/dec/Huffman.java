@@ -40,9 +40,10 @@ final class Huffman {
   }
 
   /**
-   * @param count histogram of bit lengths for the remaining symbols,
-   * @param len code length of the next processed symbol.
-   * @return table width of the next 2nd level table.
+   * @param count histogram of bit lengths for the remaining symbols
+   * @param len code length of the next processed symbol
+   * @param rootBits number of bits in the root table
+   * @return table width of the next 2nd level table
    */
   private static int nextTableBitSize(int[] count, int len, int rootBits) {
     int bits = len;

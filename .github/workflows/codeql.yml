@@ -35,7 +35,7 @@ jobs:
     steps:
 
     - name: Harden Runner
-      uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594 # v2.16.0
+      uses: step-security/harden-runner@fe104658747b27e96e4f7e80cd0a94068e53901d # v2.16.1
       with:
         egress-policy: audit
 
@@ -44,7 +44,7 @@ jobs:
 
     # Initializes the CodeQL tools for scanning.
     - name: Initialize CodeQL
-      uses: github/codeql-action/init@cf1bb45a277cb3c205638b2cd5c984db1c46a412 # v3.29.5
+      uses: github/codeql-action/init@c10b8064de6f491fea524254123dbe5e09572f13 # v4.35.1
       with:
         languages: ${{ matrix.language }}
         # CodeQL is currently crashing on files with large lists:
@@ -56,7 +56,7 @@ jobs:
 
     - if: matrix.language == 'cpp'
       name: Build CPP
-      uses: github/codeql-action/autobuild@cf1bb45a277cb3c205638b2cd5c984db1c46a412 # v3.29.5
+      uses: github/codeql-action/autobuild@c10b8064de6f491fea524254123dbe5e09572f13 # v4.35.1
 
     - if: matrix.language == 'cpp' || matrix.language == 'java'
       name: Build Java
@@ -66,7 +66,7 @@ jobs:
 
     - if: matrix.language == 'javascript'
       name: Build JS
-      uses: github/codeql-action/autobuild@cf1bb45a277cb3c205638b2cd5c984db1c46a412 # v3.29.5
+      uses: github/codeql-action/autobuild@c10b8064de6f491fea524254123dbe5e09572f13 # v4.35.1
 
     - if: matrix.language == 'cpp' || matrix.language == 'python'
       name: Build Python
@@ -76,7 +76,7 @@ jobs:
         python setup.py build_ext
 
     - name: Perform CodeQL Analysis
-      uses: github/codeql-action/analyze@cf1bb45a277cb3c205638b2cd5c984db1c46a412 # v3.29.5
+      uses: github/codeql-action/analyze@c10b8064de6f491fea524254123dbe5e09572f13 # v4.35.1
       with:
         category: "/language:${{matrix.language}}"
         ref: "${{ github.ref != 'master' && github.ref || '/refs/heads/master' }}"
