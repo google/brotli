@@ -18,6 +18,7 @@ public class BrotliOutputStream extends OutputStream {
   /** The default internal buffer size used by the encoder. */
   private static final int DEFAULT_BUFFER_SIZE = 16384;
 
+  private final Object lock = new Object();
   private final Encoder encoder;
 
   /**
@@ -42,31 +43,39 @@ public class BrotliOutputStream extends OutputStream {
   }
 
   public void attachDictionary(PreparedDictionary dictionary) throws IOException {
-    encoder.attachDictionary(dictionary);
+    synchronized (lock) {
+      encoder.attachDictionary(dictionary);
+    }
   }
 
   @Override
   public void close() throws IOException {
-    encoder.close();
+    synchronized (lock) {
+      encoder.close();
+    }
   }
 
   @Override
   public void flush() throws IOException {
-    if (encoder.closed) {
-      throw new IOException("write after close");
+    synchronized (lock) {
+      if (encoder.closed) {
+        throw new IOException("write after close");
+      }
+      encoder.flush();
     }
-    encoder.flush();
   }
 
   @Override
   public void write(int b) throws IOException {
-    if (encoder.closed) {
-      throw new IOException("write after close");
+    synchronized (lock) {
+      if (encoder.closed) {
+        throw new IOException("write after close");
+      }
+      while (!encoder.encode(EncoderJNI.Operation.PROCESS)) {
+        // Busy-wait loop.
+      }
+      encoder.inputBuffer.put((byte) b);
     }
-    while (!encoder.encode(EncoderJNI.Operation.PROCESS)) {
-      // Busy-wait loop.
-    }
-    encoder.inputBuffer.put((byte) b);
   }
 
   @Override
@@ -76,17 +85,19 @@ public class BrotliOutputStream extends OutputStream {
 
   @Override
   public void write(byte[] b, int off, int len) throws IOException {
-    if (encoder.closed) {
-      throw new IOException("write after close");
-    }
-    while (len > 0) {
-      if (!encoder.encode(EncoderJNI.Operation.PROCESS)) {
-        continue;
+    synchronized (lock) {
+      if (encoder.closed) {
+        throw new IOException("write after close");
       }
-      int limit = Math.min(len, encoder.inputBuffer.remaining());
-      encoder.inputBuffer.put(b, off, limit);
-      off += limit;
-      len -= limit;
+      while (len > 0) {
+        if (!encoder.encode(EncoderJNI.Operation.PROCESS)) {
+          continue;
+        }
+        int limit = Math.min(len, encoder.inputBuffer.remaining());
+        encoder.inputBuffer.put(b, off, limit);
+        off += limit;
+        len -= limit;
+      }
     }
   }
 }
