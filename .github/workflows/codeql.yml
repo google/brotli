@@ -35,16 +35,16 @@ jobs:
     steps:
 
     - name: Harden Runner
-      uses: step-security/harden-runner@95d9a5deda9de15063e7595e9719c11c38c90ae2 # v2.13.2
+      uses: step-security/harden-runner@fe104658747b27e96e4f7e80cd0a94068e53901d # v2.16.1
       with:
         egress-policy: audit
 
     - name: Checkout repository
-      uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
     # Initializes the CodeQL tools for scanning.
     - name: Initialize CodeQL
-      uses: github/codeql-action/init@e12f0178983d466f2f6028f5cc7a6d786fd97f4b # v3.29.5
+      uses: github/codeql-action/init@c10b8064de6f491fea524254123dbe5e09572f13 # v4.35.1
       with:
         languages: ${{ matrix.language }}
         # CodeQL is currently crashing on files with large lists:
@@ -56,7 +56,7 @@ jobs:
 
     - if: matrix.language == 'cpp'
       name: Build CPP
-      uses: github/codeql-action/autobuild@e12f0178983d466f2f6028f5cc7a6d786fd97f4b # v3.29.5
+      uses: github/codeql-action/autobuild@c10b8064de6f491fea524254123dbe5e09572f13 # v4.35.1
 
     - if: matrix.language == 'cpp' || matrix.language == 'java'
       name: Build Java
@@ -66,15 +66,17 @@ jobs:
 
     - if: matrix.language == 'javascript'
       name: Build JS
-      uses: github/codeql-action/autobuild@e12f0178983d466f2f6028f5cc7a6d786fd97f4b # v3.29.5
+      uses: github/codeql-action/autobuild@c10b8064de6f491fea524254123dbe5e09572f13 # v4.35.1
 
     - if: matrix.language == 'cpp' || matrix.language == 'python'
       name: Build Python
       run: |
+        python -VV
+        pip install "setuptools>=70.0.0"
         python setup.py build_ext
 
     - name: Perform CodeQL Analysis
-      uses: github/codeql-action/analyze@e12f0178983d466f2f6028f5cc7a6d786fd97f4b # v3.29.5
+      uses: github/codeql-action/analyze@c10b8064de6f491fea524254123dbe5e09572f13 # v4.35.1
       with:
         category: "/language:${{matrix.language}}"
         ref: "${{ github.ref != 'master' && github.ref || '/refs/heads/master' }}"

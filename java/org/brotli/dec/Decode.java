@@ -224,7 +224,7 @@ final class Decode {
   /**
    * Reads brotli stream header and parses "window bits".
    *
-   * @param s initialized state, before any read is performed.
+   * @param s initialized state, before any read is performed
    * @return -1 if header is invalid
    */
   private static int decodeWindowBits(State s) {
@@ -272,7 +272,8 @@ final class Decode {
    *
    * In "eager" mode decoder returns as soon as there is enough data to fill output buffer.
    *
-   * @param s initialized state, before any read is performed.
+   * @param s initialized state, before any read is performed
+   * @return {@link BROTLI_OK} on success; otherwise an error code
    */
   static int enableEagerOutput(State s) {
     if (s.runningState != INITIALIZED) {

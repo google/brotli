@@ -1,39 +1,8 @@
+load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
+
 package(
     default_visibility = ["//visibility:public"],
 )
-
-# >>> JNI headers
-
-genrule(
-    name = "copy_link_jni_header",
-    srcs = ["@bazel_tools//tools/jdk:jni_header"],
-    outs = ["jni/jni.h"],
-    cmd = "cp -f $< $@",
-)
-
-genrule(
-    name = "copy_link_jni_md_header",
-    srcs = select({
-        "@bazel_tools//src/conditions:darwin": ["@bazel_tools//tools/jdk:jni_md_header-darwin"],
-        "@bazel_tools//src/conditions:freebsd": ["@bazel_tools//tools/jdk:jni_md_header-freebsd"],
-        "@bazel_tools//src/conditions:openbsd": ["@bazel_tools//tools/jdk:jni_md_header-openbsd"],
-        "@bazel_tools//src/conditions:windows": ["@bazel_tools//tools/jdk:jni_md_header-windows"],
-        "//conditions:default": ["@bazel_tools//tools/jdk:jni_md_header-linux"],
-    }),
-    outs = ["jni/jni_md.h"],
-    cmd = "cp -f $< $@",
-)
-
-cc_library(
-    name = "jni_inc",
-    hdrs = [
-        ":jni/jni.h",
-        ":jni/jni_md.h",
-    ],
-    includes = ["jni"],
-)
-
-# <<< JNI headers
 
 genrule(
     name = "license",
@@ -58,9 +27,9 @@ cc_binary(
         "@org_brotli//:enc_headers",
         "@org_brotli//:enc_sources",
     ],
-    linkshared = 1,
+    linkshared = True,
     deps = [
-        ":jni_inc",
+        "@bazel_tools//tools/jdk:jni",
         "@org_brotli//:brotli_inc",
     ],
 )
@@ -84,9 +53,9 @@ cc_binary(
     defines = [
         "BROTLI_EXTERNAL_DICTIONARY_DATA=",
     ],
-    linkshared = 1,
+    linkshared = True,
     deps = [
-        ":jni_inc",
+        "@bazel_tools//tools/jdk:jni",
         "@org_brotli//:brotli_inc",
     ],
 )
