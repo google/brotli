@@ -130,7 +130,7 @@ jobs:
           -DestinationPath brotli-${{matrix.triplet}}.zip
 
     - name: Upload package
-      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
       with:
         name: brotli-${{matrix.triplet}}
         path: brotli-${{matrix.triplet}}.zip
@@ -160,7 +160,7 @@ jobs:
         tar cvfJ testdata.txz tests/testdata
 
     - name: Upload archive
-      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
       with:
         name: testdata
         path: testdata.txz

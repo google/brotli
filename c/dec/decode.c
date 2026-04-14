@@ -481,6 +481,9 @@ static BROTLI_INLINE int BrotliCopyPreloadedSymbolsToU8(const HuffmanCode* table
                                                         uint8_t* ringbuffer,
                                                         int pos,
                                                         const int limit) {
+  const int kMaximalOverread = 4;
+  int pos_limit = limit;
+  int copies = 0;
   /* Calculate range where CheckInputAmount is always true.
      Start with the number of bytes we can read. */
   int64_t new_lim = br->guard_in - br->next_in;
@@ -488,9 +491,6 @@ static BROTLI_INLINE int BrotliCopyPreloadedSymbolsToU8(const HuffmanCode* table
   new_lim *= 8;
   /* At most 15 bits per symbol, so this is safe. */
   new_lim /= 15;
-  const int kMaximalOverread = 4;
-  int pos_limit = limit;
-  int copies = 0;
   if ((new_lim - kMaximalOverread) <= limit) {
     // Safe cast, since new_lim is already < num_steps
     pos_limit = (int)(new_lim - kMaximalOverread);
@@ -2091,10 +2091,10 @@ CommandInner:
       } while (--i != 0);
     } else { /* safe */
       do {
+        brotli_reg_t literal;
         if (BROTLI_PREDICT_FALSE(s->block_length[0] == 0)) {
           goto NextLiteralBlock;
         }
-        brotli_reg_t literal;
         if (!SafeReadSymbol(s->literal_htree, br, &literal)) {
           result = BROTLI_DECODER_NEEDS_MORE_INPUT;
           goto saveStateAndReturn;
