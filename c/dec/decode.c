@@ -481,6 +481,9 @@ static BROTLI_INLINE int BrotliCopyPreloadedSymbolsToU8(const HuffmanCode* table
                                                         uint8_t* ringbuffer,
                                                         int pos,
                                                         const int limit) {
+  const int kMaximalOverread = 4;
+  int pos_limit = limit;
+  int copies = 0;
   /* Calculate range where CheckInputAmount is always true.
      Start with the number of bytes we can read. */
   int64_t new_lim = br->guard_in - br->next_in;
@@ -488,9 +491,6 @@ static BROTLI_INLINE int BrotliCopyPreloadedSymbolsToU8(const HuffmanCode* table
   new_lim *= 8;
   /* At most 15 bits per symbol, so this is safe. */
   new_lim /= 15;
-  const int kMaximalOverread = 4;
-  int pos_limit = limit;
-  int copies = 0;
   if ((new_lim - kMaximalOverread) <= limit) {
     // Safe cast, since new_lim is already < num_steps
     pos_limit = (int)(new_lim - kMaximalOverread);
@@ -1526,6 +1526,8 @@ static BrotliDecoderErrorCode BROTLI_NOINLINE CopyUncompressedBlockToOutput(
 static BROTLI_BOOL AttachCompoundDictionary(
     BrotliDecoderState* state, const uint8_t* data, size_t size) {
   BrotliDecoderCompoundDictionary* addon = state->compound_dictionary;
+  int new_size = (int)size;
+  if (new_size < 0 || (size_t)new_size != size) return BROTLI_FALSE;
   if (state->state != BROTLI_STATE_UNINITED) return BROTLI_FALSE;
   if (!addon) {
     addon = (BrotliDecoderCompoundDictionary*)BROTLI_DECODER_ALLOC(
@@ -1540,10 +1542,13 @@ static BROTLI_BOOL AttachCompoundDictionary(
     state->compound_dictionary = addon;
   }
   if (addon->num_chunks == 15) return BROTLI_FALSE;
+  if (!BROTLI_SAFE_ADD(int, addon->total_size, new_size, &new_size)) {
+    return BROTLI_FALSE;
+  }
   addon->chunks[addon->num_chunks] = data;
   addon->num_chunks++;
-  addon->total_size += (int)size;
-  addon->chunk_offsets[addon->num_chunks] = addon->total_size;
+  addon->total_size = new_size;
+  addon->chunk_offsets[addon->num_chunks] = new_size;
   return BROTLI_TRUE;
 }
 
@@ -2086,10 +2091,10 @@ CommandInner:
       } while (--i != 0);
     } else { /* safe */
       do {
+        brotli_reg_t literal;
         if (BROTLI_PREDICT_FALSE(s->block_length[0] == 0)) {
           goto NextLiteralBlock;
         }
-        brotli_reg_t literal;
         if (!SafeReadSymbol(s->literal_htree, br, &literal)) {
           result = BROTLI_DECODER_NEEDS_MORE_INPUT;
           goto saveStateAndReturn;

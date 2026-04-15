@@ -35,7 +35,7 @@ jobs:
     steps:
 
     - name: Harden Runner
-      uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594 # v2.16.0
+      uses: step-security/harden-runner@f808768d1510423e83855289c910610ca9b43176 # v2.17.0
       with:
         egress-policy: audit
 
@@ -53,7 +53,7 @@ jobs:
       run: which node >> $HOME/.base_node_path
 
     - name: Install emsdk
-      uses: mymindstorm/setup-emsdk@6ab9eb1bda2574c4ddb79809fc9247783eaf9021 # v14
+      uses: mymindstorm/setup-emsdk@4528d102f7230f0e7b276855c01ea1159be0e984 # v16
       with:
         version: ${{env.EM_VERSION}}
         no-cache: true

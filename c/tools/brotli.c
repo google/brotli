@@ -1293,6 +1293,7 @@ static BROTLI_BOOL DecompressFile(Context* context) {
           if (context->verbosity > 0) {
             fprintf(stderr, "reason: comment mismatch\n");
           }
+          return BROTLI_FALSE;
         }
         return BROTLI_TRUE;
       }
