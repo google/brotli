@@ -10,6 +10,10 @@
 #include <brotli/shared_dictionary.h>
 #include "memory.h"
 
+/* Brotli cannot reference dictionary data beyond 64 MiB (1 << 26).
+   Accept up to 256 MiB (1 << 28) as a generous upper bound. */
+#define BROTLI_MAX_PREPARED_DICTIONARY_SIZE ((size_t)1 << 28)
+
 static PreparedDictionary* CreatePreparedDictionaryWithParams(MemoryManager* m,
     const uint8_t* source, size_t source_size, uint32_t bucket_bits,
     uint32_t slot_bits, uint32_t hash_bits, uint16_t bucket_limit) {
@@ -19,11 +23,11 @@ static PreparedDictionary* CreatePreparedDictionaryWithParams(MemoryManager* m,
   uint32_t hash_shift = 64u - bucket_bits;
   uint64_t hash_mask = (~((uint64_t)0U)) >> (64 - hash_bits);
   uint32_t slot_mask = num_slots - 1;
-  size_t alloc_size = (sizeof(uint32_t) << slot_bits) +
+  size_t header_size = (sizeof(uint32_t) << slot_bits) +
       (sizeof(uint32_t) << slot_bits) +
       (sizeof(uint16_t) << bucket_bits) +
-      (sizeof(uint32_t) << bucket_bits) +
-      (sizeof(uint32_t) * source_size);
+      (sizeof(uint32_t) << bucket_bits);
+  size_t alloc_size;
   uint8_t* flat = NULL;
   PreparedDictionary* result = NULL;
   uint16_t* num = NULL;
@@ -40,6 +44,8 @@ static PreparedDictionary* CreatePreparedDictionaryWithParams(MemoryManager* m,
   if (slot_bits > 16) return NULL;
   if (slot_bits > bucket_bits) return NULL;
   if (bucket_bits - slot_bits >= 16) return NULL;
+  if (source_size > BROTLI_MAX_PREPARED_DICTIONARY_SIZE) return NULL;
+  alloc_size = header_size + (sizeof(uint32_t) * source_size);
 
   flat = BROTLI_ALLOC(m, uint8_t, alloc_size);
   if (BROTLI_IS_OOM(m) || BROTLI_IS_NULL(flat)) return NULL;
