@@ -122,6 +122,18 @@ jobs:
             cmake_config: Debug
             os: windows-latest
 
+          - name: cmake-winarm64:msvc-rel
+            build_system: cmake
+            cmake_generator: Visual Studio 17 2022
+            cmake_config: Release
+            os: windows-11-arm
+
+          - name: cmake-winarm64:msvc-dbg
+            build_system: cmake
+            cmake_generator: Visual Studio 17 2022
+            cmake_config: Debug
+            os: windows-11-arm
+
           - name: fuzz:clang
             build_system: fuzz
             c_compiler: clang
@@ -145,10 +157,15 @@ jobs:
             c_compiler: clang
             cxx_compiler: clang++
 
-          - name: python3.14-win
+          - name: python3.14-win64
             build_system: python
             python_version: "3.14"
             os: windows-latest
+
+          - name: python3.14-winarm64
+            build_system: python
+            python_version: "3.14"
+            os: windows-11-arm
 
           - name: maven
             build_system: maven
@@ -189,10 +206,15 @@ jobs:
             bazel_project: research
             os: macos-latest
 
-          - name: bazel-win:root
+          - name: bazel-win64:root
             build_system: bazel
             bazel_project: .
             os: windows-latest
+
+          - name: bazel-winarm64:root
+            build_system: bazel
+            bazel_project: .
+            os: windows-11-arm
 
           # TODO(eustas): restore when go is fixed
           #- name: bazel-win:go
@@ -206,10 +228,15 @@ jobs:
           #  bazel_project: java
           #  os: windows-latest
 
-          - name: bazel-win:research
+          - name: bazel-win64:research
             build_system: bazel
             bazel_project: research
             os: windows-latest
+
+          - name: bazel-winarm:research
+            build_system: bazel
+            bazel_project: research
+            os: windows-11-arm
 
     env:
       CC: ${{ matrix.c_compiler || 'gcc' }}
