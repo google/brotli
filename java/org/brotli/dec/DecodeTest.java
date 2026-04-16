@@ -14,6 +14,7 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -26,27 +27,27 @@ public class DecodeTest {
     byte[] buffer = new byte[65536];
     ByteArrayInputStream input = new ByteArrayInputStream(data);
     ByteArrayOutputStream output = new ByteArrayOutputStream();
-    InputStream brotliInput = newBrotliInputStream(input);
-    if (byByte) {
-      byte[] oneByte = new byte[1];
-      while (true) {
-        int next = brotliInput.read();
-        if (next == -1) {
-          break;
+    try (InputStream brotliInput = newBrotliInputStream(input)) {
+      if (byByte) {
+        byte[] oneByte = new byte[1];
+        while (true) {
+          int next = brotliInput.read();
+          if (next == -1) {
+            break;
+          }
+          oneByte[0] = (byte) next;
+          output.write(oneByte, 0, 1);
         }
-        oneByte[0] = (byte) next;
-        output.write(oneByte, 0, 1);
-      }
-    } else {
-      while (true) {
-        int len = brotliInput.read(buffer, 0, buffer.length);
-        if (len <= 0) {
-          break;
+      } else {
+        while (true) {
+          int len = brotliInput.read(buffer, 0, buffer.length);
+          if (len <= 0) {
+            break;
+          }
+          output.write(buffer, 0, len);
         }
-        output.write(buffer, 0, len);
       }
     }
-    brotliInput.close();
     return output.toByteArray();
   }
 
