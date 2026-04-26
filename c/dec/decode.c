@@ -1556,16 +1556,16 @@ static void EnsureCompoundDictionaryInitialized(BrotliDecoderState* state) {
   BrotliDecoderCompoundDictionary* addon = state->compound_dictionary;
   /* 256 = (1 << 8) slots in block map. */
   int block_bits = 8;
-  int cursor = 0;
+  size_t cursor = 0;
   int index = 0;
   if (addon->block_bits != -1) return;
   while (((addon->total_size - 1) >> block_bits) != 0) block_bits++;
   block_bits -= 8;
   addon->block_bits = block_bits;
-  while (cursor < addon->total_size) {
-    while (addon->chunk_offsets[index + 1] < cursor) index++;
+  while (cursor < (size_t)addon->total_size) {
+    while ((size_t)addon->chunk_offsets[index + 1] < cursor) index++;
     addon->block_map[cursor >> block_bits] = (uint8_t)index;
-    cursor += 1 << block_bits;
+    cursor += (size_t)1 << block_bits;
   }
 }
 
@@ -1573,10 +1573,12 @@ static BROTLI_BOOL InitializeCompoundDictionaryCopy(BrotliDecoderState* s,
     int address, int length) {
   BrotliDecoderCompoundDictionary* addon = s->compound_dictionary;
   int index;
+  int end;
   EnsureCompoundDictionaryInitialized(s);
   index = addon->block_map[address >> addon->block_bits];
   while (address >= addon->chunk_offsets[index + 1]) index++;
-  if (addon->total_size < address + length) return BROTLI_FALSE;
+  if (!BROTLI_SAFE_ADD(int, address, length, &end)) return BROTLI_FALSE;
+  if (addon->total_size < end) return BROTLI_FALSE;
   /* Update the recent distances cache. */
   s->dist_rb[s->dist_rb_idx & 3] = s->distance_code;
   ++s->dist_rb_idx;
