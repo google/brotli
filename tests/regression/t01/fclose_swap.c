@@ -1,3 +1,9 @@
+/* Copyright 2026 The Brotli Authors. All rights reserved.
+
+   Distributed under MIT license.
+   See file LICENSE for detail or copy at https://opensource.org/licenses/MIT
+*/
+
 #define _GNU_SOURCE
 
 #include <dlfcn.h>
