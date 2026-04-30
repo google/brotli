@@ -50,8 +50,8 @@
 #define fopen ms_fopen
 #define open ms_open
 
-#define chmod(F, P) (0)
-#define chown(F, O, G) (0)
+#define fchmod(FD, P) (0)
+#define fchown(FD, O, G) (0)
 
 #if defined(_MSC_VER) && (_MSC_VER >= 1400)
 #define fseek _fseeki64
@@ -833,16 +833,21 @@ static int64_t FileSize(const char* path) {
   return retval;
 }
 
-static int CopyTimeStat(const struct stat* statbuf, const char* output_path) {
+static int CopyTimeStat(const struct stat* statbuf, const char* output_path,
+                        FILE* fout) {
 #if HAVE_UTIMENSAT
   struct timespec times[2];
+  int fd = fileno(fout);
+  (void)output_path;
+  if (fd < 0) return -1;
   times[0].tv_sec = statbuf->st_atime;
   times[0].tv_nsec = ATIME_NSEC(statbuf);
   times[1].tv_sec = statbuf->st_mtime;
   times[1].tv_nsec = MTIME_NSEC(statbuf);
-  return utimensat(AT_FDCWD, output_path, times, AT_SYMLINK_NOFOLLOW);
+  return futimens(fd, times);
 #else
   struct utimbuf times;
+  (void)fout;
   times.actime = statbuf->st_atime;
   times.modtime = statbuf->st_mtime;
   return utime(output_path, &times);
@@ -852,27 +857,39 @@ static int CopyTimeStat(const struct stat* statbuf, const char* output_path) {
 /* Copy file times and permissions.
    TODO(eustas): this is a "best effort" implementation; honest cross-platform
    fully featured implementation is way too hacky; add more hacks by request. */
-static void CopyStat(const char* input_path, const char* output_path) {
+static void CopyStat(const char* input_path, const char* output_path,
+                     FILE* fout) {
   struct stat statbuf;
+  int fd;
   int res;
-  if (input_path == 0 || output_path == 0) {
+  if (input_path == 0 || output_path == 0 || fout == NULL) {
+    return;
+  }
+  fd = fileno(fout);
+  if (fd < 0) {
     return;
   }
   if (stat(input_path, &statbuf) != 0) {
     return;
   }
-  res = CopyTimeStat(&statbuf, output_path);
-  res = chmod(output_path, statbuf.st_mode & (S_IRWXU | S_IRWXG | S_IRWXO));
+  /* Flush any stdio-buffered output before setting timestamps; otherwise the
+     buffered write() that fclose() issues would clobber the atime/mtime we
+     just set. */
+  if (fflush(fout) != 0) {
+    return;
+  }
+  res = CopyTimeStat(&statbuf, output_path, fout);
+  res = fchmod(fd, statbuf.st_mode & (S_IRWXU | S_IRWXG | S_IRWXO));
   if (res != 0) {
     fprintf(stderr, "setting access bits failed for [%s]: %s\n",
             PrintablePath(output_path), strerror(errno));
   }
-  res = chown(output_path, (uid_t)-1, statbuf.st_gid);
+  res = fchown(fd, (uid_t)-1, statbuf.st_gid);
   if (res != 0) {
     fprintf(stderr, "setting group failed for [%s]: %s\n",
             PrintablePath(output_path), strerror(errno));
   }
-  res = chown(output_path, statbuf.st_uid, (gid_t)-1);
+  res = fchown(fd, statbuf.st_uid, (gid_t)-1);
   if (res != 0) {
     fprintf(stderr, "setting user failed for [%s]: %s\n",
             PrintablePath(output_path), strerror(errno));
@@ -1028,6 +1045,12 @@ static BROTLI_BOOL CloseFiles(Context* context, BROTLI_BOOL rm_input,
                               BROTLI_BOOL rm_output) {
   BROTLI_BOOL is_ok = BROTLI_TRUE;
   if (!context->test_integrity && context->fout) {
+    /* Apply metadata via the still-open fd, before close, to close the TOCTOU
+       window between fclose() and the metadata syscalls. */
+    if (!rm_output && context->copy_stat && context->current_output_path) {
+      CopyStat(context->current_input_path, context->current_output_path,
+               context->fout);
+    }
     if (fclose(context->fout) != 0) {
       if (is_ok) {
         fprintf(stderr, "fclose failed [%s]: %s\n",
@@ -1037,11 +1060,6 @@ static BROTLI_BOOL CloseFiles(Context* context, BROTLI_BOOL rm_input,
     }
     if (rm_output && context->current_output_path) {
       unlink(context->current_output_path);
-    }
-
-    /* TOCTOU violation, but otherwise it is impossible to set file times. */
-    if (!rm_output && is_ok && context->copy_stat) {
-      CopyStat(context->current_input_path, context->current_output_path);
     }
   }
 
