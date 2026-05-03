@@ -167,9 +167,20 @@ BROTLI_BOOL BrotliDecoderHuffmanTreeGroupInit(BrotliDecoderState* s,
      This number is discovered "unlimited" "enough" calculator; it is actually
      a wee bigger than required in several cases (especially for alphabets with
      less than 16 symbols). */
+  /* defense-in-depth: each step of the size cascade can wrap size_t under
+     hypothetical caller / metablock values that bypass the parse-time caps. */
+  if (alphabet_size_limit > SIZE_MAX - 376) return BROTLI_FALSE;
   const size_t max_table_size = alphabet_size_limit + 376;
+  if (max_table_size != 0 &&
+      ntrees > SIZE_MAX / sizeof(HuffmanCode) / max_table_size) {
+    return BROTLI_FALSE;
+  }
   const size_t code_size = sizeof(HuffmanCode) * ntrees * max_table_size;
+  if (ntrees != 0 && ntrees > SIZE_MAX / sizeof(HuffmanCode*)) {
+    return BROTLI_FALSE;
+  }
   const size_t htree_size = sizeof(HuffmanCode*) * ntrees;
+  if (code_size > SIZE_MAX - htree_size) return BROTLI_FALSE;
   /* Pointer alignment is, hopefully, wider than sizeof(HuffmanCode). */
   HuffmanCode** p = (HuffmanCode**)BROTLI_DECODER_ALLOC(s,
       code_size + htree_size);

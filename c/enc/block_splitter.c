@@ -57,6 +57,13 @@ static void CopyLiteralsToByteArray(const Command* cmds,
   size_t i;
   for (i = 0; i < num_commands; ++i) {
     size_t insert_len = cmds[i].insert_len_;
+    /* defense-in-depth: refuse insert_len that wraps size_t when added to
+       from_pos. cmds[i].insert_len_ is encoder-internal and bounded by the
+       command builder; this is a defensive narrowing for hypothetical reuse
+       with caller-controlled insert_len. */
+    if (insert_len > (size_t)0 - from_pos) {
+      return;
+    }
     if (from_pos + insert_len > mask) {
       size_t head_size = mask + 1 - from_pos;
       memcpy(literals + pos, data + from_pos, head_size);
