@@ -15,6 +15,11 @@ static void FN(BuildAndStoreEntropyCodes)(MemoryManager* m, BlockEncoder* self,
     const HistogramType* histograms, const size_t histograms_size,
     const size_t alphabet_size, HuffmanTree* tree,
     size_t* storage_ix, uint8_t* storage) {
+  /* defense-in-depth: refuse if histograms_size * histogram_length_ wraps size_t */
+  if (self->histogram_length_ != 0 &&
+      histograms_size > SIZE_MAX / self->histogram_length_) {
+    return;
+  }
   const size_t table_size = histograms_size * self->histogram_length_;
   self->depths_ = BROTLI_ALLOC(m, uint8_t, table_size);
   self->bits_ = BROTLI_ALLOC(m, uint16_t, table_size);

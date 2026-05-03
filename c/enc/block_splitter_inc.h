@@ -205,6 +205,8 @@ static void FN(ClusterBlocks)(MemoryManager* m,
                               const size_t num_blocks,
                               uint8_t* block_ids,
                               BlockSplit* split) {
+  /* defense-in-depth: refuse if num_blocks + 4 * HISTOGRAMS_PER_BATCH wraps. */
+  if (num_blocks > SIZE_MAX - 4 * HISTOGRAMS_PER_BATCH) return;
   uint32_t* histogram_symbols = BROTLI_ALLOC(m, uint32_t, num_blocks);
   uint32_t* u32 =
       BROTLI_ALLOC(m, uint32_t, num_blocks + 4 * HISTOGRAMS_PER_BATCH);
@@ -451,6 +453,9 @@ static void FN(SplitByteVector)(MemoryManager* m,
     uint8_t* block_ids = BROTLI_ALLOC(m, uint8_t, length);
     size_t num_blocks = 0;
     const size_t bitmaplen = (num_histograms + 7) >> 3;
+    /* defense-in-depth: refuse if either multiplication wraps size_t. */
+    if (num_histograms != 0 && data_size > SIZE_MAX / num_histograms) return;
+    if (bitmaplen     != 0 && length    > SIZE_MAX / bitmaplen)     return;
     double* insert_cost = BROTLI_ALLOC(m, double, data_size * num_histograms);
     double* cost = BROTLI_ALLOC(m, double, num_histograms);
     uint8_t* switch_signal = BROTLI_ALLOC(m, uint8_t, length * bitmaplen);
