@@ -205,6 +205,8 @@ static void FN(ClusterBlocks)(MemoryManager* m,
                               const size_t num_blocks,
                               uint8_t* block_ids,
                               BlockSplit* split) {
+  /* num_blocks is bounded by meta-block length, which RFC 7932 caps at
+     16 MiB. */
   uint32_t* histogram_symbols = BROTLI_ALLOC(m, uint32_t, num_blocks);
   uint32_t* u32 =
       BROTLI_ALLOC(m, uint32_t, num_blocks + 4 * HISTOGRAMS_PER_BATCH);
@@ -451,6 +453,13 @@ static void FN(SplitByteVector)(MemoryManager* m,
     uint8_t* block_ids = BROTLI_ALLOC(m, uint8_t, length);
     size_t num_blocks = 0;
     const size_t bitmaplen = (num_histograms + 7) >> 3;
+    /* data_size is the alphabet size; the largest alphabet that reaches
+       SplitByteVector is BROTLI_NUM_COMMAND_SYMBOLS == 704.
+       num_histograms is capped by the encoder's sampling heuristics
+       (kMaxLiteralHistograms == 100, kMaxCommandHistograms == 50;
+       see block_splitter.c).
+       bitmaplen = (num_histograms + 7) >> 3, so it is capped at 13.
+       length is meta-block length (<= 16 MiB per RFC 7932). */
     double* insert_cost = BROTLI_ALLOC(m, double, data_size * num_histograms);
     double* cost = BROTLI_ALLOC(m, double, num_histograms);
     uint8_t* switch_signal = BROTLI_ALLOC(m, uint8_t, length * bitmaplen);

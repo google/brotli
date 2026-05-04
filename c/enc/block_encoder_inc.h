@@ -15,6 +15,10 @@ static void FN(BuildAndStoreEntropyCodes)(MemoryManager* m, BlockEncoder* self,
     const HistogramType* histograms, const size_t histograms_size,
     const size_t alphabet_size, HuffmanTree* tree,
     size_t* storage_ix, uint8_t* storage) {
+  /* histograms_size is the number of block types
+     (<= 257; RFC 7932 caps the number of block types at 256 plus one
+     entry for the implicit type). histogram_length_ is the alphabet
+     size, the largest of which is BROTLI_NUM_COMMAND_SYMBOLS == 704. */
   const size_t table_size = histograms_size * self->histogram_length_;
   self->depths_ = BROTLI_ALLOC(m, uint8_t, table_size);
   self->bits_ = BROTLI_ALLOC(m, uint16_t, table_size);

@@ -167,7 +167,17 @@ BROTLI_BOOL BrotliDecoderHuffmanTreeGroupInit(BrotliDecoderState* s,
      This number is discovered "unlimited" "enough" calculator; it is actually
      a wee bigger than required in several cases (especially for alphabets with
      less than 16 symbols). */
+  /* alphabet_size_limit is the largest alphabet handled by the decoder.
+     The biggest is the distance alphabet:
+     BROTLI_NUM_DISTANCE_SYMBOLS == 1128 per RFC 7932.
+     max_table_size = alphabet_size_limit + 376 is therefore bounded by
+     1128 + 376 == 1504. */
   const size_t max_table_size = alphabet_size_limit + 376;
+  /* ntrees is the number of huffman trees in the group (one per block
+     type). RFC 7932 caps the number of block types at 256
+     (BROTLI_MAX_NUMBER_OF_BLOCK_TYPES), so ntrees < 1024 (i.e.
+     ntrees <= 1023) leaves comfortable margin. The same invariant
+     covers the htree_size multiplication below. */
   const size_t code_size = sizeof(HuffmanCode) * ntrees * max_table_size;
   const size_t htree_size = sizeof(HuffmanCode*) * ntrees;
   /* Pointer alignment is, hopefully, wider than sizeof(HuffmanCode). */
