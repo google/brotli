@@ -10,6 +10,7 @@ import static org.junit.Assert.assertEquals;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -30,34 +31,37 @@ public class CompoundDictionaryTest {
 
   @Test
   public void testNoDictionary() throws IOException {
-    BrotliInputStream decoder = new BrotliInputStream(new ByteArrayInputStream(ONE_COPY));
-    byte[] buffer = new byte[32];
-    int length = decoder.read(buffer, 0, buffer.length);
-    assertEquals(TEXT.length(), length);
-    assertEquals("alternate\" type=\"appli", new String(buffer, 0, length, "US-ASCII"));
-    decoder.close();
+    try (BrotliInputStream decoder = new BrotliInputStream(new ByteArrayInputStream(ONE_COPY))) {
+        byte[] buffer = new byte[32];
+        int length = decoder.read(buffer, 0, buffer.length);
+        assertEquals(TEXT.length(), length);
+        assertEquals("alternate\" type=\"appli", new String(buffer, 0, length, "US-ASCII"));
+        decoder.close();
+    }
   }
 
   @Test
   public void testOnePieceDictionary() throws IOException {
-    BrotliInputStream decoder = new BrotliInputStream(new ByteArrayInputStream(ONE_COPY));
-    decoder.attachDictionaryChunk(TEXT.getBytes("US-ASCII"));
-    byte[] buffer = new byte[32];
-    int length = decoder.read(buffer, 0, buffer.length);
-    assertEquals(TEXT.length(), length);
-    assertEquals(TEXT, new String(buffer, 0, length, "US-ASCII"));
-    decoder.close();
+    try (BrotliInputStream decoder = new BrotliInputStream(new ByteArrayInputStream(ONE_COPY))) {
+        decoder.attachDictionaryChunk(TEXT.getBytes("US-ASCII"));
+        byte[] buffer = new byte[32];
+        int length = decoder.read(buffer, 0, buffer.length);
+        assertEquals(TEXT.length(), length);
+        assertEquals(TEXT, new String(buffer, 0, length, "US-ASCII"));
+        decoder.close();
+    }
   }
 
   @Test
   public void testTwoPieceDictionary() throws IOException {
-    BrotliInputStream decoder = new BrotliInputStream(new ByteArrayInputStream(ONE_COPY));
-    decoder.attachDictionaryChunk(TEXT.substring(0, 13).getBytes("US-ASCII"));
-    decoder.attachDictionaryChunk(TEXT.substring(13).getBytes("US-ASCII"));
-    byte[] buffer = new byte[32];
-    int length = decoder.read(buffer, 0, buffer.length);
-    assertEquals(TEXT.length(), length);
-    assertEquals(TEXT, new String(buffer, 0, length, "US-ASCII"));
-    decoder.close();
+    try (BrotliInputStream decoder = new BrotliInputStream(new ByteArrayInputStream(ONE_COPY))) {
+        decoder.attachDictionaryChunk(TEXT.substring(0, 13).getBytes("US-ASCII"));
+        decoder.attachDictionaryChunk(TEXT.substring(13).getBytes("US-ASCII"));
+        byte[] buffer = new byte[32];
+        int length = decoder.read(buffer, 0, buffer.length);
+        assertEquals(TEXT.length(), length);
+        assertEquals(TEXT, new String(buffer, 0, length, "US-ASCII"));
+        decoder.close();
+    }
   }
 }
