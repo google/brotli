@@ -200,6 +200,10 @@ OR:
 #define BROTLI_TARGET_RISCV64
 #endif
 
+#if defined(BROTLI_TARGET_RISCV64) && defined(__riscv_v) && __riscv_v >= 1000000
+#define BROTLI_RVV_1
+#endif
+
 #if defined(__loongarch_lp64)
 #define BROTLI_TARGET_LOONGARCH64
 #endif

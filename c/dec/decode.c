@@ -24,6 +24,10 @@
 #include <arm_neon.h>
 #endif
 
+#if defined(BROTLI_RVV_1)
+#include <riscv_vector.h>
+#endif
+
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
 #endif
@@ -182,6 +186,10 @@ static BrotliDecoderErrorCode DecodeWindowBits(BrotliDecoderState* s,
 static BROTLI_INLINE void memmove16(uint8_t* dst, uint8_t* src) {
 #if defined(BROTLI_TARGET_NEON)
   vst1q_u8(dst, vld1q_u8(src));
+#elif defined(BROTLI_RVV_1)
+  size_t vl = __riscv_vsetvl_e8m1(16);
+  vuint8m1_t v = __riscv_vle8_v_u8m1(src, vl);
+  __riscv_vse8_v_u8m1(dst, v, vl);
 #else
   uint32_t buffer[4];
   memcpy(buffer, src, 16);
