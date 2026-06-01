@@ -11,6 +11,7 @@
 #include "../common/dictionary.h"
 #include "../common/platform.h"
 #include "../common/shared_dictionary_internal.h"
+#include <brotli/shared_dictionary.h>
 #include "../common/transform.h"
 #include "../common/version.h"
 #include "bit_reader.h"
@@ -1526,70 +1527,86 @@ static BrotliDecoderErrorCode BROTLI_NOINLINE CopyUncompressedBlockToOutput(
 static BROTLI_BOOL AttachCompoundDictionary(
     BrotliDecoderState* state, const uint8_t* data, size_t size) {
   BrotliDecoderCompoundDictionary* addon = state->compound_dictionary;
-  int new_size = (int)size;
-  if (new_size < 0 || (size_t)new_size != size) return BROTLI_FALSE;
+  /* Soft lie: no dictionary is attached; i.e. this call is not accounted
+   * towards SHARED_BROTLI_MAX_COMPOUND_DICTS limit. */
+  if (size == 0) return BROTLI_TRUE;
+  if (size > SHARED_BROTLI_MAX_RAW_DICT_SIZE) return BROTLI_FALSE;
   if (state->state != BROTLI_STATE_UNINITED) return BROTLI_FALSE;
   if (!addon) {
     addon = (BrotliDecoderCompoundDictionary*)BROTLI_DECODER_ALLOC(
         state, sizeof(BrotliDecoderCompoundDictionary));
     if (!addon) return BROTLI_FALSE;
-    addon->num_chunks = 0;
-    addon->total_size = 0;
-    addon->br_length = 0;
-    addon->br_copied = 0;
-    addon->block_bits = -1;
-    addon->chunk_offsets[0] = 0;
+    addon->num_chunks = 0u;
+    addon->block_bits = 255u;
+    addon->br_index = 0u;
+    addon->total_size = 0u;
+    addon->br_offset = 0u;
+    addon->br_length = 0u;
+    addon->br_copied = 0u;
+    addon->chunk_offsets[0] = 0u;
     state->compound_dictionary = addon;
   }
-  if (addon->num_chunks == 15) return BROTLI_FALSE;
-  if (!BROTLI_SAFE_ADD(int, addon->total_size, new_size, &new_size)) {
+  if (addon->num_chunks == SHARED_BROTLI_MAX_COMPOUND_DICTS) {
+    return BROTLI_FALSE;
+  }
+  if (size > SHARED_BROTLI_MAX_RAW_DICT_SIZE - addon->total_size) {
     return BROTLI_FALSE;
   }
   addon->chunks[addon->num_chunks] = data;
   addon->num_chunks++;
-  addon->total_size = new_size;
-  addon->chunk_offsets[addon->num_chunks] = new_size;
+  addon->total_size += (uint32_t)size;
+  addon->chunk_offsets[addon->num_chunks] = addon->total_size;
   return BROTLI_TRUE;
 }
 
 static void EnsureCompoundDictionaryInitialized(BrotliDecoderState* state) {
   BrotliDecoderCompoundDictionary* addon = state->compound_dictionary;
   /* 256 = (1 << 8) slots in block map. */
-  int block_bits = 8;
-  int cursor = 0;
-  int index = 0;
-  if (addon->block_bits != -1) return;
-  while (((addon->total_size - 1) >> block_bits) != 0) block_bits++;
-  block_bits -= 8;
-  addon->block_bits = block_bits;
-  while (cursor < addon->total_size) {
-    while (addon->chunk_offsets[index + 1] < cursor) index++;
+  size_t block_bits = 8u;
+  uint32_t cursor = 0u;
+  size_t index = 0u;
+  uint32_t maximal_address = addon->total_size - 1u;
+  BROTLI_DCHECK(addon->total_size > 0u);
+  if (addon->block_bits != 255u) return;
+  while ((maximal_address >> block_bits) != 0u) block_bits++;
+  block_bits -= 8u;
+  addon->block_bits = (uint8_t)block_bits;
+  while (cursor <= maximal_address) {
+    /* We have sentinel value equal maximal_address + 1. */
+    while (addon->chunk_offsets[index + 1u] < cursor) index++;
     addon->block_map[cursor >> block_bits] = (uint8_t)index;
-    cursor += 1 << block_bits;
+    cursor += 1u << block_bits;
   }
+  /* Now if X is in the range [0..maximal_address] then
+   * block_map[X >> block_bits] is in [0..num_chunks). */
 }
 
 static BROTLI_BOOL InitializeCompoundDictionaryCopy(BrotliDecoderState* s,
-    int address, int length) {
+    uint32_t address, uint32_t length) {
   BrotliDecoderCompoundDictionary* addon = s->compound_dictionary;
-  int index;
+  size_t index;
+  BROTLI_DCHECK(addon->total_size > 0u);
+  BROTLI_DCHECK(address < addon->total_size);
+  BROTLI_DCHECK(length > 0u);
   EnsureCompoundDictionaryInitialized(s);
   index = addon->block_map[address >> addon->block_bits];
+  /* Several chunks might be mapped to the same block index. */
   while (address >= addon->chunk_offsets[index + 1]) index++;
-  if (addon->total_size < address + length) return BROTLI_FALSE;
+  /* Check that the whole chunk is within dictionary bounds. */
+  if (length > addon->total_size - address) return BROTLI_FALSE;
   /* Update the recent distances cache. */
   s->dist_rb[s->dist_rb_idx & 3] = s->distance_code;
   ++s->dist_rb_idx;
   s->meta_block_remaining_len -= length;
-  addon->br_index = index;
+  addon->br_index = (uint16_t)index;
   addon->br_offset = address - addon->chunk_offsets[index];
   addon->br_length = length;
-  addon->br_copied = 0;
+  addon->br_copied = 0u;
   return BROTLI_TRUE;
 }
 
-static int GetCompoundDictionarySize(BrotliDecoderState* s) {
-  return s->compound_dictionary ? s->compound_dictionary->total_size : 0;
+static uint32_t GetCompoundDictionarySize(BrotliDecoderState* s) {
+  return s->compound_dictionary ? s->compound_dictionary->total_size : 0u;
 }
 
 static int CopyFromCompoundDictionary(BrotliDecoderState* s, int pos) {
@@ -1600,18 +1617,19 @@ static int CopyFromCompoundDictionary(BrotliDecoderState* s, int pos) {
     const uint8_t* copy_src =
         addon->chunks[addon->br_index] + addon->br_offset;
     int space = s->ringbuffer_size - pos;
-    int rem_chunk_length = (addon->chunk_offsets[addon->br_index + 1] -
-        addon->chunk_offsets[addon->br_index]) - addon->br_offset;
-    int length = addon->br_length - addon->br_copied;
+    uint32_t rem_chunk_length = (addon->chunk_offsets[addon->br_index + 1] -
+                                 addon->chunk_offsets[addon->br_index]) -
+                                addon->br_offset;
+    uint32_t length = addon->br_length - addon->br_copied;
     if (length > rem_chunk_length) length = rem_chunk_length;
-    if (length > space) length = space;
+    if (length > (uint32_t)space) length = (uint32_t)space;
     memcpy(copy_dst, copy_src, (size_t)length);
     pos += length;
     addon->br_offset += length;
     addon->br_copied += length;
     if (length == rem_chunk_length) {
       addon->br_index++;
-      addon->br_offset = 0;
+      addon->br_offset = 0u;
     }
     if (pos == s->ringbuffer_size) break;
   }
@@ -1990,7 +2008,7 @@ static BROTLI_INLINE BrotliDecoderErrorCode ProcessCommandsInternal(
   int i = s->loop_counter;
   BrotliDecoderErrorCode result = BROTLI_DECODER_SUCCESS;
   BrotliBitReader* br = &s->br;
-  int compound_dictionary_size = GetCompoundDictionarySize(s);
+  uint32_t compound_dictionary_size = GetCompoundDictionarySize(s);
 
   if (!CheckInputAmount(safe, br)) {
     result = BROTLI_DECODER_NEEDS_MORE_INPUT;
@@ -2191,10 +2209,14 @@ CommandPostDecodeLiterals:
           pos, s->distance_code, i, s->meta_block_remaining_len));
       return BROTLI_FAILURE(BROTLI_DECODER_ERROR_FORMAT_DISTANCE);
     }
-    if (s->distance_code - s->max_distance - 1 < compound_dictionary_size) {
-      int address = compound_dictionary_size -
-          (s->distance_code - s->max_distance);
-      if (!InitializeCompoundDictionaryCopy(s, address, i)) {
+    /* Check that LZ77-dictionary address is non-negative. */
+    if ((uint32_t)(s->distance_code - s->max_distance) - 1u <
+        compound_dictionary_size) {
+      /* Given that `s->distance_code - s->max_distance > 0` we have `address`
+       * is strictly less than `compound_dictionary_size`. */
+      uint32_t address = compound_dictionary_size -
+                         (uint32_t)(s->distance_code - s->max_distance);
+      if (!InitializeCompoundDictionaryCopy(s, address, (uint32_t)i)) {
         return BROTLI_FAILURE(BROTLI_DECODER_ERROR_COMPOUND_DICTIONARY);
       }
       pos += CopyFromCompoundDictionary(s, pos);
@@ -2202,6 +2224,9 @@ CommandPostDecodeLiterals:
         s->state = BROTLI_STATE_COMMAND_POST_WRITE_1;
         goto saveStateAndReturn;
       }
+      /* In else branch we have:
+       * `s->distance_code - s->max_distance - 1 >= compound_dictionary_size`;
+       * that implies that `compound_dictionary_size` could be cast to int. */
     } else if (i >= SHARED_BROTLI_MIN_DICTIONARY_WORD_LENGTH &&
                i <= SHARED_BROTLI_MAX_DICTIONARY_WORD_LENGTH) {
       uint8_t p1 = s->ringbuffer[(pos - 1) & s->ringbuffer_mask];
@@ -2213,8 +2238,8 @@ CommandPostDecodeLiterals:
       const BrotliTransforms* transforms = s->dictionary->transforms[dict_id];
       int offset = (int)words->offsets_by_length[i];
       brotli_reg_t shift = words->size_bits_by_length[i];
-      int address =
-          s->distance_code - s->max_distance - 1 - compound_dictionary_size;
+      int address = s->distance_code - s->max_distance - 1 -
+                    (int)compound_dictionary_size;
       int mask = (int)BitMask(shift);
       int word_idx = address & mask;
       int transform_idx = address >> shift;
