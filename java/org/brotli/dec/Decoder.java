@@ -12,15 +12,12 @@ public class Decoder {
       throws IOException {
     long totalOut = 0;
     int readBytes;
-    BrotliInputStream in = new BrotliInputStream(input);
-    in.enableLargeWindow();
-    try {
+    try (BrotliInputStream in = new BrotliInputStream(input)) {
+      in.enableLargeWindow();
       while ((readBytes = in.read(buffer)) >= 0) {
         output.write(buffer, 0, readBytes);
         totalOut += readBytes;
       }
-    } finally {
-      in.close();
     }
     return totalOut;
   }
@@ -29,23 +26,12 @@ public class Decoder {
     long start;
     long bytesDecoded;
     long end;
-    InputStream in = null;
-    OutputStream out = null;
-    try {
-      in = new FileInputStream(fromPath);
-      out = new FileOutputStream(toPath);
+    try (InputStream in = new FileInputStream(fromPath);
+            OutputStream out = new FileOutputStream(toPath)) {
       start = System.nanoTime();
       bytesDecoded = decodeBytes(in, out, buffer);
       end = System.nanoTime();
-    } finally {
-      if (in != null) {
-        in.close();  // Hopefully, does not throw exception.
-      }
-      if (out != null) {
-        out.close();
-      }
     }
-
     double timeDelta = (end - start) / 1000000000.0;
     if (timeDelta <= 0) {
       return;

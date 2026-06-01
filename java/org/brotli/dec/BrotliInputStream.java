@@ -139,6 +139,9 @@ public class BrotliInputStream extends InputStream {
    */
   @Override
   public int read(byte[] destBuffer, int destOffset, int destLen) throws IOException {
+    if (destBuffer == null) {
+      throw new NullPointerException("destBuffer is null");
+    }
     if (destOffset < 0) {
       throw new IllegalArgumentException("Bad offset: " + destOffset);
     } else if (destLen < 0) {
@@ -169,7 +172,7 @@ public class BrotliInputStream extends InputStream {
       copyLen += state.outputUsed;
       copyLen = (copyLen > 0) ? copyLen : END_OF_STREAM_MARKER;
       return copyLen;
-    } catch (BrotliRuntimeException ex) {
+    } catch (BrotliRuntimeException | IllegalStateException ex) {
       throw new IOException("Brotli stream decoding failed", ex);
     }
 
