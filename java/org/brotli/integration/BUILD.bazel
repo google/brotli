@@ -1,6 +1,10 @@
 # Description:
 #   Integration test runner + corpus for Java port of Brotli decoder.
 
+load("@rules_java//java:java_binary.bzl", "java_binary")
+load("@rules_java//java:java_library.bzl", "java_library")
+load("@rules_java//java:java_test.bzl", "java_test")
+
 java_library(
     name = "brotli_jni_test_base",
     srcs = ["BrotliJniTestBase.java"],

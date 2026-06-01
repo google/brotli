@@ -1,5 +1,8 @@
 # Description: brotli research tools.
 
+load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
+
 package(default_visibility = ["//visibility:public"])
 
 licenses(["notice"])  # MIT
@@ -7,15 +10,15 @@ licenses(["notice"])  # MIT
 cc_library(
     name = "dm",
     srcs = ["deorummolae.cc"],
-    deps = ["@esaxx//:sais"],
     hdrs = ["deorummolae.h"],
+    deps = ["@esaxx//:sais"],
 )
 
 cc_library(
     name = "durchschlag",
     srcs = ["durchschlag.cc"],
     hdrs = ["durchschlag.h"],
-    deps = ["@divsufsort//:divsufsort"],
+    deps = ["@divsufsort"],
 )
 
 cc_library(

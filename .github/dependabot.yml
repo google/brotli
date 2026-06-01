@@ -9,3 +9,8 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+    # Combine updates into single PR
+    groups:
+      everything:
+        patterns:
+          - "*" # Everything

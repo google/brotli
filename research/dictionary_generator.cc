@@ -281,6 +281,10 @@ int main(int argc, char const* argv[]) {
         const char* resolved_path = resolved_paths.gl_pathv[j];
 #endif
         std::string content = readFile(resolved_path);
+        if (content.empty()) {
+          fprintf(stderr, "Skipping empty sample: %s\n", resolved_path);
+          continue;
+        }
         if (chunkLen == 0) {
           paths.emplace_back(resolved_path);
           data.insert(data.end(), content.begin(), content.end());

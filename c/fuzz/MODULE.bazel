@@ -11,7 +11,7 @@ module(
     repo_name = "org_brotli_fuzz",
 )
 
-bazel_dep(name = "rules_fuzzing", version = "0.5.2")
+bazel_dep(name = "rules_fuzzing", version = "0.6.0")
 
 bazel_dep(name = "brotli", version = "1.2.0", repo_name = "org_brotli")
 local_path_override(

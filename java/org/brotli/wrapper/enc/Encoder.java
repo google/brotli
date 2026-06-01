@@ -69,6 +69,7 @@ public class Encoder implements AutoCloseable {
      * Setup encoder quality.
      *
      * @param quality compression quality, or -1 for default
+     * @return this
      */
     public Parameters setQuality(int quality) {
       if (quality < -1 || quality > 11) {
@@ -82,6 +83,7 @@ public class Encoder implements AutoCloseable {
      * Setup encoder window size.
      *
      * @param lgwin log2(LZ window size), or -1 for default
+     * @return this
      */
     public Parameters setWindow(int lgwin) {
       if ((lgwin != -1) && ((lgwin < 10) || (lgwin > 24))) {

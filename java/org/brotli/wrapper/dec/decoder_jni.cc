@@ -12,8 +12,8 @@
 #include <cstdint>
 #include <new>
 
-#include <brotli/shared_dictionary.h>
 #include <brotli/decode.h>
+#include <brotli/shared_dictionary.h>
 
 namespace {
 /* A structure used to persist the decoder's state in between calls. */
@@ -48,13 +48,12 @@ extern "C" {
  * @param ctx {out_cookie, in_directBufferSize} tuple
  * @returns direct ByteBuffer if directBufferSize is not 0; otherwise null
  */
-JNIEXPORT jobject JNICALL
-Java_org_brotli_wrapper_dec_DecoderJNI_nativeCreate(
+JNIEXPORT jobject JNICALL Java_org_brotli_wrapper_dec_DecoderJNI_nativeCreate(
     JNIEnv* env, jobject /*jobj*/, jlongArray ctx) {
   bool ok = true;
   DecoderHandle* handle = nullptr;
   jlong context[3];
-  env->GetLongArrayRegion(ctx, 0, 3, context);
+  env->functions->GetLongArrayRegion(env, ctx, 0, 3, context);
   size_t input_size = context[1];
   context[0] = 0;
   context[2] = 0;
@@ -92,13 +91,14 @@ Java_org_brotli_wrapper_dec_DecoderJNI_nativeCreate(
     delete handle;
   }
 
-  env->SetLongArrayRegion(ctx, 0, 3, context);
+  env->functions->SetLongArrayRegion(env, ctx, 0, 3, context);
 
   if (!ok) {
     return nullptr;
   }
 
-  return env->NewDirectByteBuffer(handle->input_start, input_size);
+  return env->functions->NewDirectByteBuffer(env, handle->input_start,
+                                             input_size);
 }
 
 /**
@@ -115,15 +115,14 @@ Java_org_brotli_wrapper_dec_DecoderJNI_nativeCreate(
  * @param input_length number of bytes provided in input or direct input;
  *                     0 to process further previous input
  */
-JNIEXPORT void JNICALL
-Java_org_brotli_wrapper_dec_DecoderJNI_nativePush(
+JNIEXPORT void JNICALL Java_org_brotli_wrapper_dec_DecoderJNI_nativePush(
     JNIEnv* env, jobject /*jobj*/, jlongArray ctx, jint input_length) {
   jlong context[3];
-  env->GetLongArrayRegion(ctx, 0, 3, context);
+  env->functions->GetLongArrayRegion(env, ctx, 0, 3, context);
   DecoderHandle* handle = getHandle(reinterpret_cast<void*>(context[0]));
   context[1] = 0;  /* ERROR */
   context[2] = 0;
-  env->SetLongArrayRegion(ctx, 0, 3, context);
+  env->functions->SetLongArrayRegion(env, ctx, 0, 3, context);
 
   if (input_length != 0) {
     /* Still have unconsumed data. Workflow is broken. */
@@ -160,7 +159,7 @@ Java_org_brotli_wrapper_dec_DecoderJNI_nativePush(
       break;
   }
   context[2] = BrotliDecoderHasMoreOutput(handle->state) ? 1 : 0;
-  env->SetLongArrayRegion(ctx, 0, 3, context);
+  env->functions->SetLongArrayRegion(env, ctx, 0, 3, context);
 }
 
 /**
@@ -170,11 +169,10 @@ Java_org_brotli_wrapper_dec_DecoderJNI_nativePush(
  * @returns direct ByteBuffer; all the produced data MUST be consumed before
  *          any further invocation; null in case of error
  */
-JNIEXPORT jobject JNICALL
-Java_org_brotli_wrapper_dec_DecoderJNI_nativePull(
+JNIEXPORT jobject JNICALL Java_org_brotli_wrapper_dec_DecoderJNI_nativePull(
     JNIEnv* env, jobject /*jobj*/, jlongArray ctx) {
   jlong context[3];
-  env->GetLongArrayRegion(ctx, 0, 3, context);
+  env->functions->GetLongArrayRegion(env, ctx, 0, 3, context);
   DecoderHandle* handle = getHandle(reinterpret_cast<void*>(context[0]));
   size_t data_length = 0;
   const uint8_t* data = BrotliDecoderTakeOutput(handle->state, &data_length);
@@ -189,8 +187,9 @@ Java_org_brotli_wrapper_dec_DecoderJNI_nativePull(
     context[1] = (handle->input_offset == handle->input_length) ? 2 : 4;
   }
   context[2] = hasMoreOutput ? 1 : 0;
-  env->SetLongArrayRegion(ctx, 0, 3, context);
-  return env->NewDirectByteBuffer(const_cast<uint8_t*>(data), data_length);
+  env->functions->SetLongArrayRegion(env, ctx, 0, 3, context);
+  return env->functions->NewDirectByteBuffer(env, const_cast<uint8_t*>(data),
+                                             data_length);
 }
 
 /**
@@ -198,15 +197,14 @@ Java_org_brotli_wrapper_dec_DecoderJNI_nativePull(
  *
  * @param ctx {in_cookie} tuple
  */
-JNIEXPORT void JNICALL
-Java_org_brotli_wrapper_dec_DecoderJNI_nativeDestroy(
+JNIEXPORT void JNICALL Java_org_brotli_wrapper_dec_DecoderJNI_nativeDestroy(
     JNIEnv* env, jobject /*jobj*/, jlongArray ctx) {
   jlong context[3];
-  env->GetLongArrayRegion(ctx, 0, 3, context);
+  env->functions->GetLongArrayRegion(env, ctx, 0, 3, context);
   DecoderHandle* handle = getHandle(reinterpret_cast<void*>(context[0]));
   BrotliDecoderDestroyInstance(handle->state);
   for (size_t i = 0; i < handle->dictionary_count; ++i) {
-    env->DeleteGlobalRef(handle->dictionary_refs[i]);
+    env->functions->DeleteGlobalRef(env, handle->dictionary_refs[i]);
   }
   delete[] handle->input_start;
   delete handle;
@@ -216,7 +214,7 @@ JNIEXPORT jboolean JNICALL
 Java_org_brotli_wrapper_dec_DecoderJNI_nativeAttachDictionary(
     JNIEnv* env, jobject /*jobj*/, jlongArray ctx, jobject dictionary) {
   jlong context[3];
-  env->GetLongArrayRegion(ctx, 0, 3, context);
+  env->functions->GetLongArrayRegion(env, ctx, 0, 3, context);
   DecoderHandle* handle = getHandle(reinterpret_cast<void*>(context[0]));
   jobject ref = nullptr;
   uint8_t* address = nullptr;
@@ -230,23 +228,24 @@ Java_org_brotli_wrapper_dec_DecoderJNI_nativeAttachDictionary(
     ok = false;
   }
   if (ok) {
-    ref = env->NewGlobalRef(dictionary);
+    ref = env->functions->NewGlobalRef(env, dictionary);
     ok = !!ref;
   }
   if (ok) {
     handle->dictionary_refs[handle->dictionary_count] = ref;
     handle->dictionary_count++;
-    address = static_cast<uint8_t*>(env->GetDirectBufferAddress(ref));
+    address = static_cast<uint8_t*>(
+        env->functions->GetDirectBufferAddress(env, ref));
     ok = !!address;
   }
   if (ok) {
-    capacity = env->GetDirectBufferCapacity(ref);
+    capacity = env->functions->GetDirectBufferCapacity(env, ref);
     ok = (capacity > 0) && (capacity < (1 << 30));
   }
   if (ok) {
     size_t size = static_cast<size_t>(capacity);
-    ok = !!BrotliDecoderAttachDictionary(handle->state,
-        BROTLI_SHARED_DICTIONARY_RAW, size, address);
+    ok = !!BrotliDecoderAttachDictionary(
+        handle->state, BROTLI_SHARED_DICTIONARY_RAW, size, address);
   }
 
   return static_cast<jboolean>(ok);
