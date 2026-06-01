@@ -17,17 +17,23 @@ else()
   message(STATUS "Build type is '${CMAKE_BUILD_TYPE}'")
 endif()
 
-include(CheckCSourceCompiles)
-check_c_source_compiles(
-  "#if defined(__EMSCRIPTEN__)
-   int main() {return 0;}
-   #endif"
-  BROTLI_EMSCRIPTEN
-)
-if (BROTLI_EMSCRIPTEN)
-  message("-- Compiler is EMSCRIPTEN")
+# Detect Emscripten compiler.
+# The EMSCRIPTEN variable is set by Emscripten's CMake toolchain file and is
+# the recommended way to detect Emscripten builds.
+#
+# Note: Previously this used check_c_source_compiles() to test for the
+# __EMSCRIPTEN__ macro, but that approach is unreliable in cross-compilation
+# scenarios where CMake links a static library instead of an executable,
+# causing false positives for non-Emscripten WASM toolchains (e.g., WASI SDK).
+if (EMSCRIPTEN)
+  set(BROTLI_EMSCRIPTEN TRUE)
 else()
-  message("-- Compiler is not EMSCRIPTEN")
+  set(BROTLI_EMSCRIPTEN FALSE)
+endif()
+if (BROTLI_EMSCRIPTEN)
+  message(STATUS "Compiler is EMSCRIPTEN")
+else()
+  message(STATUS "Compiler is not EMSCRIPTEN")
 endif()
 
 if (BROTLI_EMSCRIPTEN)
