@@ -1597,7 +1597,7 @@ static BROTLI_BOOL InitializeCompoundDictionaryCopy(BrotliDecoderState* s,
   /* Update the recent distances cache. */
   s->dist_rb[s->dist_rb_idx & 3] = s->distance_code;
   ++s->dist_rb_idx;
-  s->meta_block_remaining_len -= length;
+  s->meta_block_remaining_len -= (int)length;
   addon->br_index = (uint16_t)index;
   addon->br_offset = address - addon->chunk_offsets[index];
   addon->br_length = length;
@@ -1624,7 +1624,7 @@ static int CopyFromCompoundDictionary(BrotliDecoderState* s, int pos) {
     if (length > rem_chunk_length) length = rem_chunk_length;
     if (length > (uint32_t)space) length = (uint32_t)space;
     memcpy(copy_dst, copy_src, (size_t)length);
-    pos += length;
+    pos += (int)length;
     addon->br_offset += length;
     addon->br_copied += length;
     if (length == rem_chunk_length) {
