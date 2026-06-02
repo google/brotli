@@ -15,8 +15,30 @@
 extern "C" {
 #endif
 
-/* Separate implementation for little-endian 64-bit targets, for speed. */
-#if defined(BROTLI_TZCNT64) && BROTLI_64_BITS && BROTLI_LITTLE_ENDIAN
+#if defined(BROTLI_RVV_1)
+#include <riscv_vector.h>
+
+static BROTLI_INLINE size_t FindMatchLengthWithLimit(const uint8_t* s1,
+                                                     const uint8_t* s2,
+                                                     size_t limit) {
+  const uint8_t* s1_orig = s1;
+  while (limit > 0) {
+    size_t vl = __riscv_vsetvl_e8m1(limit);
+    vuint8m1_t v1 = __riscv_vle8_v_u8m1(s1, vl);
+    vuint8m1_t v2 = __riscv_vle8_v_u8m1(s2, vl);
+    vbool8_t mask = __riscv_vmsne_vv_u8m1_b8(v1, v2, vl);
+    long first_diff = __riscv_vfirst_m_b8(mask, vl);
+    if (first_diff >= 0) {
+      return (size_t)(s1 - s1_orig) + (size_t)first_diff;
+    }
+    s1 += vl;
+    s2 += vl;
+    limit -= vl;
+  }
+  return (size_t)(s1 - s1_orig);
+}
+
+#elif defined(BROTLI_TZCNT64) && BROTLI_64_BITS && BROTLI_LITTLE_ENDIAN
 static BROTLI_INLINE size_t FindMatchLengthWithLimit(const uint8_t* s1,
                                                      const uint8_t* s2,
                                                      size_t limit) {
