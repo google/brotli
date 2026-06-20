@@ -1,0 +1,83 @@
+name: "CodeQL"
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    # The branches below must be a subset of the branches above
+    branches: [ "master" ]
+  schedule:
+    - cron: '18 15 * * 0'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  analyze:
+    name: Analyze
+    runs-on: 'ubuntu-latest'
+    timeout-minutes: 360
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [ 'cpp', 'java', 'javascript', 'python' ]
+        # CodeQL supports [ 'cpp', 'csharp', 'go', 'java', 'javascript', 'python', 'ruby', 'swift' ]
+
+    steps:
+
+    - name: Harden Runner
+      uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+      with:
+        egress-policy: audit
+
+    - name: Checkout repository
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+    # Initializes the CodeQL tools for scanning.
+    - name: Initialize CodeQL
+      uses: github/codeql-action/init@7211b7c8077ea37d8641b6271f6a365a22a5fbfa # v4.36.0
+      with:
+        languages: ${{ matrix.language }}
+        # CodeQL is currently crashing on files with large lists:
+        #   https://github.com/github/codeql/issues/13656
+        config: |
+          paths-ignore:
+            - research
+            - js/test_data.*
+
+    - if: matrix.language == 'cpp'
+      name: Build CPP
+      uses: github/codeql-action/autobuild@7211b7c8077ea37d8641b6271f6a365a22a5fbfa # v4.36.0
+
+    - if: matrix.language == 'cpp' || matrix.language == 'java'
+      name: Build Java
+      run: |
+        cd ${GITHUB_WORKSPACE}/java
+        bazelisk build --spawn_strategy=local --nouse_action_cache -c opt ...:all
+
+    - if: matrix.language == 'javascript'
+      name: Build JS
+      uses: github/codeql-action/autobuild@7211b7c8077ea37d8641b6271f6a365a22a5fbfa # v4.36.0
+
+    - if: matrix.language == 'cpp' || matrix.language == 'python'
+      name: Build Python
+      run: |
+        python -VV
+        pip install "setuptools>=70.0.0"
+        python setup.py build_ext
+
+    - name: Perform CodeQL Analysis
+      uses: github/codeql-action/analyze@7211b7c8077ea37d8641b6271f6a365a22a5fbfa # v4.36.0
+      with:
+        category: "/language:${{matrix.language}}"
+        ref: "${{ github.ref != 'master' && github.ref || '/refs/heads/master' }}"
+        sha: "${{ github.sha }}"

@@ -1,0 +1,70 @@
+# Copyright 2025 Google Inc. All Rights Reserved.
+#
+# Distributed under MIT license.
+# See file LICENSE for detail or copy at https://opensource.org/licenses/MIT
+
+# Workflow for building and running tests with WASM
+
+name: Build/Test WASM
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    types: [opened, reopened, labeled, unlabeled, synchronize]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  build_test_wasm:
+    name: Build and test with WASM
+    runs-on: ubuntu-latest
+    env:
+      CCACHE_DIR: ${{ github.workspace }}/.ccache
+      BUILD_TARGET: wasm32
+      EM_VERSION: 3.1.51
+      # As of 28.08.2025 ubuntu-latest is 24.04; it is shipped with node 22.18
+      NODE_VERSION: 22
+
+    steps:
+
+    - name: Harden Runner
+      uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+      with:
+        egress-policy: audit
+
+    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      with:
+        submodules: true
+        fetch-depth: 1
+
+    - name: Install node
+      uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+      with:
+        node-version: ${{env.NODE_VERSION}}
+
+    - name: Get non-EMSDK node path
+      run: which node >> $HOME/.base_node_path
+
+    - name: Install emsdk
+      uses: mymindstorm/setup-emsdk@4528d102f7230f0e7b276855c01ea1159be0e984 # v16
+      with:
+        version: ${{env.EM_VERSION}}
+        no-cache: true
+
+    - name: Set EMSDK node version
+      run: |
+        echo "NODE_JS='$(cat $HOME/.base_node_path)'" >> $EMSDK/.emscripten
+        emsdk construct_env
+
+    - name: Build
+      run: |
+        LDFLAGS=" -s ALLOW_MEMORY_GROWTH=1 -s NODERAWFS=1 " emcmake cmake -B out .
+        cmake --build out
+        cd out; ctest --output-on-failure; cd ..

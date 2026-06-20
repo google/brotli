@@ -1,0 +1,44 @@
+{
+  "_comment": "See https://cyclonedx.org/ for more details",
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.6",
+  "version": 1,
+  "metadata": {
+    "authors": [
+      {
+        "name": "@VCS_SBOM_AUTHORS@"
+      }
+    ]
+  },
+  "components": [
+    {
+      "type": "library",
+      "bom-ref": "pkg:github/google/brotli@@VCS_TAG@",
+      "cpe": "cpe:2.3:a:google:brotli:@VCS_TAG@:*:*:*:*:*:*:*",
+      "name": "Brotli",
+      "version": "@VCS_VERSION@",
+      "description": "A generic-purpose lossless compression algorithm",
+      "authors": [
+        {
+          "name": "@VCS_AUTHORS@"
+        }
+      ],
+      "supplier": {
+        "name": "Brotli developers"
+      },
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "vcs",
+          "url": "https://github.com/google/brotli"
+        }
+      ]
+    }
+  ]
+}

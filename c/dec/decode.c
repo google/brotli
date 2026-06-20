@@ -913,6 +913,7 @@ static BrotliDecoderErrorCode ReadHuffmanCode(brotli_reg_t alphabet_size_max,
           BROTLI_LOG(("[ReadHuffmanCode] space = %d\n", (int)h->space));
           return BROTLI_FAILURE(BROTLI_DECODER_ERROR_FORMAT_HUFFMAN_SPACE);
         }
+<<<<<<< HEAD
         {
           /* Pass the per-tree slab budget so BrotliBuildHuffmanTable can
              detect if 2nd-level sub-tables would overflow the allocation. */
@@ -926,6 +927,10 @@ static BrotliDecoderErrorCode ReadHuffmanCode(brotli_reg_t alphabet_size_max,
             return BROTLI_FAILURE(BROTLI_DECODER_ERROR_FORMAT_HUFFMAN_SPACE);
           }
         }
+=======
+        table_size = BrotliBuildHuffmanTable(
+            table, HUFFMAN_TABLE_BITS, h->symbol_lists, h->code_length_histo);
+>>>>>>> upstream/master
         if (opt_table_size) {
           *opt_table_size = table_size;
         }
@@ -1040,6 +1045,7 @@ static BrotliDecoderErrorCode HuffmanTreeGroupDecode(
   }
   while (h->htree_index < group->num_htrees) {
     brotli_reg_t table_size;
+<<<<<<< HEAD
     /* Compute the end of the allocated slab for this group so we can
        verify h->next does not advance past it (belt-and-suspenders guard
        independent of the budget check inside BrotliBuildHuffmanTable). */
@@ -1053,6 +1059,11 @@ static BrotliDecoderErrorCode HuffmanTreeGroupDecode(
       /* table_size would push the write pointer past the slab end. */
       return BROTLI_FAILURE(BROTLI_DECODER_ERROR_FORMAT_HUFFMAN_SPACE);
     }
+=======
+    BrotliDecoderErrorCode result = ReadHuffmanCode(group->alphabet_size_max,
+        group->alphabet_size_limit, h->next, &table_size, s);
+    if (result != BROTLI_DECODER_SUCCESS) return result;
+>>>>>>> upstream/master
     group->htrees[h->htree_index] = h->next;
     h->next += table_size;
     ++h->htree_index;
@@ -1706,6 +1717,7 @@ static void BROTLI_NOINLINE BrotliCalculateRingBufferSize(
   } else {
     output_size = s->pos;
   }
+<<<<<<< HEAD
   /* Use unsigned arithmetic to avoid signed-int overflow (undefined behaviour)
      when s->pos is near INT_MAX (reachable with window_bits=30 after many
      wrapped metablocks).  Saturate at window_size: if the true sum exceeds
@@ -1715,6 +1727,9 @@ static void BROTLI_NOINLINE BrotliCalculateRingBufferSize(
                        (unsigned int)s->meta_block_remaining_len;
     output_size = (sum >= (unsigned int)window_size) ? window_size : (int)sum;
   }
+=======
+  output_size += s->meta_block_remaining_len;
+>>>>>>> upstream/master
   min_size = min_size < output_size ? output_size : min_size;
 
   if (!!s->canny_ringbuffer_allocation) {
@@ -2035,12 +2050,15 @@ static BROTLI_INLINE BrotliDecoderErrorCode ProcessCommandsInternal(
     int safe, BrotliDecoderState* s) {
   int pos = s->pos;
   int i = s->loop_counter;
+<<<<<<< HEAD
   /* Sanity check: loop_counter must only be non-zero when we are
      re-entering a suspended mid-literal copy (COMMAND_INNER or
      COMMAND_INNER_WRITE). Any other entry with a non-zero value indicates
      a state-machine desynchronisation (Finding 4). */
   BROTLI_DCHECK(s->state == BROTLI_STATE_COMMAND_INNER ||
                 s->state == BROTLI_STATE_COMMAND_INNER_WRITE || i == 0);
+=======
+>>>>>>> upstream/master
   BrotliDecoderErrorCode result = BROTLI_DECODER_SUCCESS;
   BrotliBitReader* br = &s->br;
   uint32_t compound_dictionary_size = GetCompoundDictionarySize(s);
@@ -2371,6 +2389,7 @@ CommandPostDecodeLiterals:
     s->meta_block_remaining_len -= i;
     /* There are 32+ bytes of slack in the ring-buffer allocation.
        Also, we have 16 short codes, that make these 16 bytes irrelevant
+<<<<<<< HEAD
        in the ring-buffer. Let's copy over them as a first guess.
        SECURITY NOTE: the speculative 16-byte read is only safe when the
        ring buffer has wrapped at least once (rb_roundtrips > 0), meaning
@@ -2394,6 +2413,10 @@ CommandPostDecodeLiterals:
             s->ringbuffer[(src_start + k) & s->ringbuffer_mask];
       }
     }
+=======
+       in the ring-buffer. Let's copy over them as a first guess. */
+    memmove16(copy_dst, copy_src);
+>>>>>>> upstream/master
     if (src_end > pos && dst_end > src_start) {
       /* Regions intersect. */
       goto CommandPostWrapCopy;
@@ -2437,12 +2460,15 @@ CommandPostWrapCopy:
   if (s->meta_block_remaining_len <= 0) {
     /* Next metablock, if any. */
     s->state = BROTLI_STATE_METABLOCK_DONE;
+<<<<<<< HEAD
     /* Zero i before saveStateAndReturn stores it back into s->loop_counter.
        BROTLI_STATE_BEFORE_COMPRESSED_METABLOCK_HEADER also resets
        loop_counter to 0, but a suspension between that state and here would
        carry a stale literal count into the block-type decode loop, causing
        state-machine desynchronisation (Finding 4). */
     i = 0;
+=======
+>>>>>>> upstream/master
     goto saveStateAndReturn;
   } else {
     goto CommandBegin;
@@ -2825,6 +2851,7 @@ BrotliDecoderResult BrotliDecoderDecompressStream(
         if (result != BROTLI_DECODER_SUCCESS) {
           break;
         }
+<<<<<<< HEAD
         /* Reject if more htrees are declared than context slots exist.
            Every htree index in the context map must address an entry in
            literal_hgroup, whose size is num_literal_htrees.  A value larger
@@ -2837,6 +2864,8 @@ BrotliDecoderResult BrotliDecoderDecompressStream(
               BROTLI_DECODER_ERROR_FORMAT_CONTEXT_MAP_REPEAT);
           break;
         }
+=======
+>>>>>>> upstream/master
         DetectTrivialLiteralBlockTypes(s);
         s->state = BROTLI_STATE_CONTEXT_MAP_2;
       /* Fall through. */

@@ -1,0 +1,8 @@
+# BCR configuration file for publish-to-bcr
+fixedReleaser:
+  login: eustas
+  email: eustas@google.com
+# Publish both the main brotli module and the Go bindings module
+moduleRoots:
+  - "."
+  - "go"

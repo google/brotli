@@ -1,0 +1,245 @@
+# Copyright 2023 Google Inc. All Rights Reserved.
+#
+# Distributed under MIT license.
+# See file LICENSE for detail or copy at https://opensource.org/licenses/MIT
+
+# Workflow for building the release binaries.
+
+name: Release build / deploy
+on:
+  push:
+    branches:
+      - master
+      - v*.*.*
+  release:
+    types: [ published ]
+  pull_request:
+    types: [opened, reopened, labeled, unlabeled, synchronize]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  windows_build:
+    name: Windows Build (vcpkg / ${{ matrix.triplet }})
+    runs-on: ${{ matrix.runs_on }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - triplet: x86-windows-dynamic
+            arch: '-A Win32'
+            build_shared_libs: 'ON'
+            runs_on: windows-latest
+          - triplet: x64-windows-dynamic
+            arch: '-A x64'
+            build_shared_libs: 'ON'
+            runs_on: windows-latest
+          - triplet: arm64-windows-dynamic
+            arch: '-A ARM64'
+            build_shared_libs: 'ON'
+            runs_on: windows-11-arm
+          - triplet: x86-windows-static
+            arch: '-A Win32'
+            build_shared_libs: 'OFF'
+            runs_on: windows-latest
+          - triplet: x64-windows-static
+            arch: '-A x64'
+            build_shared_libs: 'OFF'
+            runs_on: windows-latest
+          - triplet: arm64-windows-static
+            arch: '-A ARM64'
+            build_shared_libs: 'OFF'
+            runs_on: windows-11-arm
+
+    env:
+      VCPKG_VERSION: '2022.11.14'
+      VCPKG_ROOT: vcpkg
+      VCPKG_DISABLE_METRICS: 1
+
+    steps:
+
+    - name: Harden Runner
+      uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+      with:
+        egress-policy: audit
+
+    - name: Checkout the source
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      with:
+        submodules: false
+        fetch-depth: 1
+
+    - uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+      id: cache-vcpkg
+      with:
+        path: vcpkg
+        key: release-${{ runner.os }}-vcpkg-${{ env.VCPKG_VERSION }}-${{ matrix.triplet }}
+
+    - name: Download vcpkg
+      if: steps.cache-vcpkg.outputs.cache-hit != 'true'
+      shell: 'powershell'
+      run: |
+        Invoke-WebRequest -Uri "https://github.com/microsoft/vcpkg/archive/refs/tags/${{ env.VCPKG_VERSION }}.zip" -OutFile "vcpkg.zip"
+
+    - name: Bootstrap vcpkg
+      if: steps.cache-vcpkg.outputs.cache-hit != 'true'
+      shell: 'bash'
+      run: |
+        set -x
+        unzip -q vcpkg.zip
+        rm -rf ${VCPKG_ROOT}
+        mv vcpkg-${VCPKG_VERSION} ${VCPKG_ROOT}
+        ${VCPKG_ROOT}/bootstrap-vcpkg.sh
+
+    - name: Configure
+      shell: 'bash'
+      run: |
+        set -x
+        mkdir out
+        cmake -Bout -H. ${{ matrix.arch }} \
+          -DBUILD_TESTING=OFF \
+          -DBUILD_SHARED_LIBS=${{ matrix.build_shared_libs }} \
+          -DCMAKE_BUILD_TYPE=Release \
+          -DCMAKE_INSTALL_PREFIX=`pwd`/prefix \
+          -DCMAKE_TOOLCHAIN_FILE=${VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake \
+          -DVCPKG_TARGET_TRIPLET=${{ matrix.triplet }} \
+        #
+
+    - name: Build
+      shell: 'bash'
+      run: |
+        set -x
+        cmake --build out --config Release
+
+    - name: Install
+      shell: 'bash'
+      run: |
+        set -x
+        cmake --build out --config Release --target install
+        cp LICENSE prefix/bin/LICENSE.brotli
+
+    - name: Package release zip
+      shell: 'powershell'
+      run: |
+        Compress-Archive -Path prefix\bin\* `
+          -DestinationPath brotli-${{matrix.triplet}}.zip
+
+    - name: Upload package
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      with:
+        name: brotli-${{matrix.triplet}}
+        path: brotli-${{matrix.triplet}}.zip
+        compression-level: 0
+
+  testdata_upload:
+    name: Upload testdata
+    runs-on: 'ubuntu-latest'
+    defaults:
+      run:
+        shell: bash
+    steps:
+
+    - name: Harden Runner
+      uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+      with:
+        egress-policy: audit
+
+    - name: Checkout the source
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      with:
+        submodules: false
+        fetch-depth: 1
+
+    - name: Compress testdata
+      run: |
+        tar cvfJ testdata.txz tests/testdata
+
+    - name: Upload archive
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      with:
+        name: testdata
+        path: testdata.txz
+        compression-level: 0
+
+  publish_release_assets:
+    name: Publish release assets
+    needs: [windows_build, testdata_upload]
+    if: github.event_name == 'release'
+    runs-on: [ubuntu-latest]
+    permissions:
+      contents: write
+
+    steps:
+    - name: Checkout the source
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      with:
+        submodules: false
+        fetch-depth: 1
+
+    - name: Download all artifacts
+      uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+      with:
+        path: release_assets
+        merge-multiple: true
+
+    - name: Publish assets
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        gh release upload ${{ github.event.release.tag_name }} ./release_assets/*
+
+  archive_build:
+    needs: publish_release_assets
+    name: Build and test from archive
+    runs-on: 'ubuntu-latest'
+    defaults:
+      run:
+        shell: bash
+    steps:
+
+    - name: Harden Runner
+      uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+      with:
+        egress-policy: audit
+
+    - name: Checkout the source
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      with:
+        submodules: false
+        fetch-depth: 1
+
+    - name: Archive
+      run: |
+        git archive HEAD -o archive.tgz
+
+    - name: Pick tag
+      run: |
+        echo "BROTLI_TAG=$(git describe --tags --abbrev=0)" >> $GITHUB_ENV
+
+    - name: Extract
+      run: |
+        mkdir archive
+        cd archive
+        tar xvzf ../archive.tgz
+
+    - name: Download testdata
+      run: |
+        cd archive
+        scripts/download_testdata.sh
+
+    - name: Configure and Build
+      run: |
+        cd archive
+        cmake -B out .
+        cmake --build out
+
+    - name: Test
+      run: |
+        cd archive
+        cd out
+        ctest
