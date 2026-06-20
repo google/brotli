@@ -1,0 +1,1 @@
+/usr/bin/cc -g -Wl,--dependency-file=CMakeFiles/brotli.dir/link.d CMakeFiles/brotli.dir/c/tools/brotli.c.o -o brotli  -Wl,-rpath,/home/lex_is1/Documents/Google/brotli-master/build_patch: libbrotlienc.so.1.2.0 libbrotlidec.so.1.2.0 libbrotlicommon.so.1.2.0 -lm

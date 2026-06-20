@@ -1,0 +1,61 @@
+load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
+
+package(
+    default_visibility = ["//visibility:public"],
+)
+
+genrule(
+    name = "license",
+    srcs = ["@org_brotli//:LICENSE"],
+    outs = ["META-INF/LICENSE"],
+    cmd = "cp -f $< $@",
+)
+
+########################################################
+# WARNING: do not (transitively) depend on this target!
+########################################################
+cc_binary(
+    name = "brotli_jni.dll",
+    srcs = [
+        "//org/brotli/wrapper/common:jni_src",
+        "//org/brotli/wrapper/dec:jni_src",
+        "//org/brotli/wrapper/enc:jni_src",
+        "@org_brotli//:common_headers",
+        "@org_brotli//:common_sources",
+        "@org_brotli//:dec_headers",
+        "@org_brotli//:dec_sources",
+        "@org_brotli//:enc_headers",
+        "@org_brotli//:enc_sources",
+    ],
+    linkshared = True,
+    deps = [
+        "@bazel_tools//tools/jdk:jni",
+        "@org_brotli//:brotli_inc",
+    ],
+)
+
+########################################################
+# WARNING: do not (transitively) depend on this target!
+########################################################
+cc_binary(
+    name = "brotli_jni_no_dictionary_data.dll",
+    srcs = [
+        "//org/brotli/wrapper/common:jni_src",
+        "//org/brotli/wrapper/dec:jni_src",
+        "//org/brotli/wrapper/enc:jni_src",
+        "@org_brotli//:common_headers",
+        "@org_brotli//:common_sources",
+        "@org_brotli//:dec_headers",
+        "@org_brotli//:dec_sources",
+        "@org_brotli//:enc_headers",
+        "@org_brotli//:enc_sources",
+    ],
+    defines = [
+        "BROTLI_EXTERNAL_DICTIONARY_DATA=",
+    ],
+    linkshared = True,
+    deps = [
+        "@bazel_tools//tools/jdk:jni",
+        "@org_brotli//:brotli_inc",
+    ],
+)

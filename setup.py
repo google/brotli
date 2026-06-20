@@ -1,0 +1,332 @@
+# Copyright 2015 The Brotli Authors. All rights reserved.
+#
+# Distributed under MIT license.
+# See file LICENSE for detail or copy at https://opensource.org/licenses/MIT
+
+"""This script is used for building and packaging the Brotli extension."""
+
+import logging
+import os
+import re
+import setuptools
+import setuptools.command.build_ext as build_ext
+import setuptools.errors as errors
+import setuptools.modified as modified
+
+
+CURR_DIR = os.path.abspath(os.path.dirname(os.path.realpath(__file__)))
+LOGGER = logging.getLogger(__name__)
+
+
+def bool_from_environ(key):
+  value = os.environ.get(key)
+  if not value:
+    return False
+  if value == "1":
+    return True
+  if value == "0":
+    return False
+  raise ValueError(
+      "Environment variable {} has invalid value {}. Please set it to 1, 0 or"
+      " an empty string".format(key, value)
+  )
+
+
+def get_version():
+  """Return library version string from 'common/version.h' file."""
+  version_file_path = os.path.join(CURR_DIR, "c", "common", "version.h")
+  defs = {}
+  with open(version_file_path, "r") as file:
+    for line in file:
+      m = re.match(r"#define\s+(\w+)\s+(\d+)", line)
+      if m:
+        defs[m.group(1)] = m.group(2)
+  parts = ["MAJOR", "MINOR", "PATCH"]
+  major, minor, patch = [defs.get("BROTLI_VERSION_" + key) for key in parts]
+  if not major or not minor or not patch:
+    return ""
+  return "{}.{}.{}".format(major, minor, patch)
+
+
+class BuildExt(build_ext.build_ext):
+  """Customized build_ext command to handle Brotli extension building."""
+
+  def get_source_files(self):
+    filenames = super().get_source_files()
+    for ext in self.extensions:
+      filenames.extend(ext.depends)
+    return filenames
+
+  def build_extension(self, ext):
+    if ext.sources is None or not isinstance(ext.sources, (list, tuple)):
+      raise errors.DistutilsSetupError(
+          "in 'ext_modules' option (extension '%s'), "
+          "'sources' must be present and must be "
+          "a list of source filenames"
+          % ext.name
+      )
+
+    ext_path = self.get_ext_fullpath(ext.name)
+    depends = ext.sources + ext.depends
+    is_outdated = modified.newer_group(depends, ext_path, "newer")
+    if self.force or is_outdated:
+      LOGGER.info("building '%s' extension", ext.name)
+    else:
+      LOGGER.debug("skipping '%s' extension (up-to-date)", ext.name)
+      return
+
+    c_sources = [source for source in ext.sources if source.endswith(".c")]
+    extra_args = ext.extra_compile_args or []
+
+    objects = []
+
+    macros = ext.define_macros[:]
+    for undef in ext.undef_macros:
+      macros.append((undef,))
+
+    objs = self.compiler.compile(
+        c_sources,
+        output_dir=self.build_temp,
+        macros=macros,
+        include_dirs=ext.include_dirs,
+        debug=self.debug,
+        extra_postargs=extra_args,
+        depends=ext.depends,
+    )
+    objects.extend(objs)
+
+    self._built_objects = objects[:]
+    if ext.extra_objects:
+      objects.extend(ext.extra_objects)
+    extra_args = ext.extra_link_args or []
+    # When using GCC on Windows, we statically link libgcc and libstdc++,
+    # so that we don't need to package extra DLLs.
+    if self.compiler.compiler_type == "mingw32":
+      extra_args.extend(["-static-libgcc", "-static-libstdc++"])
+
+    ext_path = self.get_ext_fullpath(ext.name)
+    # Detect target language, if not provided.
+    language = ext.language or self.compiler.detect_language(c_sources)
+
+    self.compiler.link_shared_object(
+        objects,
+        ext_path,
+        libraries=self.get_libraries(ext),
+        library_dirs=ext.library_dirs,
+        runtime_library_dirs=ext.runtime_library_dirs,
+        extra_postargs=extra_args,
+        export_symbols=self.get_export_symbols(ext),
+        debug=self.debug,
+        build_temp=self.build_temp,
+        target_lang=language,
+    )
+
+
+NAME = "brotli"
+
+VERSION = get_version()
+
+URL = "https://github.com/google/brotli"
+
+DESCRIPTION = "Python bindings for the Brotli compression library"
+
+AUTHOR = "The Brotli Authors"
+
+LICENSE = "MIT"
+
+PLATFORMS = ["Posix", "MacOS X", "Windows"]
+
+CLASSIFIERS = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Operating System :: MacOS :: MacOS X",
+    "Operating System :: Microsoft :: Windows",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: C",
+    "Programming Language :: C++",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Programming Language :: Unix Shell",
+    "Topic :: Software Development :: Libraries",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: System :: Archiving",
+    "Topic :: System :: Archiving :: Compression",
+    "Topic :: Text Processing :: Fonts",
+    "Topic :: Utilities",
+]
+
+PACKAGE_DIR = {"": "python"}
+
+PY_MODULES = ["brotli"]
+
+USE_SYSTEM_BROTLI = bool_from_environ("USE_SYSTEM_BROTLI")
+
+if USE_SYSTEM_BROTLI:
+  import pkgconfig
+
+  REQUIRED_BROTLI_SYSTEM_LIBRARIES = [
+      "libbrotlicommon",
+      "libbrotlienc",
+      "libbrotlidec",
+  ]
+
+  define_macros = []
+  include_dirs = []
+  libraries = []
+  library_dirs = []
+
+  for required_system_library in REQUIRED_BROTLI_SYSTEM_LIBRARIES:
+    package_configuration = pkgconfig.parse(required_system_library)
+
+    define_macros += package_configuration["define_macros"]
+    include_dirs += package_configuration["include_dirs"]
+    libraries += package_configuration["libraries"]
+    library_dirs += package_configuration["library_dirs"]
+
+  brotli_extension = setuptools.Extension(
+      "_brotli",
+      sources=["python/_brotli.c"],
+      include_dirs=include_dirs,
+      define_macros=define_macros,
+      libraries=libraries,
+      library_dirs=library_dirs,
+  )
+
+  EXT_MODULES = [brotli_extension]
+else:
+  sources = [
+      "python/_brotli.c",
+      "c/common/constants.c",
+      "c/common/context.c",
+      "c/common/dictionary.c",
+      "c/common/platform.c",
+      "c/common/shared_dictionary.c",
+      "c/common/transform.c",
+      "c/dec/bit_reader.c",
+      "c/dec/decode.c",
+      "c/dec/huffman.c",
+      "c/dec/prefix.c",
+      "c/dec/state.c",
+      "c/dec/static_init.c",
+      "c/enc/backward_references.c",
+      "c/enc/backward_references_hq.c",
+      "c/enc/bit_cost.c",
+      "c/enc/block_splitter.c",
+      "c/enc/brotli_bit_stream.c",
+      "c/enc/cluster.c",
+      "c/enc/command.c",
+      "c/enc/compound_dictionary.c",
+      "c/enc/compress_fragment.c",
+      "c/enc/compress_fragment_two_pass.c",
+      "c/enc/dictionary_hash.c",
+      "c/enc/encode.c",
+      "c/enc/encoder_dict.c",
+      "c/enc/entropy_encode.c",
+      "c/enc/fast_log.c",
+      "c/enc/histogram.c",
+      "c/enc/literal_cost.c",
+      "c/enc/memory.c",
+      "c/enc/metablock.c",
+      "c/enc/static_dict.c",
+      "c/enc/static_dict_lut.c",
+      "c/enc/static_init.c",
+      "c/enc/utf8_util.c",
+  ]
+  headers = [
+      "c/common/constants.h",
+      "c/common/context.h",
+      "c/common/dictionary.h",
+      "c/common/platform.h",
+      "c/common/shared_dictionary_internal.h",
+      "c/common/static_init.h",
+      "c/common/transform.h",
+      "c/common/version.h",
+      "c/dec/bit_reader.h",
+      "c/dec/huffman.h",
+      "c/dec/prefix.h",
+      "c/dec/prefix_inc.h",
+      "c/dec/state.h",
+      "c/dec/static_init.h",
+      "c/enc/backward_references.h",
+      "c/enc/backward_references_hq.h",
+      "c/enc/backward_references_inc.h",
+      "c/enc/bit_cost.h",
+      "c/enc/bit_cost_inc.h",
+      "c/enc/block_encoder_inc.h",
+      "c/enc/block_splitter.h",
+      "c/enc/block_splitter_inc.h",
+      "c/enc/brotli_bit_stream.h",
+      "c/enc/cluster.h",
+      "c/enc/cluster_inc.h",
+      "c/enc/command.h",
+      "c/enc/compound_dictionary.h",
+      "c/enc/compress_fragment.h",
+      "c/enc/compress_fragment_two_pass.h",
+      "c/enc/dictionary_hash.h",
+      "c/enc/dictionary_hash_inc.h",
+      "c/enc/encoder_dict.h",
+      "c/enc/entropy_encode.h",
+      "c/enc/entropy_encode_static.h",
+      "c/enc/fast_log.h",
+      "c/enc/find_match_length.h",
+      "c/enc/hash.h",
+      "c/enc/hash_composite_inc.h",
+      "c/enc/hash_forgetful_chain_inc.h",
+      "c/enc/hash_longest_match64_inc.h",
+      "c/enc/hash_longest_match_inc.h",
+      "c/enc/hash_longest_match_quickly_inc.h",
+      "c/enc/hash_rolling_inc.h",
+      "c/enc/hash_to_binary_tree_inc.h",
+      "c/enc/histogram.h",
+      "c/enc/histogram_inc.h",
+      "c/enc/literal_cost.h",
+      "c/enc/memory.h",
+      "c/enc/metablock.h",
+      "c/enc/metablock_inc.h",
+      "c/enc/params.h",
+      "c/enc/prefix.h",
+      "c/enc/quality.h",
+      "c/enc/ringbuffer.h",
+      "c/enc/static_dict.h",
+      "c/enc/static_dict_lut.h",
+      "c/enc/static_init.h",
+      "c/enc/utf8_util.h",
+      "c/enc/write_bits.h",
+  ]
+  brotli_extension = setuptools.Extension(
+      "_brotli",
+      sources=sources,
+      depends=headers,
+      include_dirs=["c/include"],
+  )
+  EXT_MODULES = [brotli_extension]
+
+CMD_CLASS = {
+    "build_ext": BuildExt,
+}
+
+with open("README.md", "r") as f:
+  README = f.read()
+
+setuptools.setup(
+    name=NAME,
+    description=DESCRIPTION,
+    long_description=README,
+    long_description_content_type="text/markdown",
+    version=VERSION,
+    url=URL,
+    author=AUTHOR,
+    license=LICENSE,
+    platforms=PLATFORMS,
+    classifiers=CLASSIFIERS,
+    package_dir=PACKAGE_DIR,
+    py_modules=PY_MODULES,
+    ext_modules=EXT_MODULES,
+    cmdclass=CMD_CLASS,
+)
