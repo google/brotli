@@ -143,8 +143,12 @@ JNIEXPORT void JNICALL Java_org_brotli_wrapper_enc_EncoderJNI_nativePush(
     if (handle->input_offset < handle->input_last) {
       return;
     }
+    /* Reject negative sizes: jint is signed; implicit cast to size_t wraps. */
+    if (input_length < 0) {
+      return;
+    }
     handle->input_offset = 0;
-    handle->input_last = input_length;
+    handle->input_last = static_cast<size_t>(input_length);
   }
 
   /* Actual compression. */
