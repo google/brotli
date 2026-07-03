@@ -112,13 +112,11 @@ jobs:
 
           - name: cmake-win64:msvc-rel
             build_system: cmake
-            cmake_generator: Visual Studio 17 2022
             cmake_config: Release
             os: windows-latest
 
           - name: cmake-win64:msvc-dbg
             build_system: cmake
-            cmake_generator: Visual Studio 17 2022
             cmake_config: Debug
             os: windows-latest
 
@@ -235,6 +233,7 @@ jobs:
       with:
         submodules: false
         fetch-depth: 1
+        persist-credentials: false
 
     - name: Configure / Build / Test with CMake
       if: ${{ matrix.build_system == 'cmake' }}
@@ -245,7 +244,6 @@ jobs:
         [ ! -z '${{ matrix.c_compiler || '' }}' ] && CMAKE_OPTIONS+=(-DCMAKE_C_COMPILER='${{ matrix.c_compiler }}')
         [ ! -z '${{ matrix.cxx_compiler || '' }}' ] && CMAKE_OPTIONS+=(-DCMAKE_CXX_COMPILER='${{ matrix.cxx_compiler }}')
         [ ! -z '${{ matrix.sanitizer || '' }}' ] && CMAKE_OPTIONS+=(-DENABLE_SANITIZER='${{ matrix.sanitizer }}')
-        [ ! -z '${{ matrix.cmake_generator || '' }}' ] && export CMAKE_GENERATOR='${{ matrix.cmake_generator }}'
         declare -a CMAKE_BUILD_OPTIONS=()
         [ ! -z '${{ matrix.cmake_config || '' }}' ] && CMAKE_BUILD_OPTIONS+=(--config '${{ matrix.cmake_config }}')
         declare -a CMAKE_TEST_OPTIONS=()
@@ -356,6 +354,7 @@ jobs:
       with:
         submodules: false
         fetch-depth: 1
+        persist-credentials: false
 
     - name: Build / Test
       run: |

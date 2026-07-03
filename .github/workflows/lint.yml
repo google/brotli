@@ -36,16 +36,23 @@ jobs:
 
     - name: Checkout repository
       uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      with:
+        persist-credentials: false
 
     - name: Install tools
       run: |
         eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
-        brew install buildifier ruff typos-cli
+        brew install buildifier ruff typos-cli zizmor
 
     - name: Check typos
       run: |
         eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
         ./scripts/check_typos.sh
+
+    - name: Audit workflows
+      run: |
+        eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+        zizmor ./.github/workflows
 
     - name: Lint Python code
       run: |
