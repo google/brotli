@@ -109,6 +109,9 @@ class EncoderJNI {
       if (length < 0) {
         throw new IllegalArgumentException("negative block length");
       }
+      if (length > inputBuffer.capacity()) {
+        throw new IllegalArgumentException("block length exceeds input buffer capacity");
+      }
       if (context[0] == 0) {
         throw new IllegalStateException("brotli encoder is already destroyed");
       }
