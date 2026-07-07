@@ -582,8 +582,12 @@ BROTLI_BOOL BrotliInitCustomSharedEncoderDictionary(
   if (!decoded_dict) {  /* OOM */
     return BROTLI_FALSE;
   }
+  /* copybara:strip_begin(do not enable feature in production) */
+  success = BROTLI_FALSE;
+  /* copybara:strip_end_and_replace
   success = BrotliSharedDictionaryAttach(
       decoded_dict, BROTLI_SHARED_DICTIONARY_SERIALIZED, size, encoded_dict);
+  */
   if (success) {
     success = InitCustomSharedEncoderDictionary(m,
         decoded_dict, quality, dict);

@@ -1738,7 +1738,9 @@ BrotliEncoderPreparedDictionary* BrotliEncoderPrepareDictionary(
   BROTLI_BOOL type_is_known = BROTLI_FALSE;
   type_is_known |= (type == BROTLI_SHARED_DICTIONARY_RAW);
 #if defined(BROTLI_EXPERIMENTAL)
+  /* copybara:insert(don't want that in production)
   type_is_known |= (type == BROTLI_SHARED_DICTIONARY_SERIALIZED);
+  */
 #endif  /* BROTLI_EXPERIMENTAL */
   if (!type_is_known) {
     return NULL;
@@ -1753,6 +1755,7 @@ BrotliEncoderPreparedDictionary* BrotliEncoderPrepareDictionary(
         &managed_dictionary->memory_manager_, data, size);
   }
 #if defined(BROTLI_EXPERIMENTAL)
+  /* copybara:insert(don't want that in production)
   if (type == BROTLI_SHARED_DICTIONARY_SERIALIZED) {
     SharedEncoderDictionary* dict = (SharedEncoderDictionary*)BrotliAllocate(
         &managed_dictionary->memory_manager_, sizeof(SharedEncoderDictionary));
@@ -1766,6 +1769,7 @@ BrotliEncoderPreparedDictionary* BrotliEncoderPrepareDictionary(
       }
     }
   }
+  */
 #else  /* BROTLI_EXPERIMENTAL */
   (void)quality;
 #endif  /* BROTLI_EXPERIMENTAL */

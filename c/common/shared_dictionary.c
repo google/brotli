@@ -465,9 +465,11 @@ BROTLI_BOOL BrotliSharedDictionaryAttach(
     return BROTLI_FALSE;
   }
 #if defined(BROTLI_EXPERIMENTAL)
+  /* copybara:insert(don't want that in production)
   if (type == BROTLI_SHARED_DICTIONARY_SERIALIZED) {
     return DecodeSharedDictionary(data, data_size, dict);
   }
+  */
 #endif  /* BROTLI_EXPERIMENTAL */
   if (type == BROTLI_SHARED_DICTIONARY_RAW) {
     if (dict->num_prefix >= SHARED_BROTLI_MAX_COMPOUND_DICTS) {
