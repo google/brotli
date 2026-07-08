@@ -57,6 +57,8 @@ static void CopyLiteralsToByteArray(const Command* cmds,
   size_t i;
   for (i = 0; i < num_commands; ++i) {
     size_t insert_len = cmds[i].insert_len_;
+    /* Both insert_len and from_pos are bounded by meta-block length
+       (<= 16 MiB per RFC 7932), so from_pos + insert_len cannot wrap. */
     if (from_pos + insert_len > mask) {
       size_t head_size = mask + 1 - from_pos;
       memcpy(literals + pos, data + from_pos, head_size);
