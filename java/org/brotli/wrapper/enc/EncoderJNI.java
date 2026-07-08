@@ -35,6 +35,8 @@ class EncoderJNI {
 
     private PreparedDictionaryImpl(ByteBuffer data, ByteBuffer rawData) {
       this.data = data;
+      // Retain a reference to the raw data to prevent it from being garbage collected.
+      this.rawData = rawData;
     }
 
     @Override
