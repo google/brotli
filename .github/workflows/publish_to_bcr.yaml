@@ -19,7 +19,7 @@ jobs:
       contents: write
       id-token: write
       attestations: write
-    uses: bazel-contrib/publish-to-bcr/.github/workflows/publish.yaml@005a51c75c5027e54477d290a21aa57e0a1a65f5 # 2026.07.03
+    uses: bazel-contrib/publish-to-bcr/.github/workflows/publish.yaml@ad6879fd015a01c3e3b1b318fe3c061f928ac2fb # 2026.07.03
     with:
       tag_name: ${{ inputs.tag_name }}
       registry_fork: ${{ inputs.registry_fork }}
