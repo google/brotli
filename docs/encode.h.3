@@ -55,6 +55,10 @@ encode.h \- API for Brotli compression\&.
 
 .in +1c
 .ti -1c
+.RI "typedef enum \fBBrotliEncoderBase64Mode\fP \fBBrotliEncoderBase64Mode\fP"
+.br
+.RI "\fIOptions for \fBBROTLI_PARAM_BASE64_MODE\fP parameter\&. \fP"
+.ti -1c
 .RI "typedef enum \fBBrotliEncoderMode\fP \fBBrotliEncoderMode\fP"
 .br
 .RI "\fIOptions for \fBBROTLI_PARAM_MODE\fP parameter\&. \fP"
@@ -176,6 +180,10 @@ Minimal value for \fBBROTLI_PARAM_QUALITY\fP parameter\&.
 Minimal value for \fBBROTLI_PARAM_LGWIN\fP parameter\&. 
 .SH "Typedef Documentation"
 .PP 
+.SS "typedef enum \fBBrotliEncoderBase64Mode\fP  \fBBrotliEncoderBase64Mode\fP"
+
+.PP
+Options for \fBBROTLI_PARAM_BASE64_MODE\fP parameter\&. 
 .SS "typedef enum \fBBrotliEncoderMode\fP  \fBBrotliEncoderMode\fP"
 
 .PP
@@ -194,6 +202,19 @@ Options to be used with \fBBrotliEncoderSetParameter\fP\&.
 Opaque structure that holds encoder state\&. Allocated and initialized with \fBBrotliEncoderCreateInstance\fP\&. Cleaned up and deallocated with \fBBrotliEncoderDestroyInstance\fP\&. 
 .SH "Enumeration Type Documentation"
 .PP 
+.SS "enum \fBBrotliEncoderBase64Mode\fP"
+
+.PP
+Options for \fBBROTLI_PARAM_BASE64_MODE\fP parameter\&. 
+.PP
+\fBEnumerator\fP
+.in +1c
+.TP
+\fB\fIBROTLI_BASE64_MODE_DISABLED \fP\fP
+Base64 optimization is disabled\&. 
+.TP
+\fB\fIBROTLI_BASE64_MODE_DETECTION \fP\fP
+Automatic detection of Base64 zones and direct jump (skipping dictionary and LZ77 lookups)\&. 
 .SS "enum \fBBrotliEncoderMode\fP"
 
 .PP
@@ -324,6 +345,12 @@ It is important to configure all the encoder instances with same parameters (exc
 If offset is not 0, then stream header is omitted\&. In any case output start is byte aligned, so for proper streams stitching 'predecessor' stream must be flushed\&.
 .PP
 Range is not artificially limited, but all the values greater or equal to maximal window size have the same effect\&. Values greater than 2**30 are not allowed\&. 
+.TP
+\fB\fIBROTLI_PARAM_BASE64_MODE \fP\fP
+Base64 encoding mode\&. Controls how the encoder handles Base64 content\&. Currently supports 0 (disabled) and 1 (automatic detection and skip dictionary lookups)\&. 
+.TP
+\fB\fIBROTLI_PARAM_MAX_BASE64_REGIONS \fP\fP
+Maximum number of Base64 regions to detect\&. Default is 16\&. 
 .SH "Function Documentation"
 .PP 
 .SS "\fBBROTLI_BOOL\fP BrotliEncoderAttachPreparedDictionary (\fBBrotliEncoderState\fP * state, const BrotliEncoderPreparedDictionary * dictionary)"

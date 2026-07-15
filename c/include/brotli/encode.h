@@ -57,6 +57,19 @@ typedef enum BrotliEncoderMode {
   BROTLI_MODE_FONT = 2
 } BrotliEncoderMode;
 
+/** Options for ::BROTLI_PARAM_BASE64_MODE parameter. */
+typedef enum BrotliEncoderBase64Mode {
+  /** Base64 optimization is disabled. */
+  BROTLI_BASE64_MODE_DISABLED = 0,
+  /** Automatic detection of Base64 zones and direct jump (skipping dictionary
+      and LZ77 lookups). */
+  BROTLI_BASE64_MODE_DETECTION = 1
+} BrotliEncoderBase64Mode;
+
+#define BROTLI_DEFAULT_BASE64_MODE BROTLI_BASE64_MODE_DISABLED
+
+#define BROTLI_DEFAULT_MAX_BASE64_REGIONS 16
+
 /** Default value for ::BROTLI_PARAM_QUALITY parameter. */
 #define BROTLI_DEFAULT_QUALITY 11
 /** Default value for ::BROTLI_PARAM_LGWIN parameter. */
@@ -218,7 +231,18 @@ typedef enum BrotliEncoderParameter {
    * maximal window size have the same effect. Values greater than 2**30 are not
    * allowed.
    */
-  BROTLI_PARAM_STREAM_OFFSET = 9
+  BROTLI_PARAM_STREAM_OFFSET = 9,
+  /**
+   * Base64 encoding mode. Controls how the encoder handles Base64 content.
+   * Currently supports 0 (disabled) and 1 (automatic detection and skip
+   * dictionary lookups).
+   */
+  BROTLI_PARAM_BASE64_MODE = 10,
+  /**
+   * Maximum number of Base64 regions to detect.
+   * Default is 16.
+   */
+  BROTLI_PARAM_MAX_BASE64_REGIONS = 11
 } BrotliEncoderParameter;
 
 /**

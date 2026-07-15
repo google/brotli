@@ -29,6 +29,11 @@ extern "C" {
 #endif
 
 typedef struct {
+  size_t start_literal_pos;
+  size_t length;
+} Base64Region;
+
+typedef struct {
   /**
    * Dynamically allocated areas; regular hasher uses one or two allocations;
    * "composite" hasher uses up to 4 allocations.
@@ -52,6 +57,9 @@ typedef struct {
    * data initialization (using input ringbuffer).
    */
   BROTLI_BOOL is_prepared_;
+
+  Base64Region* base64_regions;
+  size_t num_base64_regions;
 } HasherCommon;
 
 #define score_t size_t
@@ -408,6 +416,7 @@ static BROTLI_INLINE void HasherInit(Hasher* hasher) {
   hasher->common.extra[1] = NULL;
   hasher->common.extra[2] = NULL;
   hasher->common.extra[3] = NULL;
+  hasher->common.base64_regions = NULL;
 }
 
 static BROTLI_INLINE void DestroyHasher(MemoryManager* m, Hasher* hasher) {
@@ -415,6 +424,9 @@ static BROTLI_INLINE void DestroyHasher(MemoryManager* m, Hasher* hasher) {
   if (hasher->common.extra[1] != NULL) BROTLI_FREE(m, hasher->common.extra[1]);
   if (hasher->common.extra[2] != NULL) BROTLI_FREE(m, hasher->common.extra[2]);
   if (hasher->common.extra[3] != NULL) BROTLI_FREE(m, hasher->common.extra[3]);
+  if (hasher->common.base64_regions != NULL) {
+    BROTLI_FREE(m, hasher->common.base64_regions);
+  }
 }
 
 static BROTLI_INLINE void HasherReset(Hasher* hasher) {
@@ -451,6 +463,13 @@ static BROTLI_INLINE void HasherSetup(MemoryManager* m, Hasher* hasher,
       if (alloc_size[i] == 0) continue;
       hasher->common.extra[i] = BROTLI_ALLOC(m, uint8_t, alloc_size[i]);
       if (BROTLI_IS_OOM(m) || BROTLI_IS_NULL(hasher->common.extra[i])) return;
+    }
+    if (params->base64_mode && params->max_base64_regions > 0) {
+      hasher->common.base64_regions = BROTLI_ALLOC(
+          m, Base64Region, params->max_base64_regions);
+      if (BROTLI_IS_OOM(m) || BROTLI_IS_NULL(hasher->common.base64_regions)) {
+        return;
+      }
     }
     switch (hasher->common.params.type) {
 #define INITIALIZE_(N)                        \

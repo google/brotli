@@ -18,6 +18,68 @@
 #include "params.h"
 #include "quality.h"  /* IWYU pragma: keep for inc */
 
+BROTLI_INTERNAL const BROTLI_MODEL("small")
+    uint8_t kIsBase64[256] = {
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
+        0, 0, 0, 1, /* 43 '+', 47 '/' (45 '-' is 0) */
+        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, /* 48-57 '0'-'9' (61 '='
+                                                           is 0) */
+        0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, /* 65-79 'A'-'O' */
+        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, /* 80-90 'P'-'Z' */
+        0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, /* 97-111 'a'-'o' */
+        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, /* 112-122 'p'-'z' */
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+
+static const size_t kBase64TriggerLen = 8;
+
+static BROTLI_INLINE BROTLI_BOOL IsBase64Char(uint8_t c) {
+  return TO_BROTLI_BOOL(kIsBase64[c]);
+}
+
+static BROTLI_INLINE BROTLI_BOOL MatchTrigger(const uint8_t* ringbuffer,
+                                              size_t mask, size_t pos) {
+  const char* trigger = ";base64,";
+  size_t i;
+  for (i = 0; i < kBase64TriggerLen; ++i) {
+    if (ringbuffer[(pos + i) & mask] != trigger[i]) return BROTLI_FALSE;
+  }
+  return BROTLI_TRUE;
+}
+
+static size_t FindNextBase64Trigger(const uint8_t* ringbuffer, size_t mask,
+                                    size_t pos, size_t end) {
+  while (pos + kBase64TriggerLen <= end) {
+    size_t ringbuffer_size = mask + 1;
+    size_t pos_index = pos & mask;
+    size_t contiguous_len = ringbuffer_size - pos_index;
+    size_t max_scan_len = end - pos;
+    size_t scan_len = BROTLI_MIN(size_t, contiguous_len, max_scan_len);
+
+    const uint8_t* p =
+        (const uint8_t*)memchr(&ringbuffer[pos_index], ';', scan_len);
+    if (p != NULL) {
+      size_t offset = (size_t)(p - &ringbuffer[pos_index]);
+      if (pos + offset + kBase64TriggerLen <= end) {
+        if (MatchTrigger(ringbuffer, mask, pos + offset)) {
+          return pos + offset;
+        }
+      } else {
+        return end;
+      }
+      pos += offset + 1;
+    } else {
+      pos += scan_len;
+    }
+  }
+  return end;
+}
+
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
 #endif
