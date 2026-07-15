@@ -72,6 +72,8 @@ static const char kDecompressSinkError[] =
     "brotli: decoder process called with data when 'can_accept_more_data()' is "
     "False";
 static const char kDecompressError[] = "brotli: decoder failed";
+static const char kDecompressOutputLimitError[] =
+    "brotli: decompressed output exceeds output_buffer_limit";
 
 /* clang-format off */
 PyDoc_STRVAR(brotli_error_doc,
@@ -207,17 +209,26 @@ PyDoc_STRVAR(brotli_decompress__doc__,
 "Decompress a compressed byte string.\n"
 "\n"
 "Signature:\n"
-"  decompress(data) -> bytes\n"
+"  decompress(data, output_buffer_limit=0) -> bytes\n"
 "\n"
 "Args:\n"
 "  data (bytes): The input data;\n"
 "                MUST provide C-contiguous one-dimensional bytes view.\n"
+"  output_buffer_limit (int): Maximum bytes of decompressed output to\n"
+"                allow. If the decompressed data would be larger than\n"
+"                this value, brotli.error is raised. Set this when\n"
+"                decompressing untrusted input to prevent decompression\n"
+"                bombs. Default is 0, which means no limit.\n"
+"                Note: memory is allocated in power-of-2 blocks, so\n"
+"                the process may briefly use up to 2x this value in\n"
+"                memory before the limit is enforced.\n"
 "\n"
 "Returns:\n"
 "  The decompressed byte string.\n"
 "\n"
 "Raises:\n"
-"  brotli.error: If decompressor fails.\n");
+"  brotli.error: If decompressor fails or output exceeds\n"
+"                output_buffer_limit.\n");
 PyDoc_STRVAR(brotli_doc,
 "Implementation module for the Brotli library.");
 /* clang-format on */
@@ -860,7 +871,7 @@ static PyObject* brotli_Decompressor_can_accept_more_data(
 
 static PyObject* brotli_decompress(PyObject* m, PyObject* args,
                                    PyObject* keywds) {
-  static const char* kwlist[] = {"string", NULL};
+  static const char* kwlist[] = {"string", "output_buffer_limit", NULL};
 
   BrotliDecoderState* state = NULL;
   BrotliDecoderResult result = BROTLI_DECODER_RESULT_ERROR;
@@ -871,9 +882,12 @@ static PyObject* brotli_decompress(PyObject* m, PyObject* args,
   PyObject* input_object = NULL;
   Py_buffer input;
   int oom = 0;
+  int limit_exceeded = 0;
+  Py_ssize_t output_buffer_limit = 0;  /* 0 = unlimited */
 
-  if (!PyArg_ParseTupleAndKeywords(args, keywds, "O|:decompress",
-                                   (char**)kwlist, &input_object)) {
+  if (!PyArg_ParseTupleAndKeywords(args, keywds, "O|n:decompress",
+                                   (char**)kwlist, &input_object,
+                                   &output_buffer_limit)) {
     return NULL;
   }
   if (!get_data_view(input_object, &input)) {
@@ -902,6 +916,11 @@ static PyObject* brotli_decompress(PyObject* m, PyObject* args,
         state, &available_in, &next_in, &buffer.avail_out, &buffer.next_out, 0);
     if (result == BROTLI_DECODER_RESULT_NEEDS_MORE_OUTPUT) {
       assert(buffer.avail_out == 0);
+      if (output_buffer_limit > 0 &&
+          buffer.total_allocated >= (uint64_t)output_buffer_limit) {
+        limit_exceeded = 1;
+        break;
+      }
       if (Buffer_Grow(&buffer) < 0) {
         oom = 1;
         break;
@@ -913,6 +932,9 @@ static PyObject* brotli_decompress(PyObject* m, PyObject* args,
   Py_END_ALLOW_THREADS;
 
   if (oom) {
+    goto finally;
+  } else if (limit_exceeded) {
+    set_brotli_exception_from_module(m, kDecompressOutputLimitError);
     goto finally;
   } else if (result != BROTLI_DECODER_RESULT_SUCCESS || available_in > 0) {
     set_brotli_exception_from_module(m, kDecompressError);
