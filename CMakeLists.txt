@@ -260,6 +260,13 @@ if (NOT BROTLI_DISABLE_TESTS AND BROTLI_BUILD_TOOLS)
   include(CTest)
   enable_testing()
 
+  add_executable(brotli_base64_test tests/base64_test.c)
+  target_link_libraries(brotli_base64_test brotlienc brotlidec)
+  add_test(NAME "${BROTLI_TEST_PREFIX}base64"
+    COMMAND ${BROTLI_WRAPPER} $<TARGET_FILE:brotli_base64_test>)
+  set_tests_properties("${BROTLI_TEST_PREFIX}base64" PROPERTIES
+    ENVIRONMENT "QEMU_LD_PREFIX=${BROTLI_WRAPPER_LD_PREFIX}")
+
   set(ROUNDTRIP_INPUTS
     tests/testdata/alice29.txt
     tests/testdata/asyoulik.txt
