@@ -332,7 +332,8 @@ void BrotliBuildMetaBlock(MemoryManager* m, const uint8_t* ringbuffer,
   if (BROTLI_IS_OOM(m) || BROTLI_IS_NULL(mb->literal_histograms)) return;
 
   BrotliClusterHistogramsLiteral(m, literal_histograms, literal_histograms_size,
-      kMaxNumberOfHistograms, mb->literal_histograms,
+      kMaxNumberOfHistograms - (base64_applied ? 1 : 0),
+      mb->literal_histograms,
       &mb->literal_histograms_size, mb->literal_context_map);
   if (BROTLI_IS_OOM(m)) return;
   BROTLI_FREE(m, literal_histograms);
@@ -722,7 +723,10 @@ static BROTLI_INLINE void BrotliBuildMetaBlockGreedyInternal(
     if (BROTLI_IS_OOM(m)) return;
   }
 
-  if (num_base64_regions > 0 && mb->literal_split.num_types < 256) {
+  if (num_base64_regions > 0 &&
+      mb->literal_split.num_types < BROTLI_MAX_NUMBER_OF_BLOCK_TYPES &&
+      mb->literal_histograms_size <=
+          BROTLI_MAX_NUMBER_OF_BLOCK_TYPES - num_contexts) {
     ForceBase64LiteralSplits(m, &mb->literal_split, base64_regions,
                              num_base64_regions, pos, mb);
     if (BROTLI_IS_OOM(m)) return;
