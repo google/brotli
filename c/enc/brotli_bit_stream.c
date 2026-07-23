@@ -1019,11 +1019,25 @@ void BrotliStoreMetaBlock(MemoryManager* m,
 
   {
     uint8_t is_base64_histogram[256] = {0};
-    if (mb->literal_split.num_types > 0) {
-      size_t b64_type_id = mb->literal_split.num_types - 1;
-      if (b64_type_id < 256 && (mb->literal_is_base64[b64_type_id >> 3] & (1u << (b64_type_id & 7)))) {
-        uint32_t b64_histo_id = mb->literal_context_map ? mb->literal_context_map[b64_type_id << 6] : (uint32_t)b64_type_id;
-        is_base64_histogram[b64_histo_id] = 1;
+    size_t type_id;
+    for (type_id = 0; type_id < mb->literal_split.num_types; ++type_id) {
+      if (type_id < 256 &&
+          (mb->literal_is_base64[type_id >> 3] & (1u << (type_id & 7)))) {
+        if (mb->literal_context_map) {
+          size_t j;
+          for (j = 0; j < (1u << BROTLI_LITERAL_CONTEXT_BITS); ++j) {
+            uint32_t b64_histo_id =
+                mb->literal_context_map[(type_id << BROTLI_LITERAL_CONTEXT_BITS) + j];
+            if (b64_histo_id < 256) {
+              is_base64_histogram[b64_histo_id] = 1;
+            }
+          }
+        } else {
+          uint32_t b64_histo_id = (uint32_t)type_id;
+          if (b64_histo_id < 256) {
+            is_base64_histogram[b64_histo_id] = 1;
+          }
+        }
       }
     }
 
