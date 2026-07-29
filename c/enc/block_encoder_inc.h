@@ -18,7 +18,7 @@ static void FN(BuildAndStoreEntropyCodes)(
     size_t i;
     for (i = 0; i < histograms_size; ++i) {
       size_t ix = i * self->histogram_length_;
-      if (self->histogram_length_ == 256 && is_base64_histogram &&
+      if (self->histogram_length_ == 256 && is_base64_histogram && i < 256 &&
           is_base64_histogram[i]) {
         size_t k;
         memset(&self->depths_[ix], 0, 256);
