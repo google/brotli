@@ -71,6 +71,10 @@ encode.h \- API for Brotli compression\&.
 .br
 .RI "\fIOptions to be used with \fBBrotliEncoderSetParameter\fP\&. \fP"
 .ti -1c
+.RI "typedef enum \fBBrotliEncoderSimdHasher\fP \fBBrotliEncoderSimdHasher\fP"
+.br
+.RI "\fIOptions for \fBBROTLI_PARAM_SIMD_HASHER\fP parameter\&. \fP"
+.ti -1c
 .RI "typedef struct BrotliEncoderStateStruct \fBBrotliEncoderState\fP"
 .br
 .RI "\fIOpaque structure that holds encoder state\&. \fP"
@@ -196,6 +200,10 @@ Operations that can be performed by streaming encoder\&.
 
 .PP
 Options to be used with \fBBrotliEncoderSetParameter\fP\&. 
+.SS "typedef enum \fBBrotliEncoderSimdHasher\fP  \fBBrotliEncoderSimdHasher\fP"
+
+.PP
+Options for \fBBROTLI_PARAM_SIMD_HASHER\fP parameter\&. 
 .SS "typedef struct BrotliEncoderStateStruct \fBBrotliEncoderState\fP"
 
 .PP
@@ -351,6 +359,25 @@ Base64 encoding mode\&. Controls how the encoder handles Base64 content\&. Curre
 .TP
 \fB\fIBROTLI_PARAM_MAX_BASE64_REGIONS \fP\fP
 Maximum number of Base64 regions to detect\&. Default is 16\&. 
+.TP
+\fB\fIBROTLI_PARAM_SIMD_HASHER \fP\fP
+SIMD hasher usage mode\&. Controls whether the encoder uses SIMD hashers\&. See \fBBrotliEncoderSimdHasher\fP for options\&. 
+.SS "enum \fBBrotliEncoderSimdHasher\fP"
+
+.PP
+Options for \fBBROTLI_PARAM_SIMD_HASHER\fP parameter\&. 
+.PP
+\fBEnumerator\fP
+.in +1c
+.TP
+\fB\fIBROTLI_SIMD_HASHER_DEFAULT \fP\fP
+Use SIMD hasher when recommended for the quality level\&. 
+.TP
+\fB\fIBROTLI_SIMD_HASHER_ENABLE \fP\fP
+Use SIMD hasher when supported up to quality 7\&. 
+.TP
+\fB\fIBROTLI_SIMD_HASHER_DISABLE \fP\fP
+Never use SIMD hasher\&. 
 .SH "Function Documentation"
 .PP 
 .SS "\fBBROTLI_BOOL\fP BrotliEncoderAttachPreparedDictionary (\fBBrotliEncoderState\fP * state, const BrotliEncoderPreparedDictionary * dictionary)"

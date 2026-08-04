@@ -70,6 +70,18 @@ typedef enum BrotliEncoderBase64Mode {
 
 #define BROTLI_DEFAULT_MAX_BASE64_REGIONS 16
 
+/** Options for ::BROTLI_PARAM_SIMD_HASHER parameter. */
+typedef enum BrotliEncoderSimdHasher {
+  /** Use SIMD hasher when recommended for the quality level. */
+  BROTLI_SIMD_HASHER_DEFAULT = 0,
+  /** Use SIMD hasher when supported up to quality 7. */
+  BROTLI_SIMD_HASHER_ENABLE = 1,
+  /** Never use SIMD hasher. */
+  BROTLI_SIMD_HASHER_DISABLE = 2
+} BrotliEncoderSimdHasher;
+
+#define BROTLI_DEFAULT_SIMD_HASHER BROTLI_SIMD_HASHER_DEFAULT
+
 /** Default value for ::BROTLI_PARAM_QUALITY parameter. */
 #define BROTLI_DEFAULT_QUALITY 11
 /** Default value for ::BROTLI_PARAM_LGWIN parameter. */
@@ -242,7 +254,14 @@ typedef enum BrotliEncoderParameter {
    * Maximum number of Base64 regions to detect.
    * Default is 16.
    */
-  BROTLI_PARAM_MAX_BASE64_REGIONS = 11
+  BROTLI_PARAM_MAX_BASE64_REGIONS = 11,
+  /**
+   * SIMD hasher usage mode.
+   *
+   * Controls whether the encoder uses SIMD hashers.
+   * See ::BrotliEncoderSimdHasher for options.
+   */
+  BROTLI_PARAM_SIMD_HASHER = 12
 } BrotliEncoderParameter;
 
 /**

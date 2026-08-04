@@ -113,6 +113,11 @@ BROTLI_BOOL BrotliEncoderSetParameter(
       state->params.max_base64_regions = value;
       return BROTLI_TRUE;
 
+    case BROTLI_PARAM_SIMD_HASHER:
+      if (value > 2) return BROTLI_FALSE;
+      state->params.simd_hasher = (BrotliEncoderSimdHasher)value;
+      return BROTLI_TRUE;
+
     default: return BROTLI_FALSE;
   }
 }
@@ -702,6 +707,7 @@ static void BrotliEncoderInitParams(BrotliEncoderParams* params) {
   BrotliInitSharedEncoderDictionary(&params->dictionary);
   params->base64_mode = (int)BROTLI_DEFAULT_BASE64_MODE;
   params->max_base64_regions = BROTLI_DEFAULT_MAX_BASE64_REGIONS;
+  params->simd_hasher = BROTLI_DEFAULT_SIMD_HASHER;
   params->dist.distance_postfix_bits = 0;
   params->dist.num_direct_distance_codes = 0;
   params->dist.alphabet_size_max =

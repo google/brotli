@@ -661,9 +661,11 @@ BROTLI_UNUSED_FUNCTION void BrotliSuppressUnusedFunctions(void) {
 
 /* The SIMD matchers are only faster at certain quality levels. */
 #if defined(_M_X64) && defined(BROTLI_TZCNT64)
+#define BROTLI_MAX_RECOMMENDED_SIMD_QUALITY 7
 #define BROTLI_MAX_SIMD_QUALITY 7
 #elif defined(BROTLI_TZCNT64)
-#define BROTLI_MAX_SIMD_QUALITY 6
+#define BROTLI_MAX_RECOMMENDED_SIMD_QUALITY 6
+#define BROTLI_MAX_SIMD_QUALITY 7
 #endif
 
 #if defined(_MSC_VER)
