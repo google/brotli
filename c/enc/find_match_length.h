@@ -16,7 +16,59 @@ extern "C" {
 #endif
 
 /* Separate implementation for little-endian 64-bit targets, for speed. */
-#if defined(BROTLI_TZCNT64) && BROTLI_64_BITS && BROTLI_LITTLE_ENDIAN
+#if defined(BROTLI_TARGET_RISCV_RVV) && BROTLI_64_BITS && BROTLI_LITTLE_ENDIAN
+/* RISC-V RVV optimized version using vector instructions */
+static BROTLI_INLINE size_t FindMatchLengthWithLimit(const uint8_t* s1,
+                                                     const uint8_t* s2,
+                                                     size_t limit) {
+  const uint8_t *s1_orig = s1;
+  size_t matched = 0;
+  
+  /* Process 16 bytes at a time using RVV vector instructions */
+  while (limit >= 16) {
+    size_t first_mismatch;
+    asm volatile (
+      "vsetvli zero, %1, e8, m1, ta, ma\n\t"
+      "vle8.v v0, (%2)\n\t"
+      "vle8.v v1, (%3)\n\t"
+      "vmseq.vv v2, v0, v1\n\t"
+      "vfirst.m %0, v2"
+      : "=r" (first_mismatch)
+      : "r" (16), "r" (s1), "r" (s2)
+      : "memory"
+    );
+    if (first_mismatch < 16) {
+      return matched + first_mismatch;
+    }
+    matched += 16;
+    s1 += 16;
+    s2 += 16;
+    limit -= 16;
+  }
+  
+  /* Handle remaining bytes using 8-byte blocks */
+  for (; limit >= 8; limit -= 8) {
+    uint64_t x = BROTLI_UNALIGNED_LOAD64LE(s2) ^
+                 BROTLI_UNALIGNED_LOAD64LE(s1);
+    s2 += 8;
+    if (x != 0) {
+      size_t matching_bits = (size_t)BROTLI_TZCNT64(x);
+      return matched + (matching_bits >> 3);
+    }
+    s1 += 8;
+    matched += 8;
+  }
+  
+  /* Handle remaining bytes */
+  while (limit && *s1 == *s2) {
+    limit--;
+    ++s2;
+    ++s1;
+    matched++;
+  }
+  return matched;
+}
+#elif defined(BROTLI_TZCNT64) && BROTLI_64_BITS && BROTLI_LITTLE_ENDIAN
 static BROTLI_INLINE size_t FindMatchLengthWithLimit(const uint8_t* s1,
                                                      const uint8_t* s2,
                                                      size_t limit) {
