@@ -231,6 +231,9 @@ static BROTLI_INLINE void FN(FindLongestMatch)(
         (num[key] > self->block_size_) ? (num[key] - self->block_size_) : 0u;
     for (i = num[key]; i > down;) {
       size_t prev_ix = bucket[--i & self->block_mask_];
+      if (prev_ix >= cur_ix) {
+        continue;
+      }
       const size_t backward = cur_ix - prev_ix;
       if (BROTLI_PREDICT_FALSE(backward > max_backward)) {
         break;

@@ -7,6 +7,24 @@
 
 /* template parameters: EXPORT_FN, FN */
 
+#ifndef BROTLI_READ_RING_BUFFER_64_DEFINED
+#define BROTLI_READ_RING_BUFFER_64_DEFINED
+static BROTLI_INLINE uint64_t ReadRingBuffer64(const uint8_t* ringbuffer, size_t mask, size_t pos) {
+  size_t idx = pos & mask;
+  if (idx + 8 <= mask + 1) {
+    return BrotliUnalignedRead64(&ringbuffer[idx]);
+  } else {
+    uint64_t val;
+    uint8_t* val_ptr = (uint8_t*)&val;
+    size_t i;
+    for (i = 0; i < 8; ++i) {
+      val_ptr[i] = ringbuffer[(pos + i) & mask];
+    }
+    return val;
+  }
+}
+#endif
+
 static BROTLI_NOINLINE void EXPORT_FN(CreateBackwardReferences)(
     size_t num_bytes, size_t position,
     const uint8_t* ringbuffer, size_t ringbuffer_mask,
@@ -37,7 +55,8 @@ static BROTLI_NOINLINE void EXPORT_FN(CreateBackwardReferences)(
 
   size_t next_base64_pos = pos_end;
   if (params->base64_mode &&
-      hasher->common.num_base64_regions < params->max_base64_regions) {
+      (hasher->common.num_base64_regions < params->max_base64_regions ||
+       hasher->common.num_sub_b64_regions < params->max_base64_regions)) {
     next_base64_pos =
         FindNextBase64Trigger(ringbuffer, ringbuffer_mask, position, pos_end);
   }
@@ -72,22 +91,169 @@ static BROTLI_NOINLINE void EXPORT_FN(CreateBackwardReferences)(
              ringbuffer[(start_pos + length - 1) & ringbuffer_mask] == '=') {
         length--;
       }
-      if (length > 0) {
-        hasher->common.base64_regions[hasher->common.num_base64_regions]
-            .start_literal_pos = start_pos;
-        hasher->common.base64_regions[hasher->common.num_base64_regions]
-            .length = length;
-        hasher->common.num_base64_regions++;
-      }
-      insert_length += (scan_pos - position);
-      position = scan_pos;
-      if (hasher->common.num_base64_regions < params->max_base64_regions) {
-        next_base64_pos = FindNextBase64Trigger(ringbuffer, ringbuffer_mask,
-                                                position, pos_end);
+      if (length >= kMinBase64DeduplicationLen) {
+        if (params->base64_mode >= 2) {
+          BROTLI_BOOL match_found = BROTLI_FALSE;
+          size_t best_hist_pos = 0;
+          size_t mlen = scan_pos - position;
+          BROTLI_BOOL is_macro = (length >= params->min_base64_region_len);
+          Base64Region* search_regions = is_macro ? hasher->common.base64_regions : hasher->common.sub_b64_regions;
+          size_t search_num = is_macro ? hasher->common.num_base64_regions : hasher->common.num_sub_b64_regions;
+          size_t r;
+          for (r = search_num; r > 0; --r) {
+            size_t idx = r - 1;
+            size_t hist_start_literal_pos =
+                search_regions[idx].start_literal_pos;
+            size_t hist_length = search_regions[idx].length;
+            /* Avoid size_t underflow if start_literal_pos is small */
+            if (hist_start_literal_pos >= kBase64TriggerLen) {
+              size_t hist_pos = hist_start_literal_pos - kBase64TriggerLen;
+              size_t dist = position - hist_pos;
+              /* Verify distance complies with maximum backward limits, ringbuffer capacity,
+                 and encoder configuration to prevent referencing overwritten history. */
+              if (dist >= 1 &&
+                  dist <= max_backward_limit &&
+                  dist <= ringbuffer_mask &&
+                  dist <= params->dist.max_distance) {
+                /* Count historical trailing '=' padding characters to compute exact payload size */
+                size_t hist_num_equals = 0;
+                while (hist_start_literal_pos + hist_length + hist_num_equals < position &&
+                       ringbuffer[(hist_start_literal_pos + hist_length + hist_num_equals) & ringbuffer_mask] == '=') {
+                  hist_num_equals++;
+                }
+                /* O(1) length check before comparing payload bytes. This ensures that
+                   non-duplicate blocks (common in production) are rejected immediately in O(1)
+                   without triggering O(N * length) string comparisons. */
+                if (hist_length + hist_num_equals == mlen - kBase64TriggerLen) {
+                  size_t compare_len = hist_length + hist_num_equals;
+                  /* Dual-Ended (Prefix + Suffix) 64-Bit Payload Quick Rejection */
+                  uint64_t hist_prefix = ReadRingBuffer64(ringbuffer, ringbuffer_mask, hist_start_literal_pos);
+                  uint64_t curr_prefix = ReadRingBuffer64(ringbuffer, ringbuffer_mask, position + kBase64TriggerLen);
+                  if (hist_prefix == curr_prefix) {
+                    uint64_t hist_suffix = ReadRingBuffer64(ringbuffer, ringbuffer_mask, hist_start_literal_pos + compare_len - 8);
+                    uint64_t curr_suffix = ReadRingBuffer64(ringbuffer, ringbuffer_mask, position + kBase64TriggerLen + compare_len - 8);
+                    if (hist_suffix == curr_suffix) {
+                      if (RingBufferCompare(ringbuffer, ringbuffer_mask,
+                                            hist_start_literal_pos,
+                                            position + kBase64TriggerLen,
+                                            compare_len)) {
+                        match_found = BROTLI_TRUE;
+                        best_hist_pos = hist_pos;
+                        /* Nearest-Neighbor Anchor Tracking & MRU Cache Promotion */
+                        search_regions[idx].start_literal_pos = start_pos;
+                        if (idx < search_num - 1) {
+                          Base64Region matched_reg = search_regions[idx];
+                          size_t k;
+                          for (k = idx; k < search_num - 1; ++k) {
+                            search_regions[k] = search_regions[k + 1];
+                          }
+                          search_regions[search_num - 1] = matched_reg;
+                        }
+                        break;
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+          if (match_found && mlen >= kMinBase64DeduplicationLen) {
+            size_t dictionary_start = BROTLI_MIN(size_t,
+                position + position_offset, max_backward_limit);
+            size_t dist = position - best_hist_pos;
+            size_t distance_code = ComputeDistanceCode(
+                dist, dictionary_start + gap, dist_cache);
+            if ((dist <= (dictionary_start + gap)) && distance_code > 0) {
+              dist_cache[3] = dist_cache[2];
+              dist_cache[2] = dist_cache[1];
+              dist_cache[1] = dist_cache[0];
+              dist_cache[0] = (int)dist;
+              FN(PrepareDistanceCache)(privat, dist_cache);
+            }
+            InitCommand(commands++, &params->dist, insert_length,
+                mlen, 0, distance_code);
+            *num_literals += insert_length;
+            insert_length = 0;
+
+            /* Bounded Entry/Exit Anchor Hasher Seeding */
+            {
+              size_t entry_start = position + 2;
+              size_t entry_end = BROTLI_MIN(size_t, position + 6, store_end);
+              if (entry_start < entry_end) {
+                FN(StoreRange)(privat, ringbuffer, ringbuffer_mask, entry_start, entry_end);
+              }
+              size_t exit_start = (position + mlen >= 4) ? (position + mlen - 4) : 0;
+              if (exit_start < entry_end) {
+                exit_start = entry_end;
+              }
+              size_t exit_end = BROTLI_MIN(size_t, position + mlen, store_end);
+              if (exit_start < exit_end) {
+                FN(StoreRange)(privat, ringbuffer, ringbuffer_mask, exit_start, exit_end);
+              }
+            }
+
+            position += mlen;
+            apply_random_heuristics = position + random_heuristics_window_size;
+            if (hasher->common.num_base64_regions < params->max_base64_regions ||
+                hasher->common.num_sub_b64_regions < params->max_base64_regions) {
+              next_base64_pos = FindNextBase64Trigger(ringbuffer, ringbuffer_mask,
+                                                      position, pos_end);
+            } else {
+              next_base64_pos = pos_end;
+            }
+            continue;
+          }
+
+          if (is_macro) {
+            if (hasher->common.num_base64_regions < params->max_base64_regions) {
+              hasher->common.base64_regions[hasher->common.num_base64_regions]
+                  .start_literal_pos = start_pos;
+              hasher->common.base64_regions[hasher->common.num_base64_regions]
+                  .length = length;
+              hasher->common.num_base64_regions++;
+            }
+          } else {
+            if (hasher->common.num_sub_b64_regions < params->max_base64_regions) {
+              hasher->common.sub_b64_regions[hasher->common.num_sub_b64_regions]
+                  .start_literal_pos = start_pos;
+              hasher->common.sub_b64_regions[hasher->common.num_sub_b64_regions]
+                  .length = length;
+              hasher->common.num_sub_b64_regions++;
+            }
+          }
+        } else {
+          /* HEAD Base64 Mode: pure detection & histogram splitting, no deduplication */
+          if (hasher->common.num_base64_regions < params->max_base64_regions) {
+            hasher->common.base64_regions[hasher->common.num_base64_regions]
+                .start_literal_pos = start_pos;
+            hasher->common.base64_regions[hasher->common.num_base64_regions]
+                .length = length;
+            hasher->common.num_base64_regions++;
+          }
+        }
+        insert_length += (scan_pos - position);
+        position = scan_pos;
+        apply_random_heuristics = position + random_heuristics_window_size;
+        FN(StoreRange)(privat, ringbuffer, ringbuffer_mask, position,
+                       BROTLI_MIN(size_t, position + 4, store_end));
+        if (hasher->common.num_base64_regions < params->max_base64_regions ||
+            hasher->common.num_sub_b64_regions < params->max_base64_regions) {
+          next_base64_pos = FindNextBase64Trigger(ringbuffer, ringbuffer_mask,
+                                                  position, pos_end);
+        } else {
+          next_base64_pos = pos_end;
+        }
+        continue;
       } else {
-        next_base64_pos = pos_end;
+        if (hasher->common.num_base64_regions < params->max_base64_regions ||
+            hasher->common.num_sub_b64_regions < params->max_base64_regions) {
+          next_base64_pos = FindNextBase64Trigger(ringbuffer, ringbuffer_mask,
+                                                  scan_pos, pos_end);
+        } else {
+          next_base64_pos = pos_end;
+        }
+        continue;
       }
-      continue;
     }
     size_t max_length = pos_end - position;
     size_t max_distance = BROTLI_MIN(size_t, position, max_backward_limit);

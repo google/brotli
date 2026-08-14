@@ -63,7 +63,9 @@ typedef enum BrotliEncoderBase64Mode {
   BROTLI_BASE64_MODE_DISABLED = 0,
   /** Automatic detection of Base64 zones and direct jump (skipping dictionary
       and LZ77 lookups). */
-  BROTLI_BASE64_MODE_DETECTION = 1
+  BROTLI_BASE64_MODE_DETECTION = 1,
+  /** Full dual-tier Base64 deduplication, 64-bit guarding & bounded seeding engine. */
+  BROTLI_BASE64_MODE_DEDUPLICATION = 2
 } BrotliEncoderBase64Mode;
 
 #define BROTLI_DEFAULT_BASE64_MODE BROTLI_BASE64_MODE_DISABLED
@@ -256,12 +258,17 @@ typedef enum BrotliEncoderParameter {
    */
   BROTLI_PARAM_MAX_BASE64_REGIONS = 11,
   /**
+   * Minimum Base64 region length for macro block deduplication.
+   * Default is 2048.
+   */
+  BROTLI_PARAM_MIN_BASE64_REGION_LEN = 12,
+  /**
    * SIMD hasher usage mode.
    *
    * Controls whether the encoder uses SIMD hashers.
    * See ::BrotliEncoderSimdHasher for options.
    */
-  BROTLI_PARAM_SIMD_HASHER = 12
+  BROTLI_PARAM_SIMD_HASHER = 13
 } BrotliEncoderParameter;
 
 /**

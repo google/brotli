@@ -259,6 +259,9 @@ static BROTLI_INLINE void FN(FindLongestMatch)(
       const size_t rb_index =
           (head + (size_t)BROTLI_TZCNT64(matches)) & self->block_mask_;
       size_t prev_ix = bucket[rb_index];
+      if (prev_ix >= cur_ix) {
+        continue;
+      }
       uint32_t current4;
       const size_t backward = cur_ix - prev_ix;
       if (BROTLI_PREDICT_FALSE(backward > max_backward)) {
