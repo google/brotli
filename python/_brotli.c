@@ -772,9 +772,11 @@ static PyObject* brotli_Decompressor_process(PyBrotli_Decompressor* self,
     if ((uint64_t)output_buffer_limit < produced + (uint64_t)room_before) {
       call_room = (size_t)((uint64_t)output_buffer_limit - produced);
     }
+    size_t hidden_room = room_before - call_room;
     result = BrotliDecoderDecompressStream(self->dec, &avail_in, &next_in,
                                            &call_room, &buffer.next_out, NULL);
-    buffer.avail_out = room_before - call_room;
+    /* Restore the part of the block hidden from this call. */
+    buffer.avail_out = hidden_room + call_room;
 
     if (result == BROTLI_DECODER_RESULT_NEEDS_MORE_OUTPUT) {
       assert(buffer.avail_out == 0);
