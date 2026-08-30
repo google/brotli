@@ -110,6 +110,7 @@ BROTLI_BOOL BrotliEncoderSetParameter(
       return BROTLI_TRUE;
 
     case BROTLI_PARAM_MAX_BASE64_REGIONS:
+      if (value > BROTLI_MAX_BASE64_REGIONS) return BROTLI_FALSE;
       state->params.max_base64_regions = value;
       return BROTLI_TRUE;
 
