@@ -301,11 +301,6 @@ static Command ParseParams(Context* params) {
        contain pointers to strings"; NULL and 0-length are not forbidden. */
     size_t arg_len = arg ? strlen(arg) : 0;
 
-    if (arg_len == 0) {
-      params->not_input_indices[next_option_index++] = i;
-      continue;
-    }
-
     /* Too many options. The expected longest option list is:
        "-q 0 -w 10 -o f -D d -S b -d -f -k -n -v -K --", i.e. 17 items in total.
        This check is an additional guard that is never triggered, but provides
@@ -313,6 +308,11 @@ static Command ParseParams(Context* params) {
     if (next_option_index > (MAX_OPTIONS - 2)) {
       fprintf(stderr, "too many options passed\n");
       return COMMAND_INVALID;
+    }
+
+    if (arg_len == 0) {
+      params->not_input_indices[next_option_index++] = i;
+      continue;
     }
 
     /* Input file entry. */
