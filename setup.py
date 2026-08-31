@@ -8,11 +8,10 @@
 import logging
 import os
 import re
-import setuptools
-import setuptools.command.build_ext as build_ext
-import setuptools.errors as errors
-import setuptools.modified as modified
 
+import setuptools
+from setuptools import errors, modified
+from setuptools.command import build_ext
 
 CURR_DIR = os.path.abspath(os.path.dirname(os.path.realpath(__file__)))
 LOGGER = logging.getLogger(__name__)
@@ -27,8 +26,8 @@ def bool_from_environ(key):
   if value == "0":
     return False
   raise ValueError(
-      "Environment variable {} has invalid value {}. Please set it to 1, 0 or"
-      " an empty string".format(key, value)
+      f"Environment variable {key} has invalid value {value}."
+      " Please set it to 1, 0 or an empty string"
   )
 
 
@@ -45,7 +44,7 @@ def get_version():
   major, minor, patch = [defs.get("BROTLI_VERSION_" + key) for key in parts]
   if not major or not minor or not patch:
     return ""
-  return "{}.{}.{}".format(major, minor, patch)
+  return f"{major}.{minor}.{patch}"
 
 
 class BuildExt(build_ext.build_ext):
@@ -60,10 +59,9 @@ class BuildExt(build_ext.build_ext):
   def build_extension(self, ext):
     if ext.sources is None or not isinstance(ext.sources, (list, tuple)):
       raise errors.DistutilsSetupError(
-          "in 'ext_modules' option (extension '%s'), "
+          f"in 'ext_modules' option (extension '{ext.name}'), "
           "'sources' must be present and must be "
           "a list of source filenames"
-          % ext.name
       )
 
     ext_path = self.get_ext_fullpath(ext.name)

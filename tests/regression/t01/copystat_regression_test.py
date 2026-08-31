@@ -14,13 +14,12 @@ import argparse
 import contextlib
 import hashlib
 import os
-from pathlib import Path
 import shutil
 import stat
 import subprocess
 import tempfile
 import unittest
-
+from pathlib import Path
 
 PLAIN_BYTES = b"A" * 65537
 TARGET_BYTES = b"TARGET\n"
@@ -61,20 +60,25 @@ class CopyStatRegressionTest(unittest.TestCase):
   def write_target(self, path):
     path.write_bytes(TARGET_BYTES)
 
+  def on_subprocess_failed(self, preamble: str, proc):
+      retcode = proc.returncode
+      stdout = proc.stdout.decode("utf-8", "replace")
+      stderr = proc.stderr.decode("utf-8", "replace")
+      self.fail(
+          f"{preamble}\n"
+          f"retcode:{retcode}\n"
+          f"stdout:\n{stdout}\n"
+          f"stderr:\n{stderr}\n")
+
   def run_brotli(self, *args, input_bytes=None, env=None, check=True):
     proc = subprocess.run(
         [str(self.brotli)] + [str(arg) for arg in args],
         input=input_bytes,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
+        capture_output=True,
         env=env,
         check=False)
     if check and proc.returncode != 0:
-      self.fail(
-          "brotli exited with %d\nstdout:\n%s\nstderr:\n%s" % (
-              proc.returncode,
-              proc.stdout.decode("utf-8", "replace"),
-              proc.stderr.decode("utf-8", "replace")))
+      self.on_subprocess_failed("brotli failed", proc)
     return proc
 
   def compress(self, src, dst, no_copy_stat=False):
@@ -97,8 +101,8 @@ class CopyStatRegressionTest(unittest.TestCase):
 
     with umask(0o022):
       for mode in modes:
-        with self.subTest(mode="%03o" % mode):
-          case_dir = self.workdir / ("%03o" % mode)
+        with self.subTest(mode=f"{mode:03o}"):
+          case_dir = self.workdir / (f"{mode:03o}")
           case_dir.mkdir()
           src = case_dir / "in.bin"
           compressed = case_dir / "in.bin.br"
@@ -257,11 +261,7 @@ class CopyStatRegressionTest(unittest.TestCase):
 
     proc = self.run_brotli(*args, env=env, check=False)
     if proc.returncode != 0:
-      self.fail(
-          "brotli with fclose_swap exited with %d\nstdout:\n%s\nstderr:\n%s" % (
-              proc.returncode,
-              proc.stdout.decode("utf-8", "replace"),
-              proc.stderr.decode("utf-8", "replace")))
+      self.on_subprocess_failed("brotli with fclose_swap failed", proc)
 
   def ld_preload_value(self):
     preloads = []
@@ -286,21 +286,16 @@ class CopyStatRegressionTest(unittest.TestCase):
     proc = subprocess.run(
         [cc, "-shared", "-fPIC", str(helper_src), "-o", str(helper_out),
          "-ldl"],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
+        capture_output=True,
         check=False)
     if proc.returncode != 0:
-      self.fail(
-          "failed to build fclose_swap.so\nstdout:\n%s\nstderr:\n%s" % (
-              proc.stdout.decode("utf-8", "replace"),
-              proc.stderr.decode("utf-8", "replace")))
+      self.on_subprocess_failed("failed to build fclose_swap.so", proc)
     return helper_out
 
   def asan_runtime(self):
     try:
       proc = subprocess.run(["ldd", str(self.brotli)],
-                            stdout=subprocess.PIPE,
-                            stderr=subprocess.PIPE,
+                            capture_output=True,
                             check=False)
     except FileNotFoundError:
       return None
@@ -311,8 +306,7 @@ class CopyStatRegressionTest(unittest.TestCase):
     if cc is None:
       return None
     proc = subprocess.run([cc, "-print-file-name=libasan.so"],
-                          stdout=subprocess.PIPE,
-                          stderr=subprocess.PIPE,
+                          capture_output=True,
                           text=True,
                           check=False)
     candidate = proc.stdout.strip()
@@ -329,7 +323,7 @@ def main():
 
   brotli = Path(args.brotli).resolve()
   if not brotli.is_file():
-    parser.error("%s is not a file" % brotli)
+    parser.error(f"{brotli} is not a file")
   CopyStatRegressionTest.brotli = brotli
 
   unittest.main(argv=[__file__], verbosity=2 if args.verbose else 1)

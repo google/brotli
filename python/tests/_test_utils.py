@@ -1,6 +1,5 @@
 """Common utilities for Brotli tests."""
 
-from __future__ import print_function
 import glob
 import os
 import pathlib
@@ -19,9 +18,9 @@ elif test_dir is None:
 
 # Get the platform/version-specific build folder.
 # By default, the distutils build base is in the same location as setup.py.
-platform_lib_name = 'lib.{platform}-{version[0]}.{version[1]}'.format(
-    platform=sysconfig.get_platform(), version=sys.version_info
-)
+platform = sysconfig.get_platform()
+version = sys.version_info
+platform_lib_name = f'lib.{platform}-{version[0]}.{version[1]}'
 build_dir = os.path.join(project_dir, 'bin', platform_lib_name)
 
 # Prepend the build folder to sys.path and the PYTHONPATH environment variable.
