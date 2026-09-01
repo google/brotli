@@ -602,14 +602,75 @@ static void WriteMetaBlockInternal(MemoryManager* m,
     DestroyMetaBlockSplit(m, &mb);
   }
   if (bytes + 4 < (*storage_ix >> 3)) {
-    /* Restore the distance cache and last byte. */
+    size_t raw_storage_ix = last_bytes_bits;
+    size_t alt_storage_ix = last_bytes_bits;
+    uint8_t* raw_storage = BROTLI_ALLOC(m, uint8_t, 2 * bytes + 503);
+    uint8_t* alt_storage = BROTLI_ALLOC(m, uint8_t, 2 * bytes + 503);
+    uint8_t* flat_input = BROTLI_ALLOC(m, uint8_t, bytes ? bytes : 1);
+    uint32_t* command_buf =
+        BROTLI_ALLOC(m, uint32_t, kCompressFragmentTwoPassBlockSize);
+    uint8_t* literal_buf =
+        BROTLI_ALLOC(m, uint8_t, kCompressFragmentTwoPassBlockSize);
+    BrotliTwoPassArena* arena = BROTLI_ALLOC(m, BrotliTwoPassArena, 1);
+    size_t table_size =
+        HashTableSize(MaxHashTableSize(FAST_TWO_PASS_COMPRESSION_QUALITY),
+                     bytes);
+    int* table = BROTLI_ALLOC(m, int, table_size);
+
+    if (BROTLI_IS_OOM(m) || BROTLI_IS_NULL(raw_storage) ||
+        BROTLI_IS_NULL(alt_storage) || BROTLI_IS_NULL(flat_input) ||
+        BROTLI_IS_NULL(command_buf) || BROTLI_IS_NULL(literal_buf) ||
+        BROTLI_IS_NULL(arena) || BROTLI_IS_NULL(table)) {
+      BROTLI_FREE(m, raw_storage);
+      BROTLI_FREE(m, alt_storage);
+      BROTLI_FREE(m, flat_input);
+      BROTLI_FREE(m, command_buf);
+      BROTLI_FREE(m, literal_buf);
+      BROTLI_FREE(m, arena);
+      BROTLI_FREE(m, table);
+      return;
+    }
+    memset(table, 0, table_size * sizeof(int));
+
     memcpy(dist_cache, saved_dist_cache, 4 * sizeof(dist_cache[0]));
-    storage[0] = (uint8_t)last_bytes;
-    storage[1] = (uint8_t)(last_bytes >> 8);
-    *storage_ix = last_bytes_bits;
+
+    raw_storage[0] = (uint8_t)last_bytes;
+    raw_storage[1] = (uint8_t)(last_bytes >> 8);
     BrotliStoreUncompressedMetaBlock(is_last, data,
                                      (size_t)last_flush_pos, mask,
-                                     bytes, storage_ix, storage);
+                                     bytes, &raw_storage_ix, raw_storage);
+
+    {
+      size_t masked_pos = (size_t)last_flush_pos & mask;
+      if (masked_pos + bytes > mask + 1) {
+        size_t len1 = mask + 1 - masked_pos;
+        memcpy(flat_input, data + masked_pos, len1);
+        memcpy(flat_input + len1, data, bytes - len1);
+      } else if (bytes > 0) {
+        memcpy(flat_input, data + masked_pos, bytes);
+      }
+    }
+    alt_storage[0] = (uint8_t)last_bytes;
+    alt_storage[1] = (uint8_t)(last_bytes >> 8);
+    BrotliCompressFragmentTwoPass(arena, flat_input, bytes, is_last,
+                                  command_buf, literal_buf, table, table_size,
+                                  &alt_storage_ix, alt_storage);
+
+    if (!BROTLI_IS_OOM(m) &&
+        ((alt_storage_ix + 7) >> 3) < ((raw_storage_ix + 7) >> 3)) {
+      memcpy(storage, alt_storage, (alt_storage_ix + 7) >> 3);
+      *storage_ix = alt_storage_ix;
+    } else {
+      memcpy(storage, raw_storage, (raw_storage_ix + 7) >> 3);
+      *storage_ix = raw_storage_ix;
+    }
+    BROTLI_FREE(m, raw_storage);
+    BROTLI_FREE(m, alt_storage);
+    BROTLI_FREE(m, flat_input);
+    BROTLI_FREE(m, command_buf);
+    BROTLI_FREE(m, literal_buf);
+    BROTLI_FREE(m, arena);
+    BROTLI_FREE(m, table);
   }
 }
 
