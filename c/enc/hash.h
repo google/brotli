@@ -60,6 +60,8 @@ typedef struct {
 
   Base64Region* base64_regions;
   size_t num_base64_regions;
+  Base64Region* sub_b64_regions;
+  size_t num_sub_b64_regions;
 } HasherCommon;
 
 #define score_t size_t
@@ -122,6 +124,7 @@ static BROTLI_INLINE void PrepareDistanceCache(
    backward_reference_offset MUST be positive. */
 static BROTLI_INLINE score_t BackwardReferenceScore(
     size_t copy_length, size_t backward_reference_offset) {
+  if (backward_reference_offset == 0) return 0;
   return BROTLI_SCORE_BASE + BROTLI_LITERAL_BYTE_SCORE * (score_t)copy_length -
       BROTLI_DISTANCE_BIT_PENALTY * Log2FloorNonZero(backward_reference_offset);
 }
@@ -417,6 +420,7 @@ static BROTLI_INLINE void HasherInit(Hasher* hasher) {
   hasher->common.extra[2] = NULL;
   hasher->common.extra[3] = NULL;
   hasher->common.base64_regions = NULL;
+  hasher->common.sub_b64_regions = NULL;
 }
 
 static BROTLI_INLINE void DestroyHasher(MemoryManager* m, Hasher* hasher) {
@@ -426,6 +430,9 @@ static BROTLI_INLINE void DestroyHasher(MemoryManager* m, Hasher* hasher) {
   if (hasher->common.extra[3] != NULL) BROTLI_FREE(m, hasher->common.extra[3]);
   if (hasher->common.base64_regions != NULL) {
     BROTLI_FREE(m, hasher->common.base64_regions);
+  }
+  if (hasher->common.sub_b64_regions != NULL) {
+    BROTLI_FREE(m, hasher->common.sub_b64_regions);
   }
 }
 
@@ -468,6 +475,11 @@ static BROTLI_INLINE void HasherSetup(MemoryManager* m, Hasher* hasher,
       hasher->common.base64_regions = BROTLI_ALLOC(
           m, Base64Region, params->max_base64_regions);
       if (BROTLI_IS_OOM(m) || BROTLI_IS_NULL(hasher->common.base64_regions)) {
+        return;
+      }
+      hasher->common.sub_b64_regions = BROTLI_ALLOC(
+          m, Base64Region, params->max_base64_regions);
+      if (BROTLI_IS_OOM(m) || BROTLI_IS_NULL(hasher->common.sub_b64_regions)) {
         return;
       }
     }

@@ -12,6 +12,8 @@
 #include <brotli/encode.h>
 #include "encoder_dict.h"
 
+#define BROTLI_DEFAULT_MIN_BASE64_REGION_LEN 2048
+
 typedef struct BrotliHasherParams {
   int type;
   int bucket_bits;
@@ -43,6 +45,7 @@ typedef struct BrotliEncoderParams {
   SharedEncoderDictionary dictionary;
   int base64_mode;
   size_t max_base64_regions;
+  size_t min_base64_region_len;
   BrotliEncoderSimdHasher simd_hasher;
 } BrotliEncoderParams;
 

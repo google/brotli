@@ -223,6 +223,9 @@ Base64 optimization is disabled\&.
 .TP
 \fB\fIBROTLI_BASE64_MODE_DETECTION \fP\fP
 Automatic detection of Base64 zones and direct jump (skipping dictionary and LZ77 lookups)\&. 
+.TP
+\fB\fIBROTLI_BASE64_MODE_DEDUPLICATION \fP\fP
+Full dual-tier Base64 deduplication, 64-bit guarding & bounded seeding engine\&. 
 .SS "enum \fBBrotliEncoderMode\fP"
 
 .PP
@@ -359,6 +362,9 @@ Base64 encoding mode\&. Controls how the encoder handles Base64 content\&. Curre
 .TP
 \fB\fIBROTLI_PARAM_MAX_BASE64_REGIONS \fP\fP
 Maximum number of Base64 regions to detect\&. Default is 16\&. 
+.TP
+\fB\fIBROTLI_PARAM_MIN_BASE64_REGION_LEN \fP\fP
+Minimum Base64 region length for macro block deduplication\&. Default is 2048\&. 
 .TP
 \fB\fIBROTLI_PARAM_SIMD_HASHER \fP\fP
 SIMD hasher usage mode\&. Controls whether the encoder uses SIMD hashers\&. See \fBBrotliEncoderSimdHasher\fP for options\&. 

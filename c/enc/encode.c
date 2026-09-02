@@ -106,11 +106,16 @@ BROTLI_BOOL BrotliEncoderSetParameter(
       return BROTLI_TRUE;
 
     case BROTLI_PARAM_BASE64_MODE:
-      state->params.base64_mode = (int)(value & 1);
+      if (value > 2) return BROTLI_FALSE;
+      state->params.base64_mode = (int)value;
       return BROTLI_TRUE;
 
     case BROTLI_PARAM_MAX_BASE64_REGIONS:
       state->params.max_base64_regions = value;
+      return BROTLI_TRUE;
+
+    case BROTLI_PARAM_MIN_BASE64_REGION_LEN:
+      state->params.min_base64_region_len = value;
       return BROTLI_TRUE;
 
     case BROTLI_PARAM_SIMD_HASHER:
@@ -707,6 +712,7 @@ static void BrotliEncoderInitParams(BrotliEncoderParams* params) {
   BrotliInitSharedEncoderDictionary(&params->dictionary);
   params->base64_mode = (int)BROTLI_DEFAULT_BASE64_MODE;
   params->max_base64_regions = BROTLI_DEFAULT_MAX_BASE64_REGIONS;
+  params->min_base64_region_len = BROTLI_DEFAULT_MIN_BASE64_REGION_LEN;
   params->simd_hasher = BROTLI_DEFAULT_SIMD_HASHER;
   params->dist.distance_postfix_bits = 0;
   params->dist.num_direct_distance_codes = 0;
@@ -778,6 +784,7 @@ static void BrotliEncoderInitState(BrotliEncoderState* s) {
      emitting an uncompressed block. */
   memcpy(s->saved_dist_cache_, s->dist_cache_, sizeof(s->saved_dist_cache_));
   s->hasher_.common.num_base64_regions = 0;
+  s->hasher_.common.num_sub_b64_regions = 0;
 }
 
 BrotliEncoderState* BrotliEncoderCreateInstance(
@@ -1189,14 +1196,42 @@ static BROTLI_BOOL EncodeData(
     if (BROTLI_IS_OOM(m)) return BROTLI_FALSE;
     storage[0] = (uint8_t)s->last_bytes_;
     storage[1] = (uint8_t)(s->last_bytes_ >> 8);
-    WriteMetaBlockInternal(
-        m, data, mask, s->last_flush_pos_, metablock_size, is_last,
-        s->hasher_.common.base64_regions, s->hasher_.common.num_base64_regions,
-        literal_context_mode, &s->params, s->prev_byte_, s->prev_byte2_,
-        s->num_literals_, s->num_commands_, s->commands_, s->saved_dist_cache_,
-        s->dist_cache_, &storage_ix, storage);
+    {
+      Base64Region* merged_regions = NULL;
+      size_t num_merged_regions = 0;
+      size_t total_alloc = s->hasher_.common.num_base64_regions + s->hasher_.common.num_sub_b64_regions;
+      if (total_alloc > 0) {
+        merged_regions = BROTLI_ALLOC(m, Base64Region, total_alloc);
+        if (BROTLI_IS_OOM(m) || BROTLI_IS_NULL(merged_regions)) return BROTLI_FALSE;
+        /* Merge-sort the two sorted lists of Base64 regions */
+        size_t i = 0, j = 0;
+        while (i < s->hasher_.common.num_base64_regions || j < s->hasher_.common.num_sub_b64_regions) {
+          if (i < s->hasher_.common.num_base64_regions && j < s->hasher_.common.num_sub_b64_regions) {
+            if (s->hasher_.common.base64_regions[i].start_literal_pos < s->hasher_.common.sub_b64_regions[j].start_literal_pos) {
+              merged_regions[num_merged_regions++] = s->hasher_.common.base64_regions[i++];
+            } else {
+              merged_regions[num_merged_regions++] = s->hasher_.common.sub_b64_regions[j++];
+            }
+          } else if (i < s->hasher_.common.num_base64_regions) {
+            merged_regions[num_merged_regions++] = s->hasher_.common.base64_regions[i++];
+          } else {
+            merged_regions[num_merged_regions++] = s->hasher_.common.sub_b64_regions[j++];
+          }
+        }
+      }
+      WriteMetaBlockInternal(
+          m, data, mask, s->last_flush_pos_, metablock_size, is_last,
+          merged_regions, num_merged_regions,
+          literal_context_mode, &s->params, s->prev_byte_, s->prev_byte2_,
+          s->num_literals_, s->num_commands_, s->commands_, s->saved_dist_cache_,
+          s->dist_cache_, &storage_ix, storage);
+      if (merged_regions != NULL) {
+        BROTLI_FREE(m, merged_regions);
+      }
+    }
     if (BROTLI_IS_OOM(m)) return BROTLI_FALSE;
     s->hasher_.common.num_base64_regions = 0;
+    s->hasher_.common.num_sub_b64_regions = 0;
     s->last_bytes_ = (uint16_t)(storage[storage_ix >> 3]);
     s->last_bytes_bits_ = storage_ix & 7u;
     s->last_flush_pos_ = s->input_pos_;

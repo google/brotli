@@ -38,6 +38,11 @@ BROTLI_INTERNAL const BROTLI_MODEL("small")
 
 static const size_t kBase64TriggerLen = 8;
 
+/* Minimum payload length (in bytes) required for Base64 block deduplication.
+   Blocks shorter than 32 bytes do not yield sufficient entropy reduction to
+   amortize the backward reference command encoding overhead and are skipped. */
+static const size_t kMinBase64DeduplicationLen = 32;
+
 static BROTLI_INLINE BROTLI_BOOL IsBase64Char(uint8_t c) {
   return TO_BROTLI_BOOL(kIsBase64[c]);
 }
@@ -106,6 +111,27 @@ static BROTLI_INLINE size_t ComputeDistanceCode(size_t distance,
     }
   }
   return distance + BROTLI_NUM_DISTANCE_SHORT_CODES - 1;
+}
+
+static BROTLI_INLINE BROTLI_BOOL RingBufferCompare(
+    const uint8_t* ringbuffer, size_t mask,
+    size_t pos1, size_t pos2, size_t length) {
+  size_t rb_size = mask + 1;
+  while (length > 0) {
+    size_t idx1 = pos1 & mask;
+    size_t idx2 = pos2 & mask;
+    size_t contig1 = rb_size - idx1;
+    size_t contig2 = rb_size - idx2;
+    size_t chunk = BROTLI_MIN(size_t, length, contig1);
+    chunk = BROTLI_MIN(size_t, chunk, contig2);
+    if (memcmp(&ringbuffer[idx1], &ringbuffer[idx2], chunk) != 0) {
+      return BROTLI_FALSE;
+    }
+    pos1 += chunk;
+    pos2 += chunk;
+    length -= chunk;
+  }
+  return BROTLI_TRUE;
 }
 
 #define EXPAND_CAT(a, b) CAT(a, b)
