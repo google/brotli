@@ -254,6 +254,7 @@ else:
       "c/enc/backward_references.h",
       "c/enc/backward_references_hq.h",
       "c/enc/backward_references_inc.h",
+      "c/enc/backward_references_inc_opt.h",
       "c/enc/bit_cost.h",
       "c/enc/bit_cost_inc.h",
       "c/enc/block_encoder_inc.h",

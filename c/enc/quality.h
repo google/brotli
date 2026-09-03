@@ -128,14 +128,17 @@ static BROTLI_INLINE size_t LiteralSpreeLengthForSparseSearch(
    - q04: h54 (longest_match_quickly), b20, l7 | for large files
 
    - q05: h58 (longest_match_simd   ), b14, l4
+   - q05: h59 (longest_match_simd_opt), b14, l4
    - q05: h68 (longest_match64_simd ), b15, l5 | for large files
    - q05: h40 (forgetful_chain      ), b15, l4 | for small window
 
    - q06: h58 (longest_match_simd   ), b14, l4
+   - q06: h59 (longest_match_simd_opt), b14, l4
    - q06: h68 (longest_match64_simd ), b15, l5 | for large files
    - q06: h40 (forgetful_chain      ), b15, l4 | for small window
 
    - q07: h58 (longest_match_simd   ), b15, l4
+   - q07: h59 (longest_match_simd_opt), b15, l4
    - q07: h68 (longest_match64_simd ), b15, l5 | for large files
    - q07: h41 (forgetful_chain      ), b15, l4 | for small window
 
@@ -193,7 +196,8 @@ static BROTLI_INLINE void ChooseHasher(const BrotliEncoderParams* params,
     /* TODO(eustas): often previous setting (H6) is faster and denser; consider
                      adding an option to use it. */
 #if defined(BROTLI_MAX_SIMD_QUALITY)
-    hparams->type = ShouldUseSimdHasher(params) ? 58 : 5;
+    hparams->type =
+        ShouldUseSimdHasher(params) ? (params->hasher_opt ? 59 : 58) : 5;
 #else
     hparams->type = 5;
 #endif

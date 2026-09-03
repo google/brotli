@@ -261,7 +261,13 @@ typedef enum BrotliEncoderParameter {
    * Controls whether the encoder uses SIMD hashers.
    * See ::BrotliEncoderSimdHasher for options.
    */
-  BROTLI_PARAM_SIMD_HASHER = 12
+  BROTLI_PARAM_SIMD_HASHER = 12,
+  /**
+   * Engage optimized hasher.
+   *
+   * When enabled (1), engages H59 instead of H58.
+   */
+  BROTLI_PARAM_HASHER_OPT = 13
 } BrotliEncoderParameter;
 
 /**
