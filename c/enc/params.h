@@ -44,6 +44,7 @@ typedef struct BrotliEncoderParams {
   int base64_mode;
   size_t max_base64_regions;
   BrotliEncoderSimdHasher simd_hasher;
+  BROTLI_BOOL hasher_opt;
 } BrotliEncoderParams;
 
 #endif  /* BROTLI_ENC_PARAMS_H_ */
