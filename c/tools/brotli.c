@@ -18,6 +18,14 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
+
+/* O_NOFOLLOW isn't POSIX proper and MSVC's _sopen_s doesn't know it either;
+   fall back to a no-op flag so the open() call below still compiles on
+   platforms that lack it, rather than gating this on a maze of platform
+   checks. */
+#if !defined(O_NOFOLLOW)
+#define O_NOFOLLOW 0
+#endif
 #include <sys/types.h>
 #include <time.h>
 
@@ -803,11 +811,23 @@ static BROTLI_BOOL OpenOutputFile(const char* output_path, FILE** f,
     *f = fdopen(MAKE_BINARY(STDOUT_FILENO), "wb");
     return BROTLI_TRUE;
   }
-  fd = open(output_path, O_CREAT | (force ? 0 : O_EXCL) | O_WRONLY | O_TRUNC,
+  /* O_NOFOLLOW matters most with --force: dropping O_EXCL there lets the
+     open() succeed against a pre-existing path, and without O_NOFOLLOW that
+     path could be a symlink planted by someone else, so the decompressed
+     output would land wherever that symlink points rather than at the name
+     the user actually asked for. */
+  fd = open(output_path,
+            O_CREAT | (force ? 0 : O_EXCL) | O_WRONLY | O_TRUNC | O_NOFOLLOW,
             S_IRUSR | S_IWUSR);
   if (fd < 0) {
-    fprintf(stderr, "failed to open output file [%s]: %s\n",
-            PrintablePath(output_path), strerror(errno));
+    if (errno == ELOOP) {
+      fprintf(stderr,
+              "refusing to write through symlink at output path [%s]\n",
+              PrintablePath(output_path));
+    } else {
+      fprintf(stderr, "failed to open output file [%s]: %s\n",
+              PrintablePath(output_path), strerror(errno));
+    }
     return BROTLI_FALSE;
   }
   *f = fdopen(fd, "wb");
