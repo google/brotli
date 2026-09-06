@@ -80,10 +80,6 @@ BROTLI_BOOL BrotliDecoderSetParameter(
 BrotliDecoderState* BrotliDecoderCreateInstance(
     brotli_alloc_func alloc_func, brotli_free_func free_func, void* opaque) {
   BrotliDecoderState* state = 0;
-  if (!BrotliDecoderEnsureStaticInit()) {
-    BROTLI_DUMP();
-    return 0;
-  }
   if (!alloc_func && !free_func) {
     state = (BrotliDecoderState*)malloc(sizeof(BrotliDecoderState));
   } else if (alloc_func && free_func) {

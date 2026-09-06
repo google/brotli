@@ -9,6 +9,7 @@
 #include "../common/dictionary.h"
 #include "../common/platform.h"
 #include "huffman.h"
+#include "static_init.h"
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
@@ -32,6 +33,9 @@ void BrotliDecoderOnFinish(const BrotliDecoderState* s);
 BROTLI_BOOL BrotliDecoderStateInit(BrotliDecoderState* s,
     brotli_alloc_func alloc_func, brotli_free_func free_func, void* opaque) {
   BROTLI_DECODER_ON_START(s);
+  if (!BrotliDecoderEnsureStaticInit()) {
+    return BROTLI_FALSE;
+  }
   if (!alloc_func) {
     s->alloc_func = BrotliDefaultAllocFunc;
     s->free_func = BrotliDefaultFreeFunc;
