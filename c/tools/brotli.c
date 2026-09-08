@@ -79,6 +79,9 @@ static int ms_open(const char* filename, int oflag, int pmode) {
 #define HAVE_UTIMENSAT 1
 #elif defined(_ATFILE_SOURCE)
 #define HAVE_UTIMENSAT 1
+#elif defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__NetBSD__) || \
+    defined(__DragonFly__)
+#define HAVE_UTIMENSAT 1
 #else
 #define HAVE_UTIMENSAT 0
 #endif
