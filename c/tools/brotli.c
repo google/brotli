@@ -875,7 +875,6 @@ static void CopyStat(const char* input_path, const char* output_path,
   if (stat(input_path, &statbuf) != 0) {
     return;
   }
-  /* The caller has flushed |fout| already, and reports a failed flush. */
   res = CopyTimeStat(&statbuf, output_path, fout);
   res = fchmod(fd, statbuf.st_mode & (S_IRWXU | S_IRWXG | S_IRWXO));
   if (res != 0) {
