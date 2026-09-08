@@ -18,7 +18,6 @@
 #include "huffman.h"
 #include "prefix.h"
 #include "state.h"
-#include "static_init.h"
 
 #if defined(BROTLI_TARGET_NEON)
 #include <arm_neon.h>

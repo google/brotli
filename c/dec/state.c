@@ -32,10 +32,10 @@ void BrotliDecoderOnFinish(const BrotliDecoderState* s);
 
 BROTLI_BOOL BrotliDecoderStateInit(BrotliDecoderState* s,
     brotli_alloc_func alloc_func, brotli_free_func free_func, void* opaque) {
-  BROTLI_DECODER_ON_START(s);
   if (!BrotliDecoderEnsureStaticInit()) {
     return BROTLI_FALSE;
   }
+  BROTLI_DECODER_ON_START(s);
   if (!alloc_func) {
     s->alloc_func = BrotliDefaultAllocFunc;
     s->free_func = BrotliDefaultFreeFunc;
