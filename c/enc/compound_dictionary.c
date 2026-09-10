@@ -205,6 +205,17 @@ BROTLI_BOOL AttachPreparedDictionary(
       compound->chunk_source[index] =
           (const uint8_t*)BROTLI_UNALIGNED_LOAD_PTR((const uint8_t**)tail);
     }
+    {
+      PreparedDictionaryView* view = &compound->chunk_views[index];
+      view->slot_offsets = slot_offsets;
+      view->heads = heads;
+      view->items = items;
+      view->source = compound->chunk_source[index];
+      view->source_size = dictionary->source_size;
+      view->hash_shift = 64u - dictionary->bucket_bits;
+      view->slot_mask = (~((uint32_t)0U)) >> (32 - dictionary->slot_bits);
+      view->hash_mask = (~((uint64_t)0U)) >> (64 - dictionary->hash_bits);
+    }
   }
   compound->num_chunks++;
   return BROTLI_TRUE;
