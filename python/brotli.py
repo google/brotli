@@ -35,7 +35,7 @@ def compress(string, mode=MODE_GENERIC, quality=11, lgwin=22, lgblock=0):
         density tradeoff. The higher the quality, the slower the compression.
         Range is 0 to 11. Defaults to 11.
       lgwin (int, optional): Base 2 logarithm of the sliding window size. Range
-        is 10 to 24. Defaults to 22.
+        is 10 to 30. Defaults to 22.
       lgblock (int, optional): Base 2 logarithm of the maximum input block size.
         Range is 16 to 24. If set to 0, the value will be set based on the
         quality. Defaults to 0.

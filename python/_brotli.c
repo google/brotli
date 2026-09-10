@@ -60,7 +60,7 @@ static const char kInvalidModeError[] = "brotli: invalid mode";
 static const char kInvalidQualityError[] =
     "brotli: invalid quality; range is 0 to 11";
 static const char kInvalidLgwinError[] =
-    "brotli: invalid lgwin; range is 10 to 24";
+    "brotli: invalid lgwin; range is 10 to 30";
 static const char kInvalidLgblockError[] =
     "brotli: invalid lgblock; range is 16 to 24, or 0";
 static const char kDecompressCreateError[] =
@@ -89,7 +89,7 @@ PyDoc_STRVAR(brotli_Compressor_doc,
 "    density tradeoff. The higher the quality, the slower the compression.\n"
 "    Must be in [0 .. 11]. Defaults to 11.\n"
 "  lgwin (int): Base 2 logarithm of the sliding window size.\n"
-"    Must be in [10 .. 24]. Defaults to 22.\n"
+"    Must be in [10 .. 30]. Defaults to 22.\n"
 "  lgblock (int): Base 2 logarithm of the maximum input block size.\n"
 "    Must be 0 or in [16 .. 24]. If set to 0, the value will be set based\n"
 "    on the quality. Defaults to 0.\n"
@@ -447,7 +447,11 @@ static int brotli_Compressor_init(PyBrotli_Compressor* self, PyObject* args,
     self->healthy = 0;
     return -1;
   }
-  if ((10 <= lgwin) && (lgwin <= 24)) {
+  if ((BROTLI_MIN_WINDOW_BITS <= lgwin) &&
+      (lgwin <= BROTLI_LARGE_MAX_WINDOW_BITS)) {
+    if (lgwin > BROTLI_MAX_WINDOW_BITS) {
+      BrotliEncoderSetParameter(self->enc, BROTLI_PARAM_LARGE_WINDOW, 1u);
+    }
     BrotliEncoderSetParameter(self->enc, BROTLI_PARAM_LGWIN, (uint32_t)lgwin);
   } else {
     set_brotli_exception(self_type, kInvalidLgwinError);
@@ -646,6 +650,8 @@ static PyObject* brotli_Decompressor_new(PyTypeObject* type, PyObject* args,
     Py_TYPE(self)->tp_free((PyObject*)self);
     return NULL;
   }
+  BrotliDecoderSetParameter(
+      self->dec, BROTLI_DECODER_PARAM_LARGE_WINDOW, 1u);
 
   self->unconsumed_data = NULL;
   self->unconsumed_data_length = 0;
@@ -890,6 +896,8 @@ static PyObject* brotli_decompress(PyObject* m, PyObject* args,
     oom = 1;
     goto finally;
   }
+  BrotliDecoderSetParameter(
+      state, BROTLI_DECODER_PARAM_LARGE_WINDOW, 1u);
 
   if (Buffer_Grow(&buffer) < 0) {
     oom = 1;
