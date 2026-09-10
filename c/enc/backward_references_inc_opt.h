@@ -113,7 +113,7 @@ static BROTLI_NOINLINE void EXPORT_FN(CreateBackwardReferences)(
         ringbuffer, ringbuffer_mask, dist_cache, position, max_length,
         max_distance, dictionary_start + gap, params->dist.max_distance, &sr);
     if (ENABLE_COMPOUND_DICTIONARY) {
-      LookupCompoundDictionaryMatch(&params->dictionary.compound, ringbuffer,
+      LookupCompoundDictionaryMatchOpt(&params->dictionary.compound, ringbuffer,
           ringbuffer_mask, dist_cache, position, max_length,
           dictionary_start, params->dist.max_distance, &sr);
     }
@@ -144,7 +144,7 @@ static BROTLI_NOINLINE void EXPORT_FN(CreateBackwardReferences)(
             max_distance, dictionary_start + gap, params->dist.max_distance,
             &sr2);
         if (ENABLE_COMPOUND_DICTIONARY) {
-          LookupCompoundDictionaryMatch(
+          LookupCompoundDictionaryMatchOpt(
               &params->dictionary.compound, ringbuffer,
               ringbuffer_mask, dist_cache, position + 1, max_length,
               dictionary_start, params->dist.max_distance, &sr2);
