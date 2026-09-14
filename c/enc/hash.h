@@ -751,6 +751,121 @@ static BROTLI_INLINE size_t LookupAllCompoundDictionaryMatches(
   return total_found;
 }
 
+static BROTLI_INLINE void FindCompoundDictionaryMatchOpt(
+    const PreparedDictionaryView* self, const uint8_t* BROTLI_RESTRICT data,
+    const size_t ring_buffer_mask, const int* BROTLI_RESTRICT distance_cache,
+    const size_t cur_ix, const size_t max_length, const size_t distance_offset,
+    const size_t max_distance, HasherSearchResult* BROTLI_RESTRICT out) {
+  const uint32_t source_size = self->source_size;
+  const size_t boundary = distance_offset - source_size;
+  const uint32_t hash_shift = self->hash_shift;
+  const uint32_t slot_mask = self->slot_mask;
+  const uint64_t hash_mask = self->hash_mask;
+
+  const uint32_t* slot_offsets = self->slot_offsets;
+  const uint16_t* heads = self->heads;
+  const uint32_t* items = self->items;
+  const uint8_t* source = self->source;
+
+  const size_t cur_ix_masked = cur_ix & ring_buffer_mask;
+  score_t best_score = out->score;
+  size_t best_len = out->len;
+  size_t i;
+  const uint64_t h =
+      (BROTLI_UNALIGNED_LOAD64LE(&data[cur_ix_masked]) & hash_mask) *
+      kPreparedDictionaryHashMul64Long;
+  const uint32_t key = (uint32_t)(h >> hash_shift);
+  const uint32_t slot = key & slot_mask;
+  const uint32_t head = heads[key];
+  const uint32_t* BROTLI_RESTRICT chain = &items[slot_offsets[slot] + head];
+  uint32_t item = (head == 0xFFFF) ? 1 : 0;
+
+  BROTLI_DCHECK(cur_ix_masked + max_length <= ring_buffer_mask + 1);
+
+  for (i = 0; i < 4; ++i) {
+    const size_t distance = (size_t)distance_cache[i];
+    size_t offset;
+    size_t limit;
+    size_t len;
+    if (distance <= boundary || distance > distance_offset) continue;
+    offset = distance_offset - distance;
+    limit = source_size - offset;
+    limit = limit > max_length ? max_length : limit;
+    len = FindMatchLengthWithLimit(&source[offset], &data[cur_ix_masked],
+                                   limit);
+    if (len >= 2) {
+      score_t score = BackwardReferenceScoreUsingLastDistance(len);
+      if (best_score < score) {
+        if (i != 0) score -= BackwardReferencePenaltyUsingLastDistance(i);
+        if (best_score < score) {
+          best_score = score;
+          if (len > best_len) best_len = len;
+          out->len = len;
+          out->len_code_delta = 0;
+          out->distance = distance;
+          out->score = best_score;
+        }
+      }
+    }
+  }
+  /* we require matches of len >4, so increase best_len to 3, so we can compare
+   * 4 bytes all the time. */
+  if (best_len < 3) {
+    best_len = 3;
+  }
+  while (item == 0) {
+    size_t offset;
+    size_t distance;
+    size_t limit;
+    item = *chain;
+    chain++;
+    offset = item & 0x7FFFFFFF;
+    item &= 0x80000000;
+    distance = distance_offset - offset;
+    limit = source_size - offset;
+    limit = (limit > max_length) ? max_length : limit;
+    if (distance > max_distance) continue;
+    if (cur_ix_masked + best_len > ring_buffer_mask || best_len >= limit ||
+        /* compare 4 bytes ending at best_len + 1 */
+        BrotliUnalignedRead32(&data[cur_ix_masked + best_len - 3]) !=
+            BrotliUnalignedRead32(&source[offset + best_len - 3])) {
+      continue;
+    }
+    {
+      const size_t len = FindMatchLengthWithLimit(&source[offset],
+                                                  &data[cur_ix_masked],
+                                                  limit);
+      if (len >= 4) {
+        score_t score = BackwardReferenceScore(len, distance);
+        if (best_score < score) {
+          best_score = score;
+          best_len = len;
+          out->len = best_len;
+          out->len_code_delta = 0;
+          out->distance = distance;
+          out->score = best_score;
+        }
+      }
+    }
+  }
+}
+
+static BROTLI_INLINE void LookupCompoundDictionaryMatchOpt(
+    const CompoundDictionary* addon, const uint8_t* BROTLI_RESTRICT data,
+    const size_t ring_buffer_mask, const int* BROTLI_RESTRICT distance_cache,
+    const size_t cur_ix, const size_t max_length,
+    const size_t max_ring_buffer_distance, const size_t max_distance,
+    HasherSearchResult* sr) {
+  size_t base_offset = max_ring_buffer_distance + 1 + addon->total_size - 1;
+  size_t d;
+  for (d = 0; d < addon->num_chunks; ++d) {
+    FindCompoundDictionaryMatchOpt(
+        &addon->chunk_views[d], data, ring_buffer_mask,
+        distance_cache, cur_ix, max_length,
+        base_offset - addon->chunk_offsets[d], max_distance, sr);
+  }
+}
+
 #if defined(__cplusplus) || defined(c_plusplus)
 }  /* extern "C" */
 #endif
