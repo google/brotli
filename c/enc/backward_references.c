@@ -52,6 +52,8 @@ static BROTLI_INLINE BROTLI_BOOL MatchTrigger(const uint8_t* ringbuffer,
   return BROTLI_TRUE;
 }
 
+static const uint64_t kBase64Trigger64 = 0x2c3436657361623bULL;
+
 static size_t FindNextBase64Trigger(const uint8_t* ringbuffer, size_t mask,
                                     size_t pos, size_t end) {
   while (pos + kBase64TriggerLen <= end) {
@@ -65,7 +67,11 @@ static size_t FindNextBase64Trigger(const uint8_t* ringbuffer, size_t mask,
         (const uint8_t*)memchr(&ringbuffer[pos_index], ';', scan_len);
     if (p != NULL) {
       size_t offset = (size_t)(p - &ringbuffer[pos_index]);
-      if (pos + offset + kBase64TriggerLen <= end) {
+      if (offset + kBase64TriggerLen <= scan_len) {
+        if (BROTLI_UNALIGNED_LOAD64LE(p) == kBase64Trigger64) {
+          return pos + offset;
+        }
+      } else if (pos + offset + kBase64TriggerLen <= end) {
         if (MatchTrigger(ringbuffer, mask, pos + offset)) {
           return pos + offset;
         }
@@ -78,6 +84,29 @@ static size_t FindNextBase64Trigger(const uint8_t* ringbuffer, size_t mask,
     }
   }
   return end;
+}
+
+static BROTLI_INLINE BROTLI_BOOL CompareRingbuffer(
+    const uint8_t* ringbuffer, size_t mask,
+    size_t pos1, size_t pos2, size_t len) {
+  size_t idx1 = pos1 & mask;
+  size_t idx2 = pos2 & mask;
+  if (idx1 + len <= mask + 1 && idx2 + len <= mask + 1) {
+    return TO_BROTLI_BOOL(
+        memcmp(&ringbuffer[idx1], &ringbuffer[idx2], len) == 0);
+  }
+  while (len > 0) {
+    size_t chunk1 = mask + 1 - (pos1 & mask);
+    size_t chunk2 = mask + 1 - (pos2 & mask);
+    size_t chunk = BROTLI_MIN(size_t, len, BROTLI_MIN(size_t, chunk1, chunk2));
+    if (memcmp(&ringbuffer[pos1 & mask], &ringbuffer[pos2 & mask], chunk) != 0) {
+      return BROTLI_FALSE;
+    }
+    pos1 += chunk;
+    pos2 += chunk;
+    len -= chunk;
+  }
+  return BROTLI_TRUE;
 }
 
 #if defined(__cplusplus) || defined(c_plusplus)
