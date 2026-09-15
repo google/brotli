@@ -52,7 +52,8 @@ static BROTLI_INLINE BROTLI_BOOL MatchTrigger(const uint8_t* ringbuffer,
   return BROTLI_TRUE;
 }
 
-static const uint64_t kBase64Trigger64 = 0x2c3436657361623bULL;
+static const uint64_t kBase64Trigger64 =
+    BROTLI_MAKE_UINT64_T(0x2C343665u, 0x7361623Bu);
 
 static size_t FindNextBase64Trigger(const uint8_t* ringbuffer, size_t mask,
                                     size_t pos, size_t end) {
