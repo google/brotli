@@ -1,0 +1,15 @@
+roundtrip/c/enc/encode.c/1 1 0.0248802
+roundtrip/c/enc/encode.c/6 1 0.0317844
+roundtrip/c/enc/encode.c/9 1 0.049148
+roundtrip/c/enc/encode.c/11 1 0.348142
+roundtrip/c/common/dictionary.h/1 1 0.0200629
+roundtrip/c/common/dictionary.h/6 1 0.0170475
+roundtrip/c/common/dictionary.h/9 1 0.0184762
+roundtrip/c/common/dictionary.h/11 1 0.0439841
+roundtrip/c/dec/decode.c/1 1 0.0286012
+roundtrip/c/dec/decode.c/6 1 0.0327712
+roundtrip/c/dec/decode.c/9 1 0.0627366
+roundtrip/c/dec/decode.c/11 1 0.493591
+compatibility/tests/testdata/empty.compressed 1 0.0176889
+compatibility/tests/testdata/ukkonooa.compressed 1 0.0215406
+---
