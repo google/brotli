@@ -103,12 +103,13 @@ namespace Org.Brotli.Dec
 					}
 					state.metaBlockLength |= bits << (i * 4);
 				}
+				// ISUNCOMPRESSED is present only in non-metadata meta-blocks; see RFC 7932 section 9.2.
+				if (!state.inputEnd)
+				{
+					state.isUncompressed = Org.Brotli.Dec.BitReader.ReadBits(br, 1) == 1;
+				}
 			}
 			state.metaBlockLength++;
-			if (!state.inputEnd)
-			{
-				state.isUncompressed = Org.Brotli.Dec.BitReader.ReadBits(br, 1) == 1;
-			}
 		}
 
 		/// <summary>Decodes the next Huffman code from bit-stream.</summary>
