@@ -9,6 +9,8 @@ package org.brotli.dec;
 import static org.brotli.dec.TestUtils.newBrotliInputStream;
 import static org.brotli.dec.TestUtils.readUniBytes;
 import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -146,5 +148,30 @@ public class DecodeTest {
     new Context();
     new Decode();
     new Huffman();
+  }
+
+  @Test
+  public void testCalculateDistanceAlphabetLimitConformance() {
+    State s = new State();
+    // Parity with C reference BrotliCalculateDistanceCodeLimit:
+    // When maxDistance = 0x7FFFFFFC, npostfix = 0, ndirect = 0:
+    // (maxDistance - ndirect) + 4 = 0x80000000. In signed 32-bit int, this must not underflow.
+    assertEquals(74, Decode.calculateDistanceAlphabetLimit(s, 0x7FFFFFFC, 0, 0));
+    assertEquals(74, Decode.calculateDistanceAlphabetLimit(s, 0x7FFFFFFC, 0, 1));
+    assertEquals(88, Decode.calculateDistanceAlphabetLimit(s, 0x7FFFFFFC, 0, 15));
+    assertEquals(156, Decode.calculateDistanceAlphabetLimit(s, 0x7FFFFFFC, 1, 30));
+    assertEquals(544, Decode.calculateDistanceAlphabetLimit(s, 0x7FFFFFFC, 3, 120));
+  }
+
+  @Test
+  public void testNegativeDistanceRejected() {
+    State s = new State();
+    Decode.initState(s);
+    try {
+      Utils.makeError(s, BrotliError.BROTLI_ERROR_NEGATIVE_DISTANCE);
+      fail("Expected BrotliRuntimeException");
+    } catch (BrotliRuntimeException ex) {
+      assertEquals("Error code: -12", ex.getMessage());
+    }
   }
 }
