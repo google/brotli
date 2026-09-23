@@ -747,6 +747,25 @@ static BROTLI_INLINE size_t LookupAllCompoundDictionaryMatches(
   return total_found;
 }
 
+static BROTLI_INLINE void PrefetchCompoundDictionaryMatchOpt(
+    const CompoundDictionary* addon, const uint8_t* BROTLI_RESTRICT data,
+    const size_t ring_buffer_mask, const size_t cur_ix) {
+  const size_t cur_ix_masked = cur_ix & ring_buffer_mask;
+  const uint64_t bytes = BROTLI_UNALIGNED_LOAD64LE(&data[cur_ix_masked]);
+  size_t d;
+  for (d = 0; d < addon->num_chunks; ++d) {
+    const PreparedDictionaryView* view = &addon->chunk_views[d];
+    const uint64_t h =
+        (bytes & view->hash_mask) * kPreparedDictionaryHashMul64Long;
+    const uint32_t key = (uint32_t)(h >> view->hash_shift);
+    const uint32_t slot = key & view->slot_mask;
+    const uint32_t head = view->heads[key];
+    /* Deliberately branchless - if head == 0xFFFF (no items), we'll prefetch
+     * some garbage address.  Prefetch can't fault, so this is safe.*/
+    PREFETCH_L1(&view->items[view->slot_offsets[slot] + head]);
+  }
+}
+
 static BROTLI_INLINE void FindCompoundDictionaryMatchOpt(
     const PreparedDictionaryView* self, const uint8_t* BROTLI_RESTRICT data,
     const size_t ring_buffer_mask, const int* BROTLI_RESTRICT distance_cache,

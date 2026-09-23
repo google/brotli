@@ -109,6 +109,10 @@ static BROTLI_NOINLINE void EXPORT_FN(CreateBackwardReferences)(
     sr.len_code_delta = 0;
     sr.distance = 0;
     sr.score = kMinScore;
+    if (ENABLE_COMPOUND_DICTIONARY) {
+      PrefetchCompoundDictionaryMatchOpt(&params->dictionary.compound,
+          ringbuffer, ringbuffer_mask, position);
+    }
     FN(FindLongestMatch)(privat, params->dictionary.contextual.dict[dict_id],
         ringbuffer, ringbuffer_mask, dist_cache, position, max_length,
         max_distance, dictionary_start + gap, params->dist.max_distance, &sr);
@@ -137,6 +141,10 @@ static BROTLI_NOINLINE void EXPORT_FN(CreateBackwardReferences)(
           p1 = ringbuffer[position & ringbuffer_mask];
           dict_id = params->dictionary.contextual.context_map[
               BROTLI_CONTEXT(p1, p2, literal_context_lut)];
+        }
+        if (ENABLE_COMPOUND_DICTIONARY) {
+          PrefetchCompoundDictionaryMatchOpt(&params->dictionary.compound,
+              ringbuffer, ringbuffer_mask, position + 1);
         }
         FN(FindLongestMatch)(privat,
             params->dictionary.contextual.dict[dict_id],
