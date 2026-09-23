@@ -105,9 +105,9 @@ static BROTLI_INLINE void FN(Store)(
   buckets[offset] = (uint32_t)ix;
   tags[offset] = tag;
 }
-static BROTLI_INLINE void FN(StoreRange)(HashLongestMatch* BROTLI_RESTRICT self,
-    const uint8_t* BROTLI_RESTRICT data, const size_t mask,
-    const size_t ix_start, const size_t ix_end) {
+static BROTLI_NOINLINE void FN(StoreRange)(
+    HashLongestMatch* BROTLI_RESTRICT self, const uint8_t* BROTLI_RESTRICT data,
+    const size_t mask, const size_t ix_start, const size_t ix_end) {
   size_t i;
   for (i = ix_start; i < ix_end; ++i) {
     FN(Store)(self, data, mask, i);
@@ -272,5 +272,12 @@ static BROTLI_INLINE void FN(FindLongestMatch)(
         self->common_, &data[cur_ix_masked], max_length, dictionary_distance,
         max_distance, out, BROTLI_FALSE);
   }
+}
+/* `StoreRange` is deliberately not inlined, so it is not eligible for the
+   `BROTLI_INLINE` treatment that keeps unused hasher methods quiet; reference
+   it explicitly for the translation units that do not call it. */
+BROTLI_UNUSED_FUNCTION void FN(SuppressUnusedFunctions)(void) {
+  BROTLI_UNUSED(&FN(SuppressUnusedFunctions));
+  BROTLI_UNUSED(&FN(StoreRange));
 }
 #undef HashLongestMatch
