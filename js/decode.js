@@ -1162,7 +1162,7 @@ let makeBrotliDecode = () => {
     while (address >= s.cdChunkOffsets[index + 1]) {
       index++;
     }
-    if (s.cdTotalSize > address + length) {
+    if (length > s.cdTotalSize - address) {
       return makeError(s, -9);
     }
     s.distRbIdx = (s.distRbIdx + 1) & 0x3;

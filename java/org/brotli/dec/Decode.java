@@ -1188,7 +1188,7 @@ final class Decode {
     while (address >= s.cdChunkOffsets[index + 1]) {
       index++;
     }
-    if (s.cdTotalSize > address + length) {
+    if (length > s.cdTotalSize - address) {
       return Utils.makeError(s, BROTLI_ERROR_INVALID_BACKWARD_REFERENCE);
     }
     /* Update the recent distances cache */
