@@ -691,7 +691,7 @@ static Command ParseParams(Context* params) {
   params->decompress = (command == COMMAND_DECOMPRESS);
   params->test_integrity = (command == COMMAND_TEST_INTEGRITY);
 
-  if (input_count > 1 && output_set) return COMMAND_INVALID;
+  if (input_count > 1 && params->output_path) return COMMAND_INVALID;
   if (params->test_integrity) {
     if (params->output_path) return COMMAND_INVALID;
     if (params->write_to_stdout) return COMMAND_INVALID;
@@ -800,7 +800,8 @@ static BROTLI_BOOL OpenOutputFile(const char* output_path, FILE** f,
   int fd;
   *f = NULL;
   if (!output_path) {
-    *f = fdopen(MAKE_BINARY(STDOUT_FILENO), "wb");
+   (void) MAKE_BINARY(STDOUT_FILENO);
+    *f = stdout;
     return BROTLI_TRUE;
   }
   fd = open(output_path, O_CREAT | (force ? 0 : O_EXCL) | O_WRONLY | O_TRUNC,
@@ -1054,9 +1055,11 @@ static BROTLI_BOOL CloseFiles(Context* context, BROTLI_BOOL rm_input,
       CopyStat(context->current_input_path, context->current_output_path,
                context->fout);
     }
-    if (fclose(context->fout) != 0) {
+    if ((context->current_output_path && fclose(context->fout) != 0) ||
+        (!context->current_output_path && fflush(context->fout) != 0)) {
       if (is_ok) {
-        fprintf(stderr, "fclose failed [%s]: %s\n",
+        fprintf(stderr, "%s failed [%s]: %s\n",
+                context->current_output_path ? "fclose" : "fflush",
                 PrintablePath(context->current_output_path), strerror(errno));
       }
       is_ok = BROTLI_FALSE;

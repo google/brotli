@@ -93,4 +93,14 @@ function test::brotli_cli::concatenated() {
   EXPECT_FILE_CONTENT_EQ full.orig full.unbr
 }
 
+function test::brotli_cli::brcat_multiple_files() {
+  ln -s "${BROTLI}" brcat
+  ${BROTLI} -Zfk ipsum.orig -o one.br
+  ${BROTLI} -Zfk text.orig -o two.br
+  cat ipsum.orig text.orig > full.orig
+  EXPECT_SUCCEED "./brcat one.br two.br > full.unbr"
+  EXPECT_FILE_CONTENT_EQ full.orig full.unbr
+  EXPECT_FAIL "${BROTLI} -d -o output one.br two.br"
+}
+
 gbash::unit::main "$@"
