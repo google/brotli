@@ -82,6 +82,19 @@ function test::brotli_cli::comment_invalid_chars() {
   EXPECT_FAIL "${BROTLI} -Zfk -C S.GVsbG8= text.orig -o text.br"
 }
 
+function test::brotli_cli::help() {
+  EXPECT_SUCCEED "${BROTLI} --help > help.stdout 2> help.stderr"
+  EXPECT_SUCCEED "grep -q '^Usage:' help.stdout"
+  EXPECT_SUCCEED "test ! -s help.stderr"
+}
+
+function test::brotli_cli::invalid_long_option() {
+  EXPECT_FAIL \
+    "${BROTLI} --definitely-invalid > invalid.stdout 2> invalid.stderr"
+  EXPECT_SUCCEED "test ! -s invalid.stdout"
+  EXPECT_SUCCEED "grep -q '^Usage:' invalid.stderr"
+}
+
 function test::brotli_cli::concatenated() {
   ${BROTLI} -Zfk ipsum.orig -o one.br
   ${BROTLI} -Zfk text.orig -o two.br
