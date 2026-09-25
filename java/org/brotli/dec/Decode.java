@@ -400,11 +400,12 @@ final class Decode {
         }
         s.metaBlockLength += bits << (i * 4);
       }
+      /* ISUNCOMPRESSED is present only in non-metadata meta-blocks; see RFC 7932 section 9.2. */
+      if (s.inputEnd == 0) {
+        s.isUncompressed = BitReader.readFewBits(s, 1);
+      }
     }
     s.metaBlockLength++;
-    if (s.inputEnd == 0) {
-      s.isUncompressed = BitReader.readFewBits(s, 1);
-    }
     return BROTLI_OK;
   }
 
