@@ -747,9 +747,17 @@ static BROTLI_INLINE size_t LookupAllCompoundDictionaryMatches(
   return total_found;
 }
 
+/* Struct for handing state between the prefetch and find calls.  Avoids
+ * recalculating the hash and dependent variables. */
+typedef struct PreparedDictionaryProbe {
+  const uint32_t* chain;
+  uint32_t item;
+} PreparedDictionaryProbe;
+
 static BROTLI_INLINE void PrefetchCompoundDictionaryMatchOpt(
     const CompoundDictionary* addon, const uint8_t* BROTLI_RESTRICT data,
-    const size_t ring_buffer_mask, const size_t cur_ix) {
+    const size_t ring_buffer_mask, const size_t cur_ix,
+    PreparedDictionaryProbe* BROTLI_RESTRICT probes) {
   const size_t cur_ix_masked = cur_ix & ring_buffer_mask;
   const uint64_t bytes = BROTLI_UNALIGNED_LOAD64LE(&data[cur_ix_masked]);
   size_t d;
@@ -762,38 +770,78 @@ static BROTLI_INLINE void PrefetchCompoundDictionaryMatchOpt(
     const uint32_t head = view->heads[key];
     /* Deliberately branchless - if head == 0xFFFF (no items), we'll prefetch
      * some garbage address.  Prefetch can't fault, so this is safe.*/
-    PREFETCH_L1(&view->items[view->slot_offsets[slot] + head]);
+    const uint32_t* chain = &view->items[view->slot_offsets[slot] + head];
+    PREFETCH_L1(chain);
+    probes[d].chain = chain;
+    probes[d].item = (head == 0xFFFF) ? 1 : 0;
+
+    /* One-ahead for the heads[] line of the next probe: the next search is
+       at cur_ix + 1 (the lazy search, or the next position after a miss),
+       whose hash covers bytes cur_ix+1.. -- the same 8-byte load shifted by
+       one byte (hash_mask spans at most 56 bits for this to be exact; a
+       mismatch would only waste the prefetch). The heads[key] load above
+       misses L1 ~94% of the time (mostly L3 fills). */
+    {
+      const uint64_t h1 =
+          ((bytes >> 8) & view->hash_mask) * kPreparedDictionaryHashMul64Long;
+      PREFETCH_L1(&view->heads[(uint32_t)(h1 >> view->hash_shift)]);
+    }
+  }
+}
+
+/* The heads[] half of PrefetchCompoundDictionaryMatchOpt: hash the position
+   and prefetch its heads[] line, with no dependent items[] load. Used at the
+   commit site, where the successor position is known but the probe state for
+   it would not survive the intervening StoreRange. */
+static BROTLI_INLINE void PrefetchCompoundDictionaryHeadsOpt(
+    const CompoundDictionary* addon, const uint8_t* BROTLI_RESTRICT data,
+    const size_t ring_buffer_mask, const size_t cur_ix) {
+  const uint64_t bytes =
+      BROTLI_UNALIGNED_LOAD64LE(&data[cur_ix & ring_buffer_mask]);
+  size_t d;
+  for (d = 0; d < addon->num_chunks; ++d) {
+    const PreparedDictionaryView* view = &addon->chunk_views[d];
+    const uint64_t h =
+        (bytes & view->hash_mask) * kPreparedDictionaryHashMul64Long;
+    PREFETCH_L1(&view->heads[(uint32_t)(h >> view->hash_shift)]);
   }
 }
 
 static BROTLI_INLINE void FindCompoundDictionaryMatchOpt(
-    const PreparedDictionaryView* self, const uint8_t* BROTLI_RESTRICT data,
+    const PreparedDictionaryView* self,
+    const PreparedDictionaryProbe* BROTLI_RESTRICT probe,
+    const uint8_t* BROTLI_RESTRICT data,
     const size_t ring_buffer_mask, const int* BROTLI_RESTRICT distance_cache,
     const size_t cur_ix, const size_t max_length, const size_t distance_offset,
     const size_t max_distance, HasherSearchResult* BROTLI_RESTRICT out) {
   const uint32_t source_size = self->source_size;
   const size_t boundary = distance_offset - source_size;
-  const uint32_t hash_shift = self->hash_shift;
-  const uint32_t slot_mask = self->slot_mask;
-  const uint64_t hash_mask = self->hash_mask;
 
-  const uint32_t* slot_offsets = self->slot_offsets;
-  const uint16_t* heads = self->heads;
-  const uint32_t* items = self->items;
   const uint8_t* source = self->source;
 
   const size_t cur_ix_masked = cur_ix & ring_buffer_mask;
   score_t best_score = out->score;
   size_t best_len = out->len;
   size_t i;
-  const uint64_t h =
-      (BROTLI_UNALIGNED_LOAD64LE(&data[cur_ix_masked]) & hash_mask) *
-      kPreparedDictionaryHashMul64Long;
-  const uint32_t key = (uint32_t)(h >> hash_shift);
-  const uint32_t slot = key & slot_mask;
-  const uint32_t head = heads[key];
-  const uint32_t* BROTLI_RESTRICT chain = &items[slot_offsets[slot] + head];
-  uint32_t item = (head == 0xFFFF) ? 1 : 0;
+  /* The hash and hashtable offsets were calculated in Prefetch, reuse the
+   * results. */
+  const uint32_t* BROTLI_RESTRICT chain = probe->chain;
+  uint32_t item = probe->item;
+#if defined(BROTLI_DEBUG) || defined(BROTLI_ENABLE_LOG)
+  {
+    const uint64_t bytes = BROTLI_UNALIGNED_LOAD64LE(&data[cur_ix_masked]);
+    const uint64_t h =
+        (bytes & self->hash_mask) * kPreparedDictionaryHashMul64Long;
+    const uint32_t key = (uint32_t)(h >> self->hash_shift);
+    const uint32_t slot = key & self->slot_mask;
+    const uint32_t head = self->heads[key];
+    const uint32_t* expected_chain =
+        &self->items[self->slot_offsets[slot] + head];
+    const uint32_t expected_item = (head == 0xFFFF) ? 1 : 0;
+    BROTLI_DCHECK(probe->chain == expected_chain);
+    BROTLI_DCHECK(probe->item == expected_item);
+  }
+#endif
 
   BROTLI_DCHECK(cur_ix_masked + max_length <= ring_buffer_mask + 1);
 
@@ -866,7 +914,9 @@ static BROTLI_INLINE void FindCompoundDictionaryMatchOpt(
 }
 
 static BROTLI_INLINE void LookupCompoundDictionaryMatchOpt(
-    const CompoundDictionary* addon, const uint8_t* BROTLI_RESTRICT data,
+    const CompoundDictionary* addon,
+    const PreparedDictionaryProbe* BROTLI_RESTRICT probes,
+    const uint8_t* BROTLI_RESTRICT data,
     const size_t ring_buffer_mask, const int* BROTLI_RESTRICT distance_cache,
     const size_t cur_ix, const size_t max_length,
     const size_t max_ring_buffer_distance, const size_t max_distance,
@@ -875,7 +925,7 @@ static BROTLI_INLINE void LookupCompoundDictionaryMatchOpt(
   size_t d;
   for (d = 0; d < addon->num_chunks; ++d) {
     FindCompoundDictionaryMatchOpt(
-        &addon->chunk_views[d], data, ring_buffer_mask,
+        &addon->chunk_views[d], &probes[d], data, ring_buffer_mask,
         distance_cache, cur_ix, max_length,
         base_offset - addon->chunk_offsets[d], max_distance, sr);
   }
