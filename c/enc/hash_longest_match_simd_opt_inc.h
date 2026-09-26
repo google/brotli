@@ -156,7 +156,12 @@ static BROTLI_INLINE void FN(FindLongestMatch)(
   /* Don't accept a short copy from far away. */
   score_t min_score = out->score;
   score_t best_score = out->score;
-  size_t best_len = out->len;
+  /* If we're still searching the static dictionary, we have to do the full
+     search to determine if we should check the static dictionary. */
+  size_t best_len =
+      self->common_->dict_num_matches < (self->common_->dict_num_lookups >> 7)
+          ? out->len
+          : 0;
   size_t i;
   /* Precalculate the hash key and prefetch the bucket. */
   const uint32_t hash =
@@ -170,6 +175,9 @@ static BROTLI_INLINE void FN(FindLongestMatch)(
   out->len = 0;
   out->len_code_delta = 0;
 
+  if (best_len < 1) {
+    best_len = 1;
+  }
   /* Try last distance first. */
   for (i = 0; i < (size_t)self->num_last_distances_to_check_; ++i) {
     const size_t backward = (size_t)distance_cache[i];
@@ -186,7 +194,8 @@ static BROTLI_INLINE void FN(FindLongestMatch)(
       break;
     }
     if (prev_ix + best_len > ring_buffer_mask ||
-        data[cur_ix_masked + best_len] != data[prev_ix + best_len]) {
+        BrotliUnalignedRead16(&data[cur_ix_masked + best_len - 1]) !=
+            BrotliUnalignedRead16(&data[prev_ix + best_len - 1])) {
       continue;
     }
     {
