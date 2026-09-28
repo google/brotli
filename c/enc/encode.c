@@ -59,6 +59,7 @@ static size_t RemainingInputBlockSize(BrotliEncoderState* s) {
 
 BROTLI_BOOL BrotliEncoderSetParameter(
     BrotliEncoderState* state, BrotliEncoderParameter p, uint32_t value) {
+  if (!state) return BROTLI_FALSE;
   /* Changing parameters on the fly is not implemented yet. */
   if (state->is_initialized_) return BROTLI_FALSE;
   /* TODO(eustas): Validate/clamp parameters here. */
@@ -1311,10 +1312,23 @@ BROTLI_BOOL BrotliEncoderCompress(
     size_t* encoded_size,
     uint8_t encoded_buffer[BROTLI_ARRAY_PARAM(*encoded_size)]) {
   BrotliEncoderState* s;
-  size_t out_size = *encoded_size;
-  const uint8_t* input_start = input_buffer;
-  uint8_t* output_start = encoded_buffer;
-  size_t max_out_size = BrotliEncoderMaxCompressedSize(input_size);
+  size_t out_size;
+  const uint8_t* input_start;
+  uint8_t* output_start;
+  size_t max_out_size;
+  if (!encoded_size) {
+    return BROTLI_FALSE;
+  }
+  if (input_size > 0 && !input_buffer) {
+    return BROTLI_FALSE;
+  }
+  if (*encoded_size > 0 && !encoded_buffer) {
+    return BROTLI_FALSE;
+  }
+  out_size = *encoded_size;
+  input_start = input_buffer;
+  output_start = encoded_buffer;
+  max_out_size = BrotliEncoderMaxCompressedSize(input_size);
   if (out_size == 0) {
     /* Output buffer needs at least one byte. */
     return BROTLI_FALSE;
@@ -1647,6 +1661,15 @@ BROTLI_BOOL BrotliEncoderCompressStream(
     BrotliEncoderState* s, BrotliEncoderOperation op, size_t* available_in,
     const uint8_t** next_in, size_t* available_out, uint8_t** next_out,
     size_t* total_out) {
+  if (!s || !available_in || !next_in || !available_out || !next_out) {
+    return BROTLI_FALSE;
+  }
+  if (*available_in && !*next_in) {
+    return BROTLI_FALSE;
+  }
+  if (*available_out && !*next_out) {
+    return BROTLI_FALSE;
+  }
   if (!EnsureInitialized(s)) return BROTLI_FALSE;
 
   /* Unfinished metadata block; check requirements. */
@@ -1734,17 +1757,28 @@ BROTLI_BOOL BrotliEncoderCompressStream(
 }
 
 BROTLI_BOOL BrotliEncoderIsFinished(BrotliEncoderState* s) {
+  if (!s) {
+    return BROTLI_FALSE;
+  }
   return TO_BROTLI_BOOL(s->stream_state_ == BROTLI_STREAM_FINISHED &&
       !BrotliEncoderHasMoreOutput(s));
 }
 
 BROTLI_BOOL BrotliEncoderHasMoreOutput(BrotliEncoderState* s) {
+  if (!s) {
+    return BROTLI_FALSE;
+  }
   return TO_BROTLI_BOOL(s->available_out_ != 0);
 }
 
 const uint8_t* BrotliEncoderTakeOutput(BrotliEncoderState* s, size_t* size) {
-  size_t consumed_size = s->available_out_;
-  uint8_t* result = s->next_out_;
+  size_t consumed_size;
+  uint8_t* result;
+  if (!s || !size) {
+    return 0;
+  }
+  consumed_size = s->available_out_;
+  result = s->next_out_;
   if (*size) {
     consumed_size = BROTLI_MIN(size_t, *size, s->available_out_);
   }
