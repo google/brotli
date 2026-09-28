@@ -464,6 +464,12 @@ BROTLI_BOOL BrotliSharedDictionaryAttach(
   if (!dict) {
     return BROTLI_FALSE;
   }
+  if (data_size > 0 && !data) {
+    return BROTLI_FALSE;
+  }
+  if (data_size > SHARED_BROTLI_MAX_RAW_DICT_SIZE) {
+    return BROTLI_FALSE;
+  }
 #if defined(BROTLI_EXPERIMENTAL)
   if (type == BROTLI_SHARED_DICTIONARY_SERIALIZED) {
     return DecodeSharedDictionary(data, data_size, dict);

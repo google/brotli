@@ -1778,6 +1778,9 @@ BrotliEncoderPreparedDictionary* BrotliEncoderPrepareDictionary(
   if (!type_is_known) {
     return NULL;
   }
+  if (size > 0 && !data) {
+    return NULL;
+  }
   managed_dictionary =
       BrotliCreateManagedDictionary(alloc_func, free_func, opaque);
   if (managed_dictionary == NULL) {
@@ -1842,8 +1845,12 @@ BROTLI_BOOL BROTLI_COLD BrotliEncoderAttachPreparedDictionary(
     const BrotliEncoderPreparedDictionary* dictionary) {
   /* First field of dictionary structs */
   const BrotliEncoderPreparedDictionary* dict = dictionary;
-  uint32_t magic = *((const uint32_t*)dict);
+  uint32_t magic;
   SharedEncoderDictionary* current = NULL;
+  if (!state || !dictionary) {
+    return BROTLI_FALSE;
+  }
+  magic = *((const uint32_t*)dict);
   if (magic == kManagedDictionaryMagic) {
     /* Unwrap managed dictionary. */
     ManagedDictionary* managed_dictionary = (ManagedDictionary*)dict;
