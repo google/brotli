@@ -97,7 +97,15 @@ static void TransformedDictionaryWord(uint32_t word_idx, int len, int transform,
     const BrotliTransforms* transforms,
     const BrotliEncoderDictionary* dict,
     uint8_t* buffer, size_t* size) {
-  const uint8_t* dict_word = &dict->words->data[
+  const uint8_t* dict_word;
+  if (!dict || !dict->words || !dict->words->data || !transforms ||
+      !buffer || !size || len <= 0 ||
+      len > SHARED_BROTLI_MAX_DICTIONARY_WORD_LENGTH ||
+      transform < 0 || (uint32_t)transform >= transforms->num_transforms) {
+    if (size) *size = 0;
+    return;
+  }
+  dict_word = &dict->words->data[
       dict->words->offsets_by_length[len] + (uint32_t)len * word_idx];
   *size = (size_t)BrotliTransformDictionaryWord(buffer, dict_word, len,
       transforms, transform);
@@ -487,6 +495,9 @@ static BROTLI_BOOL ComputeDictionary(MemoryManager* m, int quality,
 #endif  /* BROTLI_EXPERIMENTAL */
 
 void BrotliInitSharedEncoderDictionary(SharedEncoderDictionary* dict) {
+  if (!dict) {
+    return;
+  }
   dict->magic = kSharedDictionaryMagic;
 
   dict->compound.num_chunks = 0;
@@ -596,6 +607,9 @@ BROTLI_BOOL BrotliInitCustomSharedEncoderDictionary(
 void BrotliCleanupSharedEncoderDictionary(MemoryManager* m,
                                           SharedEncoderDictionary* dict) {
   size_t i;
+  if (!m || !dict) {
+    return;
+  }
   for (i = 0; i < dict->compound.num_prepared_instances_; i++) {
     DestroyPreparedDictionary(m,
         (PreparedDictionary*)dict->compound.prepared_instances_[i]);
@@ -612,7 +626,11 @@ void BrotliCleanupSharedEncoderDictionary(MemoryManager* m,
 
 ManagedDictionary* BrotliCreateManagedDictionary(
     brotli_alloc_func alloc_func, brotli_free_func free_func, void* opaque) {
-  ManagedDictionary* result = (ManagedDictionary*)BrotliBootstrapAlloc(
+  ManagedDictionary* result;
+  if ((!alloc_func && free_func) || (alloc_func && !free_func)) {
+    return NULL;
+  }
+  result = (ManagedDictionary*)BrotliBootstrapAlloc(
       sizeof(ManagedDictionary), alloc_func, free_func, opaque);
   if (result == NULL) return NULL;
 

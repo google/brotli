@@ -466,11 +466,20 @@ BROTLI_BOOL BrotliSharedDictionaryAttach(
   }
 #if defined(BROTLI_EXPERIMENTAL)
   if (type == BROTLI_SHARED_DICTIONARY_SERIALIZED) {
+    if (data_size > 0 && !data) {
+      return BROTLI_FALSE;
+    }
     return DecodeSharedDictionary(data, data_size, dict);
   }
 #endif  /* BROTLI_EXPERIMENTAL */
   if (type == BROTLI_SHARED_DICTIONARY_RAW) {
     if (dict->num_prefix >= SHARED_BROTLI_MAX_COMPOUND_DICTS) {
+      return BROTLI_FALSE;
+    }
+    if (data_size > 0 && !data) {
+      return BROTLI_FALSE;
+    }
+    if (data_size > SHARED_BROTLI_MAX_RAW_DICT_SIZE) {
       return BROTLI_FALSE;
     }
     dict->prefix_size[dict->num_prefix] = data_size;
@@ -489,6 +498,8 @@ BrotliSharedDictionary* BrotliSharedDictionaryCreateInstance(
   } else if (alloc_func && free_func) {
     dict = (BrotliSharedDictionary*)alloc_func(
         opaque, sizeof(BrotliSharedDictionary));
+  } else {
+    return 0;
   }
   if (dict == 0) {
     return 0;
