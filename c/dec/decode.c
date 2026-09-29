@@ -440,13 +440,12 @@ static BROTLI_INLINE void PreloadSymbol(int safe,
                                         BrotliBitReader* br,
                                         brotli_reg_t* bits,
                                         brotli_reg_t* value) {
-  if (safe) {
-    return;
+  if (!safe) {
+    BROTLI_HC_MARK_TABLE_FOR_FAST_LOAD(table);
+    BROTLI_HC_ADJUST_TABLE_INDEX(table, BrotliGetBits(br, HUFFMAN_TABLE_BITS));
+    *bits = BROTLI_HC_FAST_LOAD_BITS(table);
+    *value = BROTLI_HC_FAST_LOAD_VALUE(table);
   }
-  BROTLI_HC_MARK_TABLE_FOR_FAST_LOAD(table);
-  BROTLI_HC_ADJUST_TABLE_INDEX(table, BrotliGetBits(br, HUFFMAN_TABLE_BITS));
-  *bits = BROTLI_HC_FAST_LOAD_BITS(table);
-  *value = BROTLI_HC_FAST_LOAD_VALUE(table);
 }
 
 /* Decodes the next Huffman code using data prepared by PreloadSymbol.
