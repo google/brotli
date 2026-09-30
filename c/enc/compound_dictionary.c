@@ -155,6 +155,9 @@ PreparedDictionary* CreatePreparedDictionary(MemoryManager* m,
   uint32_t hash_bits = 40;
   uint16_t bucket_limit = 32;
   size_t volume = 16u << bucket_bits;
+  if (!source && source_size > 0) {
+    return NULL;
+  }
   if (source_size > SHARED_BROTLI_MAX_RAW_DICT_SIZE) {
     return NULL;
   }
@@ -179,11 +182,11 @@ BROTLI_BOOL AttachPreparedDictionary(
   size_t length = 0;
   size_t index = 0;
 
+  if (!compound || !dictionary) return BROTLI_FALSE;
+
   if (compound->num_chunks == SHARED_BROTLI_MAX_COMPOUND_DICTS) {
     return BROTLI_FALSE;
   }
-
-  if (!dictionary) return BROTLI_FALSE;
 
   length = dictionary->source_size;
   if (length > SHARED_BROTLI_MAX_RAW_DICT_SIZE - compound->total_size) {

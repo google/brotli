@@ -1526,12 +1526,15 @@ static BrotliDecoderErrorCode BROTLI_NOINLINE CopyUncompressedBlockToOutput(
 
 static BROTLI_BOOL AttachCompoundDictionary(
     BrotliDecoderState* state, const uint8_t* data, size_t size) {
-  BrotliDecoderCompoundDictionary* addon = state->compound_dictionary;
+  BrotliDecoderCompoundDictionary* addon;
+  if (!state) return BROTLI_FALSE;
   /* Soft lie: no dictionary is attached; i.e. this call is not accounted
    * towards SHARED_BROTLI_MAX_COMPOUND_DICTS limit. */
   if (size == 0) return BROTLI_TRUE;
+  if (!data) return BROTLI_FALSE;
   if (size > SHARED_BROTLI_MAX_RAW_DICT_SIZE) return BROTLI_FALSE;
   if (state->state != BROTLI_STATE_UNINITED) return BROTLI_FALSE;
+  addon = state->compound_dictionary;
   if (!addon) {
     addon = (BrotliDecoderCompoundDictionary*)BROTLI_DECODER_ALLOC(
         state, sizeof(BrotliDecoderCompoundDictionary));
@@ -1640,8 +1643,11 @@ BROTLI_BOOL BrotliDecoderAttachDictionary(
     BrotliDecoderState* state, BrotliSharedDictionaryType type,
     size_t data_size, const uint8_t data[BROTLI_ARRAY_PARAM(data_size)]) {
   brotli_reg_t i;
-  brotli_reg_t num_prefix_before = state->dictionary->num_prefix;
+  brotli_reg_t num_prefix_before;
+  if (!state || !state->dictionary) return BROTLI_FALSE;
+  if (data_size > 0 && !data) return BROTLI_FALSE;
   if (state->state != BROTLI_STATE_UNINITED) return BROTLI_FALSE;
+  num_prefix_before = state->dictionary->num_prefix;
   if (!BrotliSharedDictionaryAttach(state->dictionary, type, data_size, data)) {
     return BROTLI_FALSE;
   }
