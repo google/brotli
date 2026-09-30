@@ -156,7 +156,12 @@ static BROTLI_INLINE void FN(FindLongestMatch)(
   /* Don't accept a short copy from far away. */
   score_t min_score = out->score;
   score_t best_score = out->score;
-  size_t best_len = out->len;
+  /* If we're still searching the static dictionary, we have to do the full
+     search to determine if we should check the static dictionary. */
+  size_t best_len =
+      self->common_->dict_num_matches < (self->common_->dict_num_lookups >> 7)
+          ? out->len
+          : 0;
   size_t i;
   /* Precalculate the hash key and prefetch the bucket. */
   const uint32_t hash =
