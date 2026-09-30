@@ -2671,6 +2671,33 @@ public class SynthTest {
   }
 
   @Test
+  public void testMetadataEndingOnByteBoundary() {
+    byte[] compressed = {
+      (byte) 0x30, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x54, (byte) 0x90, (byte) 0x50,
+      (byte) 0x80, (byte) 0x10, (byte) 0x80, (byte) 0x5a, (byte) 0x00, (byte) 0x00, (byte) 0x03
+    };
+    checkSynth(
+    /*
+     * A metadata meta-block carries no ISUNCOMPRESSED bit, so the jump to the byte boundary that
+     * follows the header must consume no bits when the header already ends on one. The metadata
+     * header here does end on a byte boundary, unlike the one in testPeculiarWrap, where a stray
+     * bit would be absorbed by that jump and stay invisible. Bit layout:
+     *
+     *   bit  0      WBITS: window 16
+     *   bit  1-81   compressed meta-block: MLEN 4, simple literal code {"A", "B"}, emits "ABAB"
+     *   bit 82-95   metadata meta-block header: ISLAST 0, MNIBBLES "11" (metadata), reserved 0,
+     *               MSKIPBYTES 1, MSKIPLEN byte 00, so one byte is skipped
+     *   bit 96      end of that header, and 96 % 8 == 0
+     *   byte 12     the skipped metadata byte
+     *   byte 13     final empty meta-block
+     */
+      compressed,
+      true,
+      "ABAB"
+    );
+  }
+
+  @Test
   public void testSimplePrefix() {
     byte[] compressed = {
       (byte) 0x1b, (byte) 0x03, (byte) 0x00, (byte) 0x00, (byte) 0xa0, (byte) 0xc3, (byte) 0xc4,
