@@ -850,8 +850,6 @@ static BROTLI_INLINE void FindCompoundDictionaryMatchOpt(
   }
 #endif
 
-  BROTLI_DCHECK(cur_ix_masked + max_length <= ring_buffer_mask + 1);
-
   for (i = 0; i < 4; ++i) {
     const size_t distance = (size_t)distance_cache[i];
     size_t offset;
@@ -895,7 +893,7 @@ static BROTLI_INLINE void FindCompoundDictionaryMatchOpt(
     limit = source_size - offset;
     limit = (limit > max_length) ? max_length : limit;
     if (distance > max_distance) continue;
-    if (cur_ix_masked + best_len > ring_buffer_mask || best_len >= limit ||
+    if (best_len >= limit ||
         /* compare 4 bytes ending at best_len + 1 */
         BrotliUnalignedRead32(&data[cur_ix_masked + best_len - 3]) !=
             BrotliUnalignedRead32(&source[offset + best_len - 3])) {
