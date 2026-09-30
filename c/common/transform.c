@@ -238,9 +238,23 @@ static int Shift(uint8_t* word, int word_len, uint16_t parameter) {
 int BrotliTransformDictionaryWord(uint8_t* dst, const uint8_t* word, int len,
     const BrotliTransforms* transforms, int transform_idx) {
   int idx = 0;
-  const uint8_t* prefix = BROTLI_TRANSFORM_PREFIX(transforms, transform_idx);
-  uint8_t type = BROTLI_TRANSFORM_TYPE(transforms, transform_idx);
-  const uint8_t* suffix = BROTLI_TRANSFORM_SUFFIX(transforms, transform_idx);
+  const uint8_t* prefix;
+  uint8_t type;
+  const uint8_t* suffix;
+
+  if (!dst || !transforms || !transforms->transforms ||
+      !transforms->prefix_suffix || !transforms->prefix_suffix_map ||
+      transform_idx < 0 ||
+      (uint32_t)transform_idx >= transforms->num_transforms) {
+    return 0;
+  }
+  if (len < 0 || !word) {
+    len = 0;
+  }
+
+  prefix = BROTLI_TRANSFORM_PREFIX(transforms, transform_idx);
+  type = BROTLI_TRANSFORM_TYPE(transforms, transform_idx);
+  suffix = BROTLI_TRANSFORM_SUFFIX(transforms, transform_idx);
   {
     int prefix_len = *prefix++;
     while (prefix_len--) { dst[idx++] = *prefix++; }
@@ -250,34 +264,48 @@ int BrotliTransformDictionaryWord(uint8_t* dst, const uint8_t* word, int len,
     int i = 0;
     if (t <= BROTLI_TRANSFORM_OMIT_LAST_9) {
       len -= t;
+      if (len < 0) {
+        len = 0;
+      }
     } else if (t >= BROTLI_TRANSFORM_OMIT_FIRST_1
         && t <= BROTLI_TRANSFORM_OMIT_FIRST_9) {
       int skip = t - (BROTLI_TRANSFORM_OMIT_FIRST_1 - 1);
+      if (skip > len) {
+        skip = len;
+      }
       word += skip;
       len -= skip;
     }
     while (i < len) { dst[idx++] = word[i++]; }
     if (t == BROTLI_TRANSFORM_UPPERCASE_FIRST) {
-      ToUpperCase(&dst[idx - len]);
+      if (len > 0) {
+        ToUpperCase(&dst[idx - len]);
+      }
     } else if (t == BROTLI_TRANSFORM_UPPERCASE_ALL) {
-      uint8_t* uppercase = &dst[idx - len];
-      while (len > 0) {
-        int step = ToUpperCase(uppercase);
-        uppercase += step;
-        len -= step;
+      if (len > 0) {
+        uint8_t* uppercase = &dst[idx - len];
+        while (len > 0) {
+          int step = ToUpperCase(uppercase);
+          uppercase += step;
+          len -= step;
+        }
       }
     } else if (t == BROTLI_TRANSFORM_SHIFT_FIRST) {
-      uint16_t param = (uint16_t)(transforms->params[transform_idx * 2]
-          + (transforms->params[transform_idx * 2 + 1] << 8u));
-      Shift(&dst[idx - len], len, param);
+      if (transforms->params != NULL && len > 0) {
+        uint16_t param = (uint16_t)(transforms->params[transform_idx * 2]
+            + (transforms->params[transform_idx * 2 + 1] << 8u));
+        Shift(&dst[idx - len], len, param);
+      }
     } else if (t == BROTLI_TRANSFORM_SHIFT_ALL) {
-      uint16_t param = (uint16_t)(transforms->params[transform_idx * 2]
-          + (transforms->params[transform_idx * 2 + 1] << 8u));
-      uint8_t* shift = &dst[idx - len];
-      while (len > 0) {
-        int step = Shift(shift, len, param);
-        shift += step;
-        len -= step;
+      if (transforms->params != NULL && len > 0) {
+        uint16_t param = (uint16_t)(transforms->params[transform_idx * 2]
+            + (transforms->params[transform_idx * 2 + 1] << 8u));
+        uint8_t* shift = &dst[idx - len];
+        while (len > 0) {
+          int step = Shift(shift, len, param);
+          shift += step;
+          len -= step;
+        }
       }
     }
   }

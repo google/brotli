@@ -2248,7 +2248,8 @@ CommandPostDecodeLiterals:
       offset += word_idx * i;
       /* If the distance is out of bound, select a next static dictionary if
          there exist multiple. */
-      if ((transform_idx >= (int)transforms->num_transforms ||
+      if ((transform_idx < 0 ||
+          transform_idx >= (int)transforms->num_transforms ||
           words->size_bits_by_length[i] == 0) &&
           s->dictionary->num_dictionaries > 1) {
         uint8_t dict_id2;
@@ -2288,7 +2289,8 @@ CommandPostDecodeLiterals:
       if (BROTLI_PREDICT_FALSE(!words->data)) {
         return BROTLI_FAILURE(BROTLI_DECODER_ERROR_DICTIONARY_NOT_SET);
       }
-      if (transform_idx < (int)transforms->num_transforms) {
+      if (transform_idx >= 0 &&
+          transform_idx < (int)transforms->num_transforms) {
         const uint8_t* word = &words->data[offset];
         int len = i;
         if (transform_idx == transforms->cutOffTransforms[0]) {
