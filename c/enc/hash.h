@@ -126,13 +126,6 @@ static BROTLI_INLINE score_t BackwardReferenceScore(
       BROTLI_DISTANCE_BIT_PENALTY * Log2FloorNonZero(backward_reference_offset);
 }
 
-/* Returns the minimum length of a backward reference that will improve on the
- provided score.  We conservatively assume that the match will be a last
- distance match, the best case scenario for the next match.*/
-static BROTLI_INLINE size_t MinimumBetterLength(score_t score) {
-  return (score - (BROTLI_SCORE_BASE + 15)) / BROTLI_LITERAL_BYTE_SCORE;
-}
-
 static BROTLI_INLINE score_t BackwardReferenceScoreUsingLastDistance(
     size_t copy_length) {
   return BROTLI_LITERAL_BYTE_SCORE * (score_t)copy_length +
