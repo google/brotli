@@ -23,6 +23,28 @@ public class Decoder implements AutoCloseable {
   boolean closed;
   boolean eager;
 
+  /** Decoder configuration. */
+  public static final class Parameters {
+    private int maxOutputSize;
+
+    public Parameters() { }
+
+    /**
+     * Limits the total decompressed output produced by {@link #decompress}.
+     *
+     * <p>Use this to mitigate decompression bombs when decoding untrusted input:
+     * {@code decompress} throws {@link IOException} as soon as the decoded size
+     * would exceed {@code maxOutputSize}.
+     *
+     * @param maxOutputSize maximum total decompressed bytes; {@code 0} (the
+     *     default) or negative means no limit
+     */
+    public Parameters setMaxOutputSize(int maxOutputSize) {
+      this.maxOutputSize = maxOutputSize;
+      return this;
+    }
+  }
+
   /**
    * Creates a Decoder wrapper.
    *
@@ -141,6 +163,16 @@ public class Decoder implements AutoCloseable {
 
   /** Decodes the given data buffer starting at offset till length. */
   public static byte[] decompress(byte[] data, int offset, int length) throws IOException {
+    return decompress(data, offset, length, new Parameters());
+  }
+
+  /**
+   * Decodes the given data buffer starting at offset till length, honoring the
+   * given decoder {@code params}.
+   */
+  public static byte[] decompress(byte[] data, int offset, int length, Parameters params)
+      throws IOException {
+    int maxOutputSize = params.maxOutputSize;
     ArrayList<byte[]> output = new ArrayList<>();
     int totalOutputSize = 0;
     DecoderJNI.Wrapper decoder = new DecoderJNI.Wrapper(length);
@@ -159,6 +191,11 @@ public class Decoder implements AutoCloseable {
             buffer.get(chunk);
             output.add(chunk);
             totalOutputSize += chunk.length;
+            // BrotliDecoderTakeOutput bounds a single chunk, so this may overshoot
+            // by at most one chunk before aborting - enough to stop a bomb.
+            if (maxOutputSize > 0 && totalOutputSize > maxOutputSize) {
+              throw new IOException("decompressed size exceeds maximum size " + maxOutputSize);
+            }
             break;
 
           case NEEDS_MORE_INPUT:
@@ -191,6 +228,11 @@ public class Decoder implements AutoCloseable {
 
   /** Decodes the given data buffer. */
   public static byte[] decompress(byte[] data) throws IOException {
-    return decompress(data, 0, data.length);
+    return decompress(data, 0, data.length, new Parameters());
+  }
+
+  /** Decodes the given data buffer honoring the given decoder {@code params}. */
+  public static byte[] decompress(byte[] data, Parameters params) throws IOException {
+    return decompress(data, 0, data.length, params);
   }
 }
