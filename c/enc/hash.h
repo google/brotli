@@ -774,6 +774,36 @@ static BROTLI_INLINE void PrefetchCompoundDictionaryMatchOpt(
     PREFETCH_L1(chain);
     probes[d].chain = chain;
     probes[d].item = (head == 0xFFFF) ? 1 : 0;
+
+    /* One-ahead for the heads[] line of the next probe: the next search is
+       at cur_ix + 1 (the lazy search, or the next position after a miss),
+       whose hash covers bytes cur_ix+1.. -- the same 8-byte load shifted by
+       one byte (hash_mask spans at most 56 bits for this to be exact; a
+       mismatch would only waste the prefetch). The heads[key] load above
+       misses L1 ~94% of the time (mostly L3 fills). */
+    {
+      const uint64_t h1 =
+          ((bytes >> 8) & view->hash_mask) * kPreparedDictionaryHashMul64Long;
+      PREFETCH_L1(&view->heads[(uint32_t)(h1 >> view->hash_shift)]);
+    }
+  }
+}
+
+/* The heads[] half of PrefetchCompoundDictionaryMatchOpt: hash the position
+   and prefetch its heads[] line, with no dependent items[] load. Used at the
+   commit site, where the successor position is known but the probe state for
+   it would not survive the intervening StoreRange. */
+static BROTLI_INLINE void PrefetchCompoundDictionaryHeadsOpt(
+    const CompoundDictionary* addon, const uint8_t* BROTLI_RESTRICT data,
+    const size_t ring_buffer_mask, const size_t cur_ix) {
+  const uint64_t bytes =
+      BROTLI_UNALIGNED_LOAD64LE(&data[cur_ix & ring_buffer_mask]);
+  size_t d;
+  for (d = 0; d < addon->num_chunks; ++d) {
+    const PreparedDictionaryView* view = &addon->chunk_views[d];
+    const uint64_t h =
+        (bytes & view->hash_mask) * kPreparedDictionaryHashMul64Long;
+    PREFETCH_L1(&view->heads[(uint32_t)(h >> view->hash_shift)]);
   }
 }
 

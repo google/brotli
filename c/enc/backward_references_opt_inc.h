@@ -206,6 +206,13 @@ static BROTLI_NOINLINE void EXPORT_FN(CreateBackwardReferences)(
           range_start = BROTLI_MIN(size_t, range_end, BROTLI_MAX(size_t,
               range_start, position + sr.len - (sr.distance << 2)));
         }
+        /* The next search is at position + sr.len (the one-ahead in the
+           prefetch helper covers only the cur_ix + 1 successor): prefetch its
+           dictionary heads[] line before the StoreRange loop. */
+        if (ENABLE_COMPOUND_DICTIONARY) {
+          PrefetchCompoundDictionaryHeadsOpt(&params->dictionary.compound,
+              ringbuffer, ringbuffer_mask, position + sr.len);
+        }
         FN(StoreRange)(privat, ringbuffer, ringbuffer_mask, range_start,
                        range_end);
       }
