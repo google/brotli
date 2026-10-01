@@ -8,6 +8,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <cstring>
 #include <new>
 
 #include <brotli/encode.h>
@@ -29,6 +30,71 @@ typedef struct EncoderHandle {
 /* Obtain handle from opaque pointer. */
 EncoderHandle* getHandle(void* opaque) {
   return static_cast<EncoderHandle*>(opaque);
+}
+
+/* Serialized prepared-dictionary blob header. Must match the
+ * PreparedDictionary layout in c/enc/compound_dictionary.h. */
+struct PreparedDictionaryHeader {
+  uint32_t magic;
+  uint32_t num_items;
+  uint32_t source_size;
+  uint32_t hash_bits;
+  uint32_t bucket_bits;
+  uint32_t slot_bits;
+};
+
+/* Magic values from c/enc/compound_dictionary.h. */
+const uint32_t kPreparedDictionaryMagic = 0xDEBCEDE0u;
+const uint32_t kLeanPreparedDictionaryMagic = 0xDEBCEDE3u;
+
+/* Bounds mirroring the encoder's own dictionary builder
+ * (CreatePreparedDictionaryWithParams rejects slot_bits > 16 and
+ * bucket_bits - slot_bits >= 16). */
+const uint32_t kMaxDictionarySlotBits = 16;
+const uint32_t kMaxDictionaryBucketBits = 24;
+
+/* Returns true iff the [address, address + capacity) region holds a
+ * well-formed prepared-dictionary blob: the header magic and fields are
+ * sane, and every table AttachPreparedDictionary derives from them
+ * (slot_offsets, heads, items, tail/source) lies inside the buffer.
+ * All size arithmetic is overflow-checked. */
+bool IsValidPreparedDictionaryBlob(const uint8_t* address, size_t capacity) {
+  if (capacity < sizeof(PreparedDictionaryHeader)) return false;
+  PreparedDictionaryHeader header;
+  memcpy(&header, address, sizeof(header));
+  if (header.magic != kPreparedDictionaryMagic &&
+      header.magic != kLeanPreparedDictionaryMagic) {
+    return false;
+  }
+  if (header.slot_bits > kMaxDictionarySlotBits) return false;
+  if (header.bucket_bits > kMaxDictionaryBucketBits) return false;
+  /* hash_bits feeds (63/64 - hash_bits) shifts; keep it in range. */
+  if (header.hash_bits == 0 || header.hash_bits > 64) return false;
+  size_t num_slots = (size_t)1u << header.slot_bits;
+  size_t num_buckets = (size_t)1u << header.bucket_bits;
+  size_t slot_table = num_slots * sizeof(uint32_t);
+  size_t head_table = num_buckets * sizeof(uint16_t);
+  size_t item_table = (size_t)header.num_items * sizeof(uint32_t);
+  if (slot_table / sizeof(uint32_t) != num_slots) return false;
+  if (head_table / sizeof(uint16_t) != num_buckets) return false;
+  if (item_table / sizeof(uint32_t) != header.num_items) return false;
+  size_t required = sizeof(PreparedDictionaryHeader);
+  if (required > SIZE_MAX - slot_table) return false;
+  required += slot_table;
+  if (required > SIZE_MAX - head_table) return false;
+  required += head_table;
+  if (required > SIZE_MAX - item_table) return false;
+  required += item_table;
+  if (header.magic == kPreparedDictionaryMagic) {
+    /* Full blob: source[source_size] follows the tables. */
+    if (required > SIZE_MAX - header.source_size) return false;
+    required += header.source_size;
+  } else {
+    /* Lean blob: an 8-byte source pointer follows the tables. */
+    if (required > SIZE_MAX - sizeof(uint64_t)) return false;
+    required += sizeof(uint64_t);
+  }
+  return required <= capacity;
 }
 
 }  /* namespace */
@@ -231,6 +297,15 @@ Java_org_brotli_wrapper_enc_EncoderJNI_nativeAttachDictionary(
     address = static_cast<uint8_t*>(
         env->functions->GetDirectBufferAddress(env, ref));
     ok = !!address;
+  }
+  if (ok) {
+    /* The buffer is caller-controlled: validate the serialized blob header
+     * against the real buffer capacity before reinterpreting it, otherwise
+     * AttachPreparedDictionary derives wild interior pointers from forged
+     * slot_bits / bucket_bits (heap OOB read during encoding). */
+    jlong capacity = env->functions->GetDirectBufferCapacity(env, ref);
+    ok = capacity > 0 &&
+         IsValidPreparedDictionaryBlob(address, (size_t)capacity);
   }
   if (ok) {
     ok = !!BrotliEncoderAttachPreparedDictionary(
