@@ -53,8 +53,15 @@ private fun calculateDistanceAlphabetLimit(s: State, maxDistance: Int, npostfix:
     return makeError(s, -23);
   }
   val offset: Int = ((maxDistance - ndirect) shr npostfix) + 4;
-  val ndistbits: Int = log2floor(offset) - 1;
-  val group: Int = ((ndistbits - 1) shl 1) or ((offset shr ndistbits) and 1);
+  val ndistbits: Int;
+  val group: Int;
+  if (offset == Int.MIN_VALUE) {
+    ndistbits = 30;
+    group = 58;
+  } else {
+    ndistbits = log2floor(offset) - 1;
+    group = ((ndistbits - 1) shl 1) or ((offset shr ndistbits) and 1);
+  }
   return ((group - 1) shl npostfix) + (1 shl npostfix) + ndirect + 16;
 }
 
@@ -1141,6 +1148,9 @@ internal fun decompress(s: State): Int {
               bits = readBits(s, extraBits);
             }
             s.distance = s.distOffset[distanceCode] + (bits shl s.distancePostfixBits);
+            if (s.distance < 0) {
+              return makeError(s, -12);
+            }
           }
         }
         if (s.maxDistance != s.maxBackwardDistance && s.pos < s.maxBackwardDistance) {

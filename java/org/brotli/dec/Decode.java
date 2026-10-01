@@ -180,13 +180,20 @@ final class Decode {
 
   // TODO(eustas): add a correctness test for this function when
   //               large-window and dictionary are implemented.
-  private static int calculateDistanceAlphabetLimit(State s, int maxDistance, int npostfix, int ndirect) {
+  static int calculateDistanceAlphabetLimit(State s, int maxDistance, int npostfix, int ndirect) {
     if (maxDistance < ndirect + (2 << npostfix)) {
       return Utils.makeError(s, BROTLI_PANIC_MAX_DISTANCE_TOO_SMALL);
     }
     final int offset = ((maxDistance - ndirect) >> npostfix) + 4;
-    final int ndistbits = log2floor(offset) - 1;
-    final int group = ((ndistbits - 1) << 1) | ((offset >> ndistbits) & 1);
+    final int ndistbits;
+    final int group;
+    if (offset == 0x80000000) {
+      ndistbits = 30;
+      group = 58;
+    } else {
+      ndistbits = log2floor(offset) - 1;
+      group = ((ndistbits - 1) << 1) | ((offset >> ndistbits) & 1);
+    }
     return ((group - 1) << npostfix) + (1 << npostfix) + ndirect + NUM_DISTANCE_SHORT_CODES;
   }
 
@@ -1420,6 +1427,9 @@ final class Decode {
                 bits = BitReader.readBits(s, extraBits);
               }
               s.distance = s.distOffset[distanceCode] + (bits << s.distancePostfixBits);
+              if (s.distance < 0) {
+                return Utils.makeError(s, BROTLI_ERROR_NEGATIVE_DISTANCE);
+              }
             }
           }
 
