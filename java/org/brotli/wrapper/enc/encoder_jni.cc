@@ -24,6 +24,7 @@ typedef struct EncoderHandle {
   uint8_t* input_start;
   size_t input_offset;
   size_t input_last;
+  size_t input_size;
 } EncoderHandle;
 
 /* Obtain handle from opaque pointer. */
@@ -64,6 +65,7 @@ JNIEXPORT jobject JNICALL Java_org_brotli_wrapper_enc_EncoderJNI_nativeCreate(
     handle->dictionary_count = 0;
     handle->input_offset = 0;
     handle->input_last = 0;
+    handle->input_size = 0;
     handle->input_start = nullptr;
 
     if (input_size == 0) {
@@ -71,6 +73,9 @@ JNIEXPORT jobject JNICALL Java_org_brotli_wrapper_enc_EncoderJNI_nativeCreate(
     } else {
       handle->input_start = new (std::nothrow) uint8_t[input_size];
       ok = !!handle->input_start;
+      if (ok) {
+        handle->input_size = input_size;
+      }
     }
   }
 
@@ -139,6 +144,11 @@ JNIEXPORT void JNICALL Java_org_brotli_wrapper_enc_EncoderJNI_nativePush(
   }
 
   if (input_length != 0) {
+    /* Reject input length that exceeds the allocated input buffer. */
+    if (input_length < 0 ||
+        static_cast<size_t>(input_length) > handle->input_size) {
+      return;
+    }
     /* Still have unconsumed data. Workflow is broken. */
     if (handle->input_offset < handle->input_last) {
       return;
