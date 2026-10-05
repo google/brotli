@@ -255,6 +255,18 @@ jobs:
         [ ! -z '${{ matrix.skip_tests || '' }}' ] || ctest ${CMAKE_TEST_OPTIONS[*]}
         cd ..
 
+    - name: Test bundled CMake installation
+      if: ${{ matrix.name == 'cmake:gcc' }}
+      run: |
+        for bundled_mode in AUTO ON; do
+          for build_tools in ON OFF; do
+            cmake -DBROTLI_SOURCE_DIR="$PWD" \
+              -DTEST_BINARY_DIR="$PWD/out/bundled-install" \
+              -DBUNDLED_MODE="$bundled_mode" -DBUILD_TOOLS="$build_tools" \
+              -P tests/run-bundled-install-test.cmake
+          done
+        done
+
     - name: Quick Fuzz
       if: ${{ matrix.build_system == 'fuzz' }}
       run: |
