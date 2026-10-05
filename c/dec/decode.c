@@ -63,7 +63,7 @@ uint8_t kCodeLengthPrefixValue[16] = {
 
 BROTLI_BOOL BrotliDecoderSetParameter(
     BrotliDecoderState* state, BrotliDecoderParameter p, uint32_t value) {
-  if (state->state != BROTLI_STATE_UNINITED) return BROTLI_FALSE;
+  if (!state || state->state != BROTLI_STATE_UNINITED) return BROTLI_FALSE;
   switch (p) {
     case BROTLI_DECODER_PARAM_DISABLE_RING_BUFFER_REALLOCATION:
       state->canny_ringbuffer_allocation = !!value ? 0 : 1;
@@ -1640,8 +1640,12 @@ BROTLI_BOOL BrotliDecoderAttachDictionary(
     BrotliDecoderState* state, BrotliSharedDictionaryType type,
     size_t data_size, const uint8_t data[BROTLI_ARRAY_PARAM(data_size)]) {
   brotli_reg_t i;
-  brotli_reg_t num_prefix_before = state->dictionary->num_prefix;
-  if (state->state != BROTLI_STATE_UNINITED) return BROTLI_FALSE;
+  brotli_reg_t num_prefix_before;
+  if (!state || !state->dictionary || state->state != BROTLI_STATE_UNINITED) {
+    return BROTLI_FALSE;
+  }
+  if (data_size > 0 && !data) return BROTLI_FALSE;
+  num_prefix_before = state->dictionary->num_prefix;
   if (!BrotliSharedDictionaryAttach(state->dictionary, type, data_size, data)) {
     return BROTLI_FALSE;
   }
@@ -2410,16 +2414,23 @@ static BROTLI_NOINLINE BrotliDecoderErrorCode SafeProcessCommands(
 
 BrotliDecoderResult BrotliDecoderDecompress(
     size_t encoded_size,
-    const uint8_t encoded_buffer[BROTLI_ARRAY_PARAM(encoded_size)],
+    const uint8_t* encoded_buffer,
     size_t* decoded_size,
-    uint8_t decoded_buffer[BROTLI_ARRAY_PARAM(*decoded_size)]) {
+    uint8_t* decoded_buffer) {
   BrotliDecoderState s;
   BrotliDecoderResult result;
   size_t total_out = 0;
-  size_t available_in = encoded_size;
-  const uint8_t* next_in = encoded_buffer;
-  size_t available_out = *decoded_size;
-  uint8_t* next_out = decoded_buffer;
+  size_t available_in;
+  const uint8_t* next_in;
+  size_t available_out;
+  uint8_t* next_out;
+  if (!decoded_size) return BROTLI_DECODER_RESULT_ERROR;
+  if (encoded_size != 0 && !encoded_buffer) return BROTLI_DECODER_RESULT_ERROR;
+  if (*decoded_size != 0 && !decoded_buffer) return BROTLI_DECODER_RESULT_ERROR;
+  available_in = encoded_size;
+  next_in = encoded_buffer;
+  available_out = *decoded_size;
+  next_out = decoded_buffer;
   if (!BrotliDecoderStateInit(&s, 0, 0, 0)) {
     return BROTLI_DECODER_RESULT_ERROR;
   }
@@ -2448,8 +2459,19 @@ BrotliDecoderResult BrotliDecoderDecompressStream(
     BrotliDecoderState* s, size_t* available_in, const uint8_t** next_in,
     size_t* available_out, uint8_t** next_out, size_t* total_out) {
   BrotliDecoderErrorCode result = BROTLI_DECODER_SUCCESS;
-  BrotliBitReader* br = &s->br;
-  size_t input_size = *available_in;
+  BrotliBitReader* br;
+  size_t input_size;
+  if (!s) return BROTLI_DECODER_RESULT_ERROR;
+  if (!available_in || !next_in || !available_out) {
+    SaveErrorCode(s, BROTLI_FAILURE(BROTLI_DECODER_ERROR_INVALID_ARGUMENTS), 0);
+    return BROTLI_DECODER_RESULT_ERROR;
+  }
+  if (*available_in != 0 && !*next_in) {
+    SaveErrorCode(s, BROTLI_FAILURE(BROTLI_DECODER_ERROR_INVALID_ARGUMENTS), 0);
+    return BROTLI_DECODER_RESULT_ERROR;
+  }
+  br = &s->br;
+  input_size = *available_in;
 #define BROTLI_SAVE_ERROR_CODE(code) \
     SaveErrorCode(s, (code), input_size - *available_in)
   /* Ensure that |total_out| is set, even if no data will ever be pushed out. */
@@ -2930,6 +2952,7 @@ BrotliDecoderResult BrotliDecoderDecompressStream(
 }
 
 BROTLI_BOOL BrotliDecoderHasMoreOutput(const BrotliDecoderState* s) {
+  if (!s) return BROTLI_FALSE;
   /* After unrecoverable error remaining output is considered nonsensical. */
   if ((int)s->error_code < 0) {
     return BROTLI_FALSE;
@@ -2940,9 +2963,12 @@ BROTLI_BOOL BrotliDecoderHasMoreOutput(const BrotliDecoderState* s) {
 
 const uint8_t* BrotliDecoderTakeOutput(BrotliDecoderState* s, size_t* size) {
   uint8_t* result = 0;
-  size_t available_out = *size ? *size : 1u << 24;
-  size_t requested_out = available_out;
+  size_t available_out;
+  size_t requested_out;
   BrotliDecoderErrorCode status;
+  if (!s || !size) return 0;
+  available_out = *size ? *size : 1u << 24;
+  requested_out = available_out;
   if ((s->ringbuffer == 0) || ((int)s->error_code < 0)) {
     *size = 0;
     return 0;
@@ -2964,16 +2990,19 @@ const uint8_t* BrotliDecoderTakeOutput(BrotliDecoderState* s, size_t* size) {
 }
 
 BROTLI_BOOL BrotliDecoderIsUsed(const BrotliDecoderState* s) {
+  if (!s) return BROTLI_FALSE;
   return TO_BROTLI_BOOL(s->state != BROTLI_STATE_UNINITED ||
       BrotliGetAvailableBits(&s->br) != 0);
 }
 
 BROTLI_BOOL BrotliDecoderIsFinished(const BrotliDecoderState* s) {
+  if (!s) return BROTLI_FALSE;
   return TO_BROTLI_BOOL(s->state == BROTLI_STATE_DONE) &&
       !BrotliDecoderHasMoreOutput(s);
 }
 
 BrotliDecoderErrorCode BrotliDecoderGetErrorCode(const BrotliDecoderState* s) {
+  if (!s) return BROTLI_DECODER_ERROR_INVALID_ARGUMENTS;
   return (BrotliDecoderErrorCode)s->error_code;
 }
 
@@ -2997,6 +3026,7 @@ void BrotliDecoderSetMetadataCallbacks(
     BrotliDecoderState* state,
     brotli_decoder_metadata_start_func start_func,
     brotli_decoder_metadata_chunk_func chunk_func, void* opaque) {
+  if (!state) return;
   state->metadata_start_func = start_func;
   state->metadata_chunk_func = chunk_func;
   state->metadata_callback_opaque = opaque;

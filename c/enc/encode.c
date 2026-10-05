@@ -59,6 +59,7 @@ static size_t RemainingInputBlockSize(BrotliEncoderState* s) {
 
 BROTLI_BOOL BrotliEncoderSetParameter(
     BrotliEncoderState* state, BrotliEncoderParameter p, uint32_t value) {
+  if (!state) return BROTLI_FALSE;
   /* Changing parameters on the fly is not implemented yet. */
   if (state->is_initialized_) return BROTLI_FALSE;
   /* TODO(eustas): Validate/clamp parameters here. */
@@ -650,7 +651,9 @@ static void ChooseDistanceParams(BrotliEncoderParams* params) {
 }
 
 static BROTLI_BOOL EnsureInitialized(BrotliEncoderState* s) {
-  MemoryManager* m = &s->memory_manager_;
+  MemoryManager* m;
+  if (!s) return BROTLI_FALSE;
+  m = &s->memory_manager_;
   if (BROTLI_IS_OOM(m)) return BROTLI_FALSE;
   if (s->is_initialized_) return BROTLI_TRUE;
 
@@ -1307,14 +1310,24 @@ static size_t MakeUncompressedStream(
 
 BROTLI_BOOL BrotliEncoderCompress(
     int quality, int lgwin, BrotliEncoderMode mode, size_t input_size,
-    const uint8_t input_buffer[BROTLI_ARRAY_PARAM(input_size)],
+    const uint8_t* input_buffer,
     size_t* encoded_size,
-    uint8_t encoded_buffer[BROTLI_ARRAY_PARAM(*encoded_size)]) {
+    uint8_t* encoded_buffer) {
   BrotliEncoderState* s;
-  size_t out_size = *encoded_size;
-  const uint8_t* input_start = input_buffer;
-  uint8_t* output_start = encoded_buffer;
-  size_t max_out_size = BrotliEncoderMaxCompressedSize(input_size);
+  size_t out_size;
+  const uint8_t* input_start;
+  uint8_t* output_start;
+  size_t max_out_size;
+  if (!encoded_size || !encoded_buffer) {
+    return BROTLI_FALSE;
+  }
+  if (input_size > 0 && !input_buffer) {
+    return BROTLI_FALSE;
+  }
+  out_size = *encoded_size;
+  input_start = input_buffer;
+  output_start = encoded_buffer;
+  max_out_size = BrotliEncoderMaxCompressedSize(input_size);
   if (out_size == 0) {
     /* Output buffer needs at least one byte. */
     return BROTLI_FALSE;
@@ -1647,6 +1660,15 @@ BROTLI_BOOL BrotliEncoderCompressStream(
     BrotliEncoderState* s, BrotliEncoderOperation op, size_t* available_in,
     const uint8_t** next_in, size_t* available_out, uint8_t** next_out,
     size_t* total_out) {
+  if (!s || !available_in || !next_in || !available_out || !next_out) {
+    return BROTLI_FALSE;
+  }
+  if (*available_in != 0 && !*next_in) {
+    return BROTLI_FALSE;
+  }
+  if (*available_out != 0 && !*next_out) {
+    return BROTLI_FALSE;
+  }
   if (!EnsureInitialized(s)) return BROTLI_FALSE;
 
   /* Unfinished metadata block; check requirements. */
@@ -1734,17 +1756,22 @@ BROTLI_BOOL BrotliEncoderCompressStream(
 }
 
 BROTLI_BOOL BrotliEncoderIsFinished(BrotliEncoderState* s) {
+  if (!s) return BROTLI_FALSE;
   return TO_BROTLI_BOOL(s->stream_state_ == BROTLI_STREAM_FINISHED &&
       !BrotliEncoderHasMoreOutput(s));
 }
 
 BROTLI_BOOL BrotliEncoderHasMoreOutput(BrotliEncoderState* s) {
+  if (!s) return BROTLI_FALSE;
   return TO_BROTLI_BOOL(s->available_out_ != 0);
 }
 
 const uint8_t* BrotliEncoderTakeOutput(BrotliEncoderState* s, size_t* size) {
-  size_t consumed_size = s->available_out_;
-  uint8_t* result = s->next_out_;
+  size_t consumed_size;
+  uint8_t* result;
+  if (!s || !size) return 0;
+  consumed_size = s->available_out_;
+  result = s->next_out_;
   if (*size) {
     consumed_size = BROTLI_MIN(size_t, *size, s->available_out_);
   }
@@ -1771,6 +1798,9 @@ BrotliEncoderPreparedDictionary* BrotliEncoderPrepareDictionary(
     brotli_alloc_func alloc_func, brotli_free_func free_func, void* opaque) {
   ManagedDictionary* managed_dictionary = NULL;
   BROTLI_BOOL type_is_known = BROTLI_FALSE;
+  if (size > 0 && !data) {
+    return NULL;
+  }
   type_is_known |= (type == BROTLI_SHARED_DICTIONARY_RAW);
 #if defined(BROTLI_EXPERIMENTAL)
   type_is_known |= (type == BROTLI_SHARED_DICTIONARY_SERIALIZED);
@@ -1841,9 +1871,12 @@ BROTLI_BOOL BROTLI_COLD BrotliEncoderAttachPreparedDictionary(
     BrotliEncoderState* state,
     const BrotliEncoderPreparedDictionary* dictionary) {
   /* First field of dictionary structs */
-  const BrotliEncoderPreparedDictionary* dict = dictionary;
-  uint32_t magic = *((const uint32_t*)dict);
+  const BrotliEncoderPreparedDictionary* dict;
+  uint32_t magic;
   SharedEncoderDictionary* current = NULL;
+  if (!state || !dictionary) return BROTLI_FALSE;
+  dict = dictionary;
+  magic = *((const uint32_t*)dict);
   if (magic == kManagedDictionaryMagic) {
     /* Unwrap managed dictionary. */
     ManagedDictionary* managed_dictionary = (ManagedDictionary*)dict;
@@ -1966,9 +1999,12 @@ size_t BROTLI_COLD BrotliEncoderEstimatePeakMemoryUsage(int quality, int lgwin,
 size_t BROTLI_COLD BrotliEncoderGetPreparedDictionarySize(
     const BrotliEncoderPreparedDictionary* prepared_dictionary) {
   /* First field of dictionary structs */
-  const BrotliEncoderPreparedDictionary* prepared = prepared_dictionary;
-  uint32_t magic = *((const uint32_t*)prepared);
+  const BrotliEncoderPreparedDictionary* prepared;
+  uint32_t magic;
   size_t overhead = 0;
+  if (!prepared_dictionary) return 0;
+  prepared = prepared_dictionary;
+  magic = *((const uint32_t*)prepared);
   if (magic == kManagedDictionaryMagic) {
     const ManagedDictionary* managed = (const ManagedDictionary*)prepared;
     overhead = sizeof(ManagedDictionary);
