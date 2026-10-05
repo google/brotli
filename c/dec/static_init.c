@@ -44,6 +44,7 @@ BROTLI_BOOL BrotliDecoderEnsureStaticInit(void) {
 #elif (BROTLI_STATIC_INIT == BROTLI_STATIC_INIT_EARLY)
   return kEarlyInitOk;
 #else
+  BrotliDecoderLazyStaticInit();
   return kLazyInitOk;
 #endif
 }
