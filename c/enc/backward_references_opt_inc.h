@@ -213,10 +213,9 @@ static BROTLI_NOINLINE void EXPORT_FN(CreateBackwardReferences)(
         /* The next search is at position + sr.len (the one-ahead in the
            prefetch helper covers only the cur_ix + 1 successor): prefetch its
            dictionary heads[] line before the StoreRange loop. */
-        if (ENABLE_COMPOUND_DICTIONARY &&
-            position + sr.len + FN(HashTypeLength)() < pos_end) {
+        if (ENABLE_COMPOUND_DICTIONARY) {
           PrefetchCompoundDictionaryHeadsOpt(&params->dictionary.compound,
-              ringbuffer, ringbuffer_mask, position + sr.len);
+              ringbuffer, ringbuffer_mask, range_end);
         }
         FN(StoreRange)(privat, ringbuffer, ringbuffer_mask, range_start,
                        range_end);
