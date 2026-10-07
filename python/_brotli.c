@@ -167,11 +167,11 @@ PyDoc_STRVAR(brotli_Decompressor_process_doc,
 "Args:\n"
 "  data (bytes): The input data;\n"
 "                MUST provide C-contiguous one-dimensional bytes view.\n"
-"  output_buffer_limit (int): The maximum size of the output buffer.\n"
-"                If set, the output buffer will not grow once its size\n"
-"                equal or exceeding that value. If the limit is reached,\n"
-"                further calls to process (potentially with empty input) will\n"
-"                continue to yield more data. Following 'process()' must only\n"
+"  output_buffer_limit (int): The maximum number of decompressed bytes to\n"
+"                produce in this call. If set, processing stops as soon as\n"
+"                that many bytes have been produced, even if the decoder\n"
+"                could continue; further calls to process (potentially with\n"
+"                empty input) will continue to yield more data. Following 'process()' must only\n"
 "                be called with empty input until 'can_accept_more_data()'\n"
 "                once returns True.\n"
 "\n"
@@ -762,9 +762,21 @@ static PyObject* brotli_Decompressor_process(PyBrotli_Decompressor* self,
 
   Py_BEGIN_ALLOW_THREADS;
   while (1) {
+    /* Cap the window handed to the decoder so that cumulative output never
+       exceeds `output_buffer_limit`. Checking only on NEEDS_MORE_OUTPUT is
+       not enough: the decoder fills the whole current block in one call,
+       which may overshoot the freshly applied limit. */
+    size_t room_before = buffer.avail_out;
+    size_t call_room = room_before;
+    uint64_t produced = buffer.total_allocated - (uint64_t)room_before;
+    if ((uint64_t)output_buffer_limit < produced + (uint64_t)room_before) {
+      call_room = (size_t)((uint64_t)output_buffer_limit - produced);
+    }
+    size_t hidden_room = room_before - call_room;
     result = BrotliDecoderDecompressStream(self->dec, &avail_in, &next_in,
-                                           &buffer.avail_out, &buffer.next_out,
-                                           NULL);
+                                           &call_room, &buffer.next_out, NULL);
+    /* Restore the part of the block hidden from this call. */
+    buffer.avail_out = hidden_room + call_room;
 
     if (result == BROTLI_DECODER_RESULT_NEEDS_MORE_OUTPUT) {
       assert(buffer.avail_out == 0);
