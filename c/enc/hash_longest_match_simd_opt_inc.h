@@ -105,9 +105,9 @@ static BROTLI_INLINE void FN(Store)(
   buckets[offset] = (uint32_t)ix;
   tags[offset] = tag;
 }
-static BROTLI_INLINE void FN(StoreRange)(HashLongestMatch* BROTLI_RESTRICT self,
-    const uint8_t* BROTLI_RESTRICT data, const size_t mask,
-    const size_t ix_start, const size_t ix_end) {
+static BROTLI_NOINLINE void FN(StoreRange)(
+    HashLongestMatch* BROTLI_RESTRICT self, const uint8_t* BROTLI_RESTRICT data,
+    const size_t mask, const size_t ix_start, const size_t ix_end) {
   size_t i;
   for (i = ix_start; i < ix_end; ++i) {
     FN(Store)(self, data, mask, i);
@@ -156,7 +156,12 @@ static BROTLI_INLINE void FN(FindLongestMatch)(
   /* Don't accept a short copy from far away. */
   score_t min_score = out->score;
   score_t best_score = out->score;
-  size_t best_len = out->len;
+  /* If we're still searching the static dictionary, we have to do the full
+     search to determine if we should check the static dictionary. */
+  size_t best_len =
+      self->common_->dict_num_matches < (self->common_->dict_num_lookups >> 7)
+          ? out->len
+          : 0;
   size_t i;
   /* Precalculate the hash key and prefetch the bucket. */
   const uint32_t hash =
@@ -170,6 +175,9 @@ static BROTLI_INLINE void FN(FindLongestMatch)(
   out->len = 0;
   out->len_code_delta = 0;
 
+  if (best_len < 1) {
+    best_len = 1;
+  }
   /* Try last distance first. */
   for (i = 0; i < (size_t)self->num_last_distances_to_check_; ++i) {
     const size_t backward = (size_t)distance_cache[i];
@@ -182,11 +190,8 @@ static BROTLI_INLINE void FN(FindLongestMatch)(
     }
     prev_ix &= ring_buffer_mask;
 
-    if (cur_ix_masked + best_len > ring_buffer_mask) {
-      break;
-    }
-    if (prev_ix + best_len > ring_buffer_mask ||
-        data[cur_ix_masked + best_len] != data[prev_ix + best_len]) {
+    if (BrotliUnalignedRead16(&data[cur_ix_masked + best_len - 1]) !=
+            BrotliUnalignedRead16(&data[prev_ix + best_len - 1])) {
       continue;
     }
     {
@@ -235,11 +240,7 @@ static BROTLI_INLINE void FN(FindLongestMatch)(
         break;
       }
       prev_ix &= ring_buffer_mask;
-      if (cur_ix_masked + best_len > ring_buffer_mask) {
-        break;
-      }
-      if (prev_ix + best_len > ring_buffer_mask ||
-          /* compare 4 bytes ending at best_len + 1 */
+      if (/* compare 4 bytes ending at best_len + 1 */
           BrotliUnalignedRead32(&data[cur_ix_masked + best_len - 3]) !=
               BrotliUnalignedRead32(&data[prev_ix + best_len - 3])) {
         continue;
@@ -272,5 +273,12 @@ static BROTLI_INLINE void FN(FindLongestMatch)(
         self->common_, &data[cur_ix_masked], max_length, dictionary_distance,
         max_distance, out, BROTLI_FALSE);
   }
+}
+/* `StoreRange` is deliberately not inlined, so it is not eligible for the
+   `BROTLI_INLINE` treatment that keeps unused hasher methods quiet; reference
+   it explicitly for the translation units that do not call it. */
+BROTLI_UNUSED_FUNCTION void FN(SuppressUnusedFunctions)(void) {
+  BROTLI_UNUSED(&FN(SuppressUnusedFunctions));
+  BROTLI_UNUSED(&FN(StoreRange));
 }
 #undef HashLongestMatch

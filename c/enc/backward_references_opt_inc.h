@@ -29,6 +29,9 @@ static BROTLI_NOINLINE void EXPORT_FN(CreateBackwardReferences)(
       LiteralSpreeLengthForSparseSearch(params);
   size_t apply_random_heuristics = position + random_heuristics_window_size;
   const size_t gap = params->dictionary.compound.total_size;
+  /* Compound-dictionary probe state: written by the prefetch helper before
+     each FindLongestMatch, consumed by the lookup after it. */
+  PreparedDictionaryProbe dict_probes[SHARED_BROTLI_MAX_COMPOUND_DICTS + 1];
 
   /* Minimum score to accept a backward reference. */
   const score_t kMinScore = BROTLI_SCORE_BASE + 100;
@@ -109,13 +112,18 @@ static BROTLI_NOINLINE void EXPORT_FN(CreateBackwardReferences)(
     sr.len_code_delta = 0;
     sr.distance = 0;
     sr.score = kMinScore;
+    if (ENABLE_COMPOUND_DICTIONARY) {
+      PrefetchCompoundDictionaryMatchOpt(&params->dictionary.compound,
+          ringbuffer, ringbuffer_mask, position, dict_probes);
+    }
     FN(FindLongestMatch)(privat, params->dictionary.contextual.dict[dict_id],
         ringbuffer, ringbuffer_mask, dist_cache, position, max_length,
         max_distance, dictionary_start + gap, params->dist.max_distance, &sr);
     if (ENABLE_COMPOUND_DICTIONARY) {
-      LookupCompoundDictionaryMatchOpt(&params->dictionary.compound, ringbuffer,
-          ringbuffer_mask, dist_cache, position, max_length,
-          dictionary_start, params->dist.max_distance, &sr);
+      LookupCompoundDictionaryMatchOpt(
+          &params->dictionary.compound, dict_probes, ringbuffer,
+          ringbuffer_mask, dist_cache, position, max_length, dictionary_start,
+          params->dist.max_distance, &sr);
     }
     if (sr.score > kMinScore) {
       /* Found a match. Let's look for something even better ahead. */
@@ -124,8 +132,12 @@ static BROTLI_NOINLINE void EXPORT_FN(CreateBackwardReferences)(
       for (;; --max_length) {
         const score_t cost_diff_lazy = 175;
         HasherSearchResult sr2;
-        sr2.len = params->quality < MIN_QUALITY_FOR_EXTENSIVE_REFERENCE_SEARCH ?
-            BROTLI_MIN(size_t, sr.len - 1, max_length) : 0;
+        sr2.len =
+            params->quality < MIN_QUALITY_FOR_EXTENSIVE_REFERENCE_SEARCH
+                ? BROTLI_MIN(size_t, sr.len - 1, max_length)
+                : BROTLI_MIN(size_t,
+                             MinimumBetterLength(sr.score + cost_diff_lazy - 1),
+                             max_length);
         sr2.len_code_delta = 0;
         sr2.distance = 0;
         sr2.score = kMinScore;
@@ -138,6 +150,10 @@ static BROTLI_NOINLINE void EXPORT_FN(CreateBackwardReferences)(
           dict_id = params->dictionary.contextual.context_map[
               BROTLI_CONTEXT(p1, p2, literal_context_lut)];
         }
+        if (ENABLE_COMPOUND_DICTIONARY) {
+          PrefetchCompoundDictionaryMatchOpt(&params->dictionary.compound,
+              ringbuffer, ringbuffer_mask, position + 1, dict_probes);
+        }
         FN(FindLongestMatch)(privat,
             params->dictionary.contextual.dict[dict_id],
             ringbuffer, ringbuffer_mask, dist_cache, position + 1, max_length,
@@ -145,7 +161,7 @@ static BROTLI_NOINLINE void EXPORT_FN(CreateBackwardReferences)(
             &sr2);
         if (ENABLE_COMPOUND_DICTIONARY) {
           LookupCompoundDictionaryMatchOpt(
-              &params->dictionary.compound, ringbuffer,
+              &params->dictionary.compound, dict_probes, ringbuffer,
               ringbuffer_mask, dist_cache, position + 1, max_length,
               dictionary_start, params->dist.max_distance, &sr2);
         }
@@ -193,6 +209,14 @@ static BROTLI_NOINLINE void EXPORT_FN(CreateBackwardReferences)(
         if (sr.distance < (sr.len >> 2)) {
           range_start = BROTLI_MIN(size_t, range_end, BROTLI_MAX(size_t,
               range_start, position + sr.len - (sr.distance << 2)));
+        }
+        /* The next search is at position + sr.len (the one-ahead in the
+           prefetch helper covers only the cur_ix + 1 successor): prefetch its
+           dictionary heads[] line before the StoreRange loop. */
+        if (ENABLE_COMPOUND_DICTIONARY &&
+            position + sr.len + FN(HashTypeLength)() < pos_end) {
+          PrefetchCompoundDictionaryHeadsOpt(&params->dictionary.compound,
+              ringbuffer, ringbuffer_mask, position + sr.len);
         }
         FN(StoreRange)(privat, ringbuffer, ringbuffer_mask, range_start,
                        range_end);
