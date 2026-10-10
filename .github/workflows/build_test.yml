@@ -344,6 +344,32 @@ jobs:
         python setup.py build_ext --inplace
         pytest ./python/tests
 
+  build_python_wheels:
+    name: Python 3.15 wheels (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, ubuntu-24.04-arm, macos-latest, windows-latest, windows-11-arm]
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920
+        with:
+          egress-policy: audit
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        with:
+          persist-credentials: false
+      - uses: pypa/cibuildwheel@adba99c781d3746d38b3a09b1cf797965bcb7fe6
+        env:
+          CIBW_BUILD: cp315-*
+          CIBW_ARCHS_MACOS: x86_64 arm64
+          CIBW_TEST_REQUIRES: pytest
+          CIBW_TEST_COMMAND: python -m pytest {project}/python/tests
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: python315-wheels-${{ matrix.os }}
+          path: wheelhouse/*.whl
+
   build_test_dotnet:
     name: Build and test with .NET
     runs-on: ubuntu-latest
