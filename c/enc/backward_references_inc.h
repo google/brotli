@@ -43,6 +43,16 @@ static BROTLI_NOINLINE void EXPORT_FN(CreateBackwardReferences)(
   }
   while (position + FN(HashTypeLength)() < pos_end) {
     if (position >= next_base64_pos) {
+      if (position > next_base64_pos) {
+        /* A previous backward match jumped over the trigger position.
+           Find the next trigger from the current position safely checking
+           pos_end. */
+        next_base64_pos = FindNextBase64Trigger(ringbuffer, ringbuffer_mask,
+                                                position, pos_end);
+        if (position < next_base64_pos) {
+          goto skip_base64_trigger;
+        }
+      }
       /* Find where it ends */
       size_t scan_pos = position + kBase64TriggerLen;
       size_t first_equal_pos = 0;
@@ -64,7 +74,6 @@ static BROTLI_NOINLINE void EXPORT_FN(CreateBackwardReferences)(
         }
       }
       /* Jump directly to the end of base64 block */
-      /* Skip the ';base64,' trigger */
       size_t start_pos = position + kBase64TriggerLen;
       size_t length = scan_pos - start_pos;
       /* Exclude '=' characters from the flat 6-bit entropy block */
@@ -72,23 +81,85 @@ static BROTLI_NOINLINE void EXPORT_FN(CreateBackwardReferences)(
              ringbuffer[(start_pos + length - 1) & ringbuffer_mask] == '=') {
         length--;
       }
-      if (length > 0) {
+      BROTLI_BOOL is_dupe = BROTLI_FALSE;
+      size_t copy_len = scan_pos - position;
+      size_t dupe_dist = 0;
+      size_t matched_region_idx = 0;
+      if (length > 0 && hasher->common.num_base64_regions > 0) {
+        size_t r = hasher->common.num_base64_regions;
+        while (r > 0) {
+          --r;
+          size_t prev_start =
+              hasher->common.base64_regions[r].start_literal_pos;
+          size_t prev_length = hasher->common.base64_regions[r].length;
+          if (prev_length != length) {
+            continue;
+          }
+          size_t prev_pos = prev_start - kBase64TriggerLen;
+          size_t distance = position - prev_pos;
+          if (distance == 0 || distance > max_backward_limit) {
+            continue;
+          }
+          if (CompareRingbuffer(ringbuffer, ringbuffer_mask, prev_pos, position,
+                                copy_len)) {
+            is_dupe = BROTLI_TRUE;
+            dupe_dist = distance;
+            matched_region_idx = r;
+            break;
+          }
+        }
+      }
+      if (is_dupe) {
+        size_t dictionary_start =
+            BROTLI_MIN(size_t, position + position_offset, max_backward_limit);
+        size_t distance_code =
+            ComputeDistanceCode(dupe_dist, dictionary_start + gap, dist_cache);
+        if ((dupe_dist <= (dictionary_start + gap)) && distance_code > 0) {
+          dist_cache[3] = dist_cache[2];
+          dist_cache[2] = dist_cache[1];
+          dist_cache[1] = dist_cache[0];
+          dist_cache[0] = (int)dupe_dist;
+          FN(PrepareDistanceCache)(privat, dist_cache);
+        }
+        InitCommand(commands++, &params->dist, insert_length, copy_len, 0,
+                    distance_code);
+        *num_literals += insert_length;
+        insert_length = 0;
+        position = scan_pos;
+        hasher->common.base64_regions[matched_region_idx].start_literal_pos =
+            start_pos;
+        apply_random_heuristics =
+            position + 2 * copy_len + random_heuristics_window_size;
+        if (hasher->common.num_base64_regions < params->max_base64_regions) {
+          next_base64_pos = FindNextBase64Trigger(ringbuffer, ringbuffer_mask,
+                                                  position, pos_end);
+        } else {
+          next_base64_pos = pos_end;
+        }
+        continue;
+      }
+      if (length >= params->min_base64_region_len && length > 0) {
         hasher->common.base64_regions[hasher->common.num_base64_regions]
             .start_literal_pos = start_pos;
         hasher->common.base64_regions[hasher->common.num_base64_regions]
             .length = length;
         hasher->common.num_base64_regions++;
-      }
-      insert_length += (scan_pos - position);
-      position = scan_pos;
-      if (hasher->common.num_base64_regions < params->max_base64_regions) {
-        next_base64_pos = FindNextBase64Trigger(ringbuffer, ringbuffer_mask,
-                                                position, pos_end);
+        insert_length += (scan_pos - position);
+        position = scan_pos;
+        if (hasher->common.num_base64_regions < params->max_base64_regions) {
+          next_base64_pos = FindNextBase64Trigger(ringbuffer, ringbuffer_mask,
+                                                  position, pos_end);
+        } else {
+          next_base64_pos = pos_end;
+        }
+        continue;
       } else {
-        next_base64_pos = pos_end;
+        next_base64_pos = FindNextBase64Trigger(ringbuffer, ringbuffer_mask,
+                                                position + 1, pos_end);
+        goto skip_base64_trigger;
       }
-      continue;
     }
+  skip_base64_trigger:;
     size_t max_length = pos_end - position;
     size_t max_distance = BROTLI_MIN(size_t, position, max_backward_limit);
     size_t dictionary_start = BROTLI_MIN(size_t,
