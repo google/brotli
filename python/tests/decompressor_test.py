@@ -166,3 +166,22 @@ def test_concurrency():
   for thread in threads:
     thread.join()
   assert sorted(results.queue) == [1, 2, 3, 4]
+
+
+def test_output_buffer_limit_is_exact_cap():
+  # https://github.com/google/brotli/issues/1396
+  compressed = brotli.compress(b'x' * (10 * 2**20))
+  decompressor = brotli.Decompressor()
+  out = decompressor.process(compressed, output_buffer_limit=2**20)
+  assert len(out) == 2**20
+  decompressor = brotli.Decompressor()
+  small = brotli.compress(b'a' * 100000)
+  out = decompressor.process(small, output_buffer_limit=1024)
+  assert len(out) == 1024
+  total = len(out)
+  while not decompressor.is_finished():
+    data = b''
+    if decompressor.can_accept_more_data():
+      data = b''
+    total += len(decompressor.process(data, output_buffer_limit=1024))
+  assert total == 100000
