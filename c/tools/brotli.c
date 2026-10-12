@@ -1035,9 +1035,28 @@ static BROTLI_BOOL NextFile(Context* context) {
   }
 }
 
+/* Checked before the output is opened with O_TRUNC. An inode of 0 (Windows)
+   means "cannot tell". */
+static BROTLI_BOOL IsSameFile(const char* input_path,
+                              const char* output_path) {
+  struct stat in_stat;
+  struct stat out_stat;
+  if (input_path == 0 || output_path == 0) return BROTLI_FALSE;
+  if (stat(input_path, &in_stat) != 0) return BROTLI_FALSE;
+  if (stat(output_path, &out_stat) != 0) return BROTLI_FALSE;
+  if (in_stat.st_ino == 0 || out_stat.st_ino == 0) return BROTLI_FALSE;
+  return TO_BROTLI_BOOL(in_stat.st_dev == out_stat.st_dev &&
+                        in_stat.st_ino == out_stat.st_ino);
+}
+
 static BROTLI_BOOL OpenFiles(Context* context) {
   BROTLI_BOOL is_ok = OpenInputFile(context->current_input_path, &context->fin);
   if (!context->test_integrity && is_ok) {
+    if (IsSameFile(context->current_input_path, context->current_output_path)) {
+      fprintf(stderr, "input and output are the same file [%s]\n",
+              PrintablePath(context->current_output_path));
+      return BROTLI_FALSE;
+    }
     is_ok = OpenOutputFile(
         context->current_output_path, &context->fout, context->force_overwrite);
   }
