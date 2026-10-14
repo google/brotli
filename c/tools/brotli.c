@@ -981,7 +981,8 @@ static BROTLI_BOOL NextFile(Context* context) {
   }
 
   /* Skip option arguments. */
-  while (context->iterator == context->not_input_indices[context->ignore]) {
+  while (context->ignore < MAX_OPTIONS &&
+         context->iterator == context->not_input_indices[context->ignore]) {
     context->iterator++;
     context->ignore++;
   }
