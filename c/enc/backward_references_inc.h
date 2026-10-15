@@ -36,6 +36,8 @@ static BROTLI_NOINLINE void EXPORT_FN(CreateBackwardReferences)(
   FN(PrepareDistanceCache)(privat, dist_cache);
 
   size_t next_base64_pos = pos_end;
+  /* End of a payload whose trigger was covered by a backward reference. */
+  size_t base64_end = 0;
   if (params->base64_mode &&
       hasher->common.num_base64_regions < params->max_base64_regions) {
     next_base64_pos =
@@ -44,11 +46,19 @@ static BROTLI_NOINLINE void EXPORT_FN(CreateBackwardReferences)(
   while (position + FN(HashTypeLength)() < pos_end) {
     if (position >= next_base64_pos) {
       if (position > next_base64_pos) {
-        /* A previous backward match jumped over the trigger position.
-           Find the next trigger from the current position safely checking
-           pos_end. */
+        /* A previous backward match jumped over the trigger position. Note
+           where that payload ends, then find the next trigger. */
+        size_t payload_end = next_base64_pos + kBase64TriggerLen;
+        while (payload_end < pos_end &&
+               IsBase64Char(ringbuffer[payload_end & ringbuffer_mask])) {
+          payload_end++;
+        }
+        if (payload_end - (next_base64_pos + kBase64TriggerLen) >=
+            params->min_base64_region_len) {
+          base64_end = payload_end;
+        }
         next_base64_pos = FindNextBase64Trigger(ringbuffer, ringbuffer_mask,
-                                                position, pos_end);
+            BROTLI_MAX(size_t, position, payload_end), pos_end);
         if (position < next_base64_pos) {
           goto skip_base64_trigger;
         }
@@ -84,7 +94,6 @@ static BROTLI_NOINLINE void EXPORT_FN(CreateBackwardReferences)(
       BROTLI_BOOL is_dupe = BROTLI_FALSE;
       size_t copy_len = scan_pos - position;
       size_t dupe_dist = 0;
-      size_t matched_region_idx = 0;
       if (length > 0 && hasher->common.num_base64_regions > 0) {
         size_t r = hasher->common.num_base64_regions;
         while (r > 0) {
@@ -104,7 +113,6 @@ static BROTLI_NOINLINE void EXPORT_FN(CreateBackwardReferences)(
                                 copy_len)) {
             is_dupe = BROTLI_TRUE;
             dupe_dist = distance;
-            matched_region_idx = r;
             break;
           }
         }
@@ -126,8 +134,6 @@ static BROTLI_NOINLINE void EXPORT_FN(CreateBackwardReferences)(
         *num_literals += insert_length;
         insert_length = 0;
         position = scan_pos;
-        hasher->common.base64_regions[matched_region_idx].start_literal_pos =
-            start_pos;
         apply_random_heuristics =
             position + 2 * copy_len + random_heuristics_window_size;
         if (hasher->common.num_base64_regions < params->max_base64_regions) {
@@ -160,6 +166,14 @@ static BROTLI_NOINLINE void EXPORT_FN(CreateBackwardReferences)(
       }
     }
   skip_base64_trigger:;
+    if (position < base64_end && position > apply_random_heuristics) {
+      /* No backward reference for a while inside the payload: the rest of it
+         is high-entropy (e.g. image data). Emit it as literals without
+         searching. */
+      insert_length += base64_end - position;
+      position = base64_end;
+      continue;
+    }
     size_t max_length = pos_end - position;
     size_t max_distance = BROTLI_MIN(size_t, position, max_backward_limit);
     size_t dictionary_start = BROTLI_MIN(size_t,
@@ -183,7 +197,7 @@ static BROTLI_NOINLINE void EXPORT_FN(CreateBackwardReferences)(
     FN(FindLongestMatch)(privat, params->dictionary.contextual.dict[dict_id],
         ringbuffer, ringbuffer_mask, dist_cache, position, max_length,
         max_distance, dictionary_start + gap, params->dist.max_distance, &sr);
-    if (ENABLE_COMPOUND_DICTIONARY) {
+    if (ENABLE_COMPOUND_DICTIONARY && position >= base64_end) {
       LookupCompoundDictionaryMatch(&params->dictionary.compound, ringbuffer,
           ringbuffer_mask, dist_cache, position, max_length,
           dictionary_start, params->dist.max_distance, &sr);
@@ -214,7 +228,7 @@ static BROTLI_NOINLINE void EXPORT_FN(CreateBackwardReferences)(
             ringbuffer, ringbuffer_mask, dist_cache, position + 1, max_length,
             max_distance, dictionary_start + gap, params->dist.max_distance,
             &sr2);
-        if (ENABLE_COMPOUND_DICTIONARY) {
+        if (ENABLE_COMPOUND_DICTIONARY && position + 1 >= base64_end) {
           LookupCompoundDictionaryMatch(
               &params->dictionary.compound, ringbuffer,
               ringbuffer_mask, dist_cache, position + 1, max_length,
