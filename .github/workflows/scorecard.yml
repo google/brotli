@@ -15,8 +15,8 @@ on:
   push:
     branches: [ "master" ]
 
-# Declare default permissions as read only.
-permissions: read-all
+permissions:
+  contents: read
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}
@@ -27,13 +27,8 @@ jobs:
     name: Scorecard analysis
     runs-on: ubuntu-latest
     permissions:
-      # Needed to upload the results to code-scanning dashboard.
-      security-events: write
-      # Needed to publish results and get a badge (see publish_results below).
-      id-token: write
-      # Uncomment the permissions below if installing in a private repository.
-      # contents: read
-      # actions: read
+      security-events: write # upload the results to code-scanning dashboard
+      id-token: write # publish results and get a badge
 
     steps:
       - name: Harden Runner
