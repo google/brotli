@@ -57,6 +57,9 @@ jobs:
             runs_on: windows-11-arm
 
     env:
+      ARCH: ${{ matrix.arch }}
+      BUILD_SHARED_LIBS: ${{ matrix.build_shared_libs }}
+      TRIPLET: ${{ matrix.triplet }}
       VCPKG_VERSION: '2022.11.14'
       VCPKG_ROOT: vcpkg
       VCPKG_DISABLE_METRICS: 1
@@ -80,7 +83,7 @@ jobs:
       id: cache-vcpkg
       with:
         path: vcpkg
-        key: release-${{ runner.os }}-vcpkg-${{ env.VCPKG_VERSION }}-${{ matrix.triplet }}
+        key: release-${{ runner.os }}-vcpkg-${{ env.VCPKG_VERSION }}-${{ env.TRIPLET }}
         # TODO(eustas): remove when https://github.com/zizmorcore/zizmor/issues/2071 is fixed
         lookup-only: ${{ startsWith(github.ref, 'refs/tags/') }}
 
@@ -88,7 +91,7 @@ jobs:
       if: github.event_name == 'release' || steps.cache-vcpkg.outputs.cache-hit != 'true'
       shell: 'powershell'
       run: |
-        Invoke-WebRequest -Uri "https://github.com/microsoft/vcpkg/archive/refs/tags/${{ env.VCPKG_VERSION }}.zip" -OutFile "vcpkg.zip"
+        Invoke-WebRequest -Uri "https://github.com/microsoft/vcpkg/archive/refs/tags/${VCPKG_VERSION}.zip" -OutFile "vcpkg.zip"
 
     - name: Bootstrap vcpkg
       if: github.event_name == 'release' || steps.cache-vcpkg.outputs.cache-hit != 'true'
@@ -105,13 +108,13 @@ jobs:
       run: |
         set -x
         mkdir out
-        cmake -Bout -H. ${{ matrix.arch }} \
+        cmake -Bout -H. ${ARCH} \
           -DBUILD_TESTING=OFF \
-          -DBUILD_SHARED_LIBS=${{ matrix.build_shared_libs }} \
+          -DBUILD_SHARED_LIBS=${BUILD_SHARED_LIBS} \
           -DCMAKE_BUILD_TYPE=Release \
           -DCMAKE_INSTALL_PREFIX=`pwd`/prefix \
           -DCMAKE_TOOLCHAIN_FILE=${VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake \
-          -DVCPKG_TARGET_TRIPLET=${{ matrix.triplet }} \
+          -DVCPKG_TARGET_TRIPLET=${TRIPLET} \
         #
 
     - name: Build
@@ -131,7 +134,7 @@ jobs:
       shell: 'powershell'
       run: |
         Compress-Archive -Path prefix\bin\* `
-          -DestinationPath brotli-${{matrix.triplet}}.zip
+          -DestinationPath brotli-${TRIPLET}.zip
 
     - name: Upload package
       uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -177,7 +180,7 @@ jobs:
     if: github.event_name == 'release'
     runs-on: [ubuntu-latest]
     permissions:
-      contents: write
+      contents: write # upload assets
 
     steps:
     - name: Checkout the source

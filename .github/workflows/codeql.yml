@@ -22,9 +22,9 @@ jobs:
     runs-on: 'ubuntu-latest'
     timeout-minutes: 360
     permissions:
-      actions: read
-      contents: read
-      security-events: write
+      actions: read # read the workflow files and repository action logs
+      contents: read # check out the repository code
+      security-events: write # upload the generated SARIF security findings
 
     strategy:
       fail-fast: false

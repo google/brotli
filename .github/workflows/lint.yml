@@ -52,7 +52,7 @@ jobs:
     - name: Audit workflows
       run: |
         eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
-        zizmor ./.github/workflows
+        zizmor --pedantic ./.github/workflows
 
     - name: Lint Python code
       run: |
