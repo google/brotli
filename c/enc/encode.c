@@ -113,9 +113,18 @@ BROTLI_BOOL BrotliEncoderSetParameter(
       state->params.max_base64_regions = value;
       return BROTLI_TRUE;
 
+    case BROTLI_PARAM_MIN_BASE64_REGION_LEN:
+      state->params.min_base64_region_len = value;
+      return BROTLI_TRUE;
+
     case BROTLI_PARAM_SIMD_HASHER:
       if (value > 2) return BROTLI_FALSE;
       state->params.simd_hasher = (BrotliEncoderSimdHasher)value;
+      return BROTLI_TRUE;
+
+    case BROTLI_PARAM_HASHER_OPT:
+      if ((value != 0) && (value != 1)) return BROTLI_FALSE;
+      state->params.hasher_opt = TO_BROTLI_BOOL(value);
       return BROTLI_TRUE;
 
     default: return BROTLI_FALSE;
@@ -514,6 +523,7 @@ static void WriteMetaBlockInternal(MemoryManager* m,
                                    int* dist_cache,
                                    size_t* storage_ix,
                                    uint8_t* storage) {
+  const uint32_t wrapped_last_flush_pos = WrapPosition(last_flush_pos);
   uint16_t last_bytes;
   uint8_t last_bytes_bits;
   ContextLut literal_context_lut = BROTLI_CONTEXT_LUT(literal_context_mode);
@@ -532,7 +542,7 @@ static void WriteMetaBlockInternal(MemoryManager* m,
        CreateBackwardReferences is now unused. */
     memcpy(dist_cache, saved_dist_cache, 4 * sizeof(dist_cache[0]));
     BrotliStoreUncompressedMetaBlock(is_last, data,
-                                     (size_t)last_flush_pos, mask, bytes,
+                                     wrapped_last_flush_pos, mask, bytes,
                                      storage_ix, storage);
     return;
   }
@@ -541,13 +551,13 @@ static void WriteMetaBlockInternal(MemoryManager* m,
   last_bytes = (uint16_t)((storage[1] << 8) | storage[0]);
   last_bytes_bits = (uint8_t)(*storage_ix);
   if (params->quality <= MAX_QUALITY_FOR_STATIC_ENTROPY_CODES) {
-    BrotliStoreMetaBlockFast(m, data, (size_t)last_flush_pos,
+    BrotliStoreMetaBlockFast(m, data, wrapped_last_flush_pos,
                              bytes, mask, is_last, params,
                              commands, num_commands,
                              storage_ix, storage);
     if (BROTLI_IS_OOM(m)) return;
   } else if (params->quality < MIN_QUALITY_FOR_BLOCK_SPLIT) {
-    BrotliStoreMetaBlockTrivial(m, data, (size_t)last_flush_pos,
+    BrotliStoreMetaBlockTrivial(m, data, wrapped_last_flush_pos,
                                 bytes, mask, is_last, params,
                                 commands, num_commands,
                                 storage_ix, storage);
@@ -564,18 +574,18 @@ static void WriteMetaBlockInternal(MemoryManager* m,
             BROTLI_ALLOC(m, uint32_t, 32 * (BROTLI_MAX_STATIC_CONTEXTS + 1));
         if (BROTLI_IS_OOM(m) || BROTLI_IS_NULL(arena)) return;
         DecideOverLiteralContextModeling(
-            data, (size_t)last_flush_pos, bytes, mask, params->quality,
+            data, wrapped_last_flush_pos, bytes, mask, params->quality,
             params->size_hint, &num_literal_contexts,
             &literal_context_map, arena);
         BROTLI_FREE(m, arena);
       }
-      BrotliBuildMetaBlockGreedy(m, data, (size_t)last_flush_pos, mask,
+      BrotliBuildMetaBlockGreedy(m, data, wrapped_last_flush_pos, mask,
           base64_regions, num_base64_regions,
           prev_byte, prev_byte2, literal_context_lut, num_literal_contexts,
           literal_context_map, commands, num_commands, &mb);
       if (BROTLI_IS_OOM(m)) return;
     } else {
-      BrotliBuildMetaBlock(m, data, (size_t)last_flush_pos, mask,
+      BrotliBuildMetaBlock(m, data, wrapped_last_flush_pos, mask,
                            base64_regions, num_base64_regions,
                            &block_params,
                            prev_byte, prev_byte2,
@@ -590,7 +600,7 @@ static void WriteMetaBlockInternal(MemoryManager* m,
          for "Large Window Brotli" (32-bit). */
       BrotliOptimizeHistograms(block_params.dist.alphabet_size_limit, &mb);
     }
-    BrotliStoreMetaBlock(m, data, (size_t)last_flush_pos, bytes, mask,
+    BrotliStoreMetaBlock(m, data, wrapped_last_flush_pos, bytes, mask,
                          prev_byte, prev_byte2,
                          is_last,
                          &block_params,
@@ -608,7 +618,7 @@ static void WriteMetaBlockInternal(MemoryManager* m,
     storage[1] = (uint8_t)(last_bytes >> 8);
     *storage_ix = last_bytes_bits;
     BrotliStoreUncompressedMetaBlock(is_last, data,
-                                     (size_t)last_flush_pos, mask,
+                                     wrapped_last_flush_pos, mask,
                                      bytes, storage_ix, storage);
   }
 }
@@ -707,7 +717,9 @@ static void BrotliEncoderInitParams(BrotliEncoderParams* params) {
   BrotliInitSharedEncoderDictionary(&params->dictionary);
   params->base64_mode = (int)BROTLI_DEFAULT_BASE64_MODE;
   params->max_base64_regions = BROTLI_DEFAULT_MAX_BASE64_REGIONS;
+  params->min_base64_region_len = BROTLI_DEFAULT_MIN_BASE64_REGION_LEN;
   params->simd_hasher = BROTLI_DEFAULT_SIMD_HASHER;
+  params->hasher_opt = BROTLI_FALSE;
   params->dist.distance_postfix_bits = 0;
   params->dist.num_direct_distance_codes = 0;
   params->dist.alphabet_size_max =

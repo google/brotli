@@ -57,6 +57,9 @@ jobs:
             runs_on: windows-11-arm
 
     env:
+      ARCH: ${{ matrix.arch }}
+      BUILD_SHARED_LIBS: ${{ matrix.build_shared_libs }}
+      TRIPLET: ${{ matrix.triplet }}
       VCPKG_VERSION: '2022.11.14'
       VCPKG_ROOT: vcpkg
       VCPKG_DISABLE_METRICS: 1
@@ -64,12 +67,12 @@ jobs:
     steps:
 
     - name: Harden Runner
-      uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
+      uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
       with:
         egress-policy: audit
 
     - name: Checkout the source
-      uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       with:
         submodules: false
         fetch-depth: 1
@@ -80,7 +83,7 @@ jobs:
       id: cache-vcpkg
       with:
         path: vcpkg
-        key: release-${{ runner.os }}-vcpkg-${{ env.VCPKG_VERSION }}-${{ matrix.triplet }}
+        key: release-${{ runner.os }}-vcpkg-${{ env.VCPKG_VERSION }}-${{ env.TRIPLET }}
         # TODO(eustas): remove when https://github.com/zizmorcore/zizmor/issues/2071 is fixed
         lookup-only: ${{ startsWith(github.ref, 'refs/tags/') }}
 
@@ -88,7 +91,7 @@ jobs:
       if: github.event_name == 'release' || steps.cache-vcpkg.outputs.cache-hit != 'true'
       shell: 'powershell'
       run: |
-        Invoke-WebRequest -Uri "https://github.com/microsoft/vcpkg/archive/refs/tags/${{ env.VCPKG_VERSION }}.zip" -OutFile "vcpkg.zip"
+        Invoke-WebRequest -Uri "https://github.com/microsoft/vcpkg/archive/refs/tags/${VCPKG_VERSION}.zip" -OutFile "vcpkg.zip"
 
     - name: Bootstrap vcpkg
       if: github.event_name == 'release' || steps.cache-vcpkg.outputs.cache-hit != 'true'
@@ -105,13 +108,13 @@ jobs:
       run: |
         set -x
         mkdir out
-        cmake -Bout -H. ${{ matrix.arch }} \
+        cmake -Bout -H. ${ARCH} \
           -DBUILD_TESTING=OFF \
-          -DBUILD_SHARED_LIBS=${{ matrix.build_shared_libs }} \
+          -DBUILD_SHARED_LIBS=${BUILD_SHARED_LIBS} \
           -DCMAKE_BUILD_TYPE=Release \
           -DCMAKE_INSTALL_PREFIX=`pwd`/prefix \
           -DCMAKE_TOOLCHAIN_FILE=${VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake \
-          -DVCPKG_TARGET_TRIPLET=${{ matrix.triplet }} \
+          -DVCPKG_TARGET_TRIPLET=${TRIPLET} \
         #
 
     - name: Build
@@ -131,10 +134,10 @@ jobs:
       shell: 'powershell'
       run: |
         Compress-Archive -Path prefix\bin\* `
-          -DestinationPath brotli-${{matrix.triplet}}.zip
+          -DestinationPath brotli-${TRIPLET}.zip
 
     - name: Upload package
-      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
       with:
         name: brotli-${{matrix.triplet}}
         path: brotli-${{matrix.triplet}}.zip
@@ -149,12 +152,12 @@ jobs:
     steps:
 
     - name: Harden Runner
-      uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
+      uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
       with:
         egress-policy: audit
 
     - name: Checkout the source
-      uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       with:
         submodules: false
         fetch-depth: 1
@@ -165,7 +168,7 @@ jobs:
         tar cvfJ testdata.txz tests/testdata
 
     - name: Upload archive
-      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
       with:
         name: testdata
         path: testdata.txz
@@ -177,18 +180,18 @@ jobs:
     if: github.event_name == 'release'
     runs-on: [ubuntu-latest]
     permissions:
-      contents: write
+      contents: write # upload assets
 
     steps:
     - name: Checkout the source
-      uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       with:
         submodules: false
         fetch-depth: 1
         persist-credentials: false
 
     - name: Download all artifacts
-      uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+      uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
       with:
         path: release_assets
         merge-multiple: true
@@ -210,12 +213,12 @@ jobs:
     steps:
 
     - name: Harden Runner
-      uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
+      uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
       with:
         egress-policy: audit
 
     - name: Checkout the source
-      uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       with:
         submodules: false
         fetch-depth: 1
