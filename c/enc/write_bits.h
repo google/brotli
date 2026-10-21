@@ -38,7 +38,7 @@ static BROTLI_INLINE void BrotliWriteBits(size_t n_bits,
       (uint32_t)(bits >> 32), (uint32_t)(bits & 0xFFFFFFFF),
       (int)*pos));
   BROTLI_DCHECK((bits >> n_bits) == 0);
-  BROTLI_DCHECK(n_bits <= 56);
+  BROTLI_SECURITY_CHECK(n_bits <= 56);
 #if defined(BROTLI_LITTLE_ENDIAN)
   /* This branch of the code can write up to 56 bits at a time,
      7 bits are lost by being perhaps already in *p and at least

@@ -1565,8 +1565,9 @@ static void EnsureCompoundDictionaryInitialized(BrotliDecoderState* state) {
   size_t block_bits = 8u;
   uint32_t cursor = 0u;
   size_t index = 0u;
-  uint32_t maximal_address = addon->total_size - 1u;
-  BROTLI_DCHECK(addon->total_size > 0u);
+  uint32_t maximal_address;
+  BROTLI_SECURITY_CHECK(addon->total_size > 0u);
+  maximal_address = addon->total_size - 1u;
   if (addon->block_bits != 255u) return;
   while ((maximal_address >> block_bits) != 0u) block_bits++;
   block_bits -= 8u;
@@ -1585,9 +1586,9 @@ static BROTLI_BOOL InitializeCompoundDictionaryCopy(BrotliDecoderState* s,
     uint32_t address, uint32_t length) {
   BrotliDecoderCompoundDictionary* addon = s->compound_dictionary;
   size_t index;
-  BROTLI_DCHECK(addon->total_size > 0u);
-  BROTLI_DCHECK(address < addon->total_size);
-  BROTLI_DCHECK(length > 0u);
+  BROTLI_SECURITY_CHECK(addon->total_size > 0u);
+  BROTLI_SECURITY_CHECK(address < addon->total_size);
+  BROTLI_SECURITY_CHECK(length > 0u);
   EnsureCompoundDictionaryInitialized(s);
   index = addon->block_map[address >> addon->block_bits];
   /* Several chunks might be mapped to the same block index. */
@@ -2502,7 +2503,7 @@ BrotliDecoderResult BrotliDecoderDecompressStream(
             /* Not enough data in buffer, but can take one more byte from
                input stream. */
             result = BROTLI_DECODER_SUCCESS;
-            BROTLI_DCHECK(s->buffer_length < 8);
+            BROTLI_SECURITY_CHECK(s->buffer_length < 8);
             s->buffer.u8[s->buffer_length] = **next_in;
             s->buffer_length++;
             BrotliBitReaderSetInput(br, &s->buffer.u8[0], s->buffer_length);
@@ -2518,6 +2519,7 @@ BrotliDecoderResult BrotliDecoderDecompressStream(
           *next_in = br->next_in;
           *available_in = BrotliBitReaderGetAvailIn(br);
           while (*available_in) {
+            BROTLI_SECURITY_CHECK(s->buffer_length < 8);
             s->buffer.u8[s->buffer_length] = **next_in;
             s->buffer_length++;
             (*next_in)++;

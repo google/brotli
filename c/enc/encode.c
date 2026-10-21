@@ -1497,8 +1497,8 @@ static BROTLI_BOOL BrotliEncoderCompressStreamFast(
       }
       if (inplace) {
         size_t out_bytes = storage_ix >> 3;
-        BROTLI_DCHECK(out_bytes <= *available_out);
-        BROTLI_DCHECK((storage_ix & 7) == 0 || out_bytes < *available_out);
+        BROTLI_SECURITY_CHECK(out_bytes <= *available_out);
+        BROTLI_SECURITY_CHECK((storage_ix & 7) == 0 || out_bytes < *available_out);
         *next_out += out_bytes;
         *available_out -= out_bytes;
         s->total_out_ += out_bytes;

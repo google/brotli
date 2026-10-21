@@ -48,8 +48,11 @@ BROTLI_INTERNAL void BrotliInitMemoryManager(
     void* opaque);
 
 BROTLI_INTERNAL void* BrotliAllocate(MemoryManager* m, size_t n);
-#define BROTLI_ALLOC(M, T, N)                               \
-  ((N) > 0 ? ((T*)BrotliAllocate((M), (N) * sizeof(T))) : NULL)
+/* On overflow, request BROTLI_SIZE_MAX to trigger the standard OOM path. */
+#define BROTLI_ALLOC(M, T, N)                                             \
+  ((N) > 0 ? ((T*)BrotliAllocate((M),                                    \
+      ((size_t)(N) > BROTLI_SIZE_MAX / sizeof(T)) ? BROTLI_SIZE_MAX :    \
+      ((size_t)(N) * sizeof(T)))) : NULL)
 
 BROTLI_INTERNAL void BrotliFree(MemoryManager* m, void* p);
 #define BROTLI_FREE(M, P) { \
@@ -89,10 +92,13 @@ R: requested size
   if (C < (R)) {                                                   \
     size_t _new_size = (C == 0) ? (R) : C;                         \
     T* new_array;                                                  \
-    while (_new_size < (R)) _new_size *= 2;                        \
+    while (_new_size < (R)) {                                      \
+      if (_new_size > (BROTLI_SIZE_MAX >> 1)) { _new_size = (R); break; } \
+      _new_size *= 2;                                              \
+    }                                                              \
     new_array = BROTLI_ALLOC((M), T, _new_size);                   \
-    if (!BROTLI_IS_OOM(M) && !BROTLI_IS_NULL(new_array) && C != 0) \
-      memcpy(new_array, A, C * sizeof(T));                         \
+    if (!BROTLI_IS_OOM(M) && !BROTLI_IS_NULL(new_array) && C != 0)  \
+      memcpy(new_array, A, (size_t)(C) * sizeof(T));               \
     BROTLI_FREE((M), A);                                           \
     A = new_array;                                                 \
     C = _new_size;                                                 \

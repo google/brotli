@@ -297,7 +297,7 @@ void BrotliStoreHuffmanTree(const uint8_t* depths, size_t num,
   int num_codes = 0;
   size_t code = 0;
 
-  BROTLI_DCHECK(num <= BROTLI_NUM_COMMAND_SYMBOLS);
+  BROTLI_SECURITY_CHECK(num <= BROTLI_NUM_COMMAND_SYMBOLS);
 
   BrotliWriteHuffmanTree(depths, num, &huffman_tree_size, huffman_tree,
                          huffman_tree_extra_bits);
@@ -602,7 +602,7 @@ static void MoveToFrontTransform(const uint32_t* BROTLI_RESTRICT v_in,
   for (i = 1; i < v_size; ++i) {
     if (v_in[i] > max_value) max_value = v_in[i];
   }
-  BROTLI_DCHECK(max_value < 256u);
+  BROTLI_SECURITY_CHECK(max_value < 256u);
   for (i = 0; i <= max_value; ++i) {
     mtf[i] = (uint8_t)i;
   }

@@ -674,6 +674,16 @@ BROTLI_UNUSED_FUNCTION void BrotliSuppressUnusedFunctions(void) {
 #define BROTLI_CRASH() (void)abort()
 #endif
 
+/* Release-surviving bounds check. Unlike BROTLI_DCHECK, this is never stripped
+   in release builds. Use for invariants whose violation would cause memory
+   corruption. Opt-out with -DBROTLI_HARDENED=0 for benchmarking. */
+#if !defined(BROTLI_HARDENED) || BROTLI_HARDENED
+#define BROTLI_SECURITY_CHECK(x) \
+  do { if (BROTLI_PREDICT_FALSE(!(x))) BROTLI_CRASH(); } while (0)
+#else
+#define BROTLI_SECURITY_CHECK(x)
+#endif
+
 /* Make BROTLI_TEST=0 act same as undefined. */
 #if defined(BROTLI_TEST) && ((1-BROTLI_TEST-1) == 0)
 #undef BROTLI_TEST
