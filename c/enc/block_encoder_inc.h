@@ -21,16 +21,29 @@ static void FN(BuildAndStoreEntropyCodes)(
       if (self->histogram_length_ == 256 && is_base64_histogram && i < 256 &&
           is_base64_histogram[i]) {
         size_t k;
-        memset(&self->depths_[ix], 0, 256);
+        BROTLI_BOOL all_base64 = BROTLI_TRUE;
         for (k = 0; k < 256; ++k) {
-          if (kIsBase64[k]) {
-            self->depths_[ix + k] = 6;
+          if (histograms[i].data_[k] > 0 && !kIsBase64[k]) {
+            all_base64 = BROTLI_FALSE;
+            break;
           }
         }
-        BrotliConvertBitDepthsToSymbols(&self->depths_[ix], 256,
-                                        &self->bits_[ix]);
-        BrotliStoreHuffmanTree(&self->depths_[ix], 256, tree, storage_ix,
-                               storage);
+        if (all_base64) {
+          memset(&self->depths_[ix], 0, 256);
+          for (k = 0; k < 256; ++k) {
+            if (kIsBase64[k]) {
+              self->depths_[ix + k] = 6;
+            }
+          }
+          BrotliConvertBitDepthsToSymbols(&self->depths_[ix], 256,
+                                          &self->bits_[ix]);
+          BrotliStoreHuffmanTree(&self->depths_[ix], 256, tree, storage_ix,
+                                 storage);
+        } else {
+          BuildAndStoreHuffmanTree(
+              &histograms[i].data_[0], self->histogram_length_, alphabet_size,
+              tree, &self->depths_[ix], &self->bits_[ix], storage_ix, storage);
+        }
       } else {
         BuildAndStoreHuffmanTree(
             &histograms[i].data_[0], self->histogram_length_, alphabet_size,
