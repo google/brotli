@@ -214,7 +214,7 @@ static BROTLI_INLINE size_t ComputeDistanceCode(size_t distance,
 
 #define HASHER() H59
 /* NOLINTNEXTLINE(build/include) */
-#include "backward_references_inc_opt.h"
+#include "backward_references_opt_inc.h"
 #undef HASHER
 
 #define HASHER() H68
@@ -271,7 +271,7 @@ static BROTLI_INLINE size_t ComputeDistanceCode(size_t distance,
 #undef HASHER
 #define HASHER() H59
 /* NOLINTNEXTLINE(build/include) */
-#include "backward_references_inc_opt.h"
+#include "backward_references_opt_inc.h"
 #undef HASHER
 #define HASHER() H68
 /* NOLINTNEXTLINE(build/include) */
