@@ -50,6 +50,7 @@ BROTLI_BOOL BrotliEncoderEnsureStaticInit(void) {
 #elif (BROTLI_STATIC_INIT == BROTLI_STATIC_INIT_EARLY)
   return kEarlyInitOk;
 #else
+  BrotliEncoderLazyStaticInit();
   return kLazyInitOk;
 #endif
 }
