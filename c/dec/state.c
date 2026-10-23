@@ -168,8 +168,28 @@ BROTLI_BOOL BrotliDecoderHuffmanTreeGroupInit(BrotliDecoderState* s,
      a wee bigger than required in several cases (especially for alphabets with
      less than 16 symbols). */
   const size_t max_table_size = alphabet_size_limit + 376;
+<<<<<<< HEAD
+  /* Guard size_t overflow before computing code_size.  On 32-bit targets
+     ntrees * max_table_size can wrap if both are large, producing an
+     undersized allocation followed by an out-of-bounds write (Finding 5). */
+  if (ntrees > 0 && max_table_size > 0 &&
+      max_table_size > (SIZE_MAX / sizeof(HuffmanCode)) / ntrees) {
+    group->codes  = NULL;
+    group->htrees = NULL;
+    return BROTLI_FALSE;
+  }
   const size_t code_size = sizeof(HuffmanCode) * ntrees * max_table_size;
   const size_t htree_size = sizeof(HuffmanCode*) * ntrees;
+  /* Guard combined allocation overflow (code_size + htree_size). */
+  if (htree_size > 0 && code_size > SIZE_MAX - htree_size) {
+    group->codes  = NULL;
+    group->htrees = NULL;
+    return BROTLI_FALSE;
+  }
+=======
+  const size_t code_size = sizeof(HuffmanCode) * ntrees * max_table_size;
+  const size_t htree_size = sizeof(HuffmanCode*) * ntrees;
+>>>>>>> upstream/master
   /* Pointer alignment is, hopefully, wider than sizeof(HuffmanCode). */
   HuffmanCode** p = (HuffmanCode**)BROTLI_DECODER_ALLOC(s,
       code_size + htree_size);

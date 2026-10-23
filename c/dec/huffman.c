@@ -169,7 +169,12 @@ void BrotliBuildCodeLengthsHuffmanTable(HuffmanCode* table,
 uint32_t BrotliBuildHuffmanTable(HuffmanCode* root_table,
                                  int root_bits,
                                  const uint16_t* const symbol_lists,
+<<<<<<< HEAD
+                                 uint16_t* count,
+                                 uint32_t table_budget) {
+=======
                                  uint16_t* count) {
+>>>>>>> upstream/master
   HuffmanCode code;       /* current table entry */
   HuffmanCode* table;     /* next available space in table */
   int len;                /* current code length */
@@ -238,6 +243,15 @@ uint32_t BrotliBuildHuffmanTable(HuffmanCode* root_table,
         table += table_size;
         table_bits = NextTableBitSize(count, len, root_bits);
         table_size = 1 << table_bits;
+<<<<<<< HEAD
+        /* Guard: reject if accumulated table size would exceed the allocated
+           slab (alphabet_size_limit + 376). Returning 0 signals budget
+           overrun to the caller. */
+        if ((uint32_t)total_size + (uint32_t)table_size > table_budget) {
+          return 0;
+        }
+=======
+>>>>>>> upstream/master
         total_size += table_size;
         sub_key = BrotliReverseBits(key);
         key += key_step;
