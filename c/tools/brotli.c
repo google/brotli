@@ -28,6 +28,10 @@
 #include <brotli/encode.h>
 
 #if defined(_WIN32)
+#if !defined(WIN32_LEAN_AND_MEAN)
+#define WIN32_LEAN_AND_MEAN
+#endif
+#include <windows.h>
 #include <io.h>
 #include <share.h>
 #include <sys/utime.h>
@@ -41,6 +45,7 @@
 #define S_IWUSR S_IWRITE
 #endif
 
+#define close _close
 #define fdopen _fdopen
 #define isatty _isatty
 #define unlink _unlink
@@ -58,6 +63,13 @@
 #define ftell _ftelli64
 #endif
 
+#if !defined(O_NOFOLLOW)
+#define O_NOFOLLOW 0x10000000
+#endif
+#if !defined(ELOOP)
+#define ELOOP 114
+#endif
+
 static FILE* ms_fopen(const char* filename, const char* mode) {
   FILE* result = 0;
   fopen_s(&result, filename, mode);
@@ -66,6 +78,15 @@ static FILE* ms_fopen(const char* filename, const char* mode) {
 
 static int ms_open(const char* filename, int oflag, int pmode) {
   int result = -1;
+  if (oflag & O_NOFOLLOW) {
+    DWORD attr = GetFileAttributesA(filename);
+    if (attr != INVALID_FILE_ATTRIBUTES &&
+        (attr & FILE_ATTRIBUTE_REPARSE_POINT)) {
+      errno = ELOOP;
+      return -1;
+    }
+    oflag &= ~O_NOFOLLOW;
+  }
   _sopen_s(&result, filename, oflag | O_BINARY, _SH_DENYNO, pmode);
   return result;
 }
@@ -95,6 +116,18 @@ static int ms_open(const char* filename, int oflag, int pmode) {
 #define MTIME_NSEC(S) ((S)->st_mtim.tv_nsec)
 #endif
 #endif  /* HAVE_UTIMENSAT */
+
+#if !defined(O_NOFOLLOW)
+#if defined(__O_NOFOLLOW)
+#define O_NOFOLLOW __O_NOFOLLOW
+#else
+#define O_NOFOLLOW 0
+#endif
+#endif
+
+#if !defined(ELOOP)
+#define ELOOP 40
+#endif
 
 typedef enum {
   COMMAND_COMPRESS,
@@ -803,7 +836,21 @@ static BROTLI_BOOL OpenOutputFile(const char* output_path, FILE** f,
     *f = fdopen(MAKE_BINARY(STDOUT_FILENO), "wb");
     return BROTLI_TRUE;
   }
-  fd = open(output_path, O_CREAT | (force ? 0 : O_EXCL) | O_WRONLY | O_TRUNC,
+#if !defined(_WIN32)
+#if !defined(O_NOFOLLOW) || (O_NOFOLLOW == 0)
+  {
+    struct stat s_link;
+    if (lstat(output_path, &s_link) == 0 && S_ISLNK(s_link.st_mode)) {
+      errno = ELOOP;
+      fprintf(stderr, "failed to open output file [%s]: %s\n",
+              PrintablePath(output_path), strerror(errno));
+      return BROTLI_FALSE;
+    }
+  }
+#endif
+#endif
+  fd = open(output_path,
+            O_CREAT | (force ? 0 : O_EXCL) | O_WRONLY | O_TRUNC | O_NOFOLLOW,
             S_IRUSR | S_IWUSR);
   if (fd < 0) {
     fprintf(stderr, "failed to open output file [%s]: %s\n",
@@ -812,6 +859,7 @@ static BROTLI_BOOL OpenOutputFile(const char* output_path, FILE** f,
   }
   *f = fdopen(fd, "wb");
   if (!*f) {
+    close(fd);
     fprintf(stderr, "failed to open output file [%s]: %s\n",
             PrintablePath(output_path), strerror(errno));
     return BROTLI_FALSE;
