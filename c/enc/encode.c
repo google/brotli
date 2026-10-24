@@ -156,7 +156,8 @@ static uint8_t* GetBrotliStorage(BrotliEncoderState* s, size_t size) {
 
 static size_t HashTableSize(size_t max_table_size, size_t input_size) {
   size_t htsize = 256;
-  while (htsize < max_table_size && htsize < input_size) {
+  while (htsize < max_table_size && htsize < input_size &&
+         (htsize <= (BROTLI_SIZE_MAX >> 1))) {
     htsize <<= 1;
   }
   return htsize;
@@ -1096,11 +1097,15 @@ static BROTLI_BOOL EncodeData(
   {
     /* Theoretical max number of commands is 1 per 2 bytes. */
     size_t newsize = s->num_commands_ + bytes / 2 + 1;
+    if (newsize < s->num_commands_) return BROTLI_FALSE;
     if (newsize > s->cmd_alloc_size_) {
       Command* new_commands;
+      size_t extra = (bytes / 4) + 16;
       /* Reserve a bit more memory to allow merging with a next block
          without reallocation: that would impact speed. */
-      newsize += (bytes / 4) + 16;
+      if (newsize > BROTLI_SIZE_MAX - extra) return BROTLI_FALSE;
+      newsize += extra;
+      if (newsize > BROTLI_SIZE_MAX / sizeof(Command)) return BROTLI_FALSE;
       s->cmd_alloc_size_ = newsize;
       new_commands = BROTLI_ALLOC(m, Command, newsize);
       if (BROTLI_IS_OOM(m) || BROTLI_IS_NULL(new_commands)) return BROTLI_FALSE;
