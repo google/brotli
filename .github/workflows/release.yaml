@@ -91,7 +91,7 @@ jobs:
       if: github.event_name == 'release' || steps.cache-vcpkg.outputs.cache-hit != 'true'
       shell: 'powershell'
       run: |
-        Invoke-WebRequest -Uri "https://github.com/microsoft/vcpkg/archive/refs/tags/${VCPKG_VERSION}.zip" -OutFile "vcpkg.zip"
+        Invoke-WebRequest -Uri "https://github.com/microsoft/vcpkg/archive/refs/tags/${env:VCPKG_VERSION}.zip" -OutFile "vcpkg.zip"
 
     - name: Bootstrap vcpkg
       if: github.event_name == 'release' || steps.cache-vcpkg.outputs.cache-hit != 'true'
@@ -134,7 +134,7 @@ jobs:
       shell: 'powershell'
       run: |
         Compress-Archive -Path prefix\bin\* `
-          -DestinationPath brotli-${TRIPLET}.zip
+          -DestinationPath brotli-${env:TRIPLET}.zip
 
     - name: Upload package
       uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
