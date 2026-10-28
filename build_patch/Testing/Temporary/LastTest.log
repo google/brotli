@@ -1,0 +1,213 @@
+Start testing: Jun 21 01:24 EEST
+----------------------------------------------------------
+1/14 Testing: roundtrip/c/enc/encode.c/1
+1/14 Test: roundtrip/c/enc/encode.c/1
+Command: "/usr/bin/cmake" "-DBROTLI_WRAPPER=" "-DBROTLI_WRAPPER_LD_PREFIX=" "-DBROTLI_CLI=/home/lex_is1/Documents/Google/brotli-master/build_patch/brotli" "-DQUALITY=1" "-DINPUT=/home/lex_is1/Documents/Google/brotli-master/c/enc/encode.c" "-DOUTPUT=/home/lex_is1/Documents/Google/brotli-master/build_patch/encode.c.1" "-P" "/home/lex_is1/Documents/Google/brotli-master/tests/run-roundtrip-test.cmake"
+Directory: /home/lex_is1/Documents/Google/brotli-master/build_patch
+"roundtrip/c/enc/encode.c/1" start time: Jun 21 01:24 EEST
+Output:
+----------------------------------------------------------
+<end of output>
+Test time =   0.02 sec
+----------------------------------------------------------
+Test Passed.
+"roundtrip/c/enc/encode.c/1" end time: Jun 21 01:24 EEST
+"roundtrip/c/enc/encode.c/1" time elapsed: 00:00:00
+----------------------------------------------------------
+
+2/14 Testing: roundtrip/c/enc/encode.c/6
+2/14 Test: roundtrip/c/enc/encode.c/6
+Command: "/usr/bin/cmake" "-DBROTLI_WRAPPER=" "-DBROTLI_WRAPPER_LD_PREFIX=" "-DBROTLI_CLI=/home/lex_is1/Documents/Google/brotli-master/build_patch/brotli" "-DQUALITY=6" "-DINPUT=/home/lex_is1/Documents/Google/brotli-master/c/enc/encode.c" "-DOUTPUT=/home/lex_is1/Documents/Google/brotli-master/build_patch/encode.c.6" "-P" "/home/lex_is1/Documents/Google/brotli-master/tests/run-roundtrip-test.cmake"
+Directory: /home/lex_is1/Documents/Google/brotli-master/build_patch
+"roundtrip/c/enc/encode.c/6" start time: Jun 21 01:24 EEST
+Output:
+----------------------------------------------------------
+<end of output>
+Test time =   0.03 sec
+----------------------------------------------------------
+Test Passed.
+"roundtrip/c/enc/encode.c/6" end time: Jun 21 01:24 EEST
+"roundtrip/c/enc/encode.c/6" time elapsed: 00:00:00
+----------------------------------------------------------
+
+3/14 Testing: roundtrip/c/enc/encode.c/9
+3/14 Test: roundtrip/c/enc/encode.c/9
+Command: "/usr/bin/cmake" "-DBROTLI_WRAPPER=" "-DBROTLI_WRAPPER_LD_PREFIX=" "-DBROTLI_CLI=/home/lex_is1/Documents/Google/brotli-master/build_patch/brotli" "-DQUALITY=9" "-DINPUT=/home/lex_is1/Documents/Google/brotli-master/c/enc/encode.c" "-DOUTPUT=/home/lex_is1/Documents/Google/brotli-master/build_patch/encode.c.9" "-P" "/home/lex_is1/Documents/Google/brotli-master/tests/run-roundtrip-test.cmake"
+Directory: /home/lex_is1/Documents/Google/brotli-master/build_patch
+"roundtrip/c/enc/encode.c/9" start time: Jun 21 01:24 EEST
+Output:
+----------------------------------------------------------
+<end of output>
+Test time =   0.05 sec
+----------------------------------------------------------
+Test Passed.
+"roundtrip/c/enc/encode.c/9" end time: Jun 21 01:24 EEST
+"roundtrip/c/enc/encode.c/9" time elapsed: 00:00:00
+----------------------------------------------------------
+
+4/14 Testing: roundtrip/c/enc/encode.c/11
+4/14 Test: roundtrip/c/enc/encode.c/11
+Command: "/usr/bin/cmake" "-DBROTLI_WRAPPER=" "-DBROTLI_WRAPPER_LD_PREFIX=" "-DBROTLI_CLI=/home/lex_is1/Documents/Google/brotli-master/build_patch/brotli" "-DQUALITY=11" "-DINPUT=/home/lex_is1/Documents/Google/brotli-master/c/enc/encode.c" "-DOUTPUT=/home/lex_is1/Documents/Google/brotli-master/build_patch/encode.c.11" "-P" "/home/lex_is1/Documents/Google/brotli-master/tests/run-roundtrip-test.cmake"
+Directory: /home/lex_is1/Documents/Google/brotli-master/build_patch
+"roundtrip/c/enc/encode.c/11" start time: Jun 21 01:24 EEST
+Output:
+----------------------------------------------------------
+<end of output>
+Test time =   0.35 sec
+----------------------------------------------------------
+Test Passed.
+"roundtrip/c/enc/encode.c/11" end time: Jun 21 01:25 EEST
+"roundtrip/c/enc/encode.c/11" time elapsed: 00:00:00
+----------------------------------------------------------
+
+5/14 Testing: roundtrip/c/common/dictionary.h/1
+5/14 Test: roundtrip/c/common/dictionary.h/1
+Command: "/usr/bin/cmake" "-DBROTLI_WRAPPER=" "-DBROTLI_WRAPPER_LD_PREFIX=" "-DBROTLI_CLI=/home/lex_is1/Documents/Google/brotli-master/build_patch/brotli" "-DQUALITY=1" "-DINPUT=/home/lex_is1/Documents/Google/brotli-master/c/common/dictionary.h" "-DOUTPUT=/home/lex_is1/Documents/Google/brotli-master/build_patch/dictionary.h.1" "-P" "/home/lex_is1/Documents/Google/brotli-master/tests/run-roundtrip-test.cmake"
+Directory: /home/lex_is1/Documents/Google/brotli-master/build_patch
+"roundtrip/c/common/dictionary.h/1" start time: Jun 21 01:25 EEST
+Output:
+----------------------------------------------------------
+<end of output>
+Test time =   0.02 sec
+----------------------------------------------------------
+Test Passed.
+"roundtrip/c/common/dictionary.h/1" end time: Jun 21 01:25 EEST
+"roundtrip/c/common/dictionary.h/1" time elapsed: 00:00:00
+----------------------------------------------------------
+
+6/14 Testing: roundtrip/c/common/dictionary.h/6
+6/14 Test: roundtrip/c/common/dictionary.h/6
+Command: "/usr/bin/cmake" "-DBROTLI_WRAPPER=" "-DBROTLI_WRAPPER_LD_PREFIX=" "-DBROTLI_CLI=/home/lex_is1/Documents/Google/brotli-master/build_patch/brotli" "-DQUALITY=6" "-DINPUT=/home/lex_is1/Documents/Google/brotli-master/c/common/dictionary.h" "-DOUTPUT=/home/lex_is1/Documents/Google/brotli-master/build_patch/dictionary.h.6" "-P" "/home/lex_is1/Documents/Google/brotli-master/tests/run-roundtrip-test.cmake"
+Directory: /home/lex_is1/Documents/Google/brotli-master/build_patch
+"roundtrip/c/common/dictionary.h/6" start time: Jun 21 01:25 EEST
+Output:
+----------------------------------------------------------
+<end of output>
+Test time =   0.02 sec
+----------------------------------------------------------
+Test Passed.
+"roundtrip/c/common/dictionary.h/6" end time: Jun 21 01:25 EEST
+"roundtrip/c/common/dictionary.h/6" time elapsed: 00:00:00
+----------------------------------------------------------
+
+7/14 Testing: roundtrip/c/common/dictionary.h/9
+7/14 Test: roundtrip/c/common/dictionary.h/9
+Command: "/usr/bin/cmake" "-DBROTLI_WRAPPER=" "-DBROTLI_WRAPPER_LD_PREFIX=" "-DBROTLI_CLI=/home/lex_is1/Documents/Google/brotli-master/build_patch/brotli" "-DQUALITY=9" "-DINPUT=/home/lex_is1/Documents/Google/brotli-master/c/common/dictionary.h" "-DOUTPUT=/home/lex_is1/Documents/Google/brotli-master/build_patch/dictionary.h.9" "-P" "/home/lex_is1/Documents/Google/brotli-master/tests/run-roundtrip-test.cmake"
+Directory: /home/lex_is1/Documents/Google/brotli-master/build_patch
+"roundtrip/c/common/dictionary.h/9" start time: Jun 21 01:25 EEST
+Output:
+----------------------------------------------------------
+<end of output>
+Test time =   0.02 sec
+----------------------------------------------------------
+Test Passed.
+"roundtrip/c/common/dictionary.h/9" end time: Jun 21 01:25 EEST
+"roundtrip/c/common/dictionary.h/9" time elapsed: 00:00:00
+----------------------------------------------------------
+
+8/14 Testing: roundtrip/c/common/dictionary.h/11
+8/14 Test: roundtrip/c/common/dictionary.h/11
+Command: "/usr/bin/cmake" "-DBROTLI_WRAPPER=" "-DBROTLI_WRAPPER_LD_PREFIX=" "-DBROTLI_CLI=/home/lex_is1/Documents/Google/brotli-master/build_patch/brotli" "-DQUALITY=11" "-DINPUT=/home/lex_is1/Documents/Google/brotli-master/c/common/dictionary.h" "-DOUTPUT=/home/lex_is1/Documents/Google/brotli-master/build_patch/dictionary.h.11" "-P" "/home/lex_is1/Documents/Google/brotli-master/tests/run-roundtrip-test.cmake"
+Directory: /home/lex_is1/Documents/Google/brotli-master/build_patch
+"roundtrip/c/common/dictionary.h/11" start time: Jun 21 01:25 EEST
+Output:
+----------------------------------------------------------
+<end of output>
+Test time =   0.04 sec
+----------------------------------------------------------
+Test Passed.
+"roundtrip/c/common/dictionary.h/11" end time: Jun 21 01:25 EEST
+"roundtrip/c/common/dictionary.h/11" time elapsed: 00:00:00
+----------------------------------------------------------
+
+9/14 Testing: roundtrip/c/dec/decode.c/1
+9/14 Test: roundtrip/c/dec/decode.c/1
+Command: "/usr/bin/cmake" "-DBROTLI_WRAPPER=" "-DBROTLI_WRAPPER_LD_PREFIX=" "-DBROTLI_CLI=/home/lex_is1/Documents/Google/brotli-master/build_patch/brotli" "-DQUALITY=1" "-DINPUT=/home/lex_is1/Documents/Google/brotli-master/c/dec/decode.c" "-DOUTPUT=/home/lex_is1/Documents/Google/brotli-master/build_patch/decode.c.1" "-P" "/home/lex_is1/Documents/Google/brotli-master/tests/run-roundtrip-test.cmake"
+Directory: /home/lex_is1/Documents/Google/brotli-master/build_patch
+"roundtrip/c/dec/decode.c/1" start time: Jun 21 01:25 EEST
+Output:
+----------------------------------------------------------
+<end of output>
+Test time =   0.03 sec
+----------------------------------------------------------
+Test Passed.
+"roundtrip/c/dec/decode.c/1" end time: Jun 21 01:25 EEST
+"roundtrip/c/dec/decode.c/1" time elapsed: 00:00:00
+----------------------------------------------------------
+
+10/14 Testing: roundtrip/c/dec/decode.c/6
+10/14 Test: roundtrip/c/dec/decode.c/6
+Command: "/usr/bin/cmake" "-DBROTLI_WRAPPER=" "-DBROTLI_WRAPPER_LD_PREFIX=" "-DBROTLI_CLI=/home/lex_is1/Documents/Google/brotli-master/build_patch/brotli" "-DQUALITY=6" "-DINPUT=/home/lex_is1/Documents/Google/brotli-master/c/dec/decode.c" "-DOUTPUT=/home/lex_is1/Documents/Google/brotli-master/build_patch/decode.c.6" "-P" "/home/lex_is1/Documents/Google/brotli-master/tests/run-roundtrip-test.cmake"
+Directory: /home/lex_is1/Documents/Google/brotli-master/build_patch
+"roundtrip/c/dec/decode.c/6" start time: Jun 21 01:25 EEST
+Output:
+----------------------------------------------------------
+<end of output>
+Test time =   0.03 sec
+----------------------------------------------------------
+Test Passed.
+"roundtrip/c/dec/decode.c/6" end time: Jun 21 01:25 EEST
+"roundtrip/c/dec/decode.c/6" time elapsed: 00:00:00
+----------------------------------------------------------
+
+11/14 Testing: roundtrip/c/dec/decode.c/9
+11/14 Test: roundtrip/c/dec/decode.c/9
+Command: "/usr/bin/cmake" "-DBROTLI_WRAPPER=" "-DBROTLI_WRAPPER_LD_PREFIX=" "-DBROTLI_CLI=/home/lex_is1/Documents/Google/brotli-master/build_patch/brotli" "-DQUALITY=9" "-DINPUT=/home/lex_is1/Documents/Google/brotli-master/c/dec/decode.c" "-DOUTPUT=/home/lex_is1/Documents/Google/brotli-master/build_patch/decode.c.9" "-P" "/home/lex_is1/Documents/Google/brotli-master/tests/run-roundtrip-test.cmake"
+Directory: /home/lex_is1/Documents/Google/brotli-master/build_patch
+"roundtrip/c/dec/decode.c/9" start time: Jun 21 01:25 EEST
+Output:
+----------------------------------------------------------
+<end of output>
+Test time =   0.06 sec
+----------------------------------------------------------
+Test Passed.
+"roundtrip/c/dec/decode.c/9" end time: Jun 21 01:25 EEST
+"roundtrip/c/dec/decode.c/9" time elapsed: 00:00:00
+----------------------------------------------------------
+
+12/14 Testing: roundtrip/c/dec/decode.c/11
+12/14 Test: roundtrip/c/dec/decode.c/11
+Command: "/usr/bin/cmake" "-DBROTLI_WRAPPER=" "-DBROTLI_WRAPPER_LD_PREFIX=" "-DBROTLI_CLI=/home/lex_is1/Documents/Google/brotli-master/build_patch/brotli" "-DQUALITY=11" "-DINPUT=/home/lex_is1/Documents/Google/brotli-master/c/dec/decode.c" "-DOUTPUT=/home/lex_is1/Documents/Google/brotli-master/build_patch/decode.c.11" "-P" "/home/lex_is1/Documents/Google/brotli-master/tests/run-roundtrip-test.cmake"
+Directory: /home/lex_is1/Documents/Google/brotli-master/build_patch
+"roundtrip/c/dec/decode.c/11" start time: Jun 21 01:25 EEST
+Output:
+----------------------------------------------------------
+<end of output>
+Test time =   0.49 sec
+----------------------------------------------------------
+Test Passed.
+"roundtrip/c/dec/decode.c/11" end time: Jun 21 01:25 EEST
+"roundtrip/c/dec/decode.c/11" time elapsed: 00:00:00
+----------------------------------------------------------
+
+13/14 Testing: compatibility/tests/testdata/empty.compressed
+13/14 Test: compatibility/tests/testdata/empty.compressed
+Command: "/usr/bin/cmake" "-DBROTLI_WRAPPER=" "-DBROTLI_WRAPPER_LD_PREFIX=" "-DBROTLI_CLI=/home/lex_is1/Documents/Google/brotli-master/build_patch/brotli" "-DINPUT=/home/lex_is1/Documents/Google/brotli-master/tests/testdata/empty.compressed" "-P" "/home/lex_is1/Documents/Google/brotli-master/tests/run-compatibility-test.cmake"
+Directory: /home/lex_is1/Documents/Google/brotli-master/build_patch
+"compatibility/tests/testdata/empty.compressed" start time: Jun 21 01:25 EEST
+Output:
+----------------------------------------------------------
+<end of output>
+Test time =   0.02 sec
+----------------------------------------------------------
+Test Passed.
+"compatibility/tests/testdata/empty.compressed" end time: Jun 21 01:25 EEST
+"compatibility/tests/testdata/empty.compressed" time elapsed: 00:00:00
+----------------------------------------------------------
+
+14/14 Testing: compatibility/tests/testdata/ukkonooa.compressed
+14/14 Test: compatibility/tests/testdata/ukkonooa.compressed
+Command: "/usr/bin/cmake" "-DBROTLI_WRAPPER=" "-DBROTLI_WRAPPER_LD_PREFIX=" "-DBROTLI_CLI=/home/lex_is1/Documents/Google/brotli-master/build_patch/brotli" "-DINPUT=/home/lex_is1/Documents/Google/brotli-master/tests/testdata/ukkonooa.compressed" "-P" "/home/lex_is1/Documents/Google/brotli-master/tests/run-compatibility-test.cmake"
+Directory: /home/lex_is1/Documents/Google/brotli-master/build_patch
+"compatibility/tests/testdata/ukkonooa.compressed" start time: Jun 21 01:25 EEST
+Output:
+----------------------------------------------------------
+<end of output>
+Test time =   0.02 sec
+----------------------------------------------------------
+Test Passed.
+"compatibility/tests/testdata/ukkonooa.compressed" end time: Jun 21 01:25 EEST
+"compatibility/tests/testdata/ukkonooa.compressed" time elapsed: 00:00:00
+----------------------------------------------------------
+
+End testing: Jun 21 01:25 EEST
