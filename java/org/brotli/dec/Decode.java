@@ -1407,9 +1407,6 @@ final class Decode {
               final int index =
                   (s.distRbIdx + DISTANCE_SHORT_CODE_INDEX_OFFSET[distanceCode]) & 0x3;
               s.distance = s.rings[index] + DISTANCE_SHORT_CODE_VALUE_OFFSET[distanceCode];
-              if (s.distance < 0) {
-                return Utils.makeError(s, BROTLI_ERROR_NEGATIVE_DISTANCE);
-              }
             } else {
               final int extraBits = (int) s.distExtraBits[distanceCode];
               int bits;
@@ -1420,6 +1417,9 @@ final class Decode {
                 bits = BitReader.readBits(s, extraBits);
               }
               s.distance = s.distOffset[distanceCode] + (bits << s.distancePostfixBits);
+            }
+            if (s.distance < 0) {
+              return Utils.makeError(s, BROTLI_ERROR_NEGATIVE_DISTANCE);
             }
           }
 
