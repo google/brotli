@@ -434,88 +434,79 @@ static BROTLI_INLINE BROTLI_BOOL SafeReadSymbol(
   return SafeDecodeSymbol(table, br, result);
 }
 
-/* Makes a look-up in first level Huffman table. Peeks 8 bits. */
-static BROTLI_INLINE void PreloadSymbol(int safe,
-                                        const HuffmanCode* table,
-                                        BrotliBitReader* br,
-                                        brotli_reg_t* bits,
-                                        brotli_reg_t* value) {
-  if (safe) {
-    return;
-  }
+/* Reads and decodes the next Huffman code from bit-stream.
+   Uses 8-bit window refill for single-level lookup (<= 8 bits) and only
+   refills 16 bits on second-level subtable lookup (> 8 bits). */
+static BROTLI_INLINE brotli_reg_t ReadSymbolFast(
+    const HuffmanCode* BROTLI_RESTRICT table,
+    BrotliBitReader* BROTLI_RESTRICT br) {
+  brotli_reg_t bits;
   BROTLI_HC_MARK_TABLE_FOR_FAST_LOAD(table);
-  BROTLI_HC_ADJUST_TABLE_INDEX(table, BrotliGetBits(br, HUFFMAN_TABLE_BITS));
-  *bits = BROTLI_HC_FAST_LOAD_BITS(table);
-  *value = BROTLI_HC_FAST_LOAD_VALUE(table);
-}
-
-/* Decodes the next Huffman code using data prepared by PreloadSymbol.
-   Reads 0 - 15 bits. Also peeks 8 following bits. */
-static BROTLI_INLINE brotli_reg_t ReadPreloadedSymbol(const HuffmanCode* table,
-                                                  BrotliBitReader* br,
-                                                  brotli_reg_t* bits,
-                                                  brotli_reg_t* value) {
-  brotli_reg_t result = *value;
-  if (BROTLI_PREDICT_FALSE(*bits > HUFFMAN_TABLE_BITS)) {
+  BrotliFillBitWindow(br, HUFFMAN_TABLE_BITS);
+  BROTLI_HC_ADJUST_TABLE_INDEX(
+      table, BrotliGetBitsUnmasked(br) & HUFFMAN_TABLE_MASK);
+  bits = BROTLI_HC_FAST_LOAD_BITS(table);
+  if (BROTLI_PREDICT_FALSE(bits > HUFFMAN_TABLE_BITS)) {
     brotli_reg_t val = BrotliGet16BitsUnmasked(br);
-    const HuffmanCode* ext = table + (val & HUFFMAN_TABLE_MASK) + *value;
-    brotli_reg_t mask = BitMask((*bits - HUFFMAN_TABLE_BITS));
-    BROTLI_HC_MARK_TABLE_FOR_FAST_LOAD(ext);
+    brotli_reg_t mask = BitMask(bits - HUFFMAN_TABLE_BITS);
     BrotliDropBits(br, HUFFMAN_TABLE_BITS);
-    BROTLI_HC_ADJUST_TABLE_INDEX(ext, (val >> HUFFMAN_TABLE_BITS) & mask);
-    BrotliDropBits(br, BROTLI_HC_FAST_LOAD_BITS(ext));
-    result = BROTLI_HC_FAST_LOAD_VALUE(ext);
-  } else {
-    BrotliDropBits(br, *bits);
+    BROTLI_HC_ADJUST_TABLE_INDEX(
+        table,
+        BROTLI_HC_FAST_LOAD_VALUE(table) +
+            ((val >> HUFFMAN_TABLE_BITS) & mask));
+    BrotliDropBits(br, BROTLI_HC_FAST_LOAD_BITS(table));
+    return BROTLI_HC_FAST_LOAD_VALUE(table);
   }
-  PreloadSymbol(0, table, br, bits, value);
-  return result;
+  BrotliDropBits(br, bits);
+  return BROTLI_HC_FAST_LOAD_VALUE(table);
 }
 
 /* Reads up to limit symbols from br and copies them into ringbuffer,
    starting from pos. Caller must ensure that there is enough space
    for the write. Returns the amount of symbols actually copied. */
-static BROTLI_INLINE int BrotliCopyPreloadedSymbolsToU8(const HuffmanCode* table,
-                                                        BrotliBitReader* br,
-                                                        brotli_reg_t* bits,
-                                                        brotli_reg_t* value,
-                                                        uint8_t* ringbuffer,
-                                                        int pos,
-                                                        const int limit) {
-  const int kMaximalOverread = 4;
+static BROTLI_INLINE int BrotliCopySymbolsToU8(
+    const HuffmanCode* BROTLI_RESTRICT table,
+    BrotliBitReader* BROTLI_RESTRICT br,
+    uint8_t* BROTLI_RESTRICT ringbuffer,
+    int pos,
+    const int limit) {
   int pos_limit = limit;
-  int copies = 0;
-  /* Calculate range where CheckInputAmount is always true.
-     Start with the number of bytes we can read. */
-  int64_t new_lim = br->guard_in - br->next_in;
-  /* Convert to bits, since symbols use variable number of bits. */
-  new_lim *= 8;
-  /* At most 15 bits per symbol, so this is safe. */
-  new_lim /= 15;
-  if ((new_lim - kMaximalOverread) <= limit) {
-    // Safe cast, since new_lim is already < num_steps
-    pos_limit = (int)(new_lim - kMaximalOverread);
-  }
-  if (pos_limit < 0) {
-    pos_limit = 0;
+  int copies;
+  BrotliBitReader local_br = *br;
+  int64_t avail_bytes = local_br.guard_in - local_br.next_in;
+  if (BROTLI_PREDICT_FALSE(avail_bytes < (int64_t)limit * 2 + 8)) {
+    const int kMaximalOverread = 4;
+    /* Calculate range where CheckInputAmount is always true.
+       Start with the number of bytes we can read. */
+    int64_t new_lim = (avail_bytes * 8) / 15;
+    if ((new_lim - kMaximalOverread) <= limit) {
+      /* Safe cast, since new_lim - kMaximalOverread <= limit. */
+      pos_limit = (int)(new_lim - kMaximalOverread);
+    }
+    if (pos_limit < 0) {
+      pos_limit = 0;
+    }
   }
   copies = pos_limit;
   pos_limit += pos;
   /* Fast path, caller made sure it is safe to write,
-     we verified that is is safe to read. */
+     we verified that it is safe to read. */
   for (; pos < pos_limit; pos++) {
-    BROTLI_DCHECK(BrotliCheckInputAmount(br));
-    ringbuffer[pos] = (uint8_t)ReadPreloadedSymbol(table, br, bits, value);
+    BROTLI_DCHECK(BrotliCheckInputAmount(&local_br));
+    ringbuffer[pos] = (uint8_t)ReadSymbolFast(table, &local_br);
     BROTLI_LOG_ARRAY_INDEX(ringbuffer, pos);
   }
   /* Do the remainder, caller made sure it is safe to write,
-     we need to bverify that it is safe to read. */
-  while (BrotliCheckInputAmount(br) && copies < limit) {
-    ringbuffer[pos] = (uint8_t)ReadPreloadedSymbol(table, br, bits, value);
-    BROTLI_LOG_ARRAY_INDEX(ringbuffer, pos);
-    pos++;
-    copies++;
+     we need to verify that it is safe to read. */
+  if (BROTLI_PREDICT_FALSE(copies < limit)) {
+    while (BrotliCheckInputAmount(&local_br) && copies < limit) {
+      ringbuffer[pos] = (uint8_t)ReadSymbolFast(table, &local_br);
+      BROTLI_LOG_ARRAY_INDEX(ringbuffer, pos);
+      pos++;
+      copies++;
+    }
   }
+  *br = local_br;
   return copies;
 }
 
@@ -2059,19 +2050,16 @@ CommandInner:
   }
   /* Read the literals in the command. */
   if (s->trivial_literal_context) {
-    brotli_reg_t bits;
-    brotli_reg_t value;
-    PreloadSymbol(safe, s->literal_htree, br, &bits, &value);
     if (!safe) {
-      // This is a hottest part of the decode, so we copy the loop below
-      // and optimize it by calculating the number of steps where all checks
-      // evaluate to false (ringbuffer size/block size/input size).
-      // Since all checks are loop invariant, we just need to find
-      // minimal number of iterations for a simple loop, and run
-      // the full version for the remainder.
-      int num_steps = i - 1;
+      /* This is a hottest part of the decode, so we copy the loop below
+         and optimize it by calculating the number of steps where all checks
+         evaluate to false (ringbuffer size/block size/input size).
+         Since all checks are loop invariant, we just need to find
+         minimal number of iterations for a simple loop, and run
+         the full version for the remainder. */
+      int num_steps = i;
       if (num_steps > 0 && ((brotli_reg_t)(num_steps) > s->block_length[0])) {
-        // Safe cast, since block_length < steps
+        /* Safe cast, since block_length < steps. */
         num_steps = (int)s->block_length[0];
       }
       if (s->ringbuffer_size >= pos &&
@@ -2081,13 +2069,12 @@ CommandInner:
       if (num_steps < 0) {
         num_steps = 0;
       }
-      num_steps = BrotliCopyPreloadedSymbolsToU8(s->literal_htree, br, &bits,
-                                                 &value, s->ringbuffer, pos,
-                                                 num_steps);
+      num_steps = BrotliCopySymbolsToU8(
+          s->literal_htree, br, s->ringbuffer, pos, num_steps);
       pos += num_steps;
       s->block_length[0] -= (brotli_reg_t)num_steps;
       i -= num_steps;
-      do {
+      while (BROTLI_PREDICT_FALSE(i != 0)) {
         if (!CheckInputAmount(safe, br)) {
           s->state = BROTLI_STATE_COMMAND_INNER;
           result = BROTLI_DECODER_NEEDS_MORE_INPUT;
@@ -2096,17 +2083,16 @@ CommandInner:
         if (BROTLI_PREDICT_FALSE(s->block_length[0] == 0)) {
           goto NextLiteralBlock;
         }
-        BrotliCopyPreloadedSymbolsToU8(s->literal_htree, br, &bits, &value,
-                                       s->ringbuffer, pos, 1);
+        s->ringbuffer[pos] = (uint8_t)ReadSymbolFast(s->literal_htree, br);
         --s->block_length[0];
         BROTLI_LOG_ARRAY_INDEX(s->ringbuffer, pos);
         ++pos;
+        --i;
         if (BROTLI_PREDICT_FALSE(pos == s->ringbuffer_size)) {
           s->state = BROTLI_STATE_COMMAND_INNER_WRITE;
-          --i;
           goto saveStateAndReturn;
         }
-      } while (--i != 0);
+      }
     } else { /* safe */
       do {
         brotli_reg_t literal;
