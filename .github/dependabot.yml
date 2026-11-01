@@ -14,3 +14,5 @@ updates:
       everything:
         patterns:
           - "*" # Everything
+    cooldown:
+      default-days: 7
