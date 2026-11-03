@@ -225,7 +225,7 @@ jobs:
     steps:
 
     - name: Harden Runner
-      uses: step-security/harden-runner@dc2769abcc0fcfbadfc1df54081c1608579ef6b2 # v2.22.2
+      uses: step-security/harden-runner@46b06cea07f9e64621fdf066ba77ac6915163d43 # v2.22.3
       with:
         egress-policy: audit
 
@@ -350,7 +350,7 @@ jobs:
         # cd integration
         # mvn -B verify
 
-    - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+    - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
       if: ${{ matrix.build_system == 'python' }}
       with:
         python-version: ${{ matrix.python_version }}
@@ -373,13 +373,13 @@ jobs:
         os: [ubuntu-latest, ubuntu-24.04-arm, macos-latest, windows-latest, windows-11-arm]
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@dc2769abcc0fcfbadfc1df54081c1608579ef6b2
+        uses: step-security/harden-runner@46b06cea07f9e64621fdf066ba77ac6915163d43
         with:
           egress-policy: audit
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: false
-      - uses: pypa/cibuildwheel@f11181315571b24e4a3c67f1a828532793f2df55
+      - uses: pypa/cibuildwheel@f9b966cfadf4109556cadc5bb39ddb72d0ce664e
         env:
           CIBW_BUILD: cp315-*
           CIBW_ARCHS_MACOS: x86_64 arm64
