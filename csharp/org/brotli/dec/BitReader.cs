@@ -254,7 +254,8 @@ namespace Org.Brotli.Dec
 				while (length > 0)
 				{
 					int len = br.input.Read(data, offset, length);
-					if (len == -1)
+					// EOF is -1 in Java, but 0 in C#.
+					if (len <= 0)
 					{
 						throw new Org.Brotli.Dec.BrotliRuntimeException("Unexpected end of input");
 					}

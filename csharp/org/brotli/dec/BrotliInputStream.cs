@@ -128,7 +128,8 @@ namespace Org.Brotli.Dec
 			{
 				remainingBufferBytes = Read(buffer, 0, buffer.Length);
 				bufferOffset = 0;
-				if (remainingBufferBytes == -1)
+				// Read returns 0 at the end of stream; ReadByte returns -1.
+				if (remainingBufferBytes <= 0)
 				{
 					return -1;
 				}
@@ -176,10 +177,8 @@ namespace Org.Brotli.Dec
 				state.outputLength = destLen;
 				state.outputUsed = 0;
 				Org.Brotli.Dec.Decode.Decompress(state);
-				if (state.outputUsed == 0)
-				{
-					return -1;
-				}
+				// EOF is -1 in Java, but 0 in C#. Bytes already copied from the
+				// internal buffer must be reported even if nothing more is decoded.
 				return state.outputUsed + copyLen;
 			}
 			catch (Org.Brotli.Dec.BrotliRuntimeException ex)
