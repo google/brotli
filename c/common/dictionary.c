@@ -55,7 +55,7 @@ void BrotliSetDictionaryData(const uint8_t* data) {
     kBrotliDictionary.data = data;
   }
 #else
-  BROTLI_UNUSED(data);  // Appease -Werror=unused-parameter
+  BROTLI_UNUSED(data);  /* Appease -Werror=unused-parameter */
 #endif
 }
 
