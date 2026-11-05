@@ -263,6 +263,14 @@ jobs:
         [ -n "${SKIP_TESTS}" ] || ctest ${CMAKE_TEST_OPTIONS[*]}
         cd ..
 
+    - name: Check C89 compatibility of the decoder
+      if: ${{ matrix.name == 'cmake:gcc' || matrix.name == 'cmake:qemu-arm-neon-gcc' }}
+      run: |
+        for src in c/common/*.c c/dec/*.c; do
+          ${CC} ${C_FLAGS} -std=c89 -pedantic-errors -Werror \
+            -Wdeclaration-after-statement -Ic/include -c "${src}" -o /dev/null
+        done
+
     - name: Test bundled CMake installation
       if: ${{ matrix.name == 'cmake:gcc' }}
       run: |
