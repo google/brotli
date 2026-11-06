@@ -274,6 +274,8 @@ static BROTLI_BOOL ParseDictionary(const uint8_t* encoded, size_t size,
   uint32_t i;
   size_t pos = 0;
   uint32_t chunk_size = 0;
+  uint8_t num_word_lists = 0;
+  uint8_t num_transform_lists = 0;
   size_t total_prefix_suffix_count = 0;
   size_t transform_list_start[SHARED_BROTLI_NUM_DICTIONARY_CONTEXTS];
   uint16_t temporary_prefix_suffix_table[256];
@@ -293,40 +295,42 @@ static BROTLI_BOOL ParseDictionary(const uint8_t* encoded, size_t size,
   }
 
   /* NUM_WORD_LISTS */
-  if (!ReadUint8(encoded, size, &pos, &dict->num_word_lists)) {
+  if (!ReadUint8(encoded, size, &pos, &num_word_lists)) {
     return BROTLI_FALSE;
   }
-  if (dict->num_word_lists > SHARED_BROTLI_NUM_DICTIONARY_CONTEXTS) {
+  if (num_word_lists > SHARED_BROTLI_NUM_DICTIONARY_CONTEXTS) {
     return BROTLI_FALSE;
   }
 
-  if (dict->num_word_lists != 0) {
+  if (num_word_lists != 0) {
     dict->words_instances = (BrotliDictionary*)dict->alloc_func(
         dict->memory_manager_opaque,
-        dict->num_word_lists * sizeof(*dict->words_instances));
+        num_word_lists * sizeof(*dict->words_instances));
     if (!dict->words_instances) return BROTLI_FALSE;  /* OOM */
+    dict->num_word_lists = num_word_lists;
   }
-  for (i = 0; i < dict->num_word_lists; i++) {
+  for (i = 0; i < num_word_lists; i++) {
     if (!ParseWordList(size, encoded, &pos, &dict->words_instances[i])) {
       return BROTLI_FALSE;
     }
   }
 
   /* NUM_TRANSFORM_LISTS */
-  if (!ReadUint8(encoded, size, &pos, &dict->num_transform_lists)) {
+  if (!ReadUint8(encoded, size, &pos, &num_transform_lists)) {
     return BROTLI_FALSE;
   }
-  if (dict->num_transform_lists > SHARED_BROTLI_NUM_DICTIONARY_CONTEXTS) {
+  if (num_transform_lists > SHARED_BROTLI_NUM_DICTIONARY_CONTEXTS) {
     return BROTLI_FALSE;
   }
 
-  if (dict->num_transform_lists != 0) {
+  if (num_transform_lists != 0) {
     dict->transforms_instances = (BrotliTransforms*)dict->alloc_func(
         dict->memory_manager_opaque,
-        dict->num_transform_lists * sizeof(*dict->transforms_instances));
+        num_transform_lists * sizeof(*dict->transforms_instances));
     if (!dict->transforms_instances) return BROTLI_FALSE;  /* OOM */
+    dict->num_transform_lists = num_transform_lists;
   }
-  for (i = 0; i < dict->num_transform_lists; i++) {
+  for (i = 0; i < num_transform_lists; i++) {
     BROTLI_BOOL ok = BROTLI_FALSE;
     size_t prefix_suffix_count = 0;
     transform_list_start[i] = pos;
@@ -345,7 +349,7 @@ static BROTLI_BOOL ParseDictionary(const uint8_t* encoded, size_t size,
     if (!dict->prefix_suffix_maps) return BROTLI_FALSE;  /* OOM */
   }
   total_prefix_suffix_count = 0;
-  for (i = 0; i < dict->num_transform_lists; i++) {
+  for (i = 0; i < num_transform_lists; i++) {
     size_t prefix_suffix_count = 0;
     size_t position = transform_list_start[i];
     uint16_t* prefix_suffix_map =
@@ -358,47 +362,53 @@ static BROTLI_BOOL ParseDictionary(const uint8_t* encoded, size_t size,
     total_prefix_suffix_count += prefix_suffix_count;
   }
 
-  if (dict->num_word_lists != 0 || dict->num_transform_lists != 0) {
-    if (!ReadUint8(encoded, size, &pos, &dict->num_dictionaries)) {
+  if (num_word_lists != 0 || num_transform_lists != 0) {
+    uint8_t num_dictionaries;
+    BROTLI_BOOL context_based;
+    if (!ReadUint8(encoded, size, &pos, &num_dictionaries)) {
       return BROTLI_FALSE;
     }
-    if (dict->num_dictionaries == 0 ||
-        dict->num_dictionaries > SHARED_BROTLI_NUM_DICTIONARY_CONTEXTS) {
+    if (num_dictionaries == 0 ||
+        num_dictionaries > SHARED_BROTLI_NUM_DICTIONARY_CONTEXTS) {
       return BROTLI_FALSE;
     }
-    for (i = 0; i < dict->num_dictionaries; i++) {
+    for (i = 0; i < num_dictionaries; i++) {
       uint8_t words_index;
       uint8_t transforms_index;
       if (!ReadUint8(encoded, size, &pos, &words_index)) {
         return BROTLI_FALSE;
       }
-      if (words_index > dict->num_word_lists) return BROTLI_FALSE;
+      if (words_index > num_word_lists) return BROTLI_FALSE;
       if (!ReadUint8(encoded, size, &pos, &transforms_index)) {
         return BROTLI_FALSE;
       }
-      if (transforms_index > dict->num_transform_lists) return BROTLI_FALSE;
-      dict->words[i] = words_index == dict->num_word_lists ?
+      if (transforms_index > num_transform_lists) return BROTLI_FALSE;
+      dict->words[i] = words_index == num_word_lists ?
           BrotliGetDictionary() : &dict->words_instances[words_index];
-      dict->transforms[i] = transforms_index == dict->num_transform_lists ?
+      dict->transforms[i] = transforms_index == num_transform_lists ?
           BrotliGetTransforms(): &dict->transforms_instances[transforms_index];
     }
     /* CONTEXT_ENABLED */
-    if (!ReadBool(encoded, size, &pos, &dict->context_based)) {
+    if (!ReadBool(encoded, size, &pos, &context_based)) {
       return BROTLI_FALSE;
     }
 
     /* CONTEXT_MAP */
-    if (dict->context_based) {
+    if (context_based) {
       for (i = 0; i < SHARED_BROTLI_NUM_DICTIONARY_CONTEXTS; i++) {
-        if (!ReadUint8(encoded, size, &pos, &dict->context_map[i])) {
+        uint8_t context_map_entry;
+        if (!ReadUint8(encoded, size, &pos, &context_map_entry)) {
           return BROTLI_FALSE;
         }
-        if (dict->context_map[i] >= dict->num_dictionaries) {
+        if (context_map_entry >= num_dictionaries) {
           return BROTLI_FALSE;
         }
+        dict->context_map[i] = context_map_entry;
       }
     }
-  } else {
+    dict->num_dictionaries = num_dictionaries;
+    dict->context_based = context_based;
+  } else if (dict->num_word_lists == 0 && dict->num_transform_lists == 0) {
     dict->context_based = BROTLI_FALSE;
     dict->num_dictionaries = 1;
     dict->words[0] = BrotliGetDictionary();
@@ -421,6 +431,7 @@ static BROTLI_BOOL DecodeSharedDictionary(
   BROTLI_BOOL is_custom_static_dict = BROTLI_FALSE;
   BROTLI_BOOL has_custom_static_dict =
       dict->num_word_lists > 0 || dict->num_transform_lists > 0;
+  BrotliSharedDictionary backup;
 
   /* Check magic header bytes. */
   if (size < 2) return BROTLI_FALSE;
@@ -437,7 +448,21 @@ static BROTLI_BOOL DecodeSharedDictionary(
   /* Cannot combine different static dictionaries, only prefix dictionaries */
   if (has_custom_static_dict && is_custom_static_dict) return BROTLI_FALSE;
 
-  return ParseDictionary(encoded, size, dict);
+  backup = *dict;
+  if (!ParseDictionary(encoded, size, dict)) {
+    if (dict->words_instances != backup.words_instances) {
+      dict->free_func(dict->memory_manager_opaque, dict->words_instances);
+    }
+    if (dict->transforms_instances != backup.transforms_instances) {
+      dict->free_func(dict->memory_manager_opaque, dict->transforms_instances);
+    }
+    if (dict->prefix_suffix_maps != backup.prefix_suffix_maps) {
+      dict->free_func(dict->memory_manager_opaque, dict->prefix_suffix_maps);
+    }
+    *dict = backup;
+    return BROTLI_FALSE;
+  }
+  return BROTLI_TRUE;
 }
 
 #endif  /* BROTLI_EXPERIMENTAL */
