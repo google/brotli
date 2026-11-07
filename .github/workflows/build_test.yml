@@ -275,6 +275,16 @@ jobs:
           done
         done
 
+    - name: Test cbrotli against installed static libraries
+      if: ${{ matrix.name == 'cmake:static' }}
+      run: |
+        # Reconfigure so that the generated .pc files point to the prefix.
+        cmake -B out -DCMAKE_INSTALL_PREFIX="${RUNNER_TEMP}/brotli-static"
+        cmake --install out
+        export PKG_CONFIG_PATH="${RUNNER_TEMP}/brotli-static/lib/pkgconfig"
+        cd go/cbrotli
+        go test ./...
+
     - name: Quick Fuzz
       if: ${{ matrix.build_system == 'fuzz' }}
       run: |
