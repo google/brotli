@@ -176,19 +176,22 @@ const BrotliTransforms* BrotliGetTransforms(void) {
   return &kBrotliTransforms;
 }
 
-static int ToUpperCase(uint8_t* p) {
+static int ToUpperCase(uint8_t* p, int len) {
+  if (len <= 0) return 0;
   if (p[0] < 0xC0) {
     if (p[0] >= 'a' && p[0] <= 'z') {
       p[0] ^= 32;
     }
     return 1;
   }
-  /* An overly simplified uppercasing model for UTF-8. */
+  /* An overly simplified uppercasing model for UTF-8 with bounds checks. */
   if (p[0] < 0xE0) {
+    if (len < 2) return 1;
     p[1] ^= 32;
     return 2;
   }
-  /* An arbitrary transform for three byte characters. */
+  /* An arbitrary transform for three byte characters with bounds checks. */
+  if (len < 3) return len;
   p[2] ^= 5;
   return 3;
 }
@@ -256,13 +259,16 @@ int BrotliTransformDictionaryWord(uint8_t* dst, const uint8_t* word, int len,
       word += skip;
       len -= skip;
     }
+    if (len < 0) {
+      len = 0;
+    }
     while (i < len) { dst[idx++] = word[i++]; }
     if (t == BROTLI_TRANSFORM_UPPERCASE_FIRST) {
-      ToUpperCase(&dst[idx - len]);
+      ToUpperCase(&dst[idx - len], len);
     } else if (t == BROTLI_TRANSFORM_UPPERCASE_ALL) {
       uint8_t* uppercase = &dst[idx - len];
       while (len > 0) {
-        int step = ToUpperCase(uppercase);
+        int step = ToUpperCase(uppercase, len);
         uppercase += step;
         len -= step;
       }
