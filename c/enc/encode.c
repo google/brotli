@@ -628,7 +628,6 @@ static void ChooseDistanceParams(BrotliEncoderParams* params) {
   uint32_t num_direct_distance_codes = 0;
 
   if (params->quality >= MIN_QUALITY_FOR_NONZERO_DISTANCE_PARAMS) {
-    uint32_t ndirect_msb;
     if (params->mode == BROTLI_MODE_FONT) {
       distance_postfix_bits = 1;
       num_direct_distance_codes = 12;
@@ -636,10 +635,10 @@ static void ChooseDistanceParams(BrotliEncoderParams* params) {
       distance_postfix_bits = params->dist.distance_postfix_bits;
       num_direct_distance_codes = params->dist.num_direct_distance_codes;
     }
-    ndirect_msb = (num_direct_distance_codes >> distance_postfix_bits) & 0x0F;
     if (distance_postfix_bits > BROTLI_MAX_NPOSTFIX ||
         num_direct_distance_codes > BROTLI_MAX_NDIRECT ||
-        (ndirect_msb << distance_postfix_bits) != num_direct_distance_codes) {
+        (((num_direct_distance_codes >> distance_postfix_bits) & 0x0F)
+         << distance_postfix_bits) != num_direct_distance_codes) {
       distance_postfix_bits = 0;
       num_direct_distance_codes = 0;
     }
