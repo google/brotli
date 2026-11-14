@@ -24,6 +24,9 @@ typedef struct EncoderHandle {
   uint8_t* input_start;
   size_t input_offset;
   size_t input_last;
+  /* Allocation size of input_start; nativePush rejects input_length above it
+   * as defense in depth (mirrors the DecoderJNI fix). */
+  size_t input_capacity;
 } EncoderHandle;
 
 /* Obtain handle from opaque pointer. */
@@ -64,6 +67,7 @@ JNIEXPORT jobject JNICALL Java_org_brotli_wrapper_enc_EncoderJNI_nativeCreate(
     handle->dictionary_count = 0;
     handle->input_offset = 0;
     handle->input_last = 0;
+    handle->input_capacity = input_size;
     handle->input_start = nullptr;
 
     if (input_size == 0) {
@@ -141,6 +145,11 @@ JNIEXPORT void JNICALL Java_org_brotli_wrapper_enc_EncoderJNI_nativePush(
   if (input_length != 0) {
     /* Still have unconsumed data. Workflow is broken. */
     if (handle->input_offset < handle->input_last) {
+      return;
+    }
+    /* Defense in depth: never trust input_length beyond the allocation. */
+    if (input_length < 0 ||
+        (size_t)input_length > handle->input_capacity) {
       return;
     }
     handle->input_offset = 0;
