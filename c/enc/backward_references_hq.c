@@ -816,8 +816,8 @@ void BrotliCreateHqZopfliBackwardReferences(MemoryManager* m, size_t num_bytes,
     Command* commands, size_t* num_commands, size_t* num_literals) {
   const size_t stream_offset = params->stream_offset;
   const size_t max_backward_limit = BROTLI_MAX_BACKWARD_LIMIT(params->lgwin);
-  uint32_t* num_matches = BROTLI_ALLOC(m, uint32_t, num_bytes);
-  size_t matches_size = 4 * num_bytes;
+  uint32_t* num_matches;
+  size_t matches_size;
   const size_t store_end = num_bytes >= StoreLookaheadH10() ?
       position + num_bytes - StoreLookaheadH10() + 1 : position;
   size_t cur_match_pos = 0;
@@ -826,13 +826,21 @@ void BrotliCreateHqZopfliBackwardReferences(MemoryManager* m, size_t num_bytes,
   size_t orig_last_insert_len;
   int orig_dist_cache[4];
   size_t orig_num_commands;
-  ZopfliCostModel* model = BROTLI_ALLOC(m, ZopfliCostModel, 1);
+  ZopfliCostModel* model;
   ZopfliNode* nodes;
-  BackwardMatch* matches = BROTLI_ALLOC(m, BackwardMatch, matches_size);
+  BackwardMatch* matches;
   const CompoundDictionary* addon = &params->dictionary.compound;
   size_t gap = addon->total_size;
   size_t shadow_matches =
       (addon->num_chunks != 0) ? (MAX_NUM_MATCHES_H10 + 128) : 0;
+  /* 4 * num_bytes can wrap on 32-bit for large inputs; reject before alloc. */
+  if (num_bytes > BROTLI_SIZE_MAX / 4) {
+    return;
+  }
+  matches_size = 4 * num_bytes;
+  num_matches = BROTLI_ALLOC(m, uint32_t, num_bytes);
+  model = BROTLI_ALLOC(m, ZopfliCostModel, 1);
+  matches = BROTLI_ALLOC(m, BackwardMatch, matches_size);
   if (BROTLI_IS_OOM(m) || BROTLI_IS_NULL(model) ||
       BROTLI_IS_NULL(num_matches) || BROTLI_IS_NULL(matches)) {
     return;
