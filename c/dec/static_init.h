@@ -27,4 +27,4 @@ BROTLI_INTERNAL BROTLI_BOOL BrotliDecoderEnsureStaticInit(void);
 }  /* extern "C" */
 #endif
 
-#endif  // THIRD_PARTY_BROTLI_DEC_STATIC_INIT_H_
+#endif  /* THIRD_PARTY_BROTLI_DEC_STATIC_INIT_H_ */

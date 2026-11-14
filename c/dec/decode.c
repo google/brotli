@@ -440,13 +440,13 @@ static BROTLI_INLINE void PreloadSymbol(int safe,
                                         BrotliBitReader* br,
                                         brotli_reg_t* bits,
                                         brotli_reg_t* value) {
-  if (safe) {
-    return;
+  /* Block scope: BROTLI_HC_MARK_TABLE_FOR_FAST_LOAD may declare a variable. */
+  if (!safe) {
+    BROTLI_HC_MARK_TABLE_FOR_FAST_LOAD(table);
+    BROTLI_HC_ADJUST_TABLE_INDEX(table, BrotliGetBits(br, HUFFMAN_TABLE_BITS));
+    *bits = BROTLI_HC_FAST_LOAD_BITS(table);
+    *value = BROTLI_HC_FAST_LOAD_VALUE(table);
   }
-  BROTLI_HC_MARK_TABLE_FOR_FAST_LOAD(table);
-  BROTLI_HC_ADJUST_TABLE_INDEX(table, BrotliGetBits(br, HUFFMAN_TABLE_BITS));
-  *bits = BROTLI_HC_FAST_LOAD_BITS(table);
-  *value = BROTLI_HC_FAST_LOAD_VALUE(table);
 }
 
 /* Decodes the next Huffman code using data prepared by PreloadSymbol.
@@ -493,7 +493,7 @@ static BROTLI_INLINE int BrotliCopyPreloadedSymbolsToU8(const HuffmanCode* table
   /* At most 15 bits per symbol, so this is safe. */
   new_lim /= 15;
   if ((new_lim - kMaximalOverread) <= limit) {
-    // Safe cast, since new_lim is already < num_steps
+    /* Safe cast, since new_lim is already < num_steps */
     pos_limit = (int)(new_lim - kMaximalOverread);
   }
   if (pos_limit < 0) {
@@ -2063,15 +2063,15 @@ CommandInner:
     brotli_reg_t value;
     PreloadSymbol(safe, s->literal_htree, br, &bits, &value);
     if (!safe) {
-      // This is a hottest part of the decode, so we copy the loop below
-      // and optimize it by calculating the number of steps where all checks
-      // evaluate to false (ringbuffer size/block size/input size).
-      // Since all checks are loop invariant, we just need to find
-      // minimal number of iterations for a simple loop, and run
-      // the full version for the remainder.
+      /* This is a hottest part of the decode, so we copy the loop below
+         and optimize it by calculating the number of steps where all checks
+         evaluate to false (ringbuffer size/block size/input size).
+         Since all checks are loop invariant, we just need to find
+         minimal number of iterations for a simple loop, and run
+         the full version for the remainder. */
       int num_steps = i - 1;
       if (num_steps > 0 && ((brotli_reg_t)(num_steps) > s->block_length[0])) {
-        // Safe cast, since block_length < steps
+        /* Safe cast, since block_length < steps */
         num_steps = (int)s->block_length[0];
       }
       if (s->ringbuffer_size >= pos &&

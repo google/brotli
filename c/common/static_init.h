@@ -53,4 +53,4 @@ extern "C" {
 }  /* extern "C" */
 #endif
 
-#endif  // THIRD_PARTY_BROTLI_COMMON_STATIC_INIT_H_
+#endif  /* THIRD_PARTY_BROTLI_COMMON_STATIC_INIT_H_ */
