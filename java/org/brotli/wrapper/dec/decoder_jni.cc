@@ -53,7 +53,7 @@ JNIEXPORT jobject JNICALL Java_org_brotli_wrapper_dec_DecoderJNI_nativeCreate(
   bool ok = true;
   DecoderHandle* handle = nullptr;
   jlong context[3];
-  env->functions->GetLongArrayRegion(env, ctx, 0, 3, context);
+  env->GetLongArrayRegion(ctx, 0, 3, context);
   size_t input_size = context[1];
   context[0] = 0;
   context[2] = 0;
@@ -91,14 +91,13 @@ JNIEXPORT jobject JNICALL Java_org_brotli_wrapper_dec_DecoderJNI_nativeCreate(
     delete handle;
   }
 
-  env->functions->SetLongArrayRegion(env, ctx, 0, 3, context);
+  env->SetLongArrayRegion(ctx, 0, 3, context);
 
   if (!ok) {
     return nullptr;
   }
 
-  return env->functions->NewDirectByteBuffer(env, handle->input_start,
-                                             input_size);
+  return env->NewDirectByteBuffer(handle->input_start, input_size);
 }
 
 /**
@@ -118,11 +117,11 @@ JNIEXPORT jobject JNICALL Java_org_brotli_wrapper_dec_DecoderJNI_nativeCreate(
 JNIEXPORT void JNICALL Java_org_brotli_wrapper_dec_DecoderJNI_nativePush(
     JNIEnv* env, jobject /*jobj*/, jlongArray ctx, jint input_length) {
   jlong context[3];
-  env->functions->GetLongArrayRegion(env, ctx, 0, 3, context);
+  env->GetLongArrayRegion(ctx, 0, 3, context);
   DecoderHandle* handle = getHandle(reinterpret_cast<void*>(context[0]));
   context[1] = 0;  /* ERROR */
   context[2] = 0;
-  env->functions->SetLongArrayRegion(env, ctx, 0, 3, context);
+  env->SetLongArrayRegion(ctx, 0, 3, context);
 
   if (input_length != 0) {
     /* Still have unconsumed data. Workflow is broken. */
@@ -159,7 +158,7 @@ JNIEXPORT void JNICALL Java_org_brotli_wrapper_dec_DecoderJNI_nativePush(
       break;
   }
   context[2] = BrotliDecoderHasMoreOutput(handle->state) ? 1 : 0;
-  env->functions->SetLongArrayRegion(env, ctx, 0, 3, context);
+  env->SetLongArrayRegion(ctx, 0, 3, context);
 }
 
 /**
@@ -172,7 +171,7 @@ JNIEXPORT void JNICALL Java_org_brotli_wrapper_dec_DecoderJNI_nativePush(
 JNIEXPORT jobject JNICALL Java_org_brotli_wrapper_dec_DecoderJNI_nativePull(
     JNIEnv* env, jobject /*jobj*/, jlongArray ctx) {
   jlong context[3];
-  env->functions->GetLongArrayRegion(env, ctx, 0, 3, context);
+  env->GetLongArrayRegion(ctx, 0, 3, context);
   DecoderHandle* handle = getHandle(reinterpret_cast<void*>(context[0]));
   size_t data_length = 0;
   const uint8_t* data = BrotliDecoderTakeOutput(handle->state, &data_length);
@@ -187,9 +186,8 @@ JNIEXPORT jobject JNICALL Java_org_brotli_wrapper_dec_DecoderJNI_nativePull(
     context[1] = (handle->input_offset == handle->input_length) ? 2 : 4;
   }
   context[2] = hasMoreOutput ? 1 : 0;
-  env->functions->SetLongArrayRegion(env, ctx, 0, 3, context);
-  return env->functions->NewDirectByteBuffer(env, const_cast<uint8_t*>(data),
-                                             data_length);
+  env->SetLongArrayRegion(ctx, 0, 3, context);
+  return env->NewDirectByteBuffer(const_cast<uint8_t*>(data), data_length);
 }
 
 /**
@@ -200,11 +198,11 @@ JNIEXPORT jobject JNICALL Java_org_brotli_wrapper_dec_DecoderJNI_nativePull(
 JNIEXPORT void JNICALL Java_org_brotli_wrapper_dec_DecoderJNI_nativeDestroy(
     JNIEnv* env, jobject /*jobj*/, jlongArray ctx) {
   jlong context[3];
-  env->functions->GetLongArrayRegion(env, ctx, 0, 3, context);
+  env->GetLongArrayRegion(ctx, 0, 3, context);
   DecoderHandle* handle = getHandle(reinterpret_cast<void*>(context[0]));
   BrotliDecoderDestroyInstance(handle->state);
   for (size_t i = 0; i < handle->dictionary_count; ++i) {
-    env->functions->DeleteGlobalRef(env, handle->dictionary_refs[i]);
+    env->DeleteGlobalRef(handle->dictionary_refs[i]);
   }
   delete[] handle->input_start;
   delete handle;
@@ -214,7 +212,7 @@ JNIEXPORT jboolean JNICALL
 Java_org_brotli_wrapper_dec_DecoderJNI_nativeAttachDictionary(
     JNIEnv* env, jobject /*jobj*/, jlongArray ctx, jobject dictionary) {
   jlong context[3];
-  env->functions->GetLongArrayRegion(env, ctx, 0, 3, context);
+  env->GetLongArrayRegion(ctx, 0, 3, context);
   DecoderHandle* handle = getHandle(reinterpret_cast<void*>(context[0]));
   jobject ref = nullptr;
   uint8_t* address = nullptr;
@@ -228,18 +226,17 @@ Java_org_brotli_wrapper_dec_DecoderJNI_nativeAttachDictionary(
     ok = false;
   }
   if (ok) {
-    ref = env->functions->NewGlobalRef(env, dictionary);
+    ref = env->NewGlobalRef(dictionary);
     ok = !!ref;
   }
   if (ok) {
     handle->dictionary_refs[handle->dictionary_count] = ref;
     handle->dictionary_count++;
-    address = static_cast<uint8_t*>(
-        env->functions->GetDirectBufferAddress(env, ref));
+    address = static_cast<uint8_t*>(env->GetDirectBufferAddress(ref));
     ok = !!address;
   }
   if (ok) {
-    capacity = env->functions->GetDirectBufferCapacity(env, ref);
+    capacity = env->GetDirectBufferCapacity(ref);
     ok = (capacity > 0) && (capacity < (1 << 30));
   }
   if (ok) {
