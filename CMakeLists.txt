@@ -309,6 +309,10 @@ if (NOT BROTLI_DISABLE_TESTS AND BROTLI_BUILD_TOOLS)
           -P ${CMAKE_CURRENT_SOURCE_DIR}/tests/run-compatibility-test.cmake)
     endif()
   endforeach()
+
+  add_executable(transform_test tests/transform_test.c)
+  target_link_libraries(transform_test ${BROTLI_LIBRARIES})
+  add_test(NAME "${BROTLI_TEST_PREFIX}transform_test" COMMAND transform_test)
 endif()  # BROTLI_DISABLE_TESTS
 
 # Generate a pkg-config files

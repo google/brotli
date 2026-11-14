@@ -94,7 +94,7 @@ static BROTLI_BOOL ParseWordList(size_t size, const uint8_t* encoded,
   size_t offset;
   size_t i;
   size_t position = *pos;
-  if (position + BROTLI_NUM_ENCODED_LENGTHS > size) {
+  if (size < position || BROTLI_NUM_ENCODED_LENGTHS > size - position) {
     return BROTLI_FALSE;
   }
 
@@ -154,7 +154,7 @@ static BROTLI_BOOL ParsePrefixSuffixTable(size_t size, const uint8_t* encoded,
   /* Must at least have space for null terminator. */
   if (data_length < 1) return BROTLI_FALSE;
   out->prefix_suffix = &encoded[position];
-  if (position + data_length >= size) return BROTLI_FALSE;
+  if (size < position || data_length >= size - position) return BROTLI_FALSE;
   while (BROTLI_TRUE) {
     /* STRING_LENGTH */
     size_t stringlet_len = encoded[position + offset];
@@ -197,8 +197,10 @@ static BROTLI_BOOL ParseTransformsList(size_t size, const uint8_t* encoded,
 
   out->num_transforms = encoded[position++];
   out->transforms = &encoded[position];
+  if (size < position || (size_t)out->num_transforms * 3 > size - position) {
+    return BROTLI_FALSE;
+  }
   position += (size_t)out->num_transforms * 3;
-  if (position > size) return BROTLI_FALSE;
   /* Check for errors and read extra parameters. */
   for (i = 0; i < out->num_transforms; i++) {
     uint8_t prefix_id = BROTLI_TRANSFORM_PREFIX_ID(out, i);
@@ -214,8 +216,10 @@ static BROTLI_BOOL ParseTransformsList(size_t size, const uint8_t* encoded,
   }
   if (has_params) {
     out->params = &encoded[position];
+    if (size < position || (size_t)out->num_transforms * 2 > size - position) {
+      return BROTLI_FALSE;
+    }
     position += (size_t)out->num_transforms * 2;
-    if (position > size) return BROTLI_FALSE;
     for (i = 0; i < out->num_transforms; i++) {
       uint8_t type = BROTLI_TRANSFORM_TYPE(out, i);
       if (type != BROTLI_TRANSFORM_SHIFT_FIRST &&
