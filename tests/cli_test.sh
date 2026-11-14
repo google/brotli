@@ -93,4 +93,10 @@ function test::brotli_cli::concatenated() {
   EXPECT_FILE_CONTENT_EQ full.orig full.unbr
 }
 
+function test::brotli_cli::output_set_once() {
+  EXPECT_FAIL "${BROTLI} -Zfk text.orig -o one.br -o two.br"
+  EXPECT_FAIL "${BROTLI} -Zfk text.orig -o one.br -c"
+  EXPECT_FAIL "${BROTLI} -Zfk text.orig ipsum.orig --output=one.br"
+}
+
 gbash::unit::main "$@"

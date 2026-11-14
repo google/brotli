@@ -452,6 +452,7 @@ static Command ParseParams(Context* params) {
             fprintf(stderr, "write to standard output already set (-o)\n");
             return COMMAND_INVALID;
           }
+          output_set = BROTLI_TRUE;
           params->output_path = argv[i];
         } else if (c == 'q') {
           if (quality_set) {
@@ -659,6 +660,7 @@ static Command ParseParams(Context* params) {
                     "write to standard output already set (--output)\n");
             return COMMAND_INVALID;
           }
+          output_set = BROTLI_TRUE;
           params->output_path = value;
         } else if (strncmp("quality", arg, key_len) == 0) {
           if (quality_set) {
