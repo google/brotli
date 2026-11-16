@@ -4,7 +4,7 @@
    See file LICENSE for detail or copy at https://opensource.org/licenses/MIT
 */
 
-#include "static_init.h"
+#include "enc_static_init.h"
 
 #include "../common/platform.h"
 #include "../common/static_init.h"

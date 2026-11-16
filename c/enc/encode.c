@@ -23,6 +23,8 @@
 #include "compress_fragment.h"
 #include "dictionary_hash.h"
 #include "encoder_dict.h"
+#include "enc_state.h"
+#include "enc_static_init.h"
 #include "fast_log.h"
 #include "hash.h"
 #include "histogram.h"
@@ -31,8 +33,6 @@
 #include "params.h"
 #include "quality.h"
 #include "ringbuffer.h"
-#include "state.h"
-#include "static_init.h"
 #include "utf8_util.h"
 #include "write_bits.h"
 

@@ -20,7 +20,6 @@
 #include "literal_cost.h"
 #include "memory.h"
 #include "params.h"
-#include "prefix.h"
 #include "quality.h"
 
 #if defined(__cplusplus) || defined(c_plusplus)

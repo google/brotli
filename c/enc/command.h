@@ -13,7 +13,6 @@
 #include "../common/platform.h"
 #include "fast_log.h"
 #include "params.h"
-#include "prefix.h"
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
@@ -76,6 +75,33 @@ static BROTLI_INLINE uint16_t CombineLengthCodes(
        Magic constant is shifted 6 bits left, to avoid final multiplication. */
     offset = (offset << 5u) + 0x40u + ((0x520D40u >> offset) & 0xC0u);
     return (uint16_t)(offset | bits64);
+  }
+}
+
+/* Here distance_code is an intermediate code, i.e. one of the special codes or
+   the actual distance increased by BROTLI_NUM_DISTANCE_SHORT_CODES - 1. */
+static BROTLI_INLINE void PrefixEncodeCopyDistance(size_t distance_code,
+                                                   size_t num_direct_codes,
+                                                   size_t postfix_bits,
+                                                   uint16_t* code,
+                                                   uint32_t* extra_bits) {
+  if (distance_code < BROTLI_NUM_DISTANCE_SHORT_CODES + num_direct_codes) {
+    *code = (uint16_t)distance_code;
+    *extra_bits = 0;
+    return;
+  } else {
+    size_t dist = ((size_t)1 << (postfix_bits + 2u)) +
+        (distance_code - BROTLI_NUM_DISTANCE_SHORT_CODES - num_direct_codes);
+    size_t bucket = Log2FloorNonZero(dist) - 1;
+    size_t postfix_mask = (1u << postfix_bits) - 1;
+    size_t postfix = dist & postfix_mask;
+    size_t prefix = (dist >> bucket) & 1;
+    size_t offset = (2 + prefix) << bucket;
+    size_t nbits = bucket - postfix_bits;
+    *code = (uint16_t)((nbits << 10) |
+        (BROTLI_NUM_DISTANCE_SHORT_CODES + num_direct_codes +
+         ((2 * (nbits - 1) + prefix) << postfix_bits) + postfix));
+    *extra_bits = (uint32_t)((dist - offset) >> postfix_bits);
   }
 }
 

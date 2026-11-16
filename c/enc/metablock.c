@@ -18,7 +18,6 @@
 #include "histogram.h"
 #include "memory.h"
 #include "params.h"
-#include "prefix.h"
 #include "../common/constants.h"
 #include "../common/context.h"
 #include "../common/platform.h"
