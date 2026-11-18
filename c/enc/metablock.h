@@ -16,8 +16,8 @@
 #include "histogram.h"
 #include "memory.h"
 #include "params.h"
-#include "../common/context.h"
-#include "../common/platform.h"
+#include "common/context.h"
+#include "common/platform.h"
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {

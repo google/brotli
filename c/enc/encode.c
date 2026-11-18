@@ -8,11 +8,11 @@
 
 #include <brotli/encode.h>
 
-#include "../common/constants.h"
-#include "../common/context.h"
-#include "../common/platform.h"
+#include "common/constants.h"
+#include "common/context.h"
+#include "common/platform.h"
 #include <brotli/shared_dictionary.h>
-#include "../common/version.h"
+#include "common/version.h"
 #include "backward_references_hq.h"
 #include "backward_references.h"
 #include "bit_cost.h"

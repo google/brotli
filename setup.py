@@ -310,7 +310,7 @@ else:
       "_brotli",
       sources=sources,
       depends=headers,
-      include_dirs=["c/include"],
+      include_dirs=["c/include", "c"],
   )
   EXT_MODULES = [brotli_extension]
 

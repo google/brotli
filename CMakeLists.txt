@@ -146,7 +146,7 @@ if (BROTLI_BUILD_FOR_PACKAGE)
 endif()
 
 # Older CMake versions does not understand INCLUDE_DIRECTORIES property.
-include_directories(${BROTLI_INCLUDE_DIRS})
+include_directories(${BROTLI_INCLUDE_DIRS} "${CMAKE_CURRENT_SOURCE_DIR}/c")
 
 if (BUILD_SHARED_LIBS)
   foreach(lib ${BROTLI_SHARED_LIBRARIES})

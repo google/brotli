@@ -1,5 +1,5 @@
-#include "../common/platform.h"
-#include "../common/static_init.h"
+#include "common/platform.h"
+#include "common/static_init.h"
 #include "enc_static_init.h"
 
 #if (BROTLI_STATIC_INIT != BROTLI_STATIC_INIT_LAZY)

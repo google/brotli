@@ -6,11 +6,11 @@
 
 #include "encoder_dict.h"
 
-#include "../common/dictionary.h"
-#include "../common/platform.h"
+#include "common/dictionary.h"
+#include "common/platform.h"
 #include <brotli/shared_dictionary.h>
-#include "../common/shared_dictionary_internal.h"
-#include "../common/transform.h"
+#include "common/shared_dictionary_internal.h"
+#include "common/transform.h"
 #include <brotli/encode.h>
 #include "compound_dictionary.h"
 #include "dictionary_hash.h"

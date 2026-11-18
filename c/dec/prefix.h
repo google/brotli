@@ -10,9 +10,9 @@
 #ifndef BROTLI_DEC_PREFIX_H_
 #define BROTLI_DEC_PREFIX_H_
 
-#include "../common/constants.h"
-#include "../common/platform.h"  /* IWYU pragma: keep */
-#include "../common/static_init.h"
+#include "common/constants.h"
+#include "common/platform.h"  /* IWYU pragma: keep */
+#include "common/static_init.h"
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {

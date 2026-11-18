@@ -9,8 +9,8 @@
 #ifndef BROTLI_ENC_COMMAND_H_
 #define BROTLI_ENC_COMMAND_H_
 
-#include "../common/constants.h"
-#include "../common/platform.h"
+#include "common/constants.h"
+#include "common/platform.h"
 #include "fast_log.h"
 #include "params.h"
 

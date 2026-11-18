@@ -9,8 +9,8 @@
 #ifndef THIRD_PARTY_BROTLI_ENC_STATIC_INIT_H_
 #define THIRD_PARTY_BROTLI_ENC_STATIC_INIT_H_
 
-#include "../common/platform.h"
-#include "../common/static_init.h"
+#include "common/platform.h"
+#include "common/static_init.h"
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
