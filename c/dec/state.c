@@ -111,6 +111,9 @@ BROTLI_BOOL BrotliDecoderStateInit(BrotliDecoderState* s,
 
 void BrotliDecoderStateMetablockBegin(BrotliDecoderState* s) {
   s->meta_block_remaining_len = 0;
+  /* With one block type, keep a nonzero length without counting down.
+     Zero-output dictionary commands can outnumber the metablock output bytes.
+     With multiple types, the header supplies the first block length. */
   s->block_length[0] = BROTLI_BLOCK_SIZE_CAP;
   s->block_length[1] = BROTLI_BLOCK_SIZE_CAP;
   s->block_length[2] = BROTLI_BLOCK_SIZE_CAP;

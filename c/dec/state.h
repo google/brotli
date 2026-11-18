@@ -385,8 +385,7 @@ BROTLI_INTERNAL BROTLI_BOOL BrotliDecoderHuffmanTreeGroupInit(
   X = NULL;                                  \
 }
 
-/* Literal/Command/Distance block size maximum; same as maximum metablock size;
-   used as block size when there is no block switching. */
+/* Maximum metablock output size. */
 #define BROTLI_BLOCK_SIZE_CAP (1U << 24)
 
 #if defined(__cplusplus) || defined(c_plusplus)
