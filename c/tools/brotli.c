@@ -31,6 +31,7 @@
 #include <io.h>
 #include <share.h>
 #include <sys/utime.h>
+#include <windows.h>
 
 #define MAKE_BINARY(FILENO) (_setmode((FILENO), _O_BINARY), (FILENO))
 
@@ -43,9 +44,11 @@
 
 #define fdopen _fdopen
 #define isatty _isatty
-#define unlink _unlink
+#define unlink ms_unlink
+#define stat _stat
+#define FileStat ms_stat
 #define utimbuf _utimbuf
-#define utime _utime
+#define utime ms_utime
 
 #define fopen ms_fopen
 #define open ms_open
@@ -58,20 +61,79 @@
 #define ftell _ftelli64
 #endif
 
+static wchar_t* WidePath(const char* path) {
+  int length = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, path, -1,
+                                 NULL, 0);
+  wchar_t* result;
+  if (length == 0) {
+    errno = EILSEQ;
+    return NULL;
+  }
+  result = (wchar_t*)malloc((size_t)length * sizeof(wchar_t));
+  if (result == NULL) {
+    errno = ENOMEM;
+    return NULL;
+  }
+  if (MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, path, -1, result,
+                          length) == 0) {
+    free(result);
+    errno = EILSEQ;
+    return NULL;
+  }
+  return result;
+}
+
 static FILE* ms_fopen(const char* filename, const char* mode) {
   FILE* result = 0;
-  fopen_s(&result, filename, mode);
+  wchar_t* wide_filename = WidePath(filename);
+  wchar_t* wide_mode;
+  if (wide_filename == NULL) return NULL;
+  wide_mode = WidePath(mode);
+  if (wide_mode != NULL) _wfopen_s(&result, wide_filename, wide_mode);
+  free(wide_mode);
+  free(wide_filename);
   return result;
 }
 
 static int ms_open(const char* filename, int oflag, int pmode) {
   int result = -1;
-  _sopen_s(&result, filename, oflag | O_BINARY, _SH_DENYNO, pmode);
+  wchar_t* wide_filename = WidePath(filename);
+  if (wide_filename == NULL) return -1;
+  _wsopen_s(&result, wide_filename, oflag | O_BINARY, _SH_DENYNO, pmode);
+  free(wide_filename);
+  return result;
+}
+
+static int ms_unlink(const char* filename) {
+  int result;
+  wchar_t* wide_filename = WidePath(filename);
+  if (wide_filename == NULL) return -1;
+  result = _wunlink(wide_filename);
+  free(wide_filename);
+  return result;
+}
+
+static int ms_stat(const char* filename, struct stat* info) {
+  int result;
+  wchar_t* wide_filename = WidePath(filename);
+  if (wide_filename == NULL) return -1;
+  result = _wstat(wide_filename, info);
+  free(wide_filename);
+  return result;
+}
+
+static int ms_utime(const char* filename, struct utimbuf* times) {
+  int result;
+  wchar_t* wide_filename = WidePath(filename);
+  if (wide_filename == NULL) return -1;
+  result = _wutime(wide_filename, times);
+  free(wide_filename);
   return result;
 }
 #else  /* !defined(_WIN32) */
 #include <unistd.h>
 #include <utime.h>
+#define FileStat stat
 #define MAKE_BINARY(FILENO) (FILENO)
 #endif  /* defined(_WIN32) */
 
@@ -872,7 +934,7 @@ static void CopyStat(const char* input_path, const char* output_path,
   if (fd < 0) {
     return;
   }
-  if (stat(input_path, &statbuf) != 0) {
+  if (FileStat(input_path, &statbuf) != 0) {
     return;
   }
   res = CopyTimeStat(&statbuf, output_path, fout);
@@ -1481,7 +1543,7 @@ static BROTLI_BOOL CompressFiles(Context* context) {
   return BROTLI_TRUE;
 }
 
-int main(int argc, char** argv) {
+static int BrotliMain(int argc, char** argv) {
   Command command;
   Context context;
   BROTLI_BOOL is_ok = BROTLI_TRUE;
@@ -1577,6 +1639,44 @@ int main(int argc, char** argv) {
   free(context.modified_path);
   free(context.buffer);
 
-  if (!is_ok) exit(1);
-  return 0;
+  return is_ok ? 0 : 1;
 }
+
+#if defined(_WIN32)
+/* Keep the parser platform-independent; only filesystem calls use UTF-16. */
+int wmain(int argc, wchar_t** wide_argv) {
+  char** argv = (char**)calloc((size_t)argc + 1, sizeof(char*));
+  int i;
+  int result = 1;
+  if (argv == NULL) {
+    fprintf(stderr, "out of memory\n");
+    return 1;
+  }
+  for (i = 0; i < argc; ++i) {
+    int length = WideCharToMultiByte(CP_UTF8, WC_ERR_INVALID_CHARS, wide_argv[i],
+                                    -1, NULL, 0, NULL, NULL);
+    if (length == 0) {
+      fprintf(stderr, "invalid Unicode command-line argument\n");
+      break;
+    }
+    argv[i] = (char*)malloc((size_t)length);
+    if (argv[i] == NULL) {
+      fprintf(stderr, "out of memory\n");
+      break;
+    }
+    if (WideCharToMultiByte(CP_UTF8, WC_ERR_INVALID_CHARS, wide_argv[i], -1,
+                            argv[i], length, NULL, NULL) == 0) {
+      fprintf(stderr, "invalid Unicode command-line argument\n");
+      break;
+    }
+  }
+  if (i == argc) result = BrotliMain(argc, argv);
+  for (i = 0; i < argc; ++i) free(argv[i]);
+  free(argv);
+  return result;
+}
+#else
+int main(int argc, char** argv) {
+  return BrotliMain(argc, argv);
+}
+#endif
