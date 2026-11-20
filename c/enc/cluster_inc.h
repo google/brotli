@@ -42,10 +42,8 @@ BROTLI_INTERNAL void FN(BrotliCompareAndPushToQueue)(
   } else {
     double threshold = *num_pairs == 0 ? 1e99 :
         BROTLI_MAX(double, 0.0, pairs[0].cost_diff);
-    double cost_combo;
-    *tmp = out[idx1];
-    FN(HistogramAddHistogram)(tmp, &out[idx2]);
-    cost_combo = FN(BrotliPopulationCost)(tmp);
+    double cost_combo =
+        BROTLI_COMBINED_POPULATION_COST(&out[idx1], &out[idx2], tmp);
     if (cost_combo < threshold - p.cost_diff) {
       p.cost_combo = cost_combo;
       is_good_pair = BROTLI_TRUE;
@@ -161,9 +159,8 @@ BROTLI_INTERNAL double FN(BrotliHistogramBitCostDistance)(
   if (histogram->total_count_ == 0) {
     return 0.0;
   } else {
-    *tmp = *histogram;
-    FN(HistogramAddHistogram)(tmp, candidate);
-    return FN(BrotliPopulationCost)(tmp) - candidate->bit_cost_;
+    return BROTLI_COMBINED_POPULATION_COST(histogram, candidate, tmp) -
+           candidate->bit_cost_;
   }
 })
 

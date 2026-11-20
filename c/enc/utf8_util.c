@@ -9,11 +9,15 @@
 #include "utf8_util.h"
 
 #include "common/platform.h"
+#if defined(BROTLI_GOOGLE_HWY)
+#include "hwy_google.h"
+#endif
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
 #endif
 
+#if !defined(BROTLI_GOOGLE_HWY)
 static size_t BrotliParseAsUTF8(
     int* symbol, const uint8_t* input, size_t size) {
   /* ASCII */
@@ -63,11 +67,15 @@ static size_t BrotliParseAsUTF8(
   *symbol = 0x110000 | input[0];
   return 1;
 }
+#endif
 
 /* Returns 1 if at least min_fraction of the data is UTF8-encoded.*/
 BROTLI_BOOL BrotliIsMostlyUTF8(
     const uint8_t* data, const size_t pos, const size_t mask,
     const size_t length, const double min_fraction) {
+#if defined(BROTLI_GOOGLE_HWY)
+  return BrotliIsMostlyUTF8Hwy(data, pos, mask, length, min_fraction);
+#else
   size_t size_utf8 = 0;
   size_t i = 0;
   while (i < length) {
@@ -78,6 +86,7 @@ BROTLI_BOOL BrotliIsMostlyUTF8(
     if (symbol < 0x110000) size_utf8 += bytes_read;
   }
   return TO_BROTLI_BOOL((double)size_utf8 > min_fraction * (double)length);
+#endif
 }
 
 #if defined(__cplusplus) || defined(c_plusplus)

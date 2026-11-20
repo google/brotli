@@ -104,6 +104,13 @@ static size_t FN(FindBlocks)(const DataType* data, const size_t length,
     }
   }
 
+#if defined(BROTLI_GOOGLE_HWY)
+  BROTLI_UNUSED(bitmap_len);
+  BROTLI_UNUSED(num_blocks);
+  BROTLI_UNUSED(byte_ix);
+  return FIND_BLOCKS_DP_HWY(data, length, block_switch_bitcost, num_histograms,
+                            insert_cost, cost, switch_signal, block_id);
+#else
   /* After each iteration of this loop, cost[k] will contain the difference
      between the minimum cost of arriving at the current byte position using
      entropy code k, and the minimum cost of arriving at the current byte
@@ -163,6 +170,7 @@ static size_t FN(FindBlocks)(const DataType* data, const size_t length,
     }
   }
   return num_blocks;
+#endif
 }
 
 static size_t FN(RemapBlockIds)(uint8_t* block_ids, const size_t length,

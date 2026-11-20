@@ -21,6 +21,9 @@
 #include "memory.h"
 #include "params.h"
 #include "quality.h"
+#if defined(BROTLI_GOOGLE_HWY)
+#include "hwy_google.h"
+#endif
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
@@ -700,6 +703,53 @@ static void MergeMatches(BackwardMatch* dst,
   while (len2-- > 0) *dst++ = *src2++;
 }
 
+#if defined(BROTLI_GOOGLE_HWY)
+static BROTLI_INLINE size_t FindAllMatchesH10Fast(
+    H10* BROTLI_RESTRICT self,
+    const BrotliEncoderDictionary* dictionary,
+    const uint8_t* BROTLI_RESTRICT data,
+    const size_t ring_buffer_mask, const size_t cur_ix,
+    const size_t max_length, const size_t max_backward,
+    const size_t dictionary_distance, const BrotliEncoderParams* params,
+    BackwardMatch* matches) {
+  BackwardMatch* const orig_matches = matches;
+  const size_t cur_ix_masked = cur_ix & ring_buffer_mask;
+  size_t best_len = 1;
+  uint32_t dict_matches[BROTLI_MAX_STATIC_DICTIONARY_MATCH_LEN + 1];
+  size_t i;
+  matches = BrotliFindAllLzMatchesH10Hwy(
+      self, data, ring_buffer_mask, cur_ix, max_length, max_backward,
+      params->quality, matches, &best_len);
+  for (i = 0; i <= BROTLI_MAX_STATIC_DICTIONARY_MATCH_LEN; ++i) {
+    dict_matches[i] = kInvalidMatch;
+  }
+  {
+    size_t minlen = BROTLI_MAX(size_t, 4, best_len + 1);
+    if (BrotliFindAllStaticDictionaryMatches(dictionary,
+        &data[cur_ix_masked], minlen, max_length, &dict_matches[0])) {
+      size_t maxlen = BROTLI_MIN(
+          size_t, BROTLI_MAX_STATIC_DICTIONARY_MATCH_LEN, max_length);
+      size_t l;
+      for (l = minlen; l <= maxlen; ++l) {
+        uint32_t dict_id = dict_matches[l];
+        if (dict_id < kInvalidMatch) {
+          size_t distance = dictionary_distance + (dict_id >> 5) + 1;
+          if (distance <= params->dist.max_distance) {
+            InitDictionaryBackwardMatch(matches++, distance, l, dict_id & 31);
+          }
+        }
+      }
+    }
+  }
+  return (size_t)(matches - orig_matches);
+}
+#define FindAllMatchesH10Dispatch FindAllMatchesH10Fast
+#define StoreRangeH10Dispatch BrotliStoreRangeH10Hwy
+#else
+#define FindAllMatchesH10Dispatch FindAllMatchesH10
+#define StoreRangeH10Dispatch StoreRangeH10
+#endif
+
 /* REQUIRES: nodes != NULL and len(nodes) >= num_bytes + 1 */
 size_t BrotliZopfliComputeShortestPath(MemoryManager* m, size_t num_bytes,
     size_t position, const uint8_t* ringbuffer, size_t ringbuffer_mask,
@@ -745,7 +795,7 @@ size_t BrotliZopfliComputeShortestPath(MemoryManager* m, size_t num_bytes,
       dict_id = params->dictionary.contextual.context_map[
           BROTLI_CONTEXT(p1, p2, literal_context_lut)];
     }
-    num_matches = FindAllMatchesH10(&hasher->privat._H10,
+    num_matches = FindAllMatchesH10Dispatch(&hasher->privat._H10,
         params->dictionary.contextual.dict[dict_id],
         ringbuffer, ringbuffer_mask, pos, num_bytes - i, max_distance,
         dictionary_start + gap, params, &matches[lz_matches_offset]);
@@ -772,7 +822,7 @@ size_t BrotliZopfliComputeShortestPath(MemoryManager* m, size_t num_bytes,
     }
     if (skip > 1) {
       /* Add the tail of the copy to the hasher. */
-      StoreRangeH10(&hasher->privat._H10,
+      StoreRangeH10Dispatch(&hasher->privat._H10,
           ringbuffer, ringbuffer_mask, pos + 1, BROTLI_MIN(
           size_t, pos + skip, store_end));
       skip--;
@@ -858,7 +908,7 @@ void BrotliCreateHqZopfliBackwardReferences(MemoryManager* m, size_t num_bytes,
     BROTLI_ENSURE_CAPACITY(m, BackwardMatch, matches, matches_size,
         cur_match_pos + MAX_NUM_MATCHES_H10 + shadow_matches);
     if (BROTLI_IS_OOM(m)) return;
-    num_found_matches = FindAllMatchesH10(&hasher->privat._H10,
+    num_found_matches = FindAllMatchesH10Dispatch(&hasher->privat._H10,
         params->dictionary.contextual.dict[dict_id],
         ringbuffer, ringbuffer_mask, pos, max_length,
         max_distance, dictionary_start + gap, params,
@@ -886,9 +936,9 @@ void BrotliCreateHqZopfliBackwardReferences(MemoryManager* m, size_t num_bytes,
         matches[cur_match_pos++] = matches[cur_match_end - 1];
         num_matches[i] = 1;
         /* Add the tail of the copy to the hasher. */
-        StoreRangeH10(&hasher->privat._H10,
-                      ringbuffer, ringbuffer_mask, pos + 1,
-                      BROTLI_MIN(size_t, pos + match_len, store_end));
+        StoreRangeH10Dispatch(&hasher->privat._H10,
+                              ringbuffer, ringbuffer_mask, pos + 1,
+                              BROTLI_MIN(size_t, pos + match_len, store_end));
         memset(&num_matches[i + 1], 0, skip * sizeof(num_matches[0]));
         i += skip;
       } else {

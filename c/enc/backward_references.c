@@ -17,6 +17,9 @@
 #include "hash.h"
 #include "params.h"
 #include "quality.h"  /* IWYU pragma: keep for inc */
+#if defined(BROTLI_GOOGLE_HWY)
+#include "hwy_google.h"
+#endif
 
 BROTLI_INTERNAL const BROTLI_MODEL("small")
     uint8_t kIsBase64[256] = {
@@ -207,6 +210,11 @@ static BROTLI_INLINE size_t ComputeDistanceCode(size_t distance,
 #undef HASHER
 
 #if defined(BROTLI_MAX_SIMD_QUALITY)
+#if defined(BROTLI_GOOGLE_HWY)
+#define CreateBackwardReferencesNH58 BrotliCreateBackwardReferencesNH58Hwy
+#define CreateBackwardReferencesNH59 BrotliCreateBackwardReferencesNH59Hwy
+#define CreateBackwardReferencesNH68 BrotliCreateBackwardReferencesNH68Hwy
+#else
 #define HASHER() H58
 /* NOLINTNEXTLINE(build/include) */
 #include "backward_references_inc.h"
@@ -221,6 +229,7 @@ static BROTLI_INLINE size_t ComputeDistanceCode(size_t distance,
 /* NOLINTNEXTLINE(build/include) */
 #include "backward_references_inc.h"
 #undef HASHER
+#endif
 #endif
 
 #undef ENABLE_COMPOUND_DICTIONARY
@@ -265,6 +274,11 @@ static BROTLI_INLINE size_t ComputeDistanceCode(size_t distance,
 #include "backward_references_inc.h"
 #undef HASHER
 #if defined(BROTLI_MAX_SIMD_QUALITY)
+#if defined(BROTLI_GOOGLE_HWY)
+#define CreateBackwardReferencesDH58 BrotliCreateBackwardReferencesDH58Hwy
+#define CreateBackwardReferencesDH59 BrotliCreateBackwardReferencesDH59Hwy
+#define CreateBackwardReferencesDH68 BrotliCreateBackwardReferencesDH68Hwy
+#else
 #define HASHER() H58
 /* NOLINTNEXTLINE(build/include) */
 #include "backward_references_inc.h"
@@ -277,6 +291,7 @@ static BROTLI_INLINE size_t ComputeDistanceCode(size_t distance,
 /* NOLINTNEXTLINE(build/include) */
 #include "backward_references_inc.h"
 #undef HASHER
+#endif
 #endif
 
 #undef ENABLE_COMPOUND_DICTIONARY
