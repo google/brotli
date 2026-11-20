@@ -13,6 +13,9 @@
 #include "fast_log.h"
 #include "histogram.h"
 #include "memory.h"
+#if defined(BROTLI_GOOGLE_HWY)
+#include "hwy_google.h"
+#endif
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
@@ -36,6 +39,17 @@ static BROTLI_INLINE double ClusterCostDiff(size_t size_a, size_t size_b) {
 
 #define CODE(X) X
 
+#if defined(BROTLI_GOOGLE_HWY)
+#define BROTLI_COMBINED_POPULATION_COST(A, B, TMP) \
+  ((void)(TMP), BrotliCombinedPopulationCostHwy( \
+      (A)->data_, (B)->data_, FN(HistogramDataSize)(), \
+      (A)->total_count_ + (B)->total_count_))
+#else
+#define BROTLI_COMBINED_POPULATION_COST(A, B, TMP) \
+  (*(TMP) = *(A), FN(HistogramAddHistogram)((TMP), (B)), \
+   FN(BrotliPopulationCost)(TMP))
+#endif
+
 #define FN(X) X ## Literal
 #include "cluster_inc.h"  /* NOLINT(build/include) */
 #undef FN
@@ -48,6 +62,7 @@ static BROTLI_INLINE double ClusterCostDiff(size_t size_a, size_t size_b) {
 #include "cluster_inc.h"  /* NOLINT(build/include) */
 #undef FN
 
+#undef BROTLI_COMBINED_POPULATION_COST
 #undef CODE
 
 #if defined(__cplusplus) || defined(c_plusplus)

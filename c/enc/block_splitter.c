@@ -16,6 +16,9 @@
 #include "histogram.h"
 #include "memory.h"
 #include "quality.h"
+#if defined(BROTLI_GOOGLE_HWY)
+#include "hwy_google.h"
+#endif
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
@@ -87,13 +90,16 @@ static BROTLI_INLINE double BitCost(size_t count) {
 
 #define FN(X) X ## Literal
 #define DataType uint8_t
+#define FIND_BLOCKS_DP_HWY BrotliFindBlocksDpU8Hwy
 /* NOLINTNEXTLINE(build/include) */
 #include "block_splitter_inc.h"
+#undef FIND_BLOCKS_DP_HWY
 #undef DataType
 #undef FN
 
 #define FN(X) X ## Command
 #define DataType uint16_t
+#define FIND_BLOCKS_DP_HWY BrotliFindBlocksDpU16Hwy
 /* NOLINTNEXTLINE(build/include) */
 #include "block_splitter_inc.h"
 #undef FN
@@ -101,6 +107,7 @@ static BROTLI_INLINE double BitCost(size_t count) {
 #define FN(X) X ## Distance
 /* NOLINTNEXTLINE(build/include) */
 #include "block_splitter_inc.h"
+#undef FIND_BLOCKS_DP_HWY
 #undef DataType
 #undef FN
 
