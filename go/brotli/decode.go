@@ -1918,10 +1918,11 @@ func unpackLookupTable(lookup []int32, utfMap string, utfRle string) {
 		lookup[1152+i] = i & 1
 		lookup[1216+i] = 2 + (i & 1)
 	}
+	var utfRleRunes []int32 = toUtf8Runes(utfRle)
 	var offset int32 = 1280
 	for k = 0; k < 19; k++ {
 		var value int32 = k & 3
-		var rep int32 = int32(utfRle[k]) - 32
+		var rep int32 = utfRleRunes[k] - 32
 		for i = 0; i < rep; i++ {
 			lookup[offset] = value
 			offset++

@@ -172,3 +172,32 @@ func TestEncodeDecodeWithDictionary(t *testing.T) {
 			decoded, want)
 	}
 }
+
+func TestDecodeUTF8Text(t *testing.T) {
+	// Non-ASCII UTF-8 text makes the encoder pick the UTF8 context mode; lead
+	// bytes of 3- and 4-byte sequences (0xE0..0xFF) then show up as the
+	// "two bytes back" context input.
+	words := []string{"压缩", "数据", "解码器", "文本", "字节", "编码", "测试", "流"}
+	src := rand.NewSource(1)
+	var b bytes.Buffer
+	for b.Len() < 4096 {
+		b.WriteString(words[src.Int63()%int64(len(words))])
+		if src.Int63()%8 == 0 {
+			b.WriteString("，")
+		}
+	}
+	content := b.Bytes()
+	for _, q := range []int{5, 11} {
+		encoded, err := cbrotli.Encode(content, cbrotli.WriterOptions{Quality: q})
+		if err != nil {
+			t.Fatalf("Encode(quality=%d): %v", q, err)
+		}
+		decoded, err := brotli.Decode(encoded)
+		if err != nil {
+			t.Errorf("Decode(quality=%d): %v", q, err)
+		} else if !bytes.Equal(decoded, content) {
+			t.Errorf("Decode(quality=%d) content mismatch: got <%d bytes>, want <%d bytes>",
+				q, len(decoded), len(content))
+		}
+	}
+}
