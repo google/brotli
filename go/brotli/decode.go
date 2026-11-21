@@ -48,11 +48,16 @@ func readInput(s *_State, dst []int8, offset int32, length int32) int32 {
 	}
 	// []int8 and []byte are actually the same
 	buf := unsafe.Slice((*byte)(unsafe.Pointer(&dst[offset])), length)
-	read, err := (*s.input).Read(buf)
-	if err != nil && err != io.EOF {
-		return -14 // BROTLI_ERROR_READ_FAILED
+	for {
+		read, err := (*s.input).Read(buf)
+		if err != nil && err != io.EOF {
+			return -14 // BROTLI_ERROR_READ_FAILED
+		}
+		// io.Reader may return (0, nil); that is not end of stream.
+		if read > 0 || err == io.EOF {
+			return int32(read)
+		}
 	}
-	return int32(read)
 }
 
 // GENERATED CODE BEGIN
