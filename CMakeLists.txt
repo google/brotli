@@ -146,7 +146,7 @@ if (BROTLI_BUILD_FOR_PACKAGE)
 endif()
 
 # Older CMake versions does not understand INCLUDE_DIRECTORIES property.
-include_directories(${BROTLI_INCLUDE_DIRS})
+include_directories(${BROTLI_INCLUDE_DIRS} "${CMAKE_CURRENT_SOURCE_DIR}/c")
 
 if (BUILD_SHARED_LIBS)
   foreach(lib ${BROTLI_SHARED_LIBRARIES})
@@ -388,15 +388,15 @@ if (NOT BROTLI_BUNDLED_MODE)
     DESTINATION "${CMAKE_INSTALL_LIBDIR}/pkgconfig")
   install(FILES "${CMAKE_CURRENT_BINARY_DIR}/libbrotlienc.pc"
     DESTINATION "${CMAKE_INSTALL_LIBDIR}/pkgconfig")
+
+  if (BROTLI_BUILD_TOOLS)
+    install(FILES "docs/brotli.1"
+      DESTINATION "${CMAKE_INSTALL_MANDIR}/man1")
+  endif()
+
+  install(FILES docs/constants.h.3 docs/decode.h.3 docs/encode.h.3 docs/types.h.3
+    DESTINATION "${CMAKE_INSTALL_MANDIR}/man3")
 endif()  # BROTLI_BUNDLED_MODE
-
-if (BROTLI_BUILD_TOOLS)
-  install(FILES "docs/brotli.1"
-    DESTINATION "${CMAKE_INSTALL_MANDIR}/man1")
-endif()
-
-install(FILES docs/constants.h.3 docs/decode.h.3 docs/encode.h.3 docs/types.h.3
-  DESTINATION "${CMAKE_INSTALL_MANDIR}/man3")
 
 if (ENABLE_COVERAGE STREQUAL "yes")
   setup_target_for_coverage(coverage test coverage)

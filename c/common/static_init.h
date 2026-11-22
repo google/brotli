@@ -15,7 +15,7 @@
    on start-up path and then `BrotliEncoderLazyStaticInit` is could be no-op;
    another option is to use available thread execution controls to meet the
    requirements. For possible C++11 implementations see enc/static_init_lazy.cc
-   and dec/static_init_lazy.cc.
+   and dec/dec_static_init_lazy.cc.
 */
 
 #ifndef THIRD_PARTY_BROTLI_COMMON_STATIC_INIT_H_

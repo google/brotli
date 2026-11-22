@@ -6,14 +6,14 @@
 
 #include <brotli/decode.h>
 
-#include "../common/constants.h"
-#include "../common/context.h"
-#include "../common/dictionary.h"
-#include "../common/platform.h"
-#include "../common/shared_dictionary_internal.h"
+#include "common/constants.h"
+#include "common/context.h"
+#include "common/dictionary.h"
+#include "common/platform.h"
+#include "common/shared_dictionary_internal.h"
 #include <brotli/shared_dictionary.h>
-#include "../common/transform.h"
-#include "../common/version.h"
+#include "common/transform.h"
+#include "common/version.h"
 #include "bit_reader.h"
 #include "huffman.h"
 #include "prefix.h"
@@ -1313,7 +1313,7 @@ DecodeDistanceBlockSwitch(BrotliDecoderState* s) {
   return DecodeDistanceBlockSwitchInternal(0, s);
 }
 
-static BROTLI_BOOL BROTLI_NOINLINE SafeDecodeDistanceBlockSwitch(
+static BROTLI_NOINLINE BrotliDecoderErrorCode SafeDecodeDistanceBlockSwitch(
     BrotliDecoderState* s) {
   return DecodeDistanceBlockSwitchInternal(1, s);
 }

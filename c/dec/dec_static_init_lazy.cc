@@ -4,9 +4,9 @@
    See file LICENSE for detail or copy at https://opensource.org/licenses/MIT
 */
 
-#include "../common/platform.h"
-#include "../common/static_init.h"
-#include "static_init.h"
+#include "common/platform.h"
+#include "common/static_init.h"
+#include "dec_static_init.h"
 
 #if (BROTLI_STATIC_INIT != BROTLI_STATIC_INIT_LAZY)
 #error "BROTLI_STATIC_INIT should be BROTLI_STATIC_INIT_LAZY"

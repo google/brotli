@@ -13,8 +13,8 @@
 #ifndef BROTLI_ENC_COMPRESS_FRAGMENT_TWO_PASS_H_
 #define BROTLI_ENC_COMPRESS_FRAGMENT_TWO_PASS_H_
 
-#include "../common/constants.h"
-#include "../common/platform.h"
+#include "common/constants.h"
+#include "common/platform.h"
 #include "entropy_encode.h"
 
 #if defined(__cplusplus) || defined(c_plusplus)

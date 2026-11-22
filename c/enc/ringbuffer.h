@@ -9,7 +9,7 @@
 #ifndef BROTLI_ENC_RINGBUFFER_H_
 #define BROTLI_ENC_RINGBUFFER_H_
 
-#include "../common/platform.h"
+#include "common/platform.h"
 #include "memory.h"
 #include "params.h"
 #include "quality.h"
@@ -123,9 +123,11 @@ static BROTLI_INLINE void RingBufferWrite(
        later when we copy the last two bytes to the first two positions. */
     rb->buffer_[rb->size_ - 2] = 0;
     rb->buffer_[rb->size_ - 1] = 0;
-    /* Initialize tail; might be touched by "best_len++" optimization when
-       ring buffer is "full". */
-    rb->buffer_[rb->size_] = 241;
+    /* Mirror the bytes written by the "first write" shortcut (see above) into
+       the tail.  That deliberately avoids initializing the ring buffer tail,
+       but that requires that we copy the bytes here. */
+    memcpy(&rb->buffer_[rb->size_], rb->buffer_,
+           BROTLI_MIN(size_t, rb->pos_, rb->tail_size_));
   }
   {
     const size_t masked_pos = rb->pos_ & rb->mask_;

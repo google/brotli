@@ -6,10 +6,10 @@
 
 #include "state.h"
 
-#include "../common/dictionary.h"
-#include "../common/platform.h"
+#include "common/dictionary.h"
+#include "common/platform.h"
+#include "dec_static_init.h"
 #include "huffman.h"
-#include "static_init.h"
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {

@@ -9,7 +9,7 @@
 #ifndef THIRD_PARTY_BROTLI_ENC_HASH_BASE_H_
 #define THIRD_PARTY_BROTLI_ENC_HASH_BASE_H_
 
-#include "../common/platform.h"
+#include "common/platform.h"
 
 /* kHashMul32 multiplier has these properties:
    * The multiplier must be odd. Otherwise we may lose the highest bit.

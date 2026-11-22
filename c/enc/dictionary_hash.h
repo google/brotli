@@ -9,11 +9,11 @@
 #ifndef BROTLI_ENC_DICTIONARY_HASH_H_
 #define BROTLI_ENC_DICTIONARY_HASH_H_
 
-#include "../common/platform.h"
-#include "../common/static_init.h"
+#include "common/platform.h"
+#include "common/static_init.h"
 
 #if (BROTLI_STATIC_INIT != BROTLI_STATIC_INIT_NONE)
-#include "../common/dictionary.h"
+#include "common/dictionary.h"
 #endif
 
 #if defined(__cplusplus) || defined(c_plusplus)
