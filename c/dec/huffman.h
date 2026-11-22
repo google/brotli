@@ -91,9 +91,17 @@ BROTLI_INTERNAL void BrotliBuildCodeLengthsHuffmanTable(HuffmanCode* root_table,
     const uint8_t* const code_lengths, uint16_t* count);
 
 /* Builds Huffman lookup table assuming code lengths are in symbol order.
+<<<<<<< HEAD
+   Returns size of resulting table, or 0 if the table would exceed
+   table_budget entries (budget overrun → caller should treat as error). */
+BROTLI_INTERNAL uint32_t BrotliBuildHuffmanTable(HuffmanCode* root_table,
+    int root_bits, const uint16_t* const symbol_lists, uint16_t* count,
+    uint32_t table_budget);
+=======
    Returns size of resulting table. */
 BROTLI_INTERNAL uint32_t BrotliBuildHuffmanTable(HuffmanCode* root_table,
     int root_bits, const uint16_t* const symbol_lists, uint16_t* count);
+>>>>>>> upstream/master
 
 /* Builds a simple Huffman table. The |num_symbols| parameter is to be
    interpreted as follows: 0 means 1 symbol, 1 means 2 symbols,
