@@ -784,9 +784,9 @@ static BROTLI_BOOL OpenInputFile(const char* input_path, FILE** f) {
   *f = NULL;
   if (!input_path) {
     *f = fdopen(MAKE_BINARY(STDIN_FILENO), "rb");
-    return BROTLI_TRUE;
+  } else {
+    *f = fopen(input_path, "rb");
   }
-  *f = fopen(input_path, "rb");
   if (!*f) {
     fprintf(stderr, "failed to open input file [%s]: %s\n",
             PrintablePath(input_path), strerror(errno));
@@ -801,6 +801,11 @@ static BROTLI_BOOL OpenOutputFile(const char* output_path, FILE** f,
   *f = NULL;
   if (!output_path) {
     *f = fdopen(MAKE_BINARY(STDOUT_FILENO), "wb");
+    if (!*f) {
+      fprintf(stderr, "failed to open output file [%s]: %s\n",
+              PrintablePath(output_path), strerror(errno));
+      return BROTLI_FALSE;
+    }
     return BROTLI_TRUE;
   }
   fd = open(output_path, O_CREAT | (force ? 0 : O_EXCL) | O_WRONLY | O_TRUNC,
@@ -1029,9 +1034,28 @@ static BROTLI_BOOL NextFile(Context* context) {
   }
 }
 
+/* Checked before the output is opened with O_TRUNC. An inode of 0 (Windows)
+   means "cannot tell". */
+static BROTLI_BOOL IsSameFile(const char* input_path,
+                              const char* output_path) {
+  struct stat in_stat;
+  struct stat out_stat;
+  if (input_path == 0 || output_path == 0) return BROTLI_FALSE;
+  if (stat(input_path, &in_stat) != 0) return BROTLI_FALSE;
+  if (stat(output_path, &out_stat) != 0) return BROTLI_FALSE;
+  if (in_stat.st_ino == 0 || out_stat.st_ino == 0) return BROTLI_FALSE;
+  return TO_BROTLI_BOOL(in_stat.st_dev == out_stat.st_dev &&
+                        in_stat.st_ino == out_stat.st_ino);
+}
+
 static BROTLI_BOOL OpenFiles(Context* context) {
   BROTLI_BOOL is_ok = OpenInputFile(context->current_input_path, &context->fin);
   if (!context->test_integrity && is_ok) {
+    if (IsSameFile(context->current_input_path, context->current_output_path)) {
+      fprintf(stderr, "input and output are the same file [%s]\n",
+              PrintablePath(context->current_output_path));
+      return BROTLI_FALSE;
+    }
     is_ok = OpenOutputFile(
         context->current_output_path, &context->fout, context->force_overwrite);
   }
