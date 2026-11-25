@@ -60,7 +60,7 @@ jobs:
       ARCH: ${{ matrix.arch }}
       BUILD_SHARED_LIBS: ${{ matrix.build_shared_libs }}
       TRIPLET: ${{ matrix.triplet }}
-      VCPKG_VERSION: '2022.11.14'
+      VCPKG_COMMIT: 6f7ffeb18f99796233b958aaaf14ec7bd4fb64b2 # 2022.11.14
       VCPKG_ROOT: vcpkg
       VCPKG_DISABLE_METRICS: 1
 
@@ -83,7 +83,7 @@ jobs:
       id: cache-vcpkg
       with:
         path: vcpkg
-        key: release-${{ runner.os }}-vcpkg-${{ env.VCPKG_VERSION }}-${{ env.TRIPLET }}
+        key: release-${{ runner.os }}-vcpkg-${{ env.VCPKG_COMMIT }}-${{ env.TRIPLET }}
         # TODO(eustas): remove when https://github.com/zizmorcore/zizmor/issues/2071 is fixed
         lookup-only: ${{ startsWith(github.ref, 'refs/tags/') }}
 
@@ -91,7 +91,7 @@ jobs:
       if: github.event_name == 'release' || steps.cache-vcpkg.outputs.cache-hit != 'true'
       shell: 'powershell'
       run: |
-        Invoke-WebRequest -Uri "https://github.com/microsoft/vcpkg/archive/refs/tags/${env:VCPKG_VERSION}.zip" -OutFile "vcpkg.zip"
+        Invoke-WebRequest -Uri "https://github.com/microsoft/vcpkg/archive/${env:VCPKG_COMMIT}.zip" -OutFile "vcpkg.zip"
 
     - name: Bootstrap vcpkg
       if: github.event_name == 'release' || steps.cache-vcpkg.outputs.cache-hit != 'true'
@@ -100,7 +100,7 @@ jobs:
         set -x
         unzip -q vcpkg.zip
         rm -rf ${VCPKG_ROOT}
-        mv vcpkg-${VCPKG_VERSION} ${VCPKG_ROOT}
+        mv vcpkg-${VCPKG_COMMIT} ${VCPKG_ROOT}
         ${VCPKG_ROOT}/bootstrap-vcpkg.sh
 
     - name: Configure
