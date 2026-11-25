@@ -437,8 +437,8 @@ static void FN(SplitByteVector)(MemoryManager* m,
     return;
   }
   histograms = BROTLI_ALLOC(m, HistogramType, num_histograms + 1);
-  tmp = histograms + num_histograms;
   if (BROTLI_IS_OOM(m) || BROTLI_IS_NULL(histograms)) return;
+  tmp = histograms + num_histograms;
   /* Find good entropy codes. */
   FN(InitialEntropyCodes)(data, length,
                           sampling_stride_length,

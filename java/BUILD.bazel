@@ -20,7 +20,6 @@ cc_binary(
         "//org/brotli/wrapper/common:jni_src",
         "//org/brotli/wrapper/dec:jni_src",
         "//org/brotli/wrapper/enc:jni_src",
-        "@org_brotli//:common_headers",
         "@org_brotli//:common_sources",
         "@org_brotli//:dec_headers",
         "@org_brotli//:dec_sources",
@@ -31,6 +30,7 @@ cc_binary(
     deps = [
         "@bazel_tools//tools/jdk:jni",
         "@org_brotli//:brotli_inc",
+        "@org_brotli//:common_inc",
     ],
 )
 
@@ -43,7 +43,6 @@ cc_binary(
         "//org/brotli/wrapper/common:jni_src",
         "//org/brotli/wrapper/dec:jni_src",
         "//org/brotli/wrapper/enc:jni_src",
-        "@org_brotli//:common_headers",
         "@org_brotli//:common_sources",
         "@org_brotli//:dec_headers",
         "@org_brotli//:dec_sources",
@@ -57,5 +56,6 @@ cc_binary(
     deps = [
         "@bazel_tools//tools/jdk:jni",
         "@org_brotli//:brotli_inc",
+        "@org_brotli//:common_inc",
     ],
 )

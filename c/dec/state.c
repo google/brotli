@@ -6,8 +6,8 @@
 
 #include "state.h"
 
-#include "../common/dictionary.h"
-#include "../common/platform.h"
+#include "common/dictionary.h"
+#include "common/platform.h"
 #include "huffman.h"
 
 #if defined(__cplusplus) || defined(c_plusplus)

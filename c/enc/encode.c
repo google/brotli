@@ -8,11 +8,11 @@
 
 #include <brotli/encode.h>
 
-#include "../common/constants.h"
-#include "../common/context.h"
-#include "../common/platform.h"
+#include "common/constants.h"
+#include "common/context.h"
+#include "common/platform.h"
 #include <brotli/shared_dictionary.h>
-#include "../common/version.h"
+#include "common/version.h"
 #include "backward_references_hq.h"
 #include "backward_references.h"
 #include "bit_cost.h"
@@ -23,6 +23,8 @@
 #include "compress_fragment.h"
 #include "dictionary_hash.h"
 #include "encoder_dict.h"
+#include "enc_state.h"
+#include "enc_static_init.h"
 #include "fast_log.h"
 #include "hash.h"
 #include "histogram.h"
@@ -31,8 +33,6 @@
 #include "params.h"
 #include "quality.h"
 #include "ringbuffer.h"
-#include "state.h"
-#include "static_init.h"
 #include "utf8_util.h"
 #include "write_bits.h"
 

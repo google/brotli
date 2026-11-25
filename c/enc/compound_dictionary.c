@@ -6,7 +6,7 @@
 
 #include "compound_dictionary.h"
 
-#include "../common/platform.h"
+#include "common/platform.h"
 #include <brotli/shared_dictionary.h>
 #include "memory.h"
 

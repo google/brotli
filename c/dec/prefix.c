@@ -6,11 +6,11 @@
 
 #include "prefix.h"
 
-#include "../common/platform.h"  /* IWYU pragma: keep */
-#include "../common/static_init.h"
+#include "common/platform.h"  /* IWYU pragma: keep */
+#include "common/static_init.h"
 
 #if (BROTLI_STATIC_INIT != BROTLI_STATIC_INIT_NONE)
-#include "../common/constants.h"
+#include "common/constants.h"
 #endif
 
 #if defined(__cplusplus) || defined(c_plusplus)
