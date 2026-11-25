@@ -6,6 +6,8 @@
 package cbrotli
 
 // Inform golang build system that it should link brotli libraries.
+// libbrotlicommon goes last, after the libraries that depend on it, so that
+// linking against static libraries works.
 
-// #cgo pkg-config: libbrotlicommon libbrotlidec libbrotlienc
+// #cgo pkg-config: libbrotlienc libbrotlidec libbrotlicommon
 import "C"
