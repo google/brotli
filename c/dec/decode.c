@@ -15,7 +15,6 @@
 #include "common/transform.h"
 #include "common/version.h"
 #include "bit_reader.h"
-#include "dec_static_init.h"
 #include "huffman.h"
 #include "prefix.h"
 #include "state.h"
@@ -80,10 +79,6 @@ BROTLI_BOOL BrotliDecoderSetParameter(
 BrotliDecoderState* BrotliDecoderCreateInstance(
     brotli_alloc_func alloc_func, brotli_free_func free_func, void* opaque) {
   BrotliDecoderState* state = 0;
-  if (!BrotliDecoderEnsureStaticInit()) {
-    BROTLI_DUMP();
-    return 0;
-  }
   if (!alloc_func && !free_func) {
     state = (BrotliDecoderState*)malloc(sizeof(BrotliDecoderState));
   } else if (alloc_func && free_func) {
