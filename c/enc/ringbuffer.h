@@ -9,7 +9,7 @@
 #ifndef BROTLI_ENC_RINGBUFFER_H_
 #define BROTLI_ENC_RINGBUFFER_H_
 
-#include "../common/platform.h"
+#include "common/platform.h"
 #include "memory.h"
 #include "params.h"
 #include "quality.h"

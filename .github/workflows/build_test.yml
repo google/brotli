@@ -302,7 +302,10 @@ jobs:
       if: ${{ matrix.build_system == 'bazel' }}
       run: |
         cd ${GITHUB_WORKSPACE}/${BAZEL_PROJECT}
-        bazelisk build -c opt ...:all --java_runtime_version=remotejdk_21
+        bazelisk build -c opt ...:all \
+          --tool_java_language_version=25 \
+          --tool_java_runtime_version=remotejdk_25 \
+          --java_runtime_version=remotejdk_25
 
     - name: Fix symlinks for Bazel (Windows)
       if: ${{ matrix.build_system == 'bazel' && runner.os == 'Windows' && matrix.bazel_project == 'java' }}
@@ -347,7 +350,11 @@ jobs:
       run: |
         cd ${GITHUB_WORKSPACE}/${BAZEL_PROJECT}
         bazelisk query "tests(...)" --output=label > ${RUNNER_TEMP}/tests.lst
-        [ -s ${RUNNER_TEMP}/tests.lst ] && bazelisk test -c opt ...:all --java_runtime_version=remotejdk_21
+        [ -s ${RUNNER_TEMP}/tests.lst ] && bazelisk test -c opt --test_output=errors ...:all \
+          --tool_java_language_version=25 \
+          --tool_java_runtime_version=remotejdk_25 \
+          --java_runtime_version=remotejdk_25
+
         bazelisk clean
 
     - name: Build / Test with Maven

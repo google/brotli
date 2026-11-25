@@ -9,8 +9,8 @@
 #ifndef BROTLI_ENC_BACKWARD_REFERENCES_H_
 #define BROTLI_ENC_BACKWARD_REFERENCES_H_
 
-#include "../common/context.h"
-#include "../common/platform.h"
+#include "common/context.h"
+#include "common/platform.h"
 #include "command.h"
 #include "hash.h"
 #include "params.h"

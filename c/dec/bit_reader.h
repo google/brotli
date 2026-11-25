@@ -9,8 +9,8 @@
 #ifndef BROTLI_DEC_BIT_READER_H_
 #define BROTLI_DEC_BIT_READER_H_
 
-#include "../common/constants.h"
-#include "../common/platform.h"
+#include "common/constants.h"
+#include "common/platform.h"
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {

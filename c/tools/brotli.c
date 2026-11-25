@@ -22,8 +22,8 @@
 #include <time.h>
 
 #include <brotli/types.h>
-#include "../common/constants.h"
-#include "../common/version.h"
+#include "common/constants.h"
+#include "common/version.h"
 #include <brotli/decode.h>
 #include <brotli/encode.h>
 
