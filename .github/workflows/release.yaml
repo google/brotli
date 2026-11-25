@@ -181,8 +181,8 @@ jobs:
     runs-on: [ubuntu-latest]
     permissions:
       contents: write # upload assets
-      id-token: write
-      attestations: write
+      id-token: write # Request an OIDC token for artifact signing
+      attestations: write # Publish provenance attestations
 
     steps:
     - name: Checkout the source
