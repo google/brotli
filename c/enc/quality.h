@@ -10,7 +10,7 @@
 #ifndef BROTLI_ENC_QUALITY_H_
 #define BROTLI_ENC_QUALITY_H_
 
-#include "../common/platform.h"
+#include "common/platform.h"
 #include <brotli/encode.h>
 #include "params.h"
 

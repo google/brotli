@@ -4,13 +4,13 @@
    See file LICENSE for detail or copy at https://opensource.org/licenses/MIT
 */
 
-#include "static_init.h"
+#include "dec_static_init.h"
 
-#include "../common/platform.h"
-#include "../common/static_init.h"
+#include "common/platform.h"
+#include "common/static_init.h"
 
 #if (BROTLI_STATIC_INIT != BROTLI_STATIC_INIT_NONE)
-#include "../common/dictionary.h"
+#include "common/dictionary.h"
 #include "prefix.h"
 #endif
 
@@ -44,6 +44,7 @@ BROTLI_BOOL BrotliDecoderEnsureStaticInit(void) {
 #elif (BROTLI_STATIC_INIT == BROTLI_STATIC_INIT_EARLY)
   return kEarlyInitOk;
 #else
+  BrotliDecoderLazyStaticInit();
   return kLazyInitOk;
 #endif
 }

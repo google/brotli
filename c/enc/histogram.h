@@ -9,9 +9,9 @@
 #ifndef BROTLI_ENC_HISTOGRAM_H_
 #define BROTLI_ENC_HISTOGRAM_H_
 
-#include "../common/constants.h"
-#include "../common/context.h"
-#include "../common/platform.h"
+#include "common/constants.h"
+#include "common/context.h"
+#include "common/platform.h"
 #include "block_splitter.h"
 #include "command.h"
 
