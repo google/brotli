@@ -6,9 +6,9 @@
 
 #include "static_dict.h"
 
-#include "../common/dictionary.h"
-#include "../common/platform.h"
-#include "../common/transform.h"
+#include "common/dictionary.h"
+#include "common/platform.h"
+#include "common/transform.h"
 #include "encoder_dict.h"
 #include "find_match_length.h"
 #include "hash_base.h"

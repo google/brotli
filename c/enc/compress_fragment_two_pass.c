@@ -12,8 +12,8 @@
 
 #include "compress_fragment_two_pass.h"
 
-#include "../common/constants.h"
-#include "../common/platform.h"
+#include "common/constants.h"
+#include "common/platform.h"
 #include "bit_cost.h"
 #include "brotli_bit_stream.h"
 #include "entropy_encode.h"

@@ -14,16 +14,52 @@ TEST_DEPS = [
 ]
 
 java_library(
-    name = "dec",
-    srcs = glob(
-        ["*.java"],
-        exclude = [
-            "Decoder.java",
-            "*Test*.java",
-        ],
-    ),
-    proguard_specs = ["proguard.pgcfg"],
+    name = "core",
+    srcs = [
+        "BrotliError.java",
+        "BrotliRuntimeException.java",
+        "State.java",
+        "Utils.java",
+    ],
     resources = ["//:license"],
+    visibility = ["//visibility:private"],
+)
+
+java_library(
+    name = "dictionary_api",
+    srcs = ["Dictionary.java"],
+    exports = [":core"],
+    deps = [":core"],
+)
+
+java_library(
+    name = "dictionary_data",
+    srcs = ["DictionaryData.java"],
+    proguard_specs = ["proguard.pgcfg"],
+    visibility = ["//visibility:private"],
+    deps = [":dictionary_api"],
+)
+
+java_library(
+    name = "decoder",
+    srcs = [
+        "BitReader.java",
+        "BrotliInputStream.java",
+        "Context.java",
+        "Decode.java",
+        "Huffman.java",
+        "Transform.java",
+    ],
+    deps = [":dictionary_api"],
+)
+
+java_library(
+    name = "dec",
+    exports = [
+        ":decoder",
+        ":dictionary_api",
+        ":dictionary_data",
+    ],
 )
 
 java_library(
