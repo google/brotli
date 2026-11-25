@@ -99,11 +99,20 @@ cc_library(
 )
 
 cc_library(
-    name = "brotlicommon",
-    srcs = [":common_sources"],
+    name = "common_inc",
     hdrs = [":common_headers"],
     copts = STRICT_C_OPTIONS,
-    deps = [":brotli_inc"],
+    strip_include_prefix = "c",
+)
+
+cc_library(
+    name = "brotlicommon",
+    srcs = [":common_sources"],
+    copts = STRICT_C_OPTIONS,
+    deps = [
+        ":brotli_inc",
+        ":common_inc",
+    ],
 )
 
 cc_library(

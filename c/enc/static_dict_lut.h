@@ -9,9 +9,9 @@
 #ifndef BROTLI_ENC_STATIC_DICT_LUT_H_
 #define BROTLI_ENC_STATIC_DICT_LUT_H_
 
-#include "../common/dictionary.h"
-#include "../common/platform.h"
-#include "../common/static_init.h"
+#include "common/dictionary.h"
+#include "common/platform.h"
+#include "common/static_init.h"
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {

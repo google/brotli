@@ -64,7 +64,11 @@ jobs:
       name: Build Java
       run: |
         cd ${GITHUB_WORKSPACE}/java
-        bazelisk build --spawn_strategy=local --nouse_action_cache -c opt ...:all
+        bazelisk build --spawn_strategy=local --nouse_action_cache -c opt ...:all \
+          --tool_java_language_version=25 \
+          --tool_java_runtime_version=remotejdk_25 \
+          --java_runtime_version=remotejdk_25
+
 
     - if: matrix.language == 'javascript'
       name: Build JS

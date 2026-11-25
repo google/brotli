@@ -1,0 +1,61 @@
+# Description:
+#   Android raw resource packaging for the Brotli static dictionary.
+
+load("@bazel_skylib//rules:copy_file.bzl", "copy_file")
+load("@rules_android//rules:rules.bzl", "android_library", "android_local_test")
+
+package(default_visibility = ["//visibility:public"])
+
+licenses(["notice"])  # MIT
+
+copy_file(
+    name = "copy_dictionary_bin",
+    src = "@org_brotli//:dictionary",
+    out = "res/raw/brotli_dictionary.bin",
+    visibility = ["//visibility:private"],
+)
+
+# Android raw resource wrapping the RFC 7932 Brotli static dictionary.
+android_library(
+    name = "dictionary_resource",
+    custom_package = "org.brotli.dec.android",
+    manifest = "AndroidManifest.xml",
+    resource_files = [":copy_dictionary_bin"],
+    target_compatible_with = select({
+        "@androidsdk//:has_androidsdk": [],
+        "//conditions:default": ["@platforms//:incompatible"],
+    }),
+)
+
+android_local_test(
+    name = "SetDictionaryTest",
+    size = "small",
+    srcs = ["SetDictionaryTest.java"],
+    custom_package = "org.brotli.dec.android",
+    jvm_flags = [
+        "--add-opens=java.base/java.io=ALL-UNNAMED",
+        "--add-opens=java.base/java.lang=ALL-UNNAMED",
+        "--add-opens=java.base/java.util=ALL-UNNAMED",
+        "-DBROTLI_ENABLE_ASSERTS=true",
+    ],
+    manifest = "AndroidManifest.xml",
+    manifest_values = {
+        "minSdkVersion": "24",
+        "targetSdkVersion": "35",
+    },
+    nocompress_extensions = ["brotli_dictionary.bin"],
+    target_compatible_with = select({
+        "@androidsdk//:has_androidsdk": [],
+        "//conditions:default": ["@platforms//:incompatible"],
+    }),
+    test_class = "org.brotli.dec.android.SetDictionaryTest",
+    deps = [
+        ":dictionary_resource",
+        "//org/brotli/dec:decoder",
+        "//org/brotli/dec:dictionary_api",
+        "@maven//:androidx_test_core",
+        "@maven//:junit_junit",
+        "@maven//:org_robolectric_robolectric",
+        "@robolectric//bazel:android-all",
+    ],
+)

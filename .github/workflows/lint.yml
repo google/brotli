@@ -49,6 +49,10 @@ jobs:
         eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
         ./scripts/check_typos.sh
 
+    - name: Check C filename collisions
+      run: |
+        ! find c \( -name '*.c' -o -name '*.cc' -o -name '*.h' \) -printf '%f\n' | sort -f | uniq -di | grep .
+
     - name: Audit workflows
       run: |
         eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"

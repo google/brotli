@@ -22,8 +22,8 @@
 #include <time.h>
 
 #include <brotli/types.h>
-#include "../common/constants.h"
-#include "../common/version.h"
+#include "common/constants.h"
+#include "common/version.h"
 #include <brotli/decode.h>
 #include <brotli/encode.h>
 
@@ -784,9 +784,9 @@ static BROTLI_BOOL OpenInputFile(const char* input_path, FILE** f) {
   *f = NULL;
   if (!input_path) {
     *f = fdopen(MAKE_BINARY(STDIN_FILENO), "rb");
-    return BROTLI_TRUE;
+  } else {
+    *f = fopen(input_path, "rb");
   }
-  *f = fopen(input_path, "rb");
   if (!*f) {
     fprintf(stderr, "failed to open input file [%s]: %s\n",
             PrintablePath(input_path), strerror(errno));
@@ -801,6 +801,11 @@ static BROTLI_BOOL OpenOutputFile(const char* output_path, FILE** f,
   *f = NULL;
   if (!output_path) {
     *f = fdopen(MAKE_BINARY(STDOUT_FILENO), "wb");
+    if (!*f) {
+      fprintf(stderr, "failed to open output file [%s]: %s\n",
+              PrintablePath(output_path), strerror(errno));
+      return BROTLI_FALSE;
+    }
     return BROTLI_TRUE;
   }
   fd = open(output_path, O_CREAT | (force ? 0 : O_EXCL) | O_WRONLY | O_TRUNC,
