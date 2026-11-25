@@ -7,9 +7,9 @@
 #ifndef BROTLI_ENC_ENCODER_DICT_H_
 #define BROTLI_ENC_ENCODER_DICT_H_
 
-#include "../common/dictionary.h"
+#include "common/dictionary.h"
 #include <brotli/shared_dictionary.h>
-#include "../common/platform.h"
+#include "common/platform.h"
 #include "compound_dictionary.h"
 #include "memory.h"
 #include "static_dict_lut.h"

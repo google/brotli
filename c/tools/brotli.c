@@ -22,8 +22,8 @@
 #include <time.h>
 
 #include <brotli/types.h>
-#include "../common/constants.h"
-#include "../common/version.h"
+#include "common/constants.h"
+#include "common/version.h"
 #include <brotli/decode.h>
 #include <brotli/encode.h>
 
@@ -784,9 +784,9 @@ static BROTLI_BOOL OpenInputFile(const char* input_path, FILE** f) {
   *f = NULL;
   if (!input_path) {
     *f = fdopen(MAKE_BINARY(STDIN_FILENO), "rb");
-    return BROTLI_TRUE;
+  } else {
+    *f = fopen(input_path, "rb");
   }
-  *f = fopen(input_path, "rb");
   if (!*f) {
     fprintf(stderr, "failed to open input file [%s]: %s\n",
             PrintablePath(input_path), strerror(errno));
@@ -801,6 +801,11 @@ static BROTLI_BOOL OpenOutputFile(const char* output_path, FILE** f,
   *f = NULL;
   if (!output_path) {
     *f = fdopen(MAKE_BINARY(STDOUT_FILENO), "wb");
+    if (!*f) {
+      fprintf(stderr, "failed to open output file [%s]: %s\n",
+              PrintablePath(output_path), strerror(errno));
+      return BROTLI_FALSE;
+    }
     return BROTLI_TRUE;
   }
   fd = open(output_path, O_CREAT | (force ? 0 : O_EXCL) | O_WRONLY | O_TRUNC,
@@ -873,12 +878,6 @@ static void CopyStat(const char* input_path, const char* output_path,
     return;
   }
   if (stat(input_path, &statbuf) != 0) {
-    return;
-  }
-  /* Flush any stdio-buffered output before setting timestamps; otherwise the
-     buffered write() that fclose() issues would clobber the atime/mtime we
-     just set. */
-  if (fflush(fout) != 0) {
     return;
   }
   res = CopyTimeStat(&statbuf, output_path, fout);
@@ -1048,9 +1047,16 @@ static BROTLI_BOOL CloseFiles(Context* context, BROTLI_BOOL rm_input,
                               BROTLI_BOOL rm_output) {
   BROTLI_BOOL is_ok = BROTLI_TRUE;
   if (!context->test_integrity && context->fout) {
+    /* Flush before the metadata copy, so a failed write is reported. */
+    if (fflush(context->fout) != 0) {
+      fprintf(stderr, "failed to write output [%s]: %s\n",
+              PrintablePath(context->current_output_path), strerror(errno));
+      is_ok = BROTLI_FALSE;
+    }
     /* Apply metadata via the still-open fd, before close, to close the TOCTOU
        window between fclose() and the metadata syscalls. */
-    if (!rm_output && context->copy_stat && context->current_output_path) {
+    if (is_ok && !rm_output && context->copy_stat &&
+        context->current_output_path) {
       CopyStat(context->current_input_path, context->current_output_path,
                context->fout);
     }
@@ -1075,7 +1081,7 @@ static BROTLI_BOOL CloseFiles(Context* context, BROTLI_BOOL rm_input,
       is_ok = BROTLI_FALSE;
     }
   }
-  if (rm_input && context->current_input_path) {
+  if (rm_input && is_ok && context->current_input_path) {
     unlink(context->current_input_path);
   }
 
