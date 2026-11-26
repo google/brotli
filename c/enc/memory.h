@@ -48,8 +48,15 @@ BROTLI_INTERNAL void BrotliInitMemoryManager(
     void* opaque);
 
 BROTLI_INTERNAL void* BrotliAllocate(MemoryManager* m, size_t n);
+
+BROTLI_UNUSED_FUNCTION size_t BrotliCheckAllocSize(size_t n, size_t size) {
+  if (size != 0 && n > ((size_t)-1) / size) return (size_t)(-1);
+  return n * size;
+}
+
 #define BROTLI_ALLOC(M, T, N)                               \
-  ((N) > 0 ? ((T*)BrotliAllocate((M), (N) * sizeof(T))) : NULL)
+  ((N) > 0 ? ((T*)BrotliAllocate((M),                       \
+      BrotliCheckAllocSize((size_t)(N), sizeof(T)))) : NULL)
 
 BROTLI_INTERNAL void BrotliFree(MemoryManager* m, void* p);
 #define BROTLI_FREE(M, P) { \
@@ -89,7 +96,13 @@ R: requested size
   if (C < (R)) {                                                   \
     size_t _new_size = (C == 0) ? (R) : C;                         \
     T* new_array;                                                  \
-    while (_new_size < (R)) _new_size *= 2;                        \
+    while (_new_size < (R)) {                                      \
+      if (_new_size > ((size_t)-1) / 2) {                          \
+        _new_size = (R);                                           \
+        break;                                                     \
+      }                                                            \
+      _new_size *= 2;                                              \
+    }                                                              \
     new_array = BROTLI_ALLOC((M), T, _new_size);                   \
     if (!BROTLI_IS_OOM(M) && !BROTLI_IS_NULL(new_array) && C != 0) \
       memcpy(new_array, A, C * sizeof(T));                         \

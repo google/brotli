@@ -26,7 +26,7 @@ extern "C" {
 void BrotliInitMemoryManager(
     MemoryManager* m, brotli_alloc_func alloc_func, brotli_free_func free_func,
     void* opaque) {
-  if (!alloc_func) {
+  if (!alloc_func || !free_func) {
     m->alloc_func = BrotliDefaultAllocFunc;
     m->free_func = BrotliDefaultFreeFunc;
     m->opaque = 0;
@@ -119,10 +119,14 @@ static void CollectGarbagePointers(MemoryManager* m) {
     m->perm_allocated -= annihilated;
     m->new_freed -= annihilated;
     BROTLI_DCHECK(m->new_freed == 0);
+    m->new_freed = 0;
   }
 
   if (m->new_allocated != 0) {
-    BROTLI_DCHECK(m->perm_allocated + m->new_allocated <= MAX_PERM_ALLOCATED);
+    if (m->perm_allocated + m->new_allocated > MAX_PERM_ALLOCATED) {
+      m->is_oom = BROTLI_TRUE;
+      return;
+    }
     memcpy(m->pointers + PERM_ALLOCATED_OFFSET + m->perm_allocated,
            m->pointers + NEW_ALLOCATED_OFFSET,
            sizeof(void*) * m->new_allocated);
@@ -133,12 +137,21 @@ static void CollectGarbagePointers(MemoryManager* m) {
 }
 
 void* BrotliAllocate(MemoryManager* m, size_t n) {
-  void* result = m->alloc_func(m->opaque, n);
+  void* result;
+  if (m->is_oom) {
+    return NULL;
+  }
+  result = m->alloc_func(m->opaque, n);
   if (!result) {
     m->is_oom = BROTLI_TRUE;
     return NULL;
   }
-  if (m->new_allocated == MAX_NEW_ALLOCATED) CollectGarbagePointers(m);
+  if (m->new_allocated >= MAX_NEW_ALLOCATED) CollectGarbagePointers(m);
+  if (m->is_oom || m->new_allocated >= MAX_NEW_ALLOCATED) {
+    m->free_func(m->opaque, result);
+    m->is_oom = BROTLI_TRUE;
+    return NULL;
+  }
   m->pointers[NEW_ALLOCATED_OFFSET + (m->new_allocated++)] = result;
   return result;
 }
@@ -146,8 +159,10 @@ void* BrotliAllocate(MemoryManager* m, size_t n) {
 void BrotliFree(MemoryManager* m, void* p) {
   if (!p) return;
   m->free_func(m->opaque, p);
-  if (m->new_freed == MAX_NEW_FREED) CollectGarbagePointers(m);
-  m->pointers[NEW_FREED_OFFSET + (m->new_freed++)] = p;
+  if (m->new_freed >= MAX_NEW_FREED) CollectGarbagePointers(m);
+  if (m->new_freed < MAX_NEW_FREED) {
+    m->pointers[NEW_FREED_OFFSET + (m->new_freed++)] = p;
+  }
 }
 
 void BrotliWipeOutMemoryManager(MemoryManager* m) {
