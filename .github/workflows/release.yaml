@@ -67,7 +67,7 @@ jobs:
     steps:
 
     - name: Harden Runner
-      uses: step-security/harden-runner@dc2769abcc0fcfbadfc1df54081c1608579ef6b2 # v2.22.2
+      uses: step-security/harden-runner@aebdcf6156ab6691adf63218240e476564a1ed4c # v2.23.0
       with:
         egress-policy: audit
 
@@ -152,7 +152,7 @@ jobs:
     steps:
 
     - name: Harden Runner
-      uses: step-security/harden-runner@dc2769abcc0fcfbadfc1df54081c1608579ef6b2 # v2.22.2
+      uses: step-security/harden-runner@aebdcf6156ab6691adf63218240e476564a1ed4c # v2.23.0
       with:
         egress-policy: audit
 
@@ -181,8 +181,8 @@ jobs:
     runs-on: [ubuntu-latest]
     permissions:
       contents: write # upload assets
-      id-token: write
-      attestations: write
+      id-token: write # Request an OIDC token for artifact signing
+      attestations: write # Publish provenance attestations
 
     steps:
     - name: Checkout the source
@@ -220,7 +220,7 @@ jobs:
     steps:
 
     - name: Harden Runner
-      uses: step-security/harden-runner@dc2769abcc0fcfbadfc1df54081c1608579ef6b2 # v2.22.2
+      uses: step-security/harden-runner@aebdcf6156ab6691adf63218240e476564a1ed4c # v2.23.0
       with:
         egress-policy: audit
 
