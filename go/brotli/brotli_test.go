@@ -42,6 +42,33 @@ func TestReader(t *testing.T) {
 	}
 }
 
+// zeroReader returns (0, nil) before every real read.
+type zeroReader struct {
+	r    io.Reader
+	skip bool
+}
+
+func (z *zeroReader) Read(p []byte) (int, error) {
+	z.skip = !z.skip
+	if z.skip {
+		return 0, nil
+	}
+	return z.r.Read(p)
+}
+
+func TestReaderZeroRead(t *testing.T) {
+	content := bytes.Repeat([]byte("hello world!"), 10000)
+	encoded, _ := cbrotli.Encode(content, cbrotli.WriterOptions{Quality: 5})
+	r := brotli.NewReader(&zeroReader{r: bytes.NewReader(encoded)})
+	got, err := io.ReadAll(r)
+	if err != nil {
+		t.Fatalf("ReadAll(): %v", err)
+	}
+	if !bytes.Equal(got, content) {
+		t.Errorf("got %d bytes, want %d", len(got), len(content))
+	}
+}
+
 func TestDecode(t *testing.T) {
 	content := bytes.Repeat([]byte("hello world!"), 10000)
 	encoded, _ := cbrotli.Encode(content, cbrotli.WriterOptions{Quality: 5})
