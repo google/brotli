@@ -8,9 +8,9 @@
 
 #include "backward_references_hq.h"
 
-#include "../common/constants.h"
-#include "../common/context.h"
-#include "../common/platform.h"
+#include "common/constants.h"
+#include "common/context.h"
+#include "common/platform.h"
 #include "command.h"
 #include "compound_dictionary.h"
 #include "encoder_dict.h"
@@ -20,7 +20,6 @@
 #include "literal_cost.h"
 #include "memory.h"
 #include "params.h"
-#include "prefix.h"
 #include "quality.h"
 
 #if defined(__cplusplus) || defined(c_plusplus)

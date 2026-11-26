@@ -10,9 +10,9 @@
 #ifndef BROTLI_ENC_HASH_H_
 #define BROTLI_ENC_HASH_H_
 
-#include "../common/constants.h"
-#include "../common/dictionary.h"
-#include "../common/platform.h"
+#include "common/constants.h"
+#include "common/dictionary.h"
+#include "common/platform.h"
 #include "compound_dictionary.h"
 #include "encoder_dict.h"
 #include "fast_log.h"

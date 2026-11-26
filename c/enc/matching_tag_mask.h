@@ -1,7 +1,7 @@
 #ifndef THIRD_PARTY_BROTLI_ENC_MATCHING_TAG_MASK_H_
 #define THIRD_PARTY_BROTLI_ENC_MATCHING_TAG_MASK_H_
 
-#include "../common/platform.h"
+#include "common/platform.h"
 
 #if defined(__SSE2__) || defined(_M_AMD64) || \
     (defined(_M_IX86) && defined(_M_IX86_FP) && (_M_IX86_FP >= 2))

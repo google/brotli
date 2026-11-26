@@ -6,19 +6,18 @@
 
 #include <brotli/decode.h>
 
-#include "../common/constants.h"
-#include "../common/context.h"
-#include "../common/dictionary.h"
-#include "../common/platform.h"
-#include "../common/shared_dictionary_internal.h"
+#include "common/constants.h"
+#include "common/context.h"
+#include "common/dictionary.h"
+#include "common/platform.h"
+#include "common/shared_dictionary_internal.h"
 #include <brotli/shared_dictionary.h>
-#include "../common/transform.h"
-#include "../common/version.h"
+#include "common/transform.h"
+#include "common/version.h"
 #include "bit_reader.h"
 #include "huffman.h"
 #include "prefix.h"
 #include "state.h"
-#include "static_init.h"
 
 #if defined(BROTLI_TARGET_NEON)
 #include <arm_neon.h>
@@ -80,10 +79,6 @@ BROTLI_BOOL BrotliDecoderSetParameter(
 BrotliDecoderState* BrotliDecoderCreateInstance(
     brotli_alloc_func alloc_func, brotli_free_func free_func, void* opaque) {
   BrotliDecoderState* state = 0;
-  if (!BrotliDecoderEnsureStaticInit()) {
-    BROTLI_DUMP();
-    return 0;
-  }
   if (!alloc_func && !free_func) {
     state = (BrotliDecoderState*)malloc(sizeof(BrotliDecoderState));
   } else if (alloc_func && free_func) {
@@ -1318,7 +1313,7 @@ DecodeDistanceBlockSwitch(BrotliDecoderState* s) {
   return DecodeDistanceBlockSwitchInternal(0, s);
 }
 
-static BROTLI_BOOL BROTLI_NOINLINE SafeDecodeDistanceBlockSwitch(
+static BROTLI_NOINLINE BrotliDecoderErrorCode SafeDecodeDistanceBlockSwitch(
     BrotliDecoderState* s) {
   return DecodeDistanceBlockSwitchInternal(1, s);
 }

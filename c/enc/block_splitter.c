@@ -8,7 +8,7 @@
 
 #include "block_splitter.h"
 
-#include "../common/platform.h"
+#include "common/platform.h"
 #include "bit_cost.h"
 #include "cluster.h"
 #include "command.h"

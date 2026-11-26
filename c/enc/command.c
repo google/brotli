@@ -6,7 +6,7 @@
 
 #include "command.h"
 
-#include "../common/platform.h"
+#include "common/platform.h"
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {

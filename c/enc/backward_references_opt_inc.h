@@ -215,7 +215,7 @@ static BROTLI_NOINLINE void EXPORT_FN(CreateBackwardReferences)(
            dictionary heads[] line before the StoreRange loop. */
         if (ENABLE_COMPOUND_DICTIONARY) {
           PrefetchCompoundDictionaryHeadsOpt(&params->dictionary.compound,
-              ringbuffer, ringbuffer_mask, position + sr.len);
+              ringbuffer, ringbuffer_mask, range_end);
         }
         FN(StoreRange)(privat, ringbuffer, ringbuffer_mask, range_start,
                        range_end);
