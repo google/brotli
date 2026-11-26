@@ -349,7 +349,8 @@ static Command ParseParams(Context* params) {
           continue;
         } else if (c == 'c') {
           if (output_set) {
-            fprintf(stderr, "write to standard output already set\n");
+            fprintf(stderr,
+                    "argument --stdout / -c or --output / -o already set\n");
             return COMMAND_INVALID;
           }
           output_set = BROTLI_TRUE;
@@ -449,9 +450,11 @@ static Command ParseParams(Context* params) {
         params->not_input_indices[next_option_index++] = i;
         if (c == 'o') {
           if (output_set) {
-            fprintf(stderr, "write to standard output already set (-o)\n");
+            fprintf(stderr,
+                    "argument --stdout / -c or --output / -o already set\n");
             return COMMAND_INVALID;
           }
+          output_set = BROTLI_TRUE;
           params->output_path = argv[i];
         } else if (c == 'q') {
           if (quality_set) {
@@ -570,7 +573,8 @@ static Command ParseParams(Context* params) {
         continue;
       } else if (strcmp("stdout", arg) == 0) {
         if (output_set) {
-          fprintf(stderr, "write to standard output already set\n");
+          fprintf(stderr,
+                  "argument --stdout / -c or --output / -o already set\n");
           return COMMAND_INVALID;
         }
         output_set = BROTLI_TRUE;
@@ -656,9 +660,10 @@ static Command ParseParams(Context* params) {
         } else if (strncmp("output", arg, key_len) == 0) {
           if (output_set) {
             fprintf(stderr,
-                    "write to standard output already set (--output)\n");
+                    "argument --stdout / -c or --output / -o already set\n");
             return COMMAND_INVALID;
           }
+          output_set = BROTLI_TRUE;
           params->output_path = value;
         } else if (strncmp("quality", arg, key_len) == 0) {
           if (quality_set) {
