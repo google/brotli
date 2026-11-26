@@ -103,6 +103,11 @@ type WriterOptions struct {
 	LGWin int
 	// Prepared shared dictionary
 	Dictionary *PreparedDictionary
+	// StreamOffset is the number of bytes that precede this part of the stream.
+	// Non-zero omits the stream header, so that separately encoded parts can be
+	// concatenated. Parts must share Quality and LGWin; all but the last must
+	// end with Flush.
+	StreamOffset int
 }
 
 // Writer implements io.WriteCloser by writing Brotli-encoded data to an
@@ -137,6 +142,12 @@ func NewWriter(dst io.Writer, options WriterOptions) *Writer {
 	}
 	if options.Dictionary != nil {
 		if C.BrotliEncoderAttachPreparedDictionary(state, options.Dictionary.opaque) == 0 {
+			healthy = false
+		}
+	}
+	if options.StreamOffset > 0 {
+		if C.BrotliEncoderSetParameter(
+			state, C.BROTLI_PARAM_STREAM_OFFSET, (C.uint32_t)(options.StreamOffset)) == 0 {
 			healthy = false
 		}
 	}

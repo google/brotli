@@ -418,3 +418,33 @@ func TestEncodeDecodeWithDictionary(t *testing.T) {
 			decoded, want)
 	}
 }
+
+func TestEncoderStreamOffset(t *testing.T) {
+	// Test that separately encoded parts concatenate into one stream.
+	parts := []string{"<html><body>", "Hello world", "</body></html>"}
+	out := bytes.Buffer{}
+	input := bytes.Buffer{}
+	for i, part := range parts {
+		e := cbrotli.NewWriter(&out, cbrotli.WriterOptions{
+			Quality:      11,
+			LGWin:        22,
+			StreamOffset: input.Len(),
+		})
+		if _, err := e.Write([]byte(part)); err != nil {
+			t.Fatalf("Write(): %v", err)
+		}
+		if i == len(parts)-1 {
+			if err := e.Close(); err != nil {
+				t.Fatalf("Close(): %v", err)
+			}
+		} else {
+			if err := e.Flush(); err != nil {
+				t.Fatalf("Flush(): %v", err)
+			}
+		}
+		input.Write([]byte(part))
+	}
+	if err := checkCompressedData(out.Bytes(), input.Bytes()); err != nil {
+		t.Errorf("%v", err)
+	}
+}
