@@ -1877,7 +1877,9 @@ static BROTLI_INLINE BROTLI_BOOL ReadDistanceInternal(
       return BROTLI_FALSE;
     }
   }
-  --s->block_length[2];
+  if (s->num_block_types[2] > 1) {
+    --s->block_length[2];
+  }
   /* Convert the distance code to the actual distance by possibly
      looking up past distances from the s->dist_rb. */
   s->distance_context = 0;
@@ -1890,7 +1892,9 @@ static BROTLI_INLINE BROTLI_BOOL ReadDistanceInternal(
     bits = BrotliReadBits32(br, b->dist_extra_bits[code]);
   } else {
     if (!SafeReadBits32(br, b->dist_extra_bits[code], &bits)) {
-      ++s->block_length[2];
+      if (s->num_block_types[2] > 1) {
+        ++s->block_length[2];
+      }
       BrotliBitReaderRestoreState(br, &memento);
       return BROTLI_FALSE;
     }
@@ -1943,7 +1947,9 @@ static BROTLI_INLINE BROTLI_BOOL ReadCommandInternal(
     }
   }
   s->copy_length = (int)copy_length + v.copy_len_offset;
-  --s->block_length[1];
+  if (s->num_block_types[1] > 1) {
+    --s->block_length[1];
+  }
   *insert_length += (int)insert_len_extra;
   return BROTLI_TRUE;
 }
@@ -2080,7 +2086,9 @@ CommandInner:
                                                  &value, s->ringbuffer, pos,
                                                  num_steps);
       pos += num_steps;
-      s->block_length[0] -= (brotli_reg_t)num_steps;
+      if (s->num_block_types[0] > 1) {
+        s->block_length[0] -= (brotli_reg_t)num_steps;
+      }
       i -= num_steps;
       do {
         if (!CheckInputAmount(safe, br)) {
@@ -2093,7 +2101,9 @@ CommandInner:
         }
         BrotliCopyPreloadedSymbolsToU8(s->literal_htree, br, &bits, &value,
                                        s->ringbuffer, pos, 1);
-        --s->block_length[0];
+        if (s->num_block_types[0] > 1) {
+          --s->block_length[0];
+        }
         BROTLI_LOG_ARRAY_INDEX(s->ringbuffer, pos);
         ++pos;
         if (BROTLI_PREDICT_FALSE(pos == s->ringbuffer_size)) {
@@ -2113,7 +2123,9 @@ CommandInner:
           goto saveStateAndReturn;
         }
         s->ringbuffer[pos] = (uint8_t)literal;
-        --s->block_length[0];
+        if (s->num_block_types[0] > 1) {
+          --s->block_length[0];
+        }
         BROTLI_LOG_ARRAY_INDEX(s->ringbuffer, pos);
         ++pos;
         if (BROTLI_PREDICT_FALSE(pos == s->ringbuffer_size)) {
@@ -2152,7 +2164,9 @@ CommandInner:
         p1 = (uint8_t)literal;
       }
       s->ringbuffer[pos] = p1;
-      --s->block_length[0];
+      if (s->num_block_types[0] > 1) {
+        --s->block_length[0];
+      }
       BROTLI_LOG_UINT(s->context_map_slice[context]);
       BROTLI_LOG_ARRAY_INDEX(s->ringbuffer, pos & s->ringbuffer_mask);
       ++pos;
