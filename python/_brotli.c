@@ -625,6 +625,7 @@ static PyObject* brotli_Compressor_finish(PyBrotli_Compressor* self) {
 typedef struct {
   PyObject_HEAD BrotliDecoderState* dec;
   uint8_t* unconsumed_data;
+  size_t unconsumed_data_offset;
   size_t unconsumed_data_length;
   int healthy;
   int processing;
@@ -648,6 +649,7 @@ static PyObject* brotli_Decompressor_new(PyTypeObject* type, PyObject* args,
   }
 
   self->unconsumed_data = NULL;
+  self->unconsumed_data_offset = 0;
   self->unconsumed_data_length = 0;
   self->healthy = 1;
 
@@ -721,6 +723,7 @@ static PyObject* brotli_Decompressor_process(PyBrotli_Decompressor* self,
   BrotliDecoderResult result = BROTLI_DECODER_RESULT_ERROR;
   Buffer buffer;
   uint8_t* new_tail = NULL;
+  size_t new_tail_offset = 0;
   size_t new_tail_length = 0;
   int oom = 0;
   int ok = 1;
@@ -747,7 +750,7 @@ static PyObject* brotli_Decompressor_process(PyBrotli_Decompressor* self,
       set_brotli_exception(self_type, kDecompressSinkError);
       goto finally;
     }
-    next_in = self->unconsumed_data;
+    next_in = self->unconsumed_data + self->unconsumed_data_offset;
     avail_in = self->unconsumed_data_length;
   } else {
     next_in = (uint8_t*)input.buf;
@@ -790,7 +793,12 @@ static PyObject* brotli_Decompressor_process(PyBrotli_Decompressor* self,
   /* Here result is either SUCCESS / NEEDS_MORE_INPUT / NEEDS_MORE_OUTPUT (if
      `output_buffer_limit` was reached). */
 
-  if (avail_in > 0) {
+  if (avail_in > 0 && self->unconsumed_data_length > 0) {
+    /* Input came from the stored tail; skip the consumed part, don't copy. */
+    new_tail = self->unconsumed_data;
+    new_tail_offset = (size_t)(next_in - self->unconsumed_data);
+    new_tail_length = avail_in;
+  } else if (avail_in > 0) {
     new_tail = malloc(avail_in);
     if (new_tail == NULL) {
       oom = 1;
@@ -816,11 +824,11 @@ finally:
   }
   PyBuffer_Release(&input);
   Buffer_Cleanup(&buffer);
-  if (self->unconsumed_data) {
+  if (self->unconsumed_data && self->unconsumed_data != new_tail) {
     free(self->unconsumed_data);
-    self->unconsumed_data = NULL;
   }
   self->unconsumed_data = new_tail;
+  self->unconsumed_data_offset = new_tail_offset;
   self->unconsumed_data_length = new_tail_length;
   if (PyErr_Occurred() != NULL) {
     assert(ret == NULL);
