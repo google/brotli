@@ -10,6 +10,9 @@
 
 #include "common/platform.h"
 #include "fast_log.h"
+#if defined(BROTLI_GOOGLE_HWY)
+#include "hwy_google.h"
+#endif
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {

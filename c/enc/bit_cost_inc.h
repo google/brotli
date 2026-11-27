@@ -10,6 +10,10 @@
 #define HistogramType FN(Histogram)
 
 double FN(BrotliPopulationCost)(const HistogramType* histogram) {
+#if defined(BROTLI_GOOGLE_HWY)
+  return BrotliPopulationCostHwy(histogram->data_, FN(HistogramDataSize)(),
+                                 histogram->total_count_);
+#else
   static const double kOneSymbolHistogramCost = 12;
   static const double kTwoSymbolHistogramCost = 20;
   static const double kThreeSymbolHistogramCost = 28;
@@ -122,6 +126,7 @@ double FN(BrotliPopulationCost)(const HistogramType* histogram) {
     bits += BrotliBitsEntropy(depth_histo, BROTLI_CODE_LENGTH_CODES);
   }
   return bits;
+#endif
 }
 
 #undef HistogramType
