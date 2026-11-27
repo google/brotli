@@ -387,7 +387,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, ubuntu-24.04-arm, macos-latest, windows-latest, windows-11-arm]
+        os: [ubuntu-latest, ubuntu-24.04-arm, ubuntu-24.04-riscv, macos-latest, windows-latest, windows-11-arm]
     steps:
       - name: Harden Runner
         uses: step-security/harden-runner@aebdcf6156ab6691adf63218240e476564a1ed4c
